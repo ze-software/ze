@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5305 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5305 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5305 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 11 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>16</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>5</td>
@@ -296,7 +304,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3-1">RFC5305-3-1</code></td><td colspan="3"><span class="rfc-subject">Use a TLV 22 link advertised with metric 2^24 minus 1 in normal SPF (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3-1">RFC5305-3-1</code></td><td colspan="3"><span class="rfc-subject">If a link is advertised with the maximum link metric (2^24 - 1), this link MUST NOT be considered during the normal SPF computation. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3</td>
@@ -305,7 +313,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L318" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISSPFMaxLinkMetricExcluded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3-2">RFC5305-3-2</code></td><td colspan="3"><span class="rfc-subject">Clamp metrics at or above MAX_PATH_METRIC (0xFE000000) to MAX_PATH_METRIC (Section 3, Section 3.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3-2">RFC5305-3-2</code></td><td colspan="3"><span class="rfc-subject">To preclude overflow within a traffic engineering Shortest Path First (SPF) implementation, all metrics greater than or equal to MAX_PATH_METRIC SHALL be considered to have a metric of MAX_PATH_METRIC. It is easiest to select MAX_PATH_METRIC such that MAX_PATH_METRIC plus a single link metric does not overflow the number of bits for internal metric calculation. We assume that this is 32 bits. Therefore, we have chosen MAX_PATH_METRIC to be 4,261,412,864 (0xFE000000, 2^32 - 2^25). (§3)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>3</td>
@@ -314,7 +322,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L253" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4-1">RFC5305-4-1</code></td><td colspan="3"><span class="rfc-subject">Consider a TLV 135 prefix with metric above MAX_PATH_METRIC in normal SPF (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4-1">RFC5305-4-1</code></td><td colspan="3"><span class="rfc-subject">If a prefix is advertised with a metric larger then MAX_PATH_METRIC (0xFE000000, see paragraph 3.0), this prefix MUST NOT be considered during the normal SPF computation. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4</td>
@@ -323,7 +331,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L300" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4.1-1">RFC5305-4.1-1</code></td><td colspan="3"><span class="rfc-subject">Set the TLV 135 up/down bit to 1 when advertising down the hierarchy or across same-level areas (Section 4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4.1-1">RFC5305-4.1-1</code></td><td colspan="3"><span class="rfc-subject">If a prefix is advertised from a higher level to a lower level (e.g., level 2 to level 1), the bit MUST be set to 1, indicating that the prefix has traveled down the hierarchy. Prefixes that have the up/down bit set to 1 may only be advertised down the hierarchy, i.e., to lower levels. These semantics apply even if IS-IS is extended in the future to have additional levels. By ensuring that prefixes follow only the IS-IS hierarchy, we have ensured that the information does not loop, thereby ensuring that there are no persistent forwarding loops. If a prefix is advertised from one area to another at the same level, then the up/down bit SHALL be set to 1. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -333,7 +341,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/consumer_test.go#L169" title="internal/plugins/isis/redistribute/consumer_test.go" target="_blank" rel="noopener"><code>TestISISRedistConsumerConnected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3.7-1">RFC5305-3.7-1</code></td><td colspan="3"><span class="rfc-subject">If a link is advertised without sub-TLV 18, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV (Section 3.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3.7-1">RFC5305-3.7-1</code></td><td colspan="3"><span class="rfc-subject">If a link is advertised without this sub-TLV, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV. (§3.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.7</td>
@@ -360,7 +368,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go#L39" title="internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go" target="_blank" rel="noopener"><code>TestRFC5305SubTLVsSetPresenceBit</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3.2-1">RFC5305-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Inject sub-TLV 6 / sub-TLV 8 / Router-ID addresses as /32 routes (Section 3.2, Section 3.3, Section 4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3.2-1">RFC5305-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST NOT inject a /32 prefix for the interface address into their routing or forwarding table because this can lead to forwarding loops when interacting with systems that do not support this sub-TLV. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2</td>
@@ -369,7 +377,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze never decodes the RFC 5305 TE sub-TLVs (sub-TLV 6/8) or TLV 134 into an address; internal/plugins/isis/spf/graph.go:192-194 reads only edges and drops sub-TLVs, and route.go:155 installs only node.Prefixes, so there is no per-link /32 injection code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3.2-2">RFC5305-3.2-2</code></td><td colspan="3"><span class="rfc-subject">Include sub-TLV 6 (and sub-TLV 8 on point-to-point) when implementing TE (Section 3.2, Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3.2-2">RFC5305-3.2-2</code></td><td colspan="3"><span class="rfc-subject">If a router implements traffic engineering, it MUST include this sub- TLV. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
@@ -378,7 +386,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this obligation is conditional on implementing IS-IS TE; ze originates no TLV 22 TE sub-TLVs (internal/plugins/isis/lsdb/encode.go:101-107 writes a zero sub-TLV length), so it does not implement the TE metric it would govern</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4.3-1">RFC5305-4.3-1</code></td><td colspan="3"><span class="rfc-subject">Include the TE Router ID TLV (134) when implementing TE (Section 4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4.3-1">RFC5305-4.3-1</code></td><td colspan="3"><span class="rfc-subject">If a router implements traffic engineering, it MUST include this TLV in its LSP. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3</td>
@@ -387,7 +395,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this obligation is conditional on implementing IS-IS TE; TLV 134 (TE Router ID) is absent from ze&#39;s IS-IS codec type set (internal/plugins/isis/packet/tlv.go:17-32), so ze originates and consumes no TLV 134</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-2-1">RFC5305-2-1</code></td><td colspan="3"><span class="rfc-subject">Ignore and skip unknown sub-TLVs on receipt (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-2-1">RFC5305-2-1</code></td><td colspan="3"><span class="rfc-subject">Unknown sub-TLVs are to be ignored and skipped upon receipt. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -397,7 +405,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_core_test.go#L205" title="internal/plugins/isis/packet/tlv_core_test.go" target="_blank" rel="noopener"><code>TestISISTLV22Truncated</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3.1-1">RFC5305-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Include each optional sub-TLV (3, 9, 10, 11, 18) at most once per TLV 22 (Section 3.1, Section 3.4 through Section 3.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3.1-1">RFC5305-3.1-1</code></td><td colspan="3"><span class="rfc-subject">This sub-TLV is OPTIONAL. This sub-TLV SHOULD appear once at most in each extended IS reachability TLV. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1</td>
@@ -406,7 +414,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4.3-2">RFC5305-4.3-2</code></td><td colspan="3"><span class="rfc-subject">Include the TE Router ID TLV more than once per LSP (Section 4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4.3-2">RFC5305-4.3-2</code></td><td colspan="3"><span class="rfc-subject">This TLV SHOULD not be included more than once in an LSP. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4.3</td>
@@ -415,7 +423,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3.6-1">RFC5305-3.6-1</code></td><td colspan="3"><span class="rfc-subject">For stability reasons, rapid changes in the values in sub-TLV 11 SHOULD NOT cause rapid generation of LSPs (Section 3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3.6-1">RFC5305-3.6-1</code></td><td colspan="3"><span class="rfc-subject">For stability reasons, rapid changes in the values in this sub-TLV SHOULD NOT cause rapid generation of LSPs. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>3.6</td>
@@ -424,7 +432,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4.3-3">RFC5305-4.3-3</code></td><td colspan="3"><span class="rfc-subject">Where a router advertises the TE Router ID TLV and advertises prefixes via BGP with the next hop set to the BGP router ID, the Traffic Engineering router ID SHOULD be the same as the BGP router ID (Section 4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4.3-3">RFC5305-4.3-3</code></td><td colspan="3"><span class="rfc-subject">If a router advertises the Traffic Engineering router ID TLV in its LSP, and if it advertises prefixes via the Border Gateway Protocol (BGP) with the BGP next hop attribute set to the BGP router ID, the Traffic Engineering router ID SHOULD be the same as the BGP router ID. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.3</td>
@@ -442,19 +450,19 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc5305-3.7-1"><code>RFC5305-3.7-1</code></a> If a link is advertised without sub-TLV 18, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV (Section 3.7)</td>
+<tr><td><a href="#rfc5305-3.7-1"><code>RFC5305-3.7-1</code></a> If a link is advertised without this sub-TLV, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV. (§3.7)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: &#34;Keep configured routes&#34; for TE path computation. The conditional subject is &#34;traffic engineering SPF calculations&#34;; internal/plugins/rsvpte/register.go parseERO, routing.go resolveExplicitPath and frr.go selectBypass consume configured routes, native next-hop lookups and configured bypasses. internal/plugins/isis/spf/spf.go computes normal SPF. There is no CSPF/TE shortest-path consumer to apply this fallback. This exclusion does not cover native TE advertisement or wire duties, and BGP-LS export is not TE-SPF</td>
 </tr>
-<tr><td><a href="#rfc5305-3.2-1"><code>RFC5305-3.2-1</code></a> Inject sub-TLV 6 / sub-TLV 8 / Router-ID addresses as /32 routes (Section 3.2, Section 3.3, Section 4.3)</td>
+<tr><td><a href="#rfc5305-3.2-1"><code>RFC5305-3.2-1</code></a> Implementations MUST NOT inject a /32 prefix for the interface address into their routing or forwarding table because this can lead to forwarding loops when interacting with systems that do not support this sub-TLV. (§3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze never decodes the RFC 5305 TE sub-TLVs (sub-TLV 6/8) or TLV 134 into an address; internal/plugins/isis/spf/graph.go:192-194 reads only edges and drops sub-TLVs, and route.go:155 installs only node.Prefixes, so there is no per-link /32 injection code path</td>
 </tr>
-<tr><td><a href="#rfc5305-3.2-2"><code>RFC5305-3.2-2</code></a> Include sub-TLV 6 (and sub-TLV 8 on point-to-point) when implementing TE (Section 3.2, Section 3.3)</td>
+<tr><td><a href="#rfc5305-3.2-2"><code>RFC5305-3.2-2</code></a> If a router implements traffic engineering, it MUST include this sub- TLV. (§3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this obligation is conditional on implementing IS-IS TE; ze originates no TLV 22 TE sub-TLVs (internal/plugins/isis/lsdb/encode.go:101-107 writes a zero sub-TLV length), so it does not implement the TE metric it would govern</td>
 </tr>
-<tr><td><a href="#rfc5305-4.3-1"><code>RFC5305-4.3-1</code></a> Include the TE Router ID TLV (134) when implementing TE (Section 4.3)</td>
+<tr><td><a href="#rfc5305-4.3-1"><code>RFC5305-4.3-1</code></a> If a router implements traffic engineering, it MUST include this TLV in its LSP. (§4.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this obligation is conditional on implementing IS-IS TE; TLV 134 (TE Router ID) is absent from ze&#39;s IS-IS codec type set (internal/plugins/isis/packet/tlv.go:17-32), so ze originates and consumes no TLV 134</td>
 </tr>
@@ -465,8 +473,8 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5305-3-1"><code>RFC5305-3-1</code></a></h3>
-<p>Use a TLV 22 link advertised with metric 2^24 minus 1 in normal SPF (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If a link is advertised with the maximum link metric (2^24 - 1), this link MUST NOT be considered during the normal SPF computation. (§3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a link advertised at 2^24-1 being walked by normal SPF. TestISISSPFMaxLinkMetricExcluded builds A-B at 16777215 and t.Errorf fires if B or C appears in the SPF result; the positive half proves 16777214 is still relaxed (B at 16777214, C at 16777224).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -485,8 +493,8 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 </table>
 </div>
 <h3><a href="#rfc5305-3-2"><code>RFC5305-3-2</code></a></h3>
-<p>Clamp metrics at or above MAX_PATH_METRIC (0xFE000000) to MAX_PATH_METRIC (Section 3, Section 3.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>To preclude overflow within a traffic engineering Shortest Path First (SPF) implementation, all metrics greater than or equal to MAX_PATH_METRIC SHALL be considered to have a metric of MAX_PATH_METRIC. It is easiest to select MAX_PATH_METRIC such that MAX_PATH_METRIC plus a single link metric does not overflow the number of bits for internal metric calculation. We assume that this is 32 bits. Therefore, we have chosen MAX_PATH_METRIC to be 4,261,412,864 (0xFE000000, 2^32 - 2^25). (§3)</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The quoted sentence governs a traffic engineering SPF implementation: &#34;To preclude overflow within a traffic engineering Shortest Path First (SPF) implementation, all metrics greater than or equal to MAX_PATH_METRIC SHALL be considered to have a metric of MAX_PATH_METRIC.&#34; Ze has no TE SPF (RFC5305-3.7-1 is not-applicable for that reason). TestISISMetricWidth asserts clampMetric saturation in the normal SPF, a neighbouring rule (RFC5308-5-2 tags the same unit), so the tag proves a different obligation from the one the row states.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -505,8 +513,8 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 </table>
 </div>
 <h3><a href="#rfc5305-4-1"><code>RFC5305-4-1</code></a></h3>
-<p>Consider a TLV 135 prefix with metric above MAX_PATH_METRIC in normal SPF (Section 4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If a prefix is advertised with a metric larger then MAX_PATH_METRIC (0xFE000000, see paragraph 3.0), this prefix MUST NOT be considered during the normal SPF computation. (§4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. §4 excludes a prefix &#34;advertised with a metric larger then MAX_PATH_METRIC&#34;. Forbidden behaviour: such a prefix being considered in normal SPF. The tagged negative in TestISISMetricWidth advertises exactly MAX_PATH_METRIC (0xFE000000), which §4 does not exclude by itself, and the route drops out because the path total with edge 10 exceeds the ceiling. No input advertises a metric larger than MAX_PATH_METRIC, so the unit proves the path-total ceiling rather than §4&#39;s advertised-metric rule.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -525,8 +533,8 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 </table>
 </div>
 <h3><a href="#rfc5305-4.1-1"><code>RFC5305-4.1-1</code></a></h3>
-<p>Set the TLV 135 up/down bit to 1 when advertising down the hierarchy or across same-level areas (Section 4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If a prefix is advertised from a higher level to a lower level (e.g., level 2 to level 1), the bit MUST be set to 1, indicating that the prefix has traveled down the hierarchy. Prefixes that have the up/down bit set to 1 may only be advertised down the hierarchy, i.e., to lower levels. These semantics apply even if IS-IS is extended in the future to have additional levels. By ensuring that prefixes follow only the IS-IS hierarchy, we have ensured that the information does not loop, thereby ensuring that there are no persistent forwarding loops. If a prefix is advertised from one area to another at the same level, then the up/down bit SHALL be set to 1. (§4.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quote carries two clauses. Down the hierarchy: TestISISEngineLeakOrigination (lsdb_wiring_test.go) asserts the L2-to-L1 leak has up/down SET (t.Errorf on !up), and the negatives (the same test, and TestISISRedistConsumerConnected) assert an up leak and a first injection leave it clear. Same level, area to area: &#34;If a prefix is advertised from one area to another at the same level, then the up/down bit SHALL be set to 1.&#34; No tagged unit advertises a prefix between areas at one level, so that clause has no assertion that goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -550,7 +558,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 </table>
 </div>
 <h3><a href="#rfc5305-3.7-1"><code>RFC5305-3.7-1</code></a></h3>
-<p>If a link is advertised without sub-TLV 18, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV (Section 3.7)</p>
+<p>If a link is advertised without this sub-TLV, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV. (§3.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5305-3.7-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5305-4.1-2"><code>RFC5305-4.1-2</code></a></h3>
@@ -594,20 +602,20 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 </table>
 </div>
 <h3><a href="#rfc5305-3.2-1"><code>RFC5305-3.2-1</code></a></h3>
-<p>Inject sub-TLV 6 / sub-TLV 8 / Router-ID addresses as /32 routes (Section 3.2, Section 3.3, Section 4.3)</p>
+<p>Implementations MUST NOT inject a /32 prefix for the interface address into their routing or forwarding table because this can lead to forwarding loops when interacting with systems that do not support this sub-TLV. (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5305-3.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5305-3.2-2"><code>RFC5305-3.2-2</code></a></h3>
-<p>Include sub-TLV 6 (and sub-TLV 8 on point-to-point) when implementing TE (Section 3.2, Section 3.3)</p>
+<p>If a router implements traffic engineering, it MUST include this sub- TLV. (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5305-3.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5305-4.3-1"><code>RFC5305-4.3-1</code></a></h3>
-<p>Include the TE Router ID TLV (134) when implementing TE (Section 4.3)</p>
+<p>If a router implements traffic engineering, it MUST include this TLV in its LSP. (§4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5305-4.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5305-2-1"><code>RFC5305-2-1</code></a></h3>
-<p>Ignore and skip unknown sub-TLVs on receipt (Section 2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Unknown sub-TLVs are to be ignored and skipped upon receipt. (§2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: rejecting a TLV that carries unknown sub-TLVs, or not skipping them so the next entry misparses. TestISISTLV22RoundTrip (tlv_core_test.go) keeps entry0&#39;s three uninterpreted sub-TLVs opaque and then asserts entry1&#39;s metric equals types.MaxMetric, which goes red on a wrong skip; TestISISTLVIPv4RoundTrip (tlv_ipv4_test.go, with-subtlv) goes red if a type-1 sub-TLV is rejected (t.Fatalf on decode error). Negative TestISISTLV22Truncated proves an overrunning length is not skipped as absent.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -868,7 +876,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

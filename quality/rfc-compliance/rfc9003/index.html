@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9003 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9003: Extended BGP Administrative Shutdown Communication. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 9003: Extended BGP Administrative Shutdown Communication. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9003 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9003: Extended BGP Administrative Shutdown Communication. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 9003: Extended BGP Administrative Shutdown Communication. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9003 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9003: Extended BGP Administrative Shutdown Communication. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 9003: Extended BGP Administrative Shutdown Communication. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>2</strong><b>of 4 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>8</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -330,7 +338,7 @@ Sender remains conservative at 128 bytes for interoperability.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L411" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Valid</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-2-5">RFC9003-2-5</code></td><td colspan="3"><span class="rfc-subject">Reporting mechanisms SHOULD include methods such as syslog (S2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-2-5">RFC9003-2-5</code></td><td colspan="3"><span class="rfc-subject">Mechanisms concerning the reporting of information contained in the Shutdown Communication are implementation specific but SHOULD include methods such as syslog [RFC5424]. (§2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2 - Shutdown Communication</td>
@@ -339,7 +347,7 @@ Sender remains conservative at 128 bytes for interoperability.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-4-1">RFC9003-4-1</code></td><td colspan="3"><span class="rfc-subject">If invalid UTF-8 sequence received, a message indicating this event SHOULD be logged (S4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-4-1">RFC9003-4-1</code></td><td colspan="3"><span class="rfc-subject">If a Shutdown Communication with an invalid UTF-8 sequence is received, a message indicating this event SHOULD be logged for the attention of the operator. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4 - Error Handling</td>
@@ -348,7 +356,7 @@ Sender remains conservative at 128 bytes for interoperability.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-3-1">RFC9003-3-1</code></td><td colspan="3"><span class="rfc-subject">If peer support unknown, Shutdown Communication SHOULD NOT be longer than 128 octets (S3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-3-1">RFC9003-3-1</code></td><td colspan="3"><span class="rfc-subject">Otherwise, a Shutdown Communication MAY be sent, but it SHOULD NOT be longer than 128 octets. (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>3 - Operational Considerations</td>
@@ -357,7 +365,7 @@ Sender remains conservative at 128 bytes for interoperability.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-2-6">RFC9003-2-6</code></td><td colspan="3"><span class="rfc-subject">Sender MAY include a UTF-8-encoded string in the Cease NOTIFICATION (S2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-2-6">RFC9003-2-6</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker decides to terminate its session with a BGP neighbor, and it sends a NOTIFICATION message with the Error Code &#34;Cease&#34; and Error Subcode &#34;Administrative Shutdown&#34; or &#34;Administrative Reset&#34; [RFC4486], it MAY include a UTF-8-encoded string. (§2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2 - Shutdown Communication</td>
@@ -366,7 +374,7 @@ Sender remains conservative at 128 bytes for interoperability.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-4-2">RFC9003-4-2</code></td><td colspan="3"><span class="rfc-subject">Erroneous or malformed Shutdown Communication MAY be logged in hexdump format (S4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-4-2">RFC9003-4-2</code></td><td colspan="3"><span class="rfc-subject">An erroneous or malformed Shutdown Communication itself MAY be logged in a hexdump format. (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4 - Error Handling</td>
@@ -375,7 +383,7 @@ Sender remains conservative at 128 bytes for interoperability.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-3-2">RFC9003-3-2</code></td><td colspan="3"><span class="rfc-subject">If peer known to support this spec, Shutdown Communication up to 255 octets MAY be sent (S3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-3-2">RFC9003-3-2</code></td><td colspan="3"><span class="rfc-subject">If it is known that the peer BGP speaker supports this specification, then a Shutdown Communication that is not longer than 255 octets MAY be sent. (§3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3 - Operational Considerations</td>
@@ -384,7 +392,7 @@ Sender remains conservative at 128 bytes for interoperability.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-3-3">RFC9003-3-3</code></td><td colspan="3"><span class="rfc-subject">If peer support unknown, a Shutdown Communication MAY be sent (S3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-3-3">RFC9003-3-3</code></td><td colspan="3"><span class="rfc-subject">Otherwise, a Shutdown Communication MAY be sent (§3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3 - Operational Considerations</td>
@@ -444,7 +452,7 @@ Sender remains conservative at 128 bytes for interoperability.
 </div>
 <h3><a href="#rfc9003-2-3"><code>RFC9003-2-3</code></a></h3>
 <p>Subcode: The Error Subcode value MUST be one of the following values: 2 (&#34;Administrative Shutdown&#34;) or 4 (&#34;Administrative Reset&#34;). (S2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Re-read 2026-09-27. The sentence constrains the NOTIFICATION that carries a Shutdown Communication: its subcode is 2 or 4. Forbidden: ze sending a Shutdown Communication under another Cease subcode. TestRFC8203Subcode only proves the RECEIVE side (ShutdownMessage decodes for 2 and 4 and not for 3); no tagged unit asserts the subcode of a Cease NOTIFICATION ze builds with a shutdown message.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -464,7 +472,7 @@ Sender remains conservative at 128 bytes for interoperability.
 </div>
 <h3><a href="#rfc9003-2-4"><code>RFC9003-2-4</code></a></h3>
 <p>A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (S2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Forbidden: a receiver interpreting an invalid UTF-8 Shutdown Communication. TestRFC8203UTF8Invalid fails unless ShutdownMessage errors and returns empty for 0xff 0xfe 0xfd; TestRFC8203UTF8Valid shows valid multibyte text is interpreted.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -647,7 +655,7 @@ Sender remains conservative at 128 bytes for interoperability.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

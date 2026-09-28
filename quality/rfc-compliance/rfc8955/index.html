@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8955 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8955: Dissemination of Flow Specification Rules. 30 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8955: Dissemination of Flow Specification Rules. 30 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8955 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8955: Dissemination of Flow Specification Rules. 30 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8955: Dissemination of Flow Specification Rules. 30 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8955 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8955: Dissemination of Flow Specification Rules. 30 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8955: Dissemination of Flow Specification Rules. 30 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>23</strong><b>of 30 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 30 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>69</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>23</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>9</td>
@@ -356,25 +364,25 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1335" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestParseFlowSpecRefusesDescendingComponentType</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.1.1-1">RFC8955-4.2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">In the first operator octet of a sequence, the AND bit MUST be encoded as unset (§4.2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.1.1-1">RFC8955-4.2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">In the first operator octet of a sequence, it MUST be encoded as unset (§4.2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.1.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1542" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitEncodedUnset</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1539" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitEncodedUnset</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> parseFlowMatches derives the AND bit purely from the position inside a &#39;&amp;&#39;-joined expression (isAnd := i &gt; 0), so the first operator-value pair is always encoded with the AND bit clear and no input sets it (internal/component/bgp/plugins/nlri/flowspec/config_builder.go:220,:252)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.1.1-2">RFC8955-4.2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">First operator AND bit MUST be treated as always unset on decoding (§4.2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.1.1-2">RFC8955-4.2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">In the first operator octet of a sequence, it MUST be encoded as unset and MUST be treated as always unset on decoding. (§4.2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.1.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1573" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1577" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1570" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1574" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.1.1-3">RFC8955-4.2.1.1-3</code></td><td colspan="3"><span class="rfc-subject">Numeric operator reserved bit (bit 4) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.1.1-3">RFC8955-4.2.1.1-3</code></td><td colspan="3"><span class="rfc-subject">0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.1.1</td>
@@ -383,13 +391,13 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L43" title="internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go" target="_blank" rel="noopener"><code>TestFlowSpecNumericReservedAndEightOctetOperand</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.1.2-1">RFC8955-4.2.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Bitmask operator reserved bits (bits 4-5) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.1.2-1">RFC8955-4.2.1.2-1</code></td><td colspan="3"><span class="rfc-subject">0 (all 0 bits): MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.1.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1450" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecBitmaskOperatorReservedBitsZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1611" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1448" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecBitmaskOperatorReservedBitsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1608" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.9-1">RFC8955-4.2.2.9-1</code></td><td colspan="3"><span class="rfc-subject">Type 9 component bitmasks MUST be encoded as 1- or 2-octet bitmask (bitmask_op len=00 or len=01). (§4.2.2.9)</span></td></tr>
@@ -397,7 +405,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <td>MUST</td>
 <td>4.2.2.9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.2.9-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1671" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955TCPFlagsBitmaskSingleOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1668" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955TCPFlagsBitmaskSingleOctet</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> parseFlowTCPFlagMatches resolves flag names to 8-bit values and numericComponent.Bytes() selects the 1-octet length code for any value &lt;= 0xFF, so an emitted Type-9 bitmask is always 1 octet and no over-long bitmask can be produced to reject (internal/component/bgp/plugins/nlri/flowspec/config_builder.go:414-446, types_numeric.go:47-55)</p></td>
 </tr>
@@ -406,7 +414,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <td>MUST</td>
 <td>4.2.2.11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.2.11-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1699" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955DSCPValueSingleOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1696" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955DSCPValueSingleOctet</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> parseFlowOctets parses DSCP values as uint8 and NewFlowDSCPComponent stores them, so numericComponent.Bytes() always selects the 1-octet length code and no multi-octet DSCP encoding exists to reject (internal/component/bgp/plugins/nlri/flowspec/config_builder.go:261-273, types_numeric.go:473-479)</p></td>
 </tr>
@@ -415,7 +423,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <td>MUST</td>
 <td>4.2.2.12</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.2.12-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1726" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FragmentBitmaskSingleOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1723" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FragmentBitmaskSingleOctet</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> fragment values come from the four low-nibble FlowFragmentFlag constants, so numericComponent.Bytes() always selects the 1-octet length code and no multi-octet fragment bitmask can be produced to reject (internal/component/bgp/plugins/nlri/flowspec/types.go:201-206, types_numeric.go:481-491)</p></td>
 </tr>
@@ -424,11 +432,11 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <td>MUST</td>
 <td>4.2.2.12</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.2.12-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1479" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecFragmentReservedHighNibbleZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1644" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FragmentReservedBitsIgnoredOnDecode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1476" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecFragmentReservedHighNibbleZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1641" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FragmentReservedBitsIgnoredOnDecode</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-6-1">RFC8955-6-1</code></td><td colspan="3"><span class="rfc-subject">Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all validation conditions are true (§6, updated by RFC 9117 §4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-6-1">RFC8955-6-1</code></td><td colspan="3"><span class="rfc-subject">In the absence of explicit configuration, a Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all of the conditions below are true: (§6, updated by RFC 9117 §4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -437,7 +445,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L127" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-6-2">RFC8955-6-2</code></td><td colspan="3"><span class="rfc-subject">The leftmost AS_SEQUENCE ASN of a Flow Specification route received via eBGP MUST match the leftmost AS_SEQUENCE ASN of the best-match unicast route for its destination prefix (§6, replaced by RFC 9117 §4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-6-2">RFC8955-6-2</code></td><td colspan="3"><span class="rfc-subject">BGP implementations MUST also enforce that the AS_PATH attribute of a route received via the External Border Gateway Protocol (eBGP) contains the neighboring AS in the left-most position of the AS_PATH attribute. (§6, replaced by RFC 9117 §4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -512,7 +520,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze publishes no specification introducing a validation relaxation. The implemented RFC 9117 rules are standards-defined; flowSpecAuthorized in internal/component/bgp/plugins/rib/rib_flowspec_validation.go still requires a valid destination and covering unicast reachability, with no configurable destination bypass</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-5.1-1">RFC8955-5.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;This ordering function is such that it does not depend on the arrival order of the Flow Specification via BGP and thus is consistent in the network&#34; (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-5.1-1">RFC8955-5.1-1</code></td><td colspan="3"><span class="rfc-subject">This ordering function is such that it does not depend on the arrival order of the Flow Specification via BGP and thus is consistent in the network. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -521,7 +529,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L10" title="internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go" target="_blank" rel="noopener"><code>TestFlowSpecPrecedenceFromWire</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-5.1-2">RFC8955-5.1-2</code></td><td colspan="3"><span class="rfc-subject">The relative order of two Flow Specifications is determined by comparing their components from the left-most (lowest component type value): the Flow Specification with the lowest numeric type value has higher precedence; for IP destination or source prefix values the more specific prefix has higher precedence and otherwise the lowest IP value does; for all other component types the data is compared as a binary string with memcmp(), the lowest string wins at equal lengths, and at different lengths the common prefix decides with the longest string winning when that prefix is equal (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-5.1-2">RFC8955-5.1-2</code></td><td colspan="3"><span class="rfc-subject">The relative order of two Flow Specifications is determined by comparing their respective components. The algorithm starts by comparing the left-most components (lowest component type value) of the Flow Specifications. If the types differ, the Flow Specification with lowest numeric type value has higher precedence (and thus will match before) than the Flow Specification that doesn&#39;t contain that component type. If the component types are the same, then a type- specific comparison is performed (see below). If the types are equal, the algorithm continues with the next component. For IP prefix values (IP destination or source prefix), if one of the two prefixes to compare is a more specific prefix of the other, the more specific prefix has higher precedence. Otherwise, the one with the lowest IP value has higher precedence. For all other component types, unless otherwise specified, the comparison is performed by comparing the component data as a binary string using the memcmp() function as defined by [ISO_IEC_9899]. For strings with equal lengths, the lowest string (memcmp) has higher precedence. For strings of different lengths, the common prefix is compared. If the common prefix is not equal, the string with the lowest prefix has higher precedence. If the common prefix is equal, the longest string is considered to have higher precedence than the shorter one. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -532,7 +540,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/selected_integration_linux_test.go#L24" title="internal/plugins/flowspec-firewall/selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-8-1">RFC8955-8-1</code></td><td colspan="3"><span class="rfc-subject">The VPNv4 Flow Specification NLRI &#34;consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2)&#34; (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-8-1">RFC8955-8-1</code></td><td colspan="3"><span class="rfc-subject">The NLRI format for this address family consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2). (§8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8</td>
@@ -568,7 +576,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L159" title="internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go" target="_blank" rel="noopener"><code>TestRFC8955FlowSpecLosingPathIsNeverPublished</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.3-2">RFC8955-7.3-2</code></td><td colspan="3"><span class="rfc-subject">Where the Terminal Action bit is set and the evaluation continues to the next Flow Specification, &#34;all the Traffic Filtering Actions from these Flow Specifications shall be collected and applied&#34; (§7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.3-2">RFC8955-7.3-2</code></td><td colspan="3"><span class="rfc-subject">The use of the Terminal Action (bit 47) may result in more than one Flow Specification matching a particular traffic flow. All the Traffic Filtering Actions from these Flow Specifications shall be collected and applied. (§7.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.3</td>
@@ -577,7 +585,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/selected_integration_linux_test.go#L26" title="internal/plugins/flowspec-firewall/selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-12-2">RFC8955-12-2</code></td><td colspan="3"><span class="rfc-subject">Where the rule-a validation relaxation is used, &#34;for a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty&#34; (§12)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-12-2">RFC8955-12-2</code></td><td colspan="3"><span class="rfc-subject">For a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty. (§12)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>12</td>
@@ -586,7 +594,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> conditional on an absent feature. flowSpecDestination and flowSpecAuthorized in internal/component/bgp/plugins/rib/rib_flowspec_validation.go require a valid destination, including offset zero for IPv6, and no configuration bypasses that guard. The owner explicitly retained strict destination validation</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.3-1">RFC8955-4.2.2.3-1</code></td><td colspan="3"><span class="rfc-subject">Type 3 (IP Protocol) values SHOULD be encoded as single octet (§4.2.2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.3-1">RFC8955-4.2.2.3-1</code></td><td colspan="3"><span class="rfc-subject">Type 3 component values SHOULD be encoded as single octet (numeric_op len=00). (§4.2.2.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.2.3</td>
@@ -595,7 +603,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.4-1">RFC8955-4.2.2.4-1</code></td><td colspan="3"><span class="rfc-subject">Type 4-6, 10 (Port, Dst Port, Src Port, Packet Length) values SHOULD be encoded as 1- or 2-octet quantities (§4.2.2.4-6, §4.2.2.10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.4-1">RFC8955-4.2.2.4-1</code></td><td colspan="3"><span class="rfc-subject">Type 4 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.2.4</td>
@@ -604,7 +612,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.7-1">RFC8955-4.2.2.7-1</code></td><td colspan="3"><span class="rfc-subject">Type 7-8 (ICMP Type, ICMP Code) values SHOULD be encoded as single octet (§4.2.2.7-8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.7-1">RFC8955-4.2.2.7-1</code></td><td colspan="3"><span class="rfc-subject">Type 7 component values SHOULD be encoded as single octet (numeric_op len=00). (§4.2.2.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.2.7</td>
@@ -613,7 +621,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.11-2">RFC8955-4.2.2.11-2</code></td><td colspan="3"><span class="rfc-subject">DSCP extra bits SHOULD be treated as 0 (§4.2.2.11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.11-2">RFC8955-4.2.2.11-2</code></td><td colspan="3"><span class="rfc-subject">The six least significant bits contain the DSCP value. All other bits SHOULD be treated as 0. (§4.2.2.11)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.2.11</td>
@@ -622,7 +630,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7-1">RFC8955-7-1</code></td><td colspan="3"><span class="rfc-subject">Multiple Traffic Filtering Actions present for a single Flow Specification SHOULD be applied to the traffic flow (§7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7-1">RFC8955-7-1</code></td><td colspan="3"><span class="rfc-subject">Multiple Traffic Filtering Actions defined in this document may be present for a single Flow Specification and SHOULD be applied to the traffic flow (for example, traffic-rate-bytes and rt-redirect can be applied to packets at the same time). (§7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7</td>
@@ -631,7 +639,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.1-3">RFC8955-7.1-3</code></td><td colspan="3"><span class="rfc-subject">The 2-octet AS id in traffic-rate-bytes/packets is purely informational and SHOULD NOT be interpreted by the implementation (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.1-3">RFC8955-7.1-3</code></td><td colspan="3"><span class="rfc-subject">The first two octets carry the 2-octet id, which can be assigned from a 2-octet AS number. When a 4-octet AS number is locally present, the 2 least significant octets of such an AS number can be used. This value is purely informational and SHOULD NOT be interpreted by the implementation. (§7.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>7.1</td>
@@ -640,7 +648,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2-3">RFC8955-4.2-3</code></td><td colspan="3"><span class="rfc-subject">Impossible combinations (e.g., ICMP Type AND Port) SHOULD NOT be propagated by BGP (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2-3">RFC8955-4.2-3</code></td><td colspan="3"><span class="rfc-subject">All combinations of components within a single Flow Specification are allowed. However, some combinations cannot match any packets (e.g., &#34;ICMP Type AND Port&#34; will never match any packets) and thus SHOULD NOT be propagated by BGP. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4.2</td>
@@ -649,7 +657,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-9-1">RFC8955-9-1</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD provide a mechanism to log the packet header of filtered traffic (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-9-1">RFC8955-9-1</code></td><td colspan="3"><span class="rfc-subject">While this is an implementation specific choice, implementations SHOULD provide: * A mechanism to log the packet header of filtered traffic. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>9</td>
@@ -658,7 +666,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-9-2">RFC8955-9-2</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD provide a mechanism to count the number of matches for a given Flow Specification rule (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-9-2">RFC8955-9-2</code></td><td colspan="3"><span class="rfc-subject">While this is an implementation specific choice, implementations SHOULD provide: * A mechanism to log the packet header of filtered traffic. * A mechanism to count the number of matches for a given Flow Specification rule. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>9</td>
@@ -667,7 +675,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.7-1">RFC8955-7.7-1</code></td><td colspan="3"><span class="rfc-subject">Implementors SHOULD document the behavior of their implementation for interfering Traffic Filtering Actions (§7.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.7-1">RFC8955-7.7-1</code></td><td colspan="3"><span class="rfc-subject">If a Flow Specification associated with interfering Traffic Filtering Actions is selected for packet forwarding, it is an implementation decision which of the interfering Traffic Filtering Actions are selected. Implementors of this specification SHOULD document the behavior of their implementation in such cases. (§7.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7.7</td>
@@ -676,7 +684,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7-2">RFC8955-7-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Any additional definition of Traffic Filtering Actions SHOULD specify the action to take if those Traffic Filtering Actions interfere (also with existing Traffic Filtering Actions)&#34; (§7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7-2">RFC8955-7-2</code></td><td colspan="3"><span class="rfc-subject">Any additional definition of Traffic Filtering Actions SHOULD specify the action to take if those Traffic Filtering Actions interfere (also with existing Traffic Filtering Actions). (§7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7</td>
@@ -685,7 +693,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.1-4">RFC8955-7.1-4</code></td><td colspan="3"><span class="rfc-subject">&#34;A traffic-rate of 0 should result on all traffic for the particular flow to be discarded&#34;, and &#34;a traffic-rate-packets of 0 should result in all traffic for the particular flow to be discarded&#34; (§7.1, §7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.1-4">RFC8955-7.1-4</code></td><td colspan="3"><span class="rfc-subject">A traffic-rate of 0 should result on all traffic for the particular flow to be discarded. (§7.1, §7.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7.1</td>
@@ -694,7 +702,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.6-1">RFC8955-7.6-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Implementations should provide mechanisms that map an arbitrary BGP community value (normal or extended) to Traffic Filtering Actions that require different mappings on different systems in the network&#34; (§7.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.6-1">RFC8955-7.6-1</code></td><td colspan="3"><span class="rfc-subject">Implementations should provide mechanisms that map an arbitrary BGP community value (normal or extended) to Traffic Filtering Actions that require different mappings on different systems in the network. (§7.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7.6</td>
@@ -703,7 +711,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-6-4">RFC8955-6-4</code></td><td colspan="3"><span class="rfc-subject">Rule a (destination prefix requirement) MAY be relaxed by explicit configuration; if so, rules b and c MUST be disregarded (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-6-4">RFC8955-6-4</code></td><td colspan="3"><span class="rfc-subject">However, rule a MAY be relaxed by explicit configuration, permitting Flow Specifications that include no destination prefix component. If such is the case, rules b and c are moot and MUST be disregarded. (§6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6</td>
@@ -712,7 +720,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2-4">RFC8955-4.2-4</code></td><td colspan="3"><span class="rfc-subject">A given component type MAY appear exactly once (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2-4">RFC8955-4.2-4</code></td><td colspan="3"><span class="rfc-subject">A given component type MAY (exactly once) be present in the Flow Specification. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.2</td>
@@ -734,7 +742,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze publishes no specification introducing a validation relaxation. The implemented RFC 9117 rules are standards-defined; flowSpecAuthorized in internal/component/bgp/plugins/rib/rib_flowspec_validation.go still requires a valid destination and covering unicast reachability, with no configurable destination bypass</td>
 </tr>
-<tr><td><a href="#rfc8955-12-2"><code>RFC8955-12-2</code></a> Where the rule-a validation relaxation is used, &#34;for a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty&#34; (§12)</td>
+<tr><td><a href="#rfc8955-12-2"><code>RFC8955-12-2</code></a> For a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty. (§12)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: conditional on an absent feature. flowSpecDestination and flowSpecAuthorized in internal/component/bgp/plugins/rib/rib_flowspec_validation.go require a valid destination, including offset zero for IPv6, and no configuration bypasses that guard. The owner explicitly retained strict destination validation</td>
 </tr>
@@ -861,7 +869,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </div>
 <h3><a href="#rfc8955-4.2-2"><code>RFC8955-4.2-2</code></a></h3>
 <p>If present, it MUST precede any component of higher numeric type value. (§4.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. positive re-parses an out-of-order build and pins the exact emitted order 1,3,5,12; negative feeds a descending 5-then-3 NLRI and asserts ErrFlowSpecTypeOrder, with the same components ascending accepted, so the refusal is isolated to order</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -880,14 +888,14 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </table>
 </div>
 <h3><a href="#rfc8955-4.2.1.1-1"><code>RFC8955-4.2.1.1-1</code></a></h3>
-<p>In the first operator octet of a sequence, the AND bit MUST be encoded as unset (§4.2.1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In the first operator octet of a sequence, it MUST be encoded as unset (§4.2.1.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. single-polarity positive: a config range &#39;&gt;8080&amp;&lt;8088&#39; encodes two ops and the test asserts the first carries AND clear (0x40) while the second carries it set, so an encoder setting AND on the first operator goes red</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1542" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitEncodedUnset</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1539" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitEncodedUnset</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -895,19 +903,19 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </table>
 </div>
 <h3><a href="#rfc8955-4.2.1.1-2"><code>RFC8955-4.2.1.1-2</code></a></h3>
-<p>First operator AND bit MUST be treated as always unset on decoding (§4.2.1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In the first operator octet of a sequence, it MUST be encoded as unset and MUST be treated as always unset on decoding. (§4.2.1.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. decodes the same OR list with the first operator&#39;s AND bit clear and set and asserts the identical [[=80],[=22]] structure. The parser guard (types_numeric.go And: len(matches) &gt; 0) is backed by consumer guards (plugin_decode.go andGroup, types_numeric.go i &gt; 0), so breaking the parser guard alone stays green; the assertion is on the end-to-end decode, which is what the sentence obliges. Test comment misquotes the encode half as SHOULD</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1577" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1574" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1573" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1570" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -915,8 +923,8 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </table>
 </div>
 <h3><a href="#rfc8955-4.2.1.1-3"><code>RFC8955-4.2.1.1-3</code></a></h3>
-<p>Numeric operator reserved bit (bit 4) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. wire op 0xf9 carries the reserved bit (0x08) and a leading AND; positive asserts the exact decoded FlowMatch{Op: FlowOpEqual} (reserved bit ignored), negative asserts the re-encoded op is 0xb1 (reserved and AND cleared on encoding)</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -935,19 +943,19 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </table>
 </div>
 <h3><a href="#rfc8955-4.2.1.2-1"><code>RFC8955-4.2.1.2-1</code></a></h3>
-<p>Bitmask operator reserved bits (bits 4-5) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>0 (all 0 bits): MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27 after J078 deleted the retired RFC5575-4-6 tag and reworded one comment inside TestFlowSpecBitmaskOperatorReservedBitsZero; no assertion changed. Encode: a bitmask operator with 0x0C set on the wire is forbidden; assert.Zero(op&amp;0x0C) over every emitted TCP-flags operator (MATCH, NOT, AND/END) goes red on it. Decode: reading meaning into 0x0C is forbidden; TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode decodes op 0x8D and assert.Equal against the 0x81 render goes red if the bits change the match, with the clean render pinned first. The decode proof is at the rendered match, not at the firewall lowering.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1611" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1608" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1450" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecBitmaskOperatorReservedBitsZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1448" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecBitmaskOperatorReservedBitsZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -956,13 +964,13 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </div>
 <h3><a href="#rfc8955-4.2.2.9-1"><code>RFC8955-4.2.2.9-1</code></a></h3>
 <p>Type 9 component bitmasks MUST be encoded as 1- or 2-octet bitmask (bitmask_op len=00 or len=01). (§4.2.2.9)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. single-polarity positive: every emitted tcp-flags bitmask from a config with AND/NOT/OR terms is asserted non-empty and at most 2 octets</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1671" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955TCPFlagsBitmaskSingleOctet</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1668" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955TCPFlagsBitmaskSingleOctet</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -971,13 +979,13 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </div>
 <h3><a href="#rfc8955-4.2.2.11-1"><code>RFC8955-4.2.2.11-1</code></a></h3>
 <p>Type 11 component values MUST be encoded as single octet (numeric_op len=00). (§4.2.2.11)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. single-polarity positive: DSCP 46, 0 and 63 each encode as exactly one octet</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1699" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955DSCPValueSingleOctet</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1696" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955DSCPValueSingleOctet</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -986,13 +994,13 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </div>
 <h3><a href="#rfc8955-4.2.2.12-1"><code>RFC8955-4.2.2.12-1</code></a></h3>
 <p>The Type 12 component bitmask MUST be encoded as single octet bitmask (bitmask_op len=00). (§4.2.2.12)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. single-polarity positive: all four fragment flags encode as exactly one-octet bitmasks</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1726" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FragmentBitmaskSingleOctet</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1723" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FragmentBitmaskSingleOctet</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1001,18 +1009,18 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </div>
 <h3><a href="#rfc8955-4.2.2.12-2"><code>RFC8955-4.2.2.12-2</code></a></h3>
 <p>0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.2.12)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27 after J078 deleted the retired RFC5575-4-7 tag and reworded one comment inside TestFlowSpecFragmentReservedHighNibbleZero; no assertion changed. Encode: a fragment value with any 0xF0 bit set is forbidden; assert.Zero(v[0]&amp;0xF0) over each emitted value goes red on it. Decode: reading meaning into the high nibble is forbidden; TestRFC8955FragmentReservedBitsIgnoredOnDecode decodes 0xF2 and assert.Equal against the 0x02 render goes red if it changes the match, with the clean render pinned first. The decode proof is at the rendered match, not at the firewall lowering.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1644" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FragmentReservedBitsIgnoredOnDecode</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1641" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FragmentReservedBitsIgnoredOnDecode</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1479" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecFragmentReservedHighNibbleZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1476" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecFragmentReservedHighNibbleZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1020,8 +1028,8 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </table>
 </div>
 <h3><a href="#rfc8955-6-1"><code>RFC8955-6-1</code></a></h3>
-<p>Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all validation conditions are true (§6, updated by RFC 9117 §4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In the absence of explicit configuration, a Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all of the conditions below are true: (§6, updated by RFC 9117 §4.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. table over the received-UPDATE path asserts eligibility, candidate availability and the selected install event for each of rules a, b and c (missing destination, missing covering unicast, originator mismatch, foreign more-specific) and for the feasible cases, including the RFC 9117 updates</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1040,8 +1048,8 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </table>
 </div>
 <h3><a href="#rfc8955-6-2"><code>RFC8955-6-2</code></a></h3>
-<p>The leftmost AS_SEQUENCE ASN of a Flow Specification route received via eBGP MUST match the leftmost AS_SEQUENCE ASN of the best-match unicast route for its destination prefix (§6, replaced by RFC 9117 §4.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>BGP implementations MUST also enforce that the AS_PATH attribute of a route received via the External Border Gateway Protocol (eBGP) contains the neighboring AS in the left-most position of the AS_PATH attribute. (§6, replaced by RFC 9117 §4.2)</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. the row now quotes RFC 8955 Section 6 itself: an eBGP route&#39;s AS_PATH must carry the neighbouring AS (the peer&#39;s ASN) in the left-most position. The tagged unit TestFlowSpecAuthorizationFromReceivedUpdates proves the neighbouring rule RFC 9117 Section 4.2 put in its place (the rule&#39;s leftmost AS_SEQUENCE ASN equals the covering unicast route&#39;s), and its case &#39;external authorized through route server&#39; (peerAS 65100, leftmost ASN 65001, want true) asserts acceptance of exactly the input the RFC 8955 sentence forbids. No tagged assertion goes red when an eBGP FlowSpec route lacks the peer AS leftmost. The tags belong on an RFC 9117 Section 4.2 row, which no summary in rfc/short holds</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1061,7 +1069,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </div>
 <h3><a href="#rfc8955-6-3"><code>RFC8955-6-3</code></a></h3>
 <p>Therefore, a revalidation of the Flow Specification NLRI MUST be performed whenever unicast routes change. (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. drives unicast add of a foreign more-specific, its withdraw, loss and return of the covering route, validation eligibility flips and session down, asserting a withdraw or reinstall event for the retained rule at each step without a new FlowSpec UPDATE</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1081,7 +1089,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </div>
 <h3><a href="#rfc8955-7.1-1"><code>RFC8955-7.1-1</code></a></h3>
 <p>On encoding, the traffic-rate MUST NOT be negative. (§7.1, §7.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. positive pins the exact IEEE 754 bits for byte and packet rates; negative asserts &#39;-1 packets&#39; is refused. The negative input is packets only, but both subtypes share the one guard in flowspec_encode.go (rate &lt; 0). Test doc names parseFlowSpecTrafficRateBits in route_community.go, which does not exist</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1101,7 +1109,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </div>
 <h3><a href="#rfc8955-7.1-2"><code>RFC8955-7.1-2</code></a></h3>
 <p>On decoding, negative values MUST be treated as zero (discard all traffic). (§7.1, §7.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. positive decodes 1000.0 to rate-limit:1000; negative decodes -1000.0 to rate-limit:0 for both subtype 0x06 and 0x0c</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1121,7 +1129,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </div>
 <h3><a href="#rfc8955-7.3-1"><code>RFC8955-7.3-1</code></a></h3>
 <p>These bits MUST be set to 0 on encoding and MUST be ignored during decoding. (§7.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. encode: config actions leave octets 2-6 zero and only 0x03 in the last octet; decode: every reserved bit set renders the same as clear for all four S/T combinations, and a pair differing only in S changes the render, so a renderer reading no bit fails; the .ci repeats it end to end to a plugin</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1166,7 +1174,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </div>
 <h3><a href="#rfc8955-7.5-1"><code>RFC8955-7.5-1</code></a></h3>
 <p>reserved (r): MUST be set to 0 on encoding and MUST be ignored during decoding (§7.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. encode through config and EncodeRoute pins every reserved octet and the two reserved bits zero for DSCP 0, 46, 63, and refuses 64 and above; decode renders 0xEE as mark:46 and 0x40 as mark:0; the .ci carries the reserved-bit community to a plugin</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1224,8 +1232,8 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8955-12-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8955-5.1-1"><code>RFC8955-5.1-1</code></a></h3>
-<p>&#34;This ordering function is such that it does not depend on the arrival order of the Flow Specification via BGP and thus is consistent in the network&#34; (§5.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>This ordering function is such that it does not depend on the arrival order of the Flow Specification via BGP and thus is consistent in the network. (§5.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Compare is asserted antisymmetric (a&lt;b, b&gt;a, a==a) over type, prefix, operator-byte and width pairs, so the order is a function of the two NLRIs alone; the arrival-order claim in the negative tag rests on that, and the kernel arrival-order case sits under 5.1-2</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1244,8 +1252,8 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </table>
 </div>
 <h3><a href="#rfc8955-5.1-2"><code>RFC8955-5.1-2</code></a></h3>
-<p>The relative order of two Flow Specifications is determined by comparing their components from the left-most (lowest component type value): the Flow Specification with the lowest numeric type value has higher precedence; for IP destination or source prefix values the more specific prefix has higher precedence and otherwise the lowest IP value does; for all other component types the data is compared as a binary string with memcmp(), the lowest string wins at equal lengths, and at different lengths the common prefix decides with the longest string winning when that prefix is equal (§5.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The relative order of two Flow Specifications is determined by comparing their respective components. The algorithm starts by comparing the left-most components (lowest component type value) of the Flow Specifications. If the types differ, the Flow Specification with lowest numeric type value has higher precedence (and thus will match before) than the Flow Specification that doesn&#39;t contain that component type. If the component types are the same, then a type- specific comparison is performed (see below). If the types are equal, the algorithm continues with the next component. For IP prefix values (IP destination or source prefix), if one of the two prefixes to compare is a more specific prefix of the other, the more specific prefix has higher precedence. Otherwise, the one with the lowest IP value has higher precedence. For all other component types, unless otherwise specified, the comparison is performed by comparing the component data as a binary string using the memcmp() function as defined by [ISO_IEC_9899]. For strings with equal lengths, the lowest string (memcmp) has higher precedence. For strings of different lengths, the common prefix is compared. If the common prefix is not equal, the string with the lowest prefix has higher precedence. If the common prefix is equal, the longest string is considered to have higher precedence than the shorter one. (§5.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. comparator cases cover lower type first, missing component, more-specific overlapping prefix, lower disjoint prefix, memcmp of operator bytes and received width; the integration test installs the covering discard first and shows the more-specific terminal rule still applies in the kernel</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1274,8 +1282,8 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </table>
 </div>
 <h3><a href="#rfc8955-8-1"><code>RFC8955-8-1</code></a></h3>
-<p>The VPNv4 Flow Specification NLRI &#34;consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2)&#34; (§8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The NLRI format for this address family consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2). (§8)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. positive decodes RD 100:100 from the 8 octets after the length and the destination component after them, and re-encodes the exact wire; negative refuses a length too short to hold the RD with ErrFlowSpecTruncated</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1295,7 +1303,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </div>
 <h3><a href="#rfc8955-8-2"><code>RFC8955-8-2</code></a></h3>
 <p>The NLRI length field shall include both the 8 octets of the Route Distinguisher as well as the subsequent Flow Specification NLRI value. (§8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. positive asserts Len and the encoded length octet count RD plus value (its first assertion checks the fixture against itself, the WriteTo one is the real check); negative refuses a length that counts only the value</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1315,7 +1323,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </div>
 <h3><a href="#rfc8955-3-1"><code>RFC8955-3-1</code></a></h3>
 <p>Standard BGP policy mechanisms, such as UPDATE filtering by NLRI prefix as well as community matching, must apply to the Flow specification defined NLRI-type. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the test proves UPDATE filtering by NLRI prefix applies to FlowSpec destinations (accept, reject, missing, mixed); the sentence also names community matching, and no tagged test shows a community policy applying to a FlowSpec route</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1335,7 +1343,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </div>
 <h3><a href="#rfc8955-6-5"><code>RFC8955-6-5</code></a></h3>
 <p>Although the forwarding attributes of two routes for the same Flow Specification prefix may be the same, BGP is still required to perform its path selection algorithm in order to select the correct set of attributes to advertise. (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. positive: two peers&#39; paths for one FlowSpec NLRI publish the lower-MED path as best and hand best back to the survivor on withdraw; negative: a higher-MED second path publishes no best-change and the best keeps MED 100</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1354,8 +1362,8 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </table>
 </div>
 <h3><a href="#rfc8955-7.3-2"><code>RFC8955-7.3-2</code></a></h3>
-<p>Where the Terminal Action bit is set and the evaluation continues to the next Flow Specification, &#34;all the Traffic Filtering Actions from these Flow Specifications shall be collected and applied&#34; (§7.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The use of the Terminal Action (bit 47) may result in more than one Flow Specification matching a particular traffic flow. All the Traffic Filtering Actions from these Flow Specifications shall be collected and applied. (§7.3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the continuing case only pairs a marking with a later discard, so the test sees the discard and never the marking on the same packet; an implementation that skipped the first rule&#39;s actions when T is set would stay green. No case observes two actions from two matched rules applied together</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1374,7 +1382,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 </table>
 </div>
 <h3><a href="#rfc8955-12-2"><code>RFC8955-12-2</code></a></h3>
-<p>Where the rule-a validation relaxation is used, &#34;for a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty&#34; (§12)</p>
+<p>For a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty. (§12)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8955-12-2, so no unit is bound to it.</p>
 </section>
@@ -1831,7 +1839,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

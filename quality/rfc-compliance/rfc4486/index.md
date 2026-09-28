@@ -56,6 +56,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 1 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 4 |

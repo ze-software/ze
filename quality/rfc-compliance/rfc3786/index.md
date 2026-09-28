@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 7 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 2 | of 7 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 7 |
 | Not applicable, so out of scope | 5 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 4 |
 | Tagged units | 4 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 2 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc3786.md` |
 | Requirement shard | `rfc/requirements/rfc3786.md` |
@@ -96,14 +105,14 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 |---|---|---|---|---|
 | `RFC3786-2-1` | This TLV MUST be included in fragment 0 of every LSP set belonging to an Originating System running in either Mode 1 or Mode 2. (Section 2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 says neither mode should be enabled without explicit configuration. internal/plugins/isis/lsdb/origination.go maxFragments is 256 and no IS Alias ID producer or mode configuration exists; the "in either mode" condition is absent. |
 | `RFC3786-3.1-1` | An extended LSP fragment zero MUST be generated for every extended LSP set, to allow a router's SPF calculation to consider those fragments in that set. (Section 3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 leaves both extension modes disabled without explicit configuration. internal/plugins/isis/lsdb/origination.go produces one standard set per source with maxFragments=256 and no additional-system-ID or IS Alias ID producer, so no extended set is generated. |
-| `RFC3786-5-1` | Consider any of a system's LSPs in SPF when its Original LSP fragment 0 is missing or has zero RemainingLifetime; for an expired extended fragment 0, exclude only that set (Section 5) | MUST NOT | 5 | **positive:** `unit/verify` [`TestRFC1195StandardFragmentsRequireFragmentZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L385). **negative:** `unit/verify` [`TestRFC1195StandardFragmentsRequireFragmentZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L386) |
-| `RFC3786-x-1` | Set ATT bits and the Partition Repair bit to zero on all extended LSPs (Sections 3.1.1, 3.1.2) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC3786-3.1.4-1` | Set the overload bit consistently across all original and extended LSPs to reflect the Originating System's overload state (Section 3.1.4) | SHOULD | 3.1.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3786-x-2` | In Mode 1, metric for Originating-to-Virtual adjacencies is zero and no other neighbors are specified in an Extended LSP (Sections 3.2, 3.2.1) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 requires explicit configuration to enable either mode; no Mode 1 configuration, virtual-system adjacency, or extended-LSP producer exists in internal/plugins/isis/config.go or lsdb/origination.go. |
+| `RFC3786-5-1` | If LSP fragment 0 of the Original LSP set is missing or its RemainingLifetime is zero, all of the LSPs generated by that Originating System (Extended as well) MUST NOT be considered in the SPF. That is, the large logical LSP is not considered in the SPF. The original LSP fragments are identified when the is-alias-id value is the same as the system-id of those LSPs. If an LSP fragment 0 of an extended LSP set is missing or its RemainingLifetime is zero, only that LSP set MUST NOT be considered in the SPF. (§5) | MUST NOT | 5 | **positive:** `unit/verify` [`TestRFC1195StandardFragmentsRequireFragmentZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L385). **negative:** `unit/verify` [`TestRFC1195StandardFragmentsRequireFragmentZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L386) |
+| `RFC3786-x-1` | The Attached (ATT) bits SHOULD be set to zero for all four metric types, on all Extended LSPs. (§3.1.1) | SHOULD | 3.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3786-3.1.4-1` | The overload bit should be set consistently across all LSPs, original and extended, belonging to an Originating System, and should reflect the Originating System's overload state. (§3.1.4) | SHOULD | 3.1.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3786-x-2` | Under Operation Mode 1, adjacencies from the Originating System to its Virtual Systems are advertised using the standard neighbor TLVs. The metric for these connections MUST be zero, since the cost of reaching a Virtual System is the same as the cost of reaching its Originating System. (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 requires explicit configuration to enable either mode; no Mode 1 configuration, virtual-system adjacency, or extended-LSP producer exists in internal/plugins/isis/config.go or lsdb/origination.go. |
 | `RFC3786-1.3-1` | That is, all LSPs considered in the same SPF instance MUST use the same Mode. (Section 1.3) | MUST | 1.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 says neither mode should be enabled without explicit configuration. internal/plugins/isis/config.go has no extension-mode selection; lsdb/origination.go maxFragments=256 and spf_wiring.go reads standard source sets only. There are no Mode 1/Mode 2 inputs to mix in one SPF instance. |
-| `RFC3786-3.2-1` | In Mode 1, "the Extended LSP MUST specify the Normal system-id as a neighbor. The metric SHOULD be set to MaxLinkMetric - 1 ... This in order to satisfy the two-way connectivity check on other routers" (Section 3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 leaves Mode 1 disabled without explicit configuration; internal/plugins/isis/lsdb/origination.go has no extended-set or virtual-system producer. There is no Mode 1 extended LSP requiring a backlink. |
-| `RFC3786-6-1` | "It should be noted, that an IS MUST use the system-id of the LSP that will include a neighbor, when forming an adjacency with that neighbor", regardless of the Operational Mode (Section 6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC3786NormalHelloMatchesContainingLSP`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/hello_identity_rfc3786_test.go#L91). **negative:** `unit/verify` [`TestRFC3786NormalHelloIdentityReload`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/hello_identity_rfc3786_test.go#L98) |
-| `RFC3786-7-1` | Provide a config parameter for LSP origination behavior, defaulting to ISO/IEC 10589 behavior with neither mode enabled (Section 7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3786-3.2-1` | Furthermore, the Extended LSP MUST specify the Normal system-id as a neighbor. The metric SHOULD be set to MaxLinkMetric - 1 (this is only for uniformity purpose, any metric greater than zero is acceptable). This in order to satisfy the two-way connectivity check on other routers. (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 leaves Mode 1 disabled without explicit configuration; internal/plugins/isis/lsdb/origination.go has no extended-set or virtual-system producer. There is no Mode 1 extended LSP requiring a backlink. |
+| `RFC3786-6-1` | It should be noted, that an IS MUST use the system-id of the LSP that will include a neighbor, when forming an adjacency with that neighbor. That is, if a neighbor is to be included in extended LSP S', then S' should be used as the system-id in IS Hellos [3] and IS- IS Hellos when forming an adjacency with that neighbor. This is regardless of the Operational Mode. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC3786NormalHelloMatchesContainingLSP`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/hello_identity_rfc3786_test.go#L91). **negative:** `unit/verify` [`TestRFC3786NormalHelloIdentityReload`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/hello_identity_rfc3786_test.go#L98) |
+| `RFC3786-7-1` | Implementations SHOULD support a configuration parameter controlling the LSP origination behavior. The default value of this parameter SHOULD correspond to the behavior described in [ISIS-ISO], i.e., neither of the two modes described in this document should be enabled without explicit configuration when the router software is upgraded with this extension. (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -111,9 +120,9 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 |---|---|---|
 | [`RFC3786-2-1`](#rfc3786-2-1) This TLV MUST be included in fragment 0 of every LSP set belonging to an Originating System running in either Mode 1 or Mode 2. (Section 2) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 says neither mode should be enabled without explicit configuration. internal/plugins/isis/lsdb/origination.go maxFragments is 256 and no IS Alias ID producer or mode configuration exists; the "in either mode" condition is absent. |
 | [`RFC3786-3.1-1`](#rfc3786-3.1-1) An extended LSP fragment zero MUST be generated for every extended LSP set, to allow a router's SPF calculation to consider those fragments in that set. (Section 3.1) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 leaves both extension modes disabled without explicit configuration. internal/plugins/isis/lsdb/origination.go produces one standard set per source with maxFragments=256 and no additional-system-ID or IS Alias ID producer, so no extended set is generated. |
-| [`RFC3786-x-2`](#rfc3786-x-2) In Mode 1, metric for Originating-to-Virtual adjacencies is zero and no other neighbors are specified in an Extended LSP (Sections 3.2, 3.2.1) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 requires explicit configuration to enable either mode; no Mode 1 configuration, virtual-system adjacency, or extended-LSP producer exists in internal/plugins/isis/config.go or lsdb/origination.go. |
+| [`RFC3786-x-2`](#rfc3786-x-2) Under Operation Mode 1, adjacencies from the Originating System to its Virtual Systems are advertised using the standard neighbor TLVs. The metric for these connections MUST be zero, since the cost of reaching a Virtual System is the same as the cost of reaching its Originating System. (§3.2) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 requires explicit configuration to enable either mode; no Mode 1 configuration, virtual-system adjacency, or extended-LSP producer exists in internal/plugins/isis/config.go or lsdb/origination.go. |
 | [`RFC3786-1.3-1`](#rfc3786-1.3-1) That is, all LSPs considered in the same SPF instance MUST use the same Mode. (Section 1.3) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 says neither mode should be enabled without explicit configuration. internal/plugins/isis/config.go has no extension-mode selection; lsdb/origination.go maxFragments=256 and spf_wiring.go reads standard source sets only. There are no Mode 1/Mode 2 inputs to mix in one SPF instance. |
-| [`RFC3786-3.2-1`](#rfc3786-3.2-1) In Mode 1, "the Extended LSP MUST specify the Normal system-id as a neighbor. The metric SHOULD be set to MaxLinkMetric - 1 ... This in order to satisfy the two-way connectivity check on other routers" (Section 3.2) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 leaves Mode 1 disabled without explicit configuration; internal/plugins/isis/lsdb/origination.go has no extended-set or virtual-system producer. There is no Mode 1 extended LSP requiring a backlink. |
+| [`RFC3786-3.2-1`](#rfc3786-3.2-1) Furthermore, the Extended LSP MUST specify the Normal system-id as a neighbor. The metric SHOULD be set to MaxLinkMetric - 1 (this is only for uniformity purpose, any metric greater than zero is acceptable). This in order to satisfy the two-way connectivity check on other routers. (§3.2) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Keep standard fragment sets". Section 7 leaves Mode 1 disabled without explicit configuration; internal/plugins/isis/lsdb/origination.go has no extended-set or virtual-system producer. There is no Mode 1 extended LSP requiring a backlink. |
 
 ## Proof state
 
@@ -137,9 +146,9 @@ No test carries RFC3786-3.1-1, so no unit is bound to it.
 
 ### [`RFC3786-5-1`](#rfc3786-5-1)
 
-Consider any of a system's LSPs in SPF when its Original LSP fragment 0 is missing or has zero RemainingLifetime; for an expired extended fragment 0, exclude only that set (Section 5)
+If LSP fragment 0 of the Original LSP set is missing or its RemainingLifetime is zero, all of the LSPs generated by that Originating System (Extended as well) MUST NOT be considered in the SPF. That is, the large logical LSP is not considered in the SPF. The original LSP fragments are identified when the is-alias-id value is the same as the system-id of those LSPs. If an LSP fragment 0 of an extended LSP set is missing or its RemainingLifetime is zero, only that LSP set MUST NOT be considered in the SPF. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The sentence forbids three things: (a) considering a system's LSPs when Original fragment 0 is missing, (b) considering them when Original fragment 0 is present with RemainingLifetime zero, (c) considering an extended set whose fragment 0 is missing or expired. TestRFC1195StandardFragmentsRequireFragmentZero covers (a): after e.lsdb.Delete of fragment 0 it fails if loc.Lookup still has a path from fragment 1, and its positive requires the fragment-1 route while fragment 0 lives (metricWinner 2,15). No tagged assertion holds fragment 0 at RemainingLifetime zero (b), and none exercises an extended LSP set (c); Ze originates and recognises no extended set (owner decision 2026-09-21, standard fragment sets), so (c) has no producer to test, but (b) does.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -148,7 +157,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3786-x-2`](#rfc3786-x-2)
 
-In Mode 1, metric for Originating-to-Virtual adjacencies is zero and no other neighbors are specified in an Extended LSP (Sections 3.2, 3.2.1)
+Under Operation Mode 1, adjacencies from the Originating System to its Virtual Systems are advertised using the standard neighbor TLVs. The metric for these connections MUST be zero, since the cost of reaching a Virtual System is the same as the cost of reaching its Originating System. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -164,7 +173,7 @@ No test carries RFC3786-1.3-1, so no unit is bound to it.
 
 ### [`RFC3786-3.2-1`](#rfc3786-3.2-1)
 
-In Mode 1, "the Extended LSP MUST specify the Normal system-id as a neighbor. The metric SHOULD be set to MaxLinkMetric - 1 ... This in order to satisfy the two-way connectivity check on other routers" (Section 3.2)
+Furthermore, the Extended LSP MUST specify the Normal system-id as a neighbor. The metric SHOULD be set to MaxLinkMetric - 1 (this is only for uniformity purpose, any metric greater than zero is acceptable). This in order to satisfy the two-way connectivity check on other routers. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -172,9 +181,9 @@ No test carries RFC3786-3.2-1, so no unit is bound to it.
 
 ### [`RFC3786-6-1`](#rfc3786-6-1)
 
-"It should be noted, that an IS MUST use the system-id of the LSP that will include a neighbor, when forming an adjacency with that neighbor", regardless of the Operational Mode (Section 6)
+It should be noted, that an IS MUST use the system-id of the LSP that will include a neighbor, when forming an adjacency with that neighbor. That is, if a neighbor is to be included in extended LSP S', then S' should be used as the system-id in IS Hellos [3] and IS- IS Hellos when forming an adjacency with that neighbor. This is regardless of the Operational Mode. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: sending IS Hellos (ISH) or IS-IS Hellos with a system-id other than that of the LSP that contains the neighbor. assertNormalHelloIdentity first requires the neighbor in the node's normal LSP, then t.Fatalf when a captured ISH NET system-id or a P2P IIH SystemID differs from lsp.LSPID.SystemID(), and requires both to be seen. TestRFC3786NormalHelloMatchesContainingLSP is the positive; TestRFC3786NormalHelloIdentityReload reloads the NET twice and requires both hellos to follow, so a circuit keeping its old identity goes red. The S' (extended LSP) clause has no producer in Ze (no extended LSP sets), so the normal system-id is the only identity the MUST can require here.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

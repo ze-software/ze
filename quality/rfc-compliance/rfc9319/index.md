@@ -56,6 +56,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 4 |
 | Not applicable, so out of scope | 4 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
@@ -96,13 +97,13 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | `RFC9319-5-2` | Published ROAs MUST be replaced as necessary (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Directed at the operator/CA that publishes ROAs. Ze issues and publishes no ROAs -- it maintains only a read-only VRP cache populated from RTR (internal/component/bgp/plugins/rpki/roa_cache.go). Replacing published ROAs is a ROA-issuer action that a Relying Party does not perform. |
 | `RFC9319-5-3` | Such an exercise MUST be repeated whenever the operator makes changes to either policy. (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** An operator review-cadence obligation for a ROA issuer. Ze issues no ROAs and holds no origination/routing-policy-driven ROA set to re-review; as a Relying Party it only re-validates its own received routes when the VRP cache changes (RFC 6811 Section 4, internal/component/bgp/plugins/rpki/origin_tracker.go), which is governed by RFC 6811, not this operator BCP. |
 | `RFC9319-6-1` | * Operators providing a means for operators of neighboring autonomous systems to advertise RTDR routes via BGP MUST NOT make the creation of non-minimal ROAs a pre-requisite for its use. (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Directed at operators PROVIDING Route Origin Validation (RTDR) filtering as a service. Ze provides no RTDR filtering service to third parties and gates no feature on the creation of non-minimal ROAs; it only validates its own received routes against the VRP set it consumes (RFC 6811, internal/component/bgp/plugins/rpki/validate.go). There is no code path in Ze that could impose a non-minimal-ROA pre-requisite. |
-| `RFC9319-5-4` | Operators SHOULD use minimal ROAs whenever possible, containing only IP prefixes actually originated in BGP (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9319-5-5` | Operators SHOULD avoid using the maxLength attribute in ROAs (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9319-5.1-1` | ROAs for DDoS mitigation SHOULD only include prefixes that are always originated plus those sometimes originated (§5.1) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9319-5.1-2` | ROAs for DDoS mitigation SHOULD NOT include any IP prefixes the operator knows will not be originated in BGP (§5.1) | SHOULD NOT | 5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9319-5.1-3` | ROAs for DDoS mitigation SHOULD NOT make use of maxLength unless doing so has no impact on the set of included prefixes (§5.1) | SHOULD NOT | 5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9319-6-2` | Operators SHOULD NOT create non-minimal ROAs for the purpose of advertising RTDR routes (§6) | SHOULD NOT | 6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9319-7-1` | User interface designers SHOULD provide warnings about risks of non-minimal ROAs and maxLength usage (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9319-5-4` | Operators SHOULD use minimal ROAs whenever possible. A minimal ROA contains only those IP prefixes that are actually originated by an AS in BGP and no other IP prefixes. (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9319-5-5` | In general, operators SHOULD avoid using the maxLength attribute in their ROAs, since its inclusion will usually make the ROA non- minimal. (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9319-5.1-1` | In this case, the ROA SHOULD only include: (1) the set of IP prefixes that are always originated in BGP, and (2) the set of IP prefixes that are sometimes, but not always, originated in BGP. (§5.1) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9319-5.1-2` | The ROA SHOULD NOT include any IP prefixes that the operator knows will not be originated in BGP. (§5.1) | SHOULD NOT | 5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9319-5.1-3` | In general, the ROA SHOULD NOT make use of the maxLength attribute unless doing so has no impact on the set of included prefixes. (§5.1) | SHOULD NOT | 5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9319-6-2` | Operators SHOULD NOT create non-minimal ROAs (by either creating additional ROAs or using the maxLength attribute) for the purpose of advertising RTDR routes (§6) | SHOULD NOT | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9319-7-1` | This document recommends that designers and/or providers of such user interfaces SHOULD provide warnings to draw the user's attention to the risks of creating non-minimal ROAs in general and using the maxLength attribute in particular. (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 

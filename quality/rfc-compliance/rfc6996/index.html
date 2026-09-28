@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 6996 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 6996: Autonomous System (AS) Reservation for Private Use. 1 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 6996: Autonomous System (AS) Reservation for Private Use. 1 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 6996 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 6996: Autonomous System (AS) Reservation for Private Use. 1 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 6996: Autonomous System (AS) Reservation for Private Use. 1 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 6996 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 6996: Autonomous System (AS) Reservation for Private Use. 1 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 6996: Autonomous System (AS) Reservation for Private Use. 1 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 1 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 1 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>1</strong><b>of 1 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 1 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -296,7 +304,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go#L56" title="internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go" target="_blank" rel="noopener"><code>TestRFC6996KeepsPublicASN</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6996-4-2">RFC6996-4-2</code></td><td colspan="3"><span class="rfc-subject">Operators SHOULD ensure that all EBGP speakers support RFC 6793 extensions and that implementation-specific features recognizing Private Use ASNs have been updated to recognize both ranges prior to using the four-octet Private Use ASN range (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6996-4-2">RFC6996-4-2</code></td><td colspan="3"><span class="rfc-subject">Operators SHOULD ensure that all External Border Gateway Protocol (EBGP) speakers support the extensions described in [RFC6793] and that implementation-specific features that recognize Private Use ASNs have been updated to recognize both ranges prior to making use of the newer, numerically higher range of Private Use ASNs in the four-octet AS number space. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4</td>
@@ -325,7 +333,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc6996-4-1"><code>RFC6996-4-1</code></a></h3>
 <p>If Private Use ASNs are used and prefixes originate from these ASNs, Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH if utilizing a four-octet AS number space) before being advertised to the global Internet. (Section 4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Only the two-octet range in AS_PATH is exercised (64512 stripped, public kept). The sentence&#39;s &#39;(including AS4_PATH if utilizing a four-octet AS number space)&#39; clause and the four-octet Private Use range 4200000000-4294967294 have no tagged assertion, nor do the range boundaries (64511/64512/65534/65535).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -491,7 +499,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

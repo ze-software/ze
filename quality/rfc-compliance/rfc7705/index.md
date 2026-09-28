@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 100.0% | 18 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 94.4% | 17 of 18 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -27,6 +27,14 @@ measures that are neither good news nor bad
 | Not applicable | 0.0% | 0 of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 9 | of 9 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 9 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 18 |
 | Tagged units | 18 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 9 |
 | Discrimination records | 18 |
 | Summary | `rfc/short/rfc7705.md` |
 | Requirement shard | `rfc/requirements/rfc7705.md` |
@@ -103,22 +112,22 @@ Two advisory items, neither of them a MUST. [`RFC7705-3.3-9`](#rfc7705-3.3-9), t
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC7705-3.3-1` | The mechanisms introduced in this section MUST be configurable on a per-neighbor or per-neighbor-group basis to allow for maximum flexibility. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/peers_test.go#L673). **negative:** `unit/verify` [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/peers_test.go#L678) |
-| `RFC7705-3.3-2` | With "No Prepend Inbound", on inbound UPDATEs from the configured eBGP neighbour the router "MUST NOT append the 'Local AS' ASN value in the AS_PATH attribute when installing the route or advertising that UPDATE to iBGP neighbors" (§3.3) | MUST NOT | 3.3 | **positive:** `unit/verify` [`TestLocalASNoPrependLeavesEveryOutboundPathAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L380). **negative:** `unit/verify` [`TestLocalASNoPrependLeavesEveryOutboundPathAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L383) |
-| `RFC7705-3.3-3` | With "No Prepend Inbound", the router "MUST still append the globally configured ASN as normal when advertising the UPDATE to other local eBGP neighbors" (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestLocalASNoPrependLeavesEveryOutboundPathAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L388). **negative:** `unit/verify` [`TestLocalASNoPrependLeavesEveryOutboundPathAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L391) |
-| `RFC7705-3.3-4` | With "Replace Old AS", on outbound UPDATEs toward the configured eBGP neighbour "the BGP speaker MUST NOT append the globally configured ASN from the AS_PATH attribute" (§3.3) | MUST NOT | 3.3 | **positive:** `unit/verify` [`TestLocalASReplaceASSendsOnlyTheLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L328). **negative:** `unit/verify` [`TestLocalASReplaceASSendsOnlyTheLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L331) |
+| `RFC7705-3.3-2` | "No Prepend Inbound": When the BGP router receives inbound BGP UPDATEs from its eBGP neighbor configured with this option, it MUST NOT append the "Local AS" ASN value in the AS_PATH attribute when installing the route or advertising that UPDATE to iBGP neighbors (§3.3) | MUST NOT | 3.3 | **positive:** `unit/verify` [`TestLocalASNoPrependLeavesEveryOutboundPathAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L380). **negative:** `unit/verify` [`TestLocalASNoPrependLeavesEveryOutboundPathAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L383) |
+| `RFC7705-3.3-3` | it MUST still append the globally configured ASN as normal when advertising the UPDATE to other local eBGP neighbors (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestLocalASNoPrependLeavesEveryOutboundPathAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L388). **negative:** `unit/verify` [`TestLocalASNoPrependLeavesEveryOutboundPathAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L391) |
+| `RFC7705-3.3-4` | "Replace Old AS" (outbound): When the BGP router generates outbound BGP UPDATEs toward an eBGP neighbor configured with this option, the BGP speaker MUST NOT append the globally configured ASN from the AS_PATH attribute. (§3.3) | MUST NOT | 3.3 | **positive:** `unit/verify` [`TestLocalASReplaceASSendsOnlyTheLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L328). **negative:** `unit/verify` [`TestLocalASReplaceASSendsOnlyTheLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L331) |
 | `RFC7705-3.3-5` | The BGP router MUST append only the configured "Local AS" ASN value to the AS_PATH attribute before sending the BGP UPDATEs outbound to the eBGP neighbor. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestLocalASReplaceASSendsOnlyTheLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L335). **negative:** `unit/verify` [`TestLocalASReplaceASSendsOnlyTheLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L338) |
 | `RFC7705-4.2-1` | The mechanism introduced in this section MUST be configurable on a per-neighbor or per-neighbor-group basis to allow for maximum flexibility. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestPeersFromConfigTree_ASMigrationPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/as_migration_test.go#L27). **negative:** `unit/verify` [`TestPeersFromConfigTree_ASMigrationPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/as_migration_test.go#L31) |
-| `RFC7705-4.2-2` | A speaker configured with "Internal BGP AS Migration" "MUST accept BGP OPEN and establish an iBGP session from configured iBGP peers if the ASN value in 'My Autonomous System' is either the globally configured ASN or a locally configured ASN" (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestMigrationAcceptsEitherASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L79). **negative:** `unit/verify` [`TestMigrationAcceptsEitherASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L82) |
-| `RFC7705-4.2-3` | A router configured with "Internal BGP AS Migration" "MUST send its own BGP OPEN ... using either the globally configured or the locally configured ASN in 'My Autonomous System'" (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestMigrationOpenCarriesResolvedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L139). **negative:** `unit/verify` [`TestMigrationOpenCarriesResolvedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L143) |
+| `RFC7705-4.2-2` | When configured with this mechanism, a BGP speaker MUST accept BGP OPEN and establish an iBGP session from configured iBGP peers if the ASN value in "My Autonomous System" is either the globally configured ASN or a locally configured ASN provided when this capability is utilized. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestMigrationAcceptsEitherASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L79). **negative:** `unit/verify` [`TestMigrationAcceptsEitherASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L82) |
+| `RFC7705-4.2-3` | Additionally, a BGP router configured with this mechanism MUST send its own BGP OPEN [RFC4271] (see Section 4.2) using either the globally configured or the locally configured ASN in "My Autonomous System" as follows. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestMigrationOpenCarriesResolvedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L139). **negative:** `unit/verify` [`TestMigrationOpenCarriesResolvedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L143) |
 | `RFC7705-4.2-4` | In each case, the BGP speaker MUST treat UPDATEs sent and received to this peer as if this was a natively configured iBGP session, as defined by [RFC4271] and [RFC4456]. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestMigrationSessionIsIBGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L219). **negative:** `unit/verify` [`TestMigrationSessionIsIBGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L222) |
-| `RFC7705-3.3-6` | To implement "Local AS", "a BGP speaker SHOULD send BGP OPEN ... messages to the configured eBGP peer(s) using the local ASN configured for this session as the value sent in 'My Autonomous System'" (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7705-3.3-7` | "The BGP router SHOULD NOT use the ASN configured globally within the BGP process as the value sent in 'My Autonomous System' in the OPEN message." (§3.3) | SHOULD NOT | 3.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7705-3.3-8` | "If the session is successfully established to the globally configured ASN, then the modifications to AS_PATH described in this document SHOULD NOT be performed, as they are unnecessary." (§3.3) | SHOULD NOT | 3.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7705-3.3-9` | Internal direction: "The router SHOULD append the configured 'Local AS' ASN in the AS_PATH attribute before installing the route or advertising the UPDATE to an iBGP neighbor." (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7705-3.3-10` | External direction: "The BGP router SHOULD first append the globally configured ASN to the AS_PATH immediately followed by the 'Local AS' value before advertising the UPDATE to an eBGP neighbor." (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7705-4.2-5` | To avoid deadlock when both speakers run the mechanism, "the speaker SHOULD send BGP OPEN using the globally configured ASN first, and only send a BGP OPEN using the locally configured ASN as a fallback if the remote neighbor responds with the BGP error 'Bad Peer AS'" (§4.2) | SHOULD | 4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7705-6-1` | "BGP sessions SHOULD be protected using TCP Authentication Option [RFC5925] and the Generalized TTL Security Mechanism [RFC5082]" (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7705-3.3-11` | "Implementations MAY support a more flexible model where the eBGP speaker attempts to open the BGP session using either the ASN configured as 'Local AS' or the globally configured AS as discussed in BGP Alias" (§3.3) | MAY | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7705-3.3-6` | To implement this mechanism, a BGP speaker SHOULD send BGP OPEN [RFC4271] (see Section 4.2) messages to the configured eBGP peer(s) using the local ASN configured for this session as the value sent in "My Autonomous System". (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7705-3.3-7` | The BGP router SHOULD NOT use the ASN configured globally within the BGP process as the value sent in "My Autonomous System" in the OPEN message. (§3.3) | SHOULD NOT | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7705-3.3-8` | If the session is successfully established to the globally configured ASN, then the modifications to AS_PATH described in this document SHOULD NOT be performed, as they are unnecessary. (§3.3) | SHOULD NOT | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7705-3.3-9` | The router SHOULD append the configured "Local AS" ASN in the AS_PATH attribute before installing the route or advertising the UPDATE to an iBGP neighbor. (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7705-3.3-10` | The BGP router SHOULD first append the globally configured ASN to the AS_PATH immediately followed by the "Local AS" value before advertising the UPDATE to an eBGP neighbor. (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7705-4.2-5` | To avoid potential deadlocks when two BGP speakers are attempting to establish a BGP peering session and are both configured with this mechanism, the speaker SHOULD send BGP OPEN using the globally configured ASN first, and only send a BGP OPEN using the locally configured ASN as a fallback if the remote neighbor responds with the BGP error "Bad Peer AS". (§4.2) | SHOULD | 4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7705-6-1` | Additionally, BGP sessions SHOULD be protected using TCP Authentication Option [RFC5925] and the Generalized TTL Security Mechanism [RFC5082] (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7705-3.3-11` | Implementations MAY support a more flexible model where the eBGP speaker attempts to open the BGP session using either the ASN configured as "Local AS" or the globally configured AS as discussed in BGP Alias (Section 4.2). (§3.3) | MAY | 3.3 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -132,18 +141,18 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 The mechanisms introduced in this section MUST be configurable on a per-neighbor or per-neighbor-group basis to allow for maximum flexibility. (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Section 3.3 mechanism settable on neither a neighbor nor a neighbor group. TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup drives PeersFromConfigTree: the group's local (65010) and replace-as reach the inheriting peer (assert.Equal LocalAS, assert.True LocalASReplaceAS), and no-prepend set on a peer reaches that peer (assert.True LocalASNoPrepend); each of the three mechanisms goes red if it cannot be configured on the basis the test uses. Negative: the group options do not reach the peer outside the group or override the peer's own leaf-list.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/peers_test.go#L678) | unit/verify | revert, verified |
-| positive | [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/peers_test.go#L673) | unit/verify | revert, verified |
+| positive | [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/peers_test.go#L673) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7705-3.3-2`](#rfc7705-3.3-2)
 
-With "No Prepend Inbound", on inbound UPDATEs from the configured eBGP neighbour the router "MUST NOT append the 'Local AS' ASN value in the AS_PATH attribute when installing the route or advertising that UPDATE to iBGP neighbors" (§3.3)
+"No Prepend Inbound": When the BGP router receives inbound BGP UPDATEs from its eBGP neighbor configured with this option, it MUST NOT append the "Local AS" ASN value in the AS_PATH attribute when installing the route or advertising that UPDATE to iBGP neighbors (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: appending the Local AS on a route from a No Prepend Inbound peer (a) when installing the route and (b) when advertising it to iBGP neighbors. (b) is asserted: TestLocalASNoPrependLeavesEveryOutboundPathAlone requires the iBGP neighbor 10.0.0.2 to receive exactly [65002]. (a) has no assertion: no tagged unit reads the installed route. The negative arm reads the outbound path of another destination, which the option does not govern, and never shows the option changing anything: ze performs no inbound Local AS append at all (RFC7705-3.3-9 is unperformed), so the iBGP assertion passes with or without the option.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -152,9 +161,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7705-3.3-3`](#rfc7705-3.3-3)
 
-With "No Prepend Inbound", the router "MUST still append the globally configured ASN as normal when advertising the UPDATE to other local eBGP neighbors" (§3.3)
+it MUST still append the globally configured ASN as normal when advertising the UPDATE to other local eBGP neighbors (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: dropping the globally configured ASN toward a native eBGP neighbor for a route learned from a No Prepend Inbound peer. TestLocalASNoPrependLeavesEveryOutboundPathAlone asserts the native eBGP neighbor 10.0.0.3 receives exactly [65000 65002] (assert.Equal on the forwarded AS_PATH), red if 65000 is not appended. Negative: the iBGP neighbor receives [65002] alone in the same run.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -163,9 +172,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7705-3.3-4`](#rfc7705-3.3-4)
 
-With "Replace Old AS", on outbound UPDATEs toward the configured eBGP neighbour "the BGP speaker MUST NOT append the globally configured ASN from the AS_PATH attribute" (§3.3)
+"Replace Old AS" (outbound): When the BGP router generates outbound BGP UPDATEs toward an eBGP neighbor configured with this option, the BGP speaker MUST NOT append the globally configured ASN from the AS_PATH attribute. (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: appending the globally configured ASN toward a Replace Old AS eBGP neighbor. TestLocalASReplaceASSendsOnlyTheLocalAS asserts the replace-as destinations receive exactly [65010 65002] (assert.Equal), red if 65000 appears; TestLocalASOptionsProduceDifferentASPaths adds assert.NotContains 65000. Negative: the no-option destination receives [65010 65000 65002].
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -176,7 +185,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The BGP router MUST append only the configured "Local AS" ASN value to the AS_PATH attribute before sending the BGP UPDATEs outbound to the eBGP neighbor. (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: toward a Replace Old AS eBGP neighbor, appending anything other than the Local AS value, or omitting it. TestLocalASReplaceASSendsOnlyTheLocalAS asserts exact equality with [65010 65002], red on a missing 65010 or any extra ASN. Negative: the no-option destination's [65010 65000 65002].
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -187,7 +196,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The mechanism introduced in this section MUST be configurable on a per-neighbor or per-neighbor-group basis to allow for maximum flexibility. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the Internal BGP AS Migration mechanism settable on neither a neighbor nor a neighbor group. TestPeersFromConfigTree_ASMigrationPerNeighborGroup drives PeersFromConfigTree: the group's migration 64510 reaches the inheriting peer and the peer's own migration 64520 reaches that peer (assert.Equal MigrationAS), red if either basis is not read. Negative: the peer outside the group keeps MigrationAS zero and stays eBGP.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -196,9 +205,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7705-4.2-2`](#rfc7705-4.2-2)
 
-A speaker configured with "Internal BGP AS Migration" "MUST accept BGP OPEN and establish an iBGP session from configured iBGP peers if the ASN value in 'My Autonomous System' is either the globally configured ASN or a locally configured ASN" (§4.2)
+When configured with this mechanism, a BGP speaker MUST accept BGP OPEN and establish an iBGP session from configured iBGP peers if the ASN value in "My Autonomous System" is either the globally configured ASN or a locally configured ASN provided when this capability is utilized. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: refusing the OPEN of a configured iBGP peer whose My Autonomous System is the global or the locally configured ASN, or not establishing an iBGP session from it. TestMigrationAcceptsEitherASN drives handleOpen for both ASNs and asserts NoError and StateOpenConfirm, red on a refusal of either. The 'establish an iBGP session' clause has no assertion in the tagged unit: it stops at OpenConfirm, never reaches Established, and never asserts the session accepted under the locally configured ASN is treated as internal.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -207,9 +216,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7705-4.2-3`](#rfc7705-4.2-3)
 
-A router configured with "Internal BGP AS Migration" "MUST send its own BGP OPEN ... using either the globally configured or the locally configured ASN in 'My Autonomous System'" (§4.2)
+Additionally, a BGP router configured with this mechanism MUST send its own BGP OPEN [RFC4271] (see Section 4.2) using either the globally configured or the locally configured ASN in "My Autonomous System" as follows. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: sending an OPEN whose My Autonomous System is neither the global nor the locally configured ASN. TestMigrationOpenCarriesResolvedASN reads the OPEN buildOpen produces and asserts My AS and the Four-octet AS capability equal the global ASN before a Bad Peer AS and the locally configured ASN after it (assert.Equal MyAS, ASN4, capability ASN), red on any other AS. Negative: without migration configured the local AS is sent whatever the fallback flag holds.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -220,7 +229,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In each case, the BGP speaker MUST treat UPDATEs sent and received to this peer as if this was a natively configured iBGP session, as defined by [RFC4271] and [RFC4456]. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: handling UPDATEs sent to or received from the migrating peer as eBGP, or otherwise unlike a native iBGP session under RFC 4271 and RFC 4456. TestMigrationSessionIsIBGP asserts only the classification (IsIBGP, IsEBGP) and localASPrependFor(settings).owed() && IsEBGP(), which is derived from IsEBGP itself. No tagged unit sends or receives an UPDATE on such a session: nothing asserts the absence of an eBGP AS_PATH prepend on the wire, LOCAL_PREF handling, iBGP split horizon, or the RFC 4456 reflection rules.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

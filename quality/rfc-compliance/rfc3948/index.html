@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3948 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 14 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3948 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 14 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3948 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 14 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,26 +116,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>57.1%</strong><b>8 of 14 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>28.6%</strong><b>4 of 14 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>3.8%</strong><b>1 of 26 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>54.5%</strong><b>6 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>27.3%</strong><b>3 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>13.6%</strong><b>3 of 22 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>14</strong><b>of 18 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 14 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>7.1%</strong><b>1 of 14 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>9.1%</strong><b>1 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>7.1%</strong><b>1 of 14 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>9.1%</strong><b>1 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>9</strong><b>of 11 gated MUSTs judged</b><p>6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -203,16 +204,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>18</td>
+<td>16</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>14</td>
+<td>11</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>1</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>1</td>
+</tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
@@ -221,16 +225,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2</td>
 </tr>
 <tr><td>Test tags</td>
-<td>26</td>
+<td>22</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>26</td>
+<td>22</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>9</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>1</td>
+<td>3</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3948.md</code></td>
@@ -253,7 +257,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>What the ledger says is covered:</strong></p>
 NAT-T non-ESP marker, UDP 4500 encapsulation, NAT keepalive, XFRM UDP encap attributes.
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assigns no inner address to a remote peer, so it devises no way of preventing two peers behind one NAT from reaching it with the same self-chosen inner address. The section&#39;s RECOMMENDED remedy is a locally unique address per peer, and the allocator for it is written and unreached: <code>Pool.Allocate</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/pool.go" target="_blank" rel="noopener"><code>internal/core/eap/pool.go</code></a>) has no non-test caller, and <code>registerIKE</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/register.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/register.go</code></a>) discards the pool it builds. No engine code constructs a Configuration payload, so ze sends no CFG_REPLY. Closing it is <a href="https://github.com/ze-software/ze/blob/main/plan/immediate/spec-ike-virtual-ip-assignment.md" target="_blank" rel="noopener"><code>plan/immediate/spec-ike-virtual-ip-assignment.md</code></a>.
+Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assigns no inner address to a remote peer, so it devises no way of preventing two peers behind one NAT from reaching it with the same self-chosen inner address. The section&#39;s RECOMMENDED remedy is a locally unique address per peer, and the allocator for it is written and unreached: <code>Pool.Allocate</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/pool.go" target="_blank" rel="noopener"><code>internal/core/eap/pool.go</code></a>) has no non-test caller, and <code>reloadPool</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/apply.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/apply.go</code></a>) stores the pool it builds in a field no code reads. No engine code constructs a Configuration payload, so ze sends no CFG_REPLY. Closing it is <a href="https://github.com/ze-software/ze/blob/main/plan/immediate/spec-ike-virtual-ip-assignment.md" target="_blank" rel="noopener"><code>plan/immediate/spec-ike-virtual-ip-assignment.md</code></a>.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -262,11 +266,11 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>8</strong></td>
+<td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>6</strong></td>
+<td><strong>5</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -285,12 +289,12 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>14</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>11</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (8):</strong> <a href="#rfc3948-2.1-1"><code>RFC3948-2.1-1</code></a>, <a href="#rfc3948-3.1.2-1"><code>RFC3948-3.1.2-1</code></a>, <a href="#rfc3948-3.1.2-2"><code>RFC3948-3.1.2-2</code></a>, <a href="#rfc3948-2.2-1"><code>RFC3948-2.2-1</code></a>, <a href="#rfc3948-2.1-3"><code>RFC3948-2.1-3</code></a>, <a href="#rfc3948-1-1"><code>RFC3948-1-1</code></a>, <a href="#rfc3948-4-3"><code>RFC3948-4-3</code></a>, <a href="#rfc3948-5.2-1"><code>RFC3948-5.2-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (6):</strong> <a href="#rfc3948-2.1-2"><code>RFC3948-2.1-2</code></a>, <a href="#rfc3948-2.1-4"><code>RFC3948-2.1-4</code></a>, <a href="#rfc3948-4-1"><code>RFC3948-4-1</code></a>, <a href="#rfc3948-2.3-2"><code>RFC3948-2.3-2</code></a>, <a href="#rfc3948-3.1.1-1"><code>RFC3948-3.1.1-1</code></a>, <a href="#rfc3948-5.1-1"><code>RFC3948-5.1-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc3948-2.1-1"><code>RFC3948-2.1-1</code></a>, <a href="#rfc3948-3.1.2-1"><code>RFC3948-3.1.2-1</code></a>, <a href="#rfc3948-3.1.2-2"><code>RFC3948-3.1.2-2</code></a>, <a href="#rfc3948-1-1"><code>RFC3948-1-1</code></a>, <a href="#rfc3948-4-3"><code>RFC3948-4-3</code></a>, <a href="#rfc3948-5.2-1"><code>RFC3948-5.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (5):</strong> <a href="#rfc3948-2.1-2"><code>RFC3948-2.1-2</code></a>, <a href="#rfc3948-2.1-4"><code>RFC3948-2.1-4</code></a>, <a href="#rfc3948-2.3-2"><code>RFC3948-2.3-2</code></a>, <a href="#rfc3948-3.1.1-1"><code>RFC3948-3.1.1-1</code></a>, <a href="#rfc3948-5.1-1"><code>RFC3948-5.1-1</code></a></p>
 <p class="rfc-id-list"><strong>Evidence that runs nightly only (2):</strong> <a href="#rfc3948-3.1.2-1"><code>RFC3948-3.1.2-1</code></a>, <a href="#rfc3948-3.1.2-2"><code>RFC3948-3.1.2-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
@@ -298,7 +302,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-1">RFC3948-2.1-1</code></td><td colspan="3"><span class="rfc-subject">ESP SPI MUST NOT be zero (zero is reserved for the Non-ESP Marker to distinguish IKE from ESP on port 4500) (S2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-1">RFC3948-2.1-1</code></td><td colspan="3"><span class="rfc-subject">The SPI field in the ESP header MUST NOT be a zero value. (S2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.1 - UDP-Encapsulated ESP Header Format</td>
@@ -307,7 +311,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L261" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-2">RFC3948-2.1-2</code></td><td colspan="3"><span class="rfc-subject">Source and destination ports MUST match the ports used by IKE (port 4500 after port float) (S2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-2">RFC3948-2.1-2</code></td><td colspan="3"><span class="rfc-subject">the Source Port and Destination Port MUST be the same as that used by IKE traffic (S2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1 - UDP-Encapsulated ESP Header Format</td>
@@ -316,7 +320,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Child SA install unconditionally sets both UDP-encap ports to the fixed IKE NAT-T port 4500 (internal/component/ike/engine/child.go:237-238,265-266); no ze code path produces a non-4500 encap port, so there is no mismatched-port case to reject</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-3.1.2-1">RFC3948-3.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Transport mode decapsulation MUST do one of three things with the inner TCP/UDP checksum: recompute it incrementally from the addresses received via IKE, recompute it in full, or zero a UDP checksum and flag the stack that a TCP one need not be computed (S3.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-3.1.2-1">RFC3948-3.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Depending on local policy, one of the following MUST be done: 1. If the protocol header after the ESP header is a TCP/UDP header and the peer&#39;s real source and destination IP address have been received according to [RFC3947], incrementally recompute the TCP/UDP checksum: * Subtract the IP source address in the received packet from the checksum. * Add the real IP source address received via IKE to the checksum (obtained from the NAT-OA) * Subtract the IP destination address in the received packet from the checksum. * Add the real IP destination address received via IKE to the checksum (obtained from the NAT-OA). Note: If the received and real address are the same for a given address (e.g., say the source address), the operations cancel and don&#39;t need to be performed. 2. If the protocol header after the ESP header is a TCP/UDP header, recompute the checksum field in the TCP/UDP header. 3. If the protocol header after the ESP header is a UDP header, set the checksum field to zero in the UDP header. If the protocol after the ESP header is a TCP header, and if there is an option to flag to the stack that the TCP checksum does not need to be computed, then that flag MAY be used. (S3.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1.2 - Transport Mode Decapsulation NAT Procedure</td>
@@ -334,27 +338,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1319" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
 </div><p class="rfc-mark"><strong>nightly-only:</strong> every test bound to this requirement runs in the scheduled workflow alone, so nothing here is proven on the merge path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.2-1">RFC3948-2.2-1</code></td><td colspan="3"><span class="rfc-subject">Non-ESP Marker (4 zero bytes) MUST be prepended to IKE packets on port 4500 (S2.2)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>2.2 - IKE Header Format for Port 4500</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L83" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestNonESPMarker</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L115" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestNonESPMarkerESPPacket</code></a></span></div>
-</div></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-3">RFC3948-2.1-3</code></td><td colspan="3"><span class="rfc-subject">Receiver MUST demultiplex by inspecting first 4 bytes after UDP header: zero = IKE, non-zero = ESP, 1-byte 0xFF = keepalive (S2.1, S2.2, S2.3)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>2.1 - UDP-Encapsulated ESP Header Format</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-2.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L128" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestIsNATKeepalive</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L86" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestNonESPMarker</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L134" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestIsNATKeepalive</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L118" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestNonESPMarkerESPPacket</code></a></span></div>
-</div></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-4">RFC3948-2.1-4</code></td><td colspan="3"><span class="rfc-subject">Receivers MUST NOT depend on the UDP checksum being zero (S2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-4">RFC3948-2.1-4</code></td><td colspan="3"><span class="rfc-subject">receivers MUST NOT depend on the UDP checksum being a zero value (S2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.1 - UDP-Encapsulated ESP Header Format</td>
@@ -363,9 +347,9 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze reads IKE/ESP demux from the OS UDP socket (internal/component/ike/engine/register.go:421) and never inspects the UDP checksum, so no ze code path can depend on it; ESP-in-UDP checksum handling is the kernel&#39;s</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-4-1">RFC3948-4-1</code></td><td colspan="3"><span class="rfc-subject">Keepalive interval MUST be shorter than the NAT binding timeout (S4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-4-1">RFC3948-4-1</code></td><td colspan="3"><span class="rfc-subject">A peer SHOULD send a NAT-keepalive packet if a need for it is detected according to [RFC3947] and if no other packet to the peer has been sent in M seconds. (S4)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
+<td>SHOULD</td>
 <td>4 - NAT Keepalive Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/keepalive_test.go#L62" title="internal/component/ike/transport/keepalive_test.go" target="_blank" rel="noopener"><code>TestKeepaliveDefaultInterval</code></a></span></div>
@@ -402,7 +386,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L666" title="internal/component/ike/engine/rfc7296_natt_test.go" target="_blank" rel="noopener"><code>TestNATKeepaliveReachesNoSA</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-3.1.1-1">RFC3948-3.1.1-1</code></td><td colspan="3"><span class="rfc-subject">Tunnel mode decapsulation, depending on local policy, MUST do one of three things: check the inner source address against the policy, check it against the address assigned to the peer, or NAT the packet (S3.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-3.1.1-1">RFC3948-3.1.1-1</code></td><td colspan="3"><span class="rfc-subject">Depending on local policy, one of the following MUST be done: 1. If a valid source IP address space has been defined in the policy for the encapsulated packets from the peer, check that the source IP address of the inner packet is valid according to the policy. 2. If an address has been assigned for the remote peer, check that the source IP address used in the inner packet is the assigned IP address. 3. NAT is performed for the packet, making it suitable for transport in the local network. (S3.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1.1 - Tunnel Mode Decapsulation NAT Procedure</td>
@@ -412,14 +396,14 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze takes the first option by installing the inbound policy with the negotiated remote traffic selector as its source selector (childPolicyParams, internal/component/ike/engine/child.go), and the drop of a mismatched inner packet is the kernel&#39;s, so ze holds no rejecting branch</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-5.1-1">RFC3948-5.1-1</code></td><td colspan="3"><span class="rfc-subject">Implementors MUST devise ways of preventing two remote peers from reaching one security gateway with overlapping inner addresses (S5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-5.1-1">RFC3948-5.1-1</code></td><td colspan="3"><span class="rfc-subject">Because SGW will now see two possible SAs that lead to 10.1.2.3, it can become confused about where to send packets coming from Suzy&#39;s server. Implementors MUST devise ways of preventing this from occurring. (S5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1 - Tunnel Mode Conflict</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-5.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze devises no such way, because it assigns no inner address at all. The section&#39;s RECOMMENDED remedy is to give each remote peer a locally unique address, and the allocator for it exists and is unreached: Pool.Allocate (internal/core/eap/pool.go) leases a unique address and refuses on exhaustion with ErrPoolExhausted, yet its only callers are pool_test.go and pool_release_test.go. registerIKE (internal/component/ike/engine/register.go) builds the pool from the remote-access config and then discards it at a bare `_ = ipPool`, so no lease ever reaches a peer. No engine code constructs a wire.PayloadCP either, so ze sends no CFG_REPLY and a client keeps whatever inner address it chose for itself. Two peers behind one NAT that both chose 10.1.2.3 would therefore present the gateway with the ambiguity the section names, and ze holds nothing that prevents it. Closing this is plan/immediate/spec-ike-virtual-ip-assignment.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze devises no such way, because it assigns no inner address at all. The section&#39;s RECOMMENDED remedy is to give each remote peer a locally unique address, and the allocator for it exists and is unreached: Pool.Allocate (internal/core/eap/pool.go) leases a unique address and refuses on exhaustion with ErrPoolExhausted, yet its only callers are pool_test.go and pool_release_test.go. reloadPool (internal/component/ike/engine/apply.go) builds the pool from the remote-access config and stores it in ikeEngineState.pool, which no code reads, so no lease ever reaches a peer. No engine code constructs a wire.PayloadCP either, so ze sends no CFG_REPLY and a client keeps whatever inner address it chose for itself. Two peers behind one NAT that both chose 10.1.2.3 would therefore present the gateway with the ambiguity the section names, and ze holds nothing that prevents it. Closing this is plan/immediate/spec-ike-virtual-ip-assignment.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-5.2-1">RFC3948-5.2-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST handle this situation, either by disallowing conflicting connections, or by other means. (S5.2)</span></td></tr>
 <tr><td></td>
@@ -430,7 +414,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/policy_owner_test.go#L40" title="internal/component/ike/dataplane/policy_owner_test.go" target="_blank" rel="noopener"><code>TestPolicyOwnerRefusesASecondPeerOnOneSelector</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-5">RFC3948-2.1-5</code></td><td colspan="3"><span class="rfc-subject">IPv4 UDP checksum SHOULD be zero on transmit (S2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-5">RFC3948-2.1-5</code></td><td colspan="3"><span class="rfc-subject">the IPv4 UDP Checksum SHOULD be transmitted as a zero value (S2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1 - UDP-Encapsulated ESP Header Format</td>
@@ -439,16 +423,16 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.3-1">RFC3948-2.3-1</code></td><td colspan="3"><span class="rfc-subject">NAT-keepalive packets (1 byte 0xFF) SHOULD be ignored by the receiver (S2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.3-1">RFC3948-2.3-1</code></td><td colspan="3"><span class="rfc-subject">The receiver SHOULD ignore a received NAT-keepalive packet. (S2.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.3 - NAT-Keepalive Packet Format</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-2.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L122" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestIsNATKeepalive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L128" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestIsNATKeepalive</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-3.1.2-3">RFC3948-3.1.2-3</code></td><td colspan="3"><span class="rfc-subject">TCP checksum verification MAY be skipped for transport mode only if the packet is integrity-protected (S3.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-3.1.2-3">RFC3948-3.1.2-3</code></td><td colspan="3"><span class="rfc-subject">If the protocol after the ESP header is a TCP header, and if there is an option to flag to the stack that the TCP checksum does not need to be computed, then that flag MAY be used. This SHOULD only be done for transport mode, and if the packet is integrity protected. (S3.1.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1.2 - Transport Mode Decapsulation NAT Procedure</td>
@@ -457,7 +441,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-4-2">RFC3948-4-2</code></td><td colspan="3"><span class="rfc-subject">Keepalive interval is implementation-specific; typical 20-30 seconds (S4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-4-2">RFC3948-4-2</code></td><td colspan="3"><span class="rfc-subject">M is a locally configurable parameter with a default value of 20 seconds. (S4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4 - NAT Keepalive Procedure</td>
@@ -475,13 +459,13 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc3948-2.1-4"><code>RFC3948-2.1-4</code></a> Receivers MUST NOT depend on the UDP checksum being zero (S2.1)</td>
+<tr><td><a href="#rfc3948-2.1-4"><code>RFC3948-2.1-4</code></a> receivers MUST NOT depend on the UDP checksum being a zero value (S2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze reads IKE/ESP demux from the OS UDP socket (internal/component/ike/engine/register.go:421) and never inspects the UDP checksum, so no ze code path can depend on it; ESP-in-UDP checksum handling is the kernel&#39;s</td>
 </tr>
-<tr><td><a href="#rfc3948-5.1-1"><code>RFC3948-5.1-1</code></a> Implementors MUST devise ways of preventing two remote peers from reaching one security gateway with overlapping inner addresses (S5.1)</td>
+<tr><td><a href="#rfc3948-5.1-1"><code>RFC3948-5.1-1</code></a> Because SGW will now see two possible SAs that lead to 10.1.2.3, it can become confused about where to send packets coming from Suzy&#39;s server. Implementors MUST devise ways of preventing this from occurring. (S5.1)</td>
 <td>{gap}, no test</td>
-<td>ze devises no such way, because it assigns no inner address at all. The section&#39;s RECOMMENDED remedy is to give each remote peer a locally unique address, and the allocator for it exists and is unreached: Pool.Allocate (internal/core/eap/pool.go) leases a unique address and refuses on exhaustion with ErrPoolExhausted, yet its only callers are pool_test.go and pool_release_test.go. registerIKE (internal/component/ike/engine/register.go) builds the pool from the remote-access config and then discards it at a bare `_ = ipPool`, so no lease ever reaches a peer. No engine code constructs a wire.PayloadCP either, so ze sends no CFG_REPLY and a client keeps whatever inner address it chose for itself. Two peers behind one NAT that both chose 10.1.2.3 would therefore present the gateway with the ambiguity the section names, and ze holds nothing that prevents it. Closing this is plan/immediate/spec-ike-virtual-ip-assignment.md</td>
+<td>ze devises no such way, because it assigns no inner address at all. The section&#39;s RECOMMENDED remedy is to give each remote peer a locally unique address, and the allocator for it exists and is unreached: Pool.Allocate (internal/core/eap/pool.go) leases a unique address and refuses on exhaustion with ErrPoolExhausted, yet its only callers are pool_test.go and pool_release_test.go. reloadPool (internal/component/ike/engine/apply.go) builds the pool from the remote-access config and stores it in ikeEngineState.pool, which no code reads, so no lease ever reaches a peer. No engine code constructs a wire.PayloadCP either, so ze sends no CFG_REPLY and a client keeps whatever inner address it chose for itself. Two peers behind one NAT that both chose 10.1.2.3 would therefore present the gateway with the ambiguity the section names, and ze holds nothing that prevents it. Closing this is plan/immediate/spec-ike-virtual-ip-assignment.md</td>
 </tr>
 </tbody>
 </table>
@@ -490,8 +474,8 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc3948-2.1-1"><code>RFC3948-2.1-1</code></a></h3>
-<p>ESP SPI MUST NOT be zero (zero is reserved for the Non-ESP Marker to distinguish IKE from ESP on port 4500) (S2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The SPI field in the ESP header MUST NOT be a zero value. (S2.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an ESP SA whose SPI is 0. TestGenerateESPSPI asserts spi != 0 over 100 calls to generateESPSPI, and both tags sit on that one assertion (two hats). The assertion cannot observe the loss of the producer&#39;s guard: with the retry loop in child.go removed, a random 32-bit draw is 0 with probability 2^-32 per call, so the test stays green. No unit injects a zero draw into the generator.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -510,8 +494,8 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 </table>
 </div>
 <h3><a href="#rfc3948-2.1-2"><code>RFC3948-2.1-2</code></a></h3>
-<p>Source and destination ports MUST match the ports used by IKE (port 4500 after port float) (S2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>the Source Port and Destination Port MUST be the same as that used by IKE traffic (S2.1)</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. Forbidden behaviour: UDP-encapsulated ESP whose source or destination port differs from the ports IKE traffic uses, which is the NAT-translated case (Section 5.2 shows IKE reaching the server as &lt;Y,4500&gt;). TestChildSANATTEncapPorts asserts both encap ports equal the constant transport.NATTPort (4500), which is what the code does, not what the RFC says: installChildSA (child.go) takes the peer&#39;s real IKE port only on the MOBIKE path (udpRemotePort) and otherwise falls back to 4500, so a peer whose IKE arrives from a translated port Y gets ESP on 4500 and the test stays green. The {single-polarity} marker&#39;s claim that no path produces a non-4500 port is also false for the MOBIKE path.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -525,8 +509,8 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 </table>
 </div>
 <h3><a href="#rfc3948-3.1.2-1"><code>RFC3948-3.1.2-1</code></a></h3>
-<p>Transport mode decapsulation MUST do one of three things with the inner TCP/UDP checksum: recompute it incrementally from the addresses received via IKE, recompute it in full, or zero a UDP checksum and flag the stack that a TCP one need not be computed (S3.1.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Depending on local policy, one of the following MUST be done: 1. If the protocol header after the ESP header is a TCP/UDP header and the peer&#39;s real source and destination IP address have been received according to [RFC3947], incrementally recompute the TCP/UDP checksum: * Subtract the IP source address in the received packet from the checksum. * Add the real IP source address received via IKE to the checksum (obtained from the NAT-OA) * Subtract the IP destination address in the received packet from the checksum. * Add the real IP destination address received via IKE to the checksum (obtained from the NAT-OA). Note: If the received and real address are the same for a given address (e.g., say the source address), the operations cancel and don&#39;t need to be performed. 2. If the protocol header after the ESP header is a TCP/UDP header, recompute the checksum field in the TCP/UDP header. 3. If the protocol header after the ESP header is a UDP header, set the checksum field to zero in the UDP header. If the protocol after the ESP header is a TCP header, and if there is an option to flag to the stack that the TCP checksum does not need to be computed, then that flag MAY be used. (S3.1.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: dropping a transport-mode ESP-in-UDP datagram whose inner TCP/UDP checksum a NAT invalidated, when none of the three alternatives is done. checkNATTTransportInnerChecksum asserts Ze installs transport mode with the espinudp template and that nping --badsum TCP and UDP probes are delivered (checkInnerChecksums true). The tunnel-mode scenario, differing in mode alone, refuses the same probes, proving the corruption is real.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -564,63 +548,13 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 </tbody>
 </table>
 </div>
-<h3><a href="#rfc3948-2.2-1"><code>RFC3948-2.2-1</code></a></h3>
-<p>Non-ESP Marker (4 zero bytes) MUST be prepended to IKE packets on port 4500 (S2.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L115" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestNonESPMarkerESPPacket</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L83" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestNonESPMarker</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
-<h3><a href="#rfc3948-2.1-3"><code>RFC3948-2.1-3</code></a></h3>
-<p>Receiver MUST demultiplex by inspecting first 4 bytes after UDP header: zero = IKE, non-zero = ESP, 1-byte 0xFF = keepalive (S2.1, S2.2, S2.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L134" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestIsNATKeepalive</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L118" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestNonESPMarkerESPPacket</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L128" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestIsNATKeepalive</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L86" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestNonESPMarker</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
 <h3><a href="#rfc3948-2.1-4"><code>RFC3948-2.1-4</code></a></h3>
-<p>Receivers MUST NOT depend on the UDP checksum being zero (S2.1)</p>
+<p>receivers MUST NOT depend on the UDP checksum being a zero value (S2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3948-2.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc3948-4-1"><code>RFC3948-4-1</code></a></h3>
-<p>Keepalive interval MUST be shorter than the NAT binding timeout (S4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>A peer SHOULD send a NAT-keepalive packet if a need for it is detected according to [RFC3947] and if no other packet to the peer has been sent in M seconds. (S4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: not sending a NAT-keepalive when a need is detected (NAT behind this end) and nothing else was sent to the peer for M seconds. TestNATKeepalive proves Keepalive.Run emits a keepalive on its timer and TestKeepaliveDefaultInterval proves the default interval is positive and &lt;= 20s. Neither clause of the condition is asserted: no unit shows keepalives start only when the RFC 3947 need is detected, and none shows the M-second window is measured from the last packet sent to the peer rather than a free-running ticker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -665,7 +599,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 </div>
 <h3><a href="#rfc3948-2.3-2"><code>RFC3948-2.3-2</code></a></h3>
 <p>The sender MUST use a one-octet-long payload with the value 0xFF. (S2.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a NAT-keepalive whose payload is longer than one octet or not 0xFF. TestNATKeepalive runs Keepalive.Run against a real UDP socket and fails unless the datagram read is exactly n == 1 and buf[0] == 0xFF, so both clauses (one octet, value 0xFF) go red on a change of keepaliveByte or of the write length. Single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -704,8 +638,8 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 </table>
 </div>
 <h3><a href="#rfc3948-3.1.1-1"><code>RFC3948-3.1.1-1</code></a></h3>
-<p>Tunnel mode decapsulation, depending on local policy, MUST do one of three things: check the inner source address against the policy, check it against the address assigned to the peer, or NAT the packet (S3.1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Depending on local policy, one of the following MUST be done: 1. If a valid source IP address space has been defined in the policy for the encapsulated packets from the peer, check that the source IP address of the inner packet is valid according to the policy. 2. If an address has been assigned for the remote peer, check that the source IP address used in the inner packet is the assigned IP address. 3. NAT is performed for the packet, making it suitable for transport in the local network. (S3.1.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: tunnel-mode decapsulation that takes none of the three actions, here accepting an inner packet whose source lies outside the policy&#39;s defined space. Ze takes option 1 through the kernel, so the proof is the selector Ze installs: TestChildInboundPolicyDefinesTheValidInnerSourceSpace asserts the inbound policy is SPActionProtect with Src == the negotiated remote selector 10.2.0.0/24, and the child_test.go unit asserts inPol.Src == NegotiatedTSr; a wider or wrong source selector goes red (discrimination record on childPolicyParams). Options 2 and 3 are alternatives the RFC leaves to local policy. Single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -724,12 +658,12 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 </table>
 </div>
 <h3><a href="#rfc3948-5.1-1"><code>RFC3948-5.1-1</code></a></h3>
-<p>Implementors MUST devise ways of preventing two remote peers from reaching one security gateway with overlapping inner addresses (S5.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Because SGW will now see two possible SAs that lead to 10.1.2.3, it can become confused about where to send packets coming from Suzy&#39;s server. Implementors MUST devise ways of preventing this from occurring. (S5.1)</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. {gap} confirmed at the producer: ze devises no way to stop two peers behind one NAT reaching it with the same inner address, because it assigns no inner address. eap.Pool.Allocate (internal/core/eap/pool.go) leases a locally unique address and has no non-test caller; the engine keeps the remote-access pool in s.pool via reloadPool (internal/component/ike/engine/apply.go), whose own comment states nothing reads s.pool yet. No tagged unit exists.</p>
 <p>No test carries RFC3948-5.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3948-5.2-1"><code>RFC3948-5.2-1</code></a></h3>
 <p>Implementations MUST handle this situation, either by disallowing conflicting connections, or by other means. (S5.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. Forbidden behaviour: two transport-mode clients behind one NAT whose traffic descriptions overlap both admitted with nothing deciding which SA carries the traffic. TestPolicyOwnerRefusesASecondPeerOnOneSelector refuses only a second claim on an identical selector (0.0.0.0/0 tunnel, same fields), which is the XFRM policy-identity rule, a neighbouring one. TestPolicyOwnerSeparatesDistinctSelectors (positive) asserts that overlapping descriptions ARE admitted: Dst 192.0.2.0/24 against 0.0.0.0/0, and a port-500 or port-4500 selector against an any-port one, all overlap, so its tag prose (&#39;do NOT overlap&#39;) is false and the unit pins the non-compliant behaviour. Transport mode is never exercised.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -743,6 +677,26 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/policy_owner_test.go#L263" title="internal/component/ike/dataplane/policy_owner_test.go" target="_blank" rel="noopener"><code>TestPolicyOwnerSeparatesDistinctSelectors</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc3948-2.3-1"><code>RFC3948-2.3-1</code></a></h3>
+<p>The receiver SHOULD ignore a received NAT-keepalive packet. (S2.3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The tagged unit TestIsNATKeepalive proves only classification: IsNATKeepalive answers true for the single byte 0xFF and false for 0xFF 0x00 and 0x00. The obligation is that the receiver ignores the keepalive; the ignoring is the &#39;continue&#39; in the receive loop of internal/component/ike/engine/register.go, and no tagged unit goes red if that loop processes a keepalive instead of dropping it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L128" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestIsNATKeepalive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L122" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestIsNATKeepalive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -813,13 +767,13 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>UDP-Encapsulated ESP Header Format</td>
 <td>2</td>
 <td>walked</td>
-<td>UDP-Encapsulated ESP Header Format. The wire diagram, the three UDP-header bullets and the zero-SPI ban. The splitter fuses the three bullets into one site, so only the first of them has a site of its own. The other two, and the demultiplexing rule the summary reads across 2.1, 2.2 and 2.3 together, are listed below.</td>
+<td>UDP-Encapsulated ESP Header Format. The wire diagram, the three UDP-header bullets and the zero-SPI ban. The splitter fuses the three bullets into one site, so only the first of them has a site of its own. The other two are listed below. The demultiplexing rule once filed here is RFC 7296 Section 2.23, and lives in that summary.</td>
 </tr>
 <tr><td><code>2.2</code></td>
 <td>IKE Header Format for Port 4500</td>
 <td>0</td>
 <td>walked</td>
-<td>IKE Header Format for Port 4500. The marker is stated in the indicative, &#39;A Non-ESP Marker is 4 zero-valued bytes aligning with the SPI field of an ESP packet&#39;, so the keyword scan sees no site. The obligation to prepend it is real and is listed below. The section states no checksum rule of its own and defers the checksum to RFC 3947.</td>
+<td>IKE Header Format for Port 4500. The marker is stated in the indicative, &#39;A Non-ESP Marker is 4 zero-valued bytes aligning with the SPI field of an ESP packet&#39;, so the keyword scan sees no site. The obligation to prepend it is stated by RFC 7296 Section 2.23, whose own row RFC7296-2.23-3 carries it, so no row of this summary claims it. The section states no checksum rule of its own and defers the checksum to RFC 3947.</td>
 </tr>
 <tr><td><code>2.3</code></td>
 <td>NAT-Keepalive Packet Format</td>
@@ -1004,7 +958,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5492 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5492: Capabilities Advertisement with BGP-4. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5492: Capabilities Advertisement with BGP-4. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5492 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5492: Capabilities Advertisement with BGP-4. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5492: Capabilities Advertisement with BGP-4. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5492 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5492: Capabilities Advertisement with BGP-4. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5492: Capabilities Advertisement with BGP-4. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>8</strong><b>of 9 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>13</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>3</td>
@@ -311,7 +319,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L411" title="internal/component/bgp/reactor/session_validate_test.go" target="_blank" rel="noopener"><code>TestBuildUnsupportedCapabilityDataCodes_Empty</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-1">RFC5492-4-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MUST be prepared to accept multiple instances of a capability with the same Code, Length, and Value (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-1">RFC5492-4-1</code></td><td colspan="3"><span class="rfc-subject">Note, however, that processing of multiple instances of such capability does not require special handling, as additional instances do not change the meaning of the announced capability; thus, a BGP speaker MUST be prepared to accept such multiple instances. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4 - Capabilities Optional Parameter (Parameter Type 2)</td>
@@ -329,7 +337,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L246" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestOptionalParamRejectsTruncatedCapabilityTLV</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-2">RFC5492-3-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MUST ignore unrecognized capability codes (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-2">RFC5492-3-2</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker receives from its peer a capability that it does not itself support or recognize, it MUST ignore that capability. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - Overview of Operations</td>
@@ -347,7 +355,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this obligation binds the author of a specification that introduces a new capability to describe its multiple-instance error handling; it is not a runtime behavior ze implements</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-3">RFC5492-3-3</code></td><td colspan="3"><span class="rfc-subject">The BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-3">RFC5492-3-3</code></td><td colspan="3"><span class="rfc-subject">the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3 - Overview of Operations</td>
@@ -356,7 +364,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a valid unknown capability has no conforming termination case under this prohibition; TestOpenIgnoresUnknownCapability exercises handleOpen and completes establishment, while rejection for a missing required capability is separate local policy</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-4">RFC5492-3-4</code></td><td colspan="3"><span class="rfc-subject">The Unsupported Capability NOTIFICATION message MUST NOT be generated in response to an unrecognized capability (§3, §5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-4">RFC5492-3-4</code></td><td colspan="3"><span class="rfc-subject">In particular, the Unsupported Capability NOTIFICATION message MUST NOT be generated and the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3 - Overview of Operations</td>
@@ -374,7 +382,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> valid unknown capabilities must all be ignored, so this rule has no conforming reject case; TestOpenIgnoresUnknownCapability checks known-capability negotiation and the session response, while malformed encodings and absent required capabilities exercise different rules</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-5">RFC5492-3-5</code></td><td colspan="3"><span class="rfc-subject">On receiving Unsupported Optional Parameter NOTIFICATION, speaker SHOULD attempt to re-establish without Capabilities Optional Parameter (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-5">RFC5492-3-5</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker determines that its peer doesn&#39;t support capabilities advertisement if, in response to an OPEN message that carries the Capabilities Optional Parameter, the speaker receives a NOTIFICATION message with the Error Subcode set to Unsupported Optional Parameter. (This is a consequence of the base BGP-4 specification [RFC4271] and not a new requirement.) In this case, the speaker SHOULD attempt to re-establish a BGP connection with the peer without sending to the peer the Capabilities Optional Parameter. (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3 - Overview of Operations</td>
@@ -383,7 +391,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-4">RFC5492-4-4</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker SHOULD NOT include more than one instance of a capability with the same Code, Length, and Value (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-4">RFC5492-4-4</code></td><td colspan="3"><span class="rfc-subject">BGP speakers SHOULD NOT include more than one instance of a capability with the same Capability Code, Capability Length, and Capability Value. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4 - Capabilities Optional Parameter (Parameter Type 2)</td>
@@ -392,7 +400,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-5">RFC5492-4-5</code></td><td colspan="3"><span class="rfc-subject">The Capabilities Optional Parameter SHOULD only be included in the OPEN message once (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-5">RFC5492-4-5</code></td><td colspan="3"><span class="rfc-subject">The Capabilities Optional Parameter (OPEN Optional Parameter Type 2) SHOULD only be included in the OPEN message once. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4 - Capabilities Optional Parameter (Parameter Type 2)</td>
@@ -401,7 +409,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-6">RFC5492-4-6</code></td><td colspan="3"><span class="rfc-subject">All capabilities SHOULD be listed as TLVs within a single Capabilities Optional Parameter (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-6">RFC5492-4-6</code></td><td colspan="3"><span class="rfc-subject">If the BGP speaker wishes to include multiple capabilities in the OPEN message, it SHOULD do so as discussed above -- by listing all those capabilities as TLVs within a single Capabilities Optional Parameter. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4 - Capabilities Optional Parameter (Parameter Type 2)</td>
@@ -410,7 +418,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-6">RFC5492-3-6</code></td><td colspan="3"><span class="rfc-subject">Peering terminated due to Unsupported Capability SHOULD NOT be re-established automatically (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-6">RFC5492-3-6</code></td><td colspan="3"><span class="rfc-subject">The decision to send the message and terminate the peering is local to the speaker. If terminated, such peering SHOULD NOT be re-established automatically. (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>3 - Overview of Operations</td>
@@ -419,7 +427,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-7">RFC5492-3-7</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MAY send a NOTIFICATION and terminate peering when peer doesn&#39;t support a required capability (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-7">RFC5492-3-7</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker that supports a certain capability determines that its peer doesn&#39;t support this capability, the speaker MAY send a NOTIFICATION message to the peer and terminate peering (§3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3 - Overview of Operations</td>
@@ -428,7 +436,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-7">RFC5492-4-7</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MAY include more than one instance of a capability with non-zero Length but different Value (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-7">RFC5492-4-7</code></td><td colspan="3"><span class="rfc-subject">BGP speakers MAY include more than one instance of a capability (as identified by the Capability Code) with non-zero Capability Length field, but with different Capability Value and either the same or different Capability Length. (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4 - Capabilities Optional Parameter (Parameter Type 2)</td>
@@ -458,7 +466,7 @@ No tracked gap in current source anchors.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5492-3-1"><code>RFC5492-3-1</code></a></h3>
 <p>The message MUST contain the capability or capabilities that cause the speaker to send the message. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an Unsupported Capability NOTIFICATION that omits the capability that caused it, or lists one that did not. Positive TestBuildUnsupportedCapabilityData asserts the builder&#39;s exact bytes, but only at the builder: a send path that passed other data would stay green. Negative TestSessionAcceptsRequiredCapability proves that no NOTIFICATION is sent when the required capability is present, a neighbouring rule about when to send, not about the message&#39;s contents. TestOpenUnknownCapabilityDoesNotHideMissingRequired asserts the sent Data equals exactly {2,7,RouteRefresh,0} (cause listed, unknown 254 not listed) but carries no 3-1 tag.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -478,7 +486,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc5492-5-1"><code>RFC5492-5-1</code></a></h3>
 <p>The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: Data that does not list the set of capabilities that caused the NOTIFICATION. Positives TestBuildUnsupportedCapabilityDataCodes and _MultipleCodes assert builder bytes only, not the Data of a sent message. Negative TestBuildUnsupportedCapabilityDataCodes_Empty (nil Data for no causes) is not a violating input. The wire-level assertion is in TestOpenUnknownCapabilityDoesNotHideMissingRequired, untagged for 5-1. Tag prose also claims the code-only encoding {65,0} is &#39;exactly as in an OPEN message&#39;, which is false for capabilities that carry a value (ASN4 is 65,4,&lt;asn&gt; in OPEN); that encoding sentence carries no 2119 keyword and is not this row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -502,8 +510,8 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc5492-4-1"><code>RFC5492-4-1</code></a></h3>
-<p>A BGP speaker MUST be prepared to accept multiple instances of a capability with the same Code, Length, and Value (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Note, however, that processing of multiple instances of such capability does not require special handling, as additional instances do not change the meaning of the announced capability; thus, a BGP speaker MUST be prepared to accept such multiple instances. (§4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: refusing or de-duplicating an OPEN that repeats an identical capability. TestParseAcceptsMultipleIdenticalCapabilityInstances asserts Parse returns both instances with no error, which goes red on a parser reject or dedup. No tagged unit drives an OPEN with duplicate identical capabilities through handleOpen and negotiation, so a session-level rejection would stay green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -518,7 +526,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc5492-4-2"><code>RFC5492-4-2</code></a></h3>
 <p>However, for backward compatibility, a BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters, each of which contains one or more capabilities TLVs. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Positive TestParseFromOptionalParamsMultipleCapabilitiesParameters asserts both Type-2 parameters contribute (Len 2, Multiprotocol then ASN4), red if the second parameter were dropped; parser level only. Negative TestOptionalParamRejectsTruncatedCapabilityTLV proves a truncated inner TLV is rejected, a neighbouring malformed-TLV rule that does not violate this requirement. No single-polarity marker, so the pair is incomplete.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -537,8 +545,8 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc5492-3-2"><code>RFC5492-3-2</code></a></h3>
-<p>A BGP speaker MUST ignore unrecognized capability codes (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If a BGP speaker receives from its peer a capability that it does not itself support or recognize, it MUST ignore that capability. (§3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: failing on a capability the speaker does not support or recognize. Positive TestParseUnknownCapability asserts Parse preserves code 254 with no error, parser level. Negative TestParseRejectsMalformedKnownCapabilityLength proves malformed known capabilities are rejected, a neighbouring rule, not a violation of this one. The session-level proof that an unknown capability is ignored is TestOpenIgnoresUnknownCapability, tagged 3-3/3-4/5-2 but not 3-2.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -561,8 +569,8 @@ No tracked gap in current source anchors.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5492-4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc5492-3-3"><code>RFC5492-3-3</code></a></h3>
-<p>The BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker. (§3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: terminating the session because a received capability is not supported. TestOpenIgnoresUnknownCapability sends an OPEN with code 254 and asserts handleOpen returns nil, state OpenConfirm then Established after KEEPALIVE, and s.Conn() is the same connection. {single-polarity: positive} is justified: a prohibition with no conforming termination input.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -576,8 +584,8 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc5492-3-4"><code>RFC5492-3-4</code></a></h3>
-<p>The Unsupported Capability NOTIFICATION message MUST NOT be generated in response to an unrecognized capability (§3, §5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In particular, the Unsupported Capability NOTIFICATION message MUST NOT be generated and the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker. (§3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Quote now covers both halves: no Unsupported Capability NOTIFICATION and no termination for an unsupported capability. TestOpenIgnoresUnknownCapability asserts the bytes written after the OPEN are exactly one KEEPALIVE (Len HeaderLen, type KEEPALIVE) and unchanged after establishment (no NOTIFICATION), and that the connection survives to Established. Single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -592,7 +600,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc5492-5-2"><code>RFC5492-5-2</code></a></h3>
 <p>It MUST NOT be used when a BGP speaker receives a capability that it does not understand; such capabilities MUST be ignored. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clause 1 (Unsupported Capability MUST NOT be used for a capability not understood): TestOpenIgnoresUnknownCapability asserts only a KEEPALIVE is written for an OPEN with code 254. Clause 2 (such capabilities MUST be ignored): the same unit asserts the following Route Refresh TLV is negotiated and the session reaches Established. Single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -792,7 +800,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5286 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5286: Basic Specification for IP Fast Reroute: Loop-Free Alternates. 6 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5286: Basic Specification for IP Fast Reroute: Loop-Free Alternates. 6 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5286 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5286: Basic Specification for IP Fast Reroute: Loop-Free Alternates. 6 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5286: Basic Specification for IP Fast Reroute: Loop-Free Alternates. 6 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5286 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5286: Basic Specification for IP Fast Reroute: Loop-Free Alternates. 6 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5286: Basic Specification for IP Fast Reroute: Loop-Free Alternates. 6 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -119,7 +119,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>50.0%</strong><b>3 of 6 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>40.0%</strong><b>4 of 10 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>33.3%</strong><b>2 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>3</strong><b>of 6 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>2</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -221,16 +225,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>7</td>
+<td>11</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>6</td>
+<td>10</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>3</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>4</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5286.md</code></td>
@@ -297,271 +301,275 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-1">RFC5286-x-1</code></td><td colspan="3"><span class="rfc-subject">Alternate next-hops MUST conform to at least the loop-freeness</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-1">RFC5286-x-1</code></td><td colspan="3"><span class="rfc-subject">Alternate next hops used by implementations following this specification MUST conform to at least the loop-freeness condition stated above in Inequality 1. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>x</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L22" title="internal/plugins/ospf/spf/rfc5286_lfa_test.go" target="_blank" rel="noopener"><code>TestRFC5286LoopFreeInequality1</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L37" title="internal/plugins/ospf/spf/rfc5286_lfa_test.go" target="_blank" rel="noopener"><code>TestRFC5286LoopFreeInequality1</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-2">RFC5286-x-2</code></td><td colspan="3"><span class="rfc-subject">For computing an alternate, a router MUST NOT use an alternate</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-2">RFC5286-x-2</code></td><td colspan="3"><span class="rfc-subject">For computing an alternate, a router MUST NOT use an alternate next- hop that is along a link whose cost or reverse cost is LSInfinity (for OSPF) or the maximum cost (for IS-IS) or that has the overload bit set (for IS-IS). (§3.5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>x</td>
+<td>3.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L60" title="internal/plugins/ospf/spf/rfc5286_lfa_test.go" target="_blank" rel="noopener"><code>TestRFC5286CostReverseCostGate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L26" title="internal/plugins/ospf/spf/rfc5286_costed_out_test.go" target="_blank" rel="noopener"><code>TestRFC5286CostedOutLinkMetric</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L66" title="internal/plugins/ospf/spf/rfc5286_lfa_test.go" target="_blank" rel="noopener"><code>TestRFC5286CostReverseCostGate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L32" title="internal/plugins/ospf/spf/rfc5286_costed_out_test.go" target="_blank" rel="noopener"><code>TestRFC5286CostedOutLinkMetric</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-3">RFC5286-x-3</code></td><td colspan="3"><span class="rfc-subject">In OSPF, if all links from S to a neighbor N_i have reverse</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-3">RFC5286-x-3</code></td><td colspan="3"><span class="rfc-subject">In the case of OSPF, if all links from router S to a neighbor N_i have a reverse cost of LSInfinity, then router S MUST NOT use N_i as an alternate. (§3.5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>x</td>
+<td>3.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L59" title="internal/plugins/ospf/spf/rfc5286_costed_out_test.go" target="_blank" rel="noopener"><code>TestRFC5286AllReverseLinksCostedOut</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L99" title="internal/plugins/ospf/spf/rfc5286_lfa_test.go" target="_blank" rel="noopener"><code>TestRFC5286ReverseCostAllInfinite</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L72" title="internal/plugins/ospf/spf/rfc5286_costed_out_test.go" target="_blank" rel="noopener"><code>TestRFC5286AllReverseLinksCostedOut</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L114" title="internal/plugins/ospf/spf/rfc5286_lfa_test.go" target="_blank" rel="noopener"><code>TestRFC5286ReverseCostAllInfinite</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-4">RFC5286-x-4</code></td><td colspan="3"><span class="rfc-subject">In IS-IS, if N_i has the overload bit set, S MUST NOT consider using N_i as an alternate</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-4">RFC5286-x-4</code></td><td colspan="3"><span class="rfc-subject">Similarly in the case of IS-IS, if N_i has the overload bit set, then S MUST NOT consider using N_i as an alternate. (§3.5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>x</td>
+<td>3.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze computes Loop-Free Alternates only in OSPF (internal/plugins/ospf/spf/lfa.go); IS-IS has no LFA/backup-next-hop computation code path, so the IS-IS overload-bit exclusion has nothing to apply to</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-5">RFC5286-x-5</code></td><td colspan="3"><span class="rfc-subject">The alternate next-hop MUST be used only for traffic types routed according to the shortest path</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-5">RFC5286-x-5</code></td><td colspan="3"><span class="rfc-subject">The alternate next-hop MUST be used only for traffic types that are routed according to the shortest path. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>x</td>
+<td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze attaches the RFC 5286 alternate to a route&#39;s Loc-RIB Path unconditionally in Installer.insert (internal/plugins/ospf/spf/install.go:213-229) with no guard confining it to unicast shortest-path forwarding; an OSPFv3 multicast address-family engine (family.IPv4Multicast / family.IPv6Multicast, internal/plugins/ospf/multiaf.go:102-115) installs through the same NewInstallerFamily path (internal/plugins/ospf/spf_wiring.go:34) and inherits fast-reroute config (internal/plugins/ospf/config.go:709-711), so a multicast-AF route receives the same backup next-hop, which Section 4 confines to shortest-path traffic and Section 6.5 excludes from multicast RPF. Disclosed in the docs/features/rfc-status.md RFC 5286 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-6">RFC5286-x-6</code></td><td colspan="3"><span class="rfc-subject">A router MUST limit the amount of time an alternate next-hop is used after the primary becomes unavailable</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-6">RFC5286-x-6</code></td><td colspan="3"><span class="rfc-subject">A router MUST limit the amount of time an alternate next-hop is used after the primary next-hop has become unavailable. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>x</td>
+<td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze relies on SPF reconvergence to replace a route with a stale alternate (internal/plugins/ospf/spf/install.go:171-195) and the kernel RTNH_F_LINKDOWN flag (internal/plugins/fib/kernel/nexthop_linux.go:113), but implements no explicit RFC 5286 Section 4.1 hold-down timer or termination-condition bounding how long an alternate stays active. Disclosed in the docs/features/rfc-status.md RFC 5286 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-7">RFC5286-x-7</code></td><td colspan="3"><span class="rfc-subject">A router SHOULD select a link-and-node-protecting LFA over a</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-7">RFC5286-x-7</code></td><td colspan="3"><span class="rfc-subject">Since the functionality of link-and-node-protecting LFAs is greater than that of link-protecting downstream paths, a router SHOULD select a link-and-node-protecting LFA over a link-protecting downstream path. (§1.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-8">RFC5286-x-8</code></td><td colspan="3"><span class="rfc-subject">It SHOULD be assumed that an alternate offers no node protection</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-8">RFC5286-x-8</code></td><td colspan="3"><span class="rfc-subject">Therefore, it SHOULD be assumed that an alternate next-hop does not offer node protection if Inequality 3 is not met. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-9">RFC5286-x-9</code></td><td colspan="3"><span class="rfc-subject">If the primary next-hop uses a broadcast link, an alternate</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-9">RFC5286-x-9</code></td><td colspan="3"><span class="rfc-subject">If the primary next-hop uses a broadcast link, then an alternate SHOULD be loop-free with respect to that link&#39;s pseudo-node (PN) to provide link protection. This requirement is described in Inequality 4 below. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-9">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-10">RFC5286-x-10</code></td><td colspan="3"><span class="rfc-subject">A router SHOULD NOT specify the &#34;local protection available&#34;</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-10">RFC5286-x-10</code></td><td colspan="3"><span class="rfc-subject">A router SHOULD NOT specify the &#34;local protection available&#34; flag as a result of having LFAs. (§3.5.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
-<td>x</td>
+<td>3.5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-10">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-11">RFC5286-x-11</code></td><td colspan="3"><span class="rfc-subject">A router SHOULD NOT use an alternate next-hop along a link</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-11">RFC5286-x-11</code></td><td colspan="3"><span class="rfc-subject">A router SHOULD NOT use an alternate next-hop that is along a link for which the link has been advertised with the attribute &#34;link excluded from local protection path&#34; or with the attribute &#34;local maintenance required&#34;. (§3.5.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
-<td>x</td>
+<td>3.5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-11">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-12">RFC5286-x-12</code></td><td colspan="3"><span class="rfc-subject">A router supporting this specification SHOULD attempt to select</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-12">RFC5286-x-12</code></td><td colspan="3"><span class="rfc-subject">A router supporting this specification SHOULD attempt to select at least one loop-free alternate next-hop for each primary next-hop used for a given prefix. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-12">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-13">RFC5286-x-13</code></td><td colspan="3"><span class="rfc-subject">S SHOULD select a loop-free node-protecting alternate if one is</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-13">RFC5286-x-13</code></td><td colspan="3"><span class="rfc-subject">S SHOULD select a loop-free node-protecting alternate next-hop, if one is available. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-13">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-14">RFC5286-x-14</code></td><td colspan="3"><span class="rfc-subject">Given a choice between a link-and-node-protecting alternate and a</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-14">RFC5286-x-14</code></td><td colspan="3"><span class="rfc-subject">If S has a choice between a loop-free link-and-node-protecting alternate and a loop-free node-protecting alternate that is not link-protecting, S SHOULD select a loop-free link-and-node- protecting alternate. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-14">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-15">RFC5286-x-15</code></td><td colspan="3"><span class="rfc-subject">With multiple primary next-hops, S SHOULD select as alternate</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-15">RFC5286-x-15</code></td><td colspan="3"><span class="rfc-subject">If S has multiple primary next-hops, then S SHOULD select as a loop-free alternate either one of the other primary next-hops or a loop-free node-protecting alternate if available. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-15">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-16">RFC5286-x-16</code></td><td colspan="3"><span class="rfc-subject">If no node-protecting alternate and no other primary can provide</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-16">RFC5286-x-16</code></td><td colspan="3"><span class="rfc-subject">If no loop- free node-protecting alternate is available and no other primary next-hop can provide link-protection, then S SHOULD select a loop-free link-protecting alternate. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-16">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-17">RFC5286-x-17</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD support a mode preferring other primary</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-17">RFC5286-x-17</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD support a mode where other primary next- hops satisfying the basic loop-free condition and providing at least link or node protection are preferred over any non-primary alternates. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-17">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-18">RFC5286-x-18</code></td><td colspan="3"><span class="rfc-subject">On primary next-hop failure the router SHOULD remove the failed</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-18">RFC5286-x-18</code></td><td colspan="3"><span class="rfc-subject">When a next-hop failure is detected via a local interface failure or other failure detection mechanisms (see [FRAMEWORK]), the router SHOULD: 1. Remove the primary next-hop associated with the failure. 2. Install the loop-free alternate calculated for the failed next- hop if it is not already installed (e.g., the alternate is also a primary next-hop). (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-18">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-19">RFC5286-x-19</code></td><td colspan="3"><span class="rfc-subject">A router implementing [MICROLOOP] SHOULD follow that document&#39;s</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-19">RFC5286-x-19</code></td><td colspan="3"><span class="rfc-subject">A router that implements [MICROLOOP] SHOULD follow the rules given there for terminating the use of an alternate. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-19">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-20">RFC5286-x-20</code></td><td colspan="3"><span class="rfc-subject">A router implementing [ORDERED-FIB] SHOULD follow that document&#39;s</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-20">RFC5286-x-20</code></td><td colspan="3"><span class="rfc-subject">A router that implements [ORDERED-FIB] SHOULD follow the rules given there for terminating the use of an alternate. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-20">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-21">RFC5286-x-21</code></td><td colspan="3"><span class="rfc-subject">An implementation SHOULD continue to use the alternate next-hops</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-21">RFC5286-x-21</code></td><td colspan="3"><span class="rfc-subject">An implementation SHOULD continue to use the alternate next-hops for packet forwarding even after the new routing information is available based on the new network topology. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-21">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-22">RFC5286-x-22</code></td><td colspan="3"><span class="rfc-subject">Use of the alternate next-hops SHOULD terminate when (a) the new</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-22">RFC5286-x-22</code></td><td colspan="3"><span class="rfc-subject">The use of the alternate next- hops for packet forwarding SHOULD terminate: a. if the new primary next-hop was loop-free prior to the topology change, or b. if a configured hold-down, which represents a worst-case bound on the length of the network convergence transition, has expired, or c. if notification of an unrelated topological change in the network is received. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-22">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-23">RFC5286-x-23</code></td><td colspan="3"><span class="rfc-subject">A router SHOULD compute the alternate next-hop for an IGP</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-23">RFC5286-x-23</code></td><td colspan="3"><span class="rfc-subject">A router SHOULD compute the alternate next-hop for an IGP multi-homed prefix by considering alternate paths via all routers that have announced that prefix. (§6.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-23">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-24">RFC5286-x-24</code></td><td colspan="3"><span class="rfc-subject">For OSPF external routes with a forwarding address set, alternate</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-24">RFC5286-x-24</code></td><td colspan="3"><span class="rfc-subject">When a forwarding address is set in an OSPF AS-external Link State Advertisement (LSA), all routers in the network calculate their next- hops for the external prefix by doing a lookup for the forwarding address in the routing table, rather than using the next-hops calculated for the ASBR. In this case, the alternate next-hops SHOULD be computed by selecting among the alternate paths to the forwarding link(s) instead of among alternate paths to the ASBR. (§6.3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>6.3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-24">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-25">RFC5286-x-25</code></td><td colspan="3"><span class="rfc-subject">Alternate next-hops SHOULD NOT be used for multicast Reverse</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-25">RFC5286-x-25</code></td><td colspan="3"><span class="rfc-subject">The alternate next-hops SHOULD NOT be used for multicast Reverse Path Forwarding (RPF) checks. (§6.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
-<td>x</td>
+<td>6.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-25">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-26">RFC5286-x-26</code></td><td colspan="3"><span class="rfc-subject">A router MAY decide not to use an available loop-free alternate</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-26">RFC5286-x-26</code></td><td colspan="3"><span class="rfc-subject">A router MAY decide to not use an available loop-free alternate next-hop. A reason for such a decision might be that the loop-free alternate next-hop does not provide protection for the failure scenario of interest. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>x</td>
+<td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-26">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-27">RFC5286-x-27</code></td><td colspan="3"><span class="rfc-subject">If no node-protecting alternate is available, S MAY select a</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-27">RFC5286-x-27</code></td><td colspan="3"><span class="rfc-subject">If no loop-free node-protecting alternate is available, then S MAY select a loop-free link-protecting alternate. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>x</td>
+<td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-27">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-28">RFC5286-x-28</code></td><td colspan="3"><span class="rfc-subject">Implementations considering SRLGs MAY use SRLG protection to</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-28">RFC5286-x-28</code></td><td colspan="3"><span class="rfc-subject">Implementations considering SRLGs MAY use SRLG protection to determine that a node-protecting or link-protecting alternate is not available for use. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>x</td>
+<td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-28">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-29">RFC5286-x-29</code></td><td colspan="3"><span class="rfc-subject">The router MAY remove other next-hops it believes (via SRLG</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-29">RFC5286-x-29</code></td><td colspan="3"><span class="rfc-subject">Note that the router MAY remove other next-hops if it believes (via SRLG analysis) that they may have been affected by the same failure, even if it is not visible at the time of failure detection. (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>x</td>
+<td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-29">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-30">RFC5286-x-30</code></td><td colspan="3"><span class="rfc-subject">A router MAY safely simplify the multi-homed-prefix calculation by</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5286-x-30">RFC5286-x-30</code></td><td colspan="3"><span class="rfc-subject">In all cases, a router MAY safely simplify the multi-homed prefix (MHP) calculation by assuming that the MHP is solely attached to the router that was its pre-failure optimal point of attachment. (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>x</td>
+<td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5286-x-30">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -576,15 +584,15 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc5286-x-4"><code>RFC5286-x-4</code></a> In IS-IS, if N_i has the overload bit set, S MUST NOT consider using N_i as an alternate</td>
+<tr><td><a href="#rfc5286-x-4"><code>RFC5286-x-4</code></a> Similarly in the case of IS-IS, if N_i has the overload bit set, then S MUST NOT consider using N_i as an alternate. (§3.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze computes Loop-Free Alternates only in OSPF (internal/plugins/ospf/spf/lfa.go); IS-IS has no LFA/backup-next-hop computation code path, so the IS-IS overload-bit exclusion has nothing to apply to</td>
 </tr>
-<tr><td><a href="#rfc5286-x-5"><code>RFC5286-x-5</code></a> The alternate next-hop MUST be used only for traffic types routed according to the shortest path</td>
+<tr><td><a href="#rfc5286-x-5"><code>RFC5286-x-5</code></a> The alternate next-hop MUST be used only for traffic types that are routed according to the shortest path. (§4)</td>
 <td>{gap}, no test</td>
 <td>ze attaches the RFC 5286 alternate to a route&#39;s Loc-RIB Path unconditionally in Installer.insert (internal/plugins/ospf/spf/install.go:213-229) with no guard confining it to unicast shortest-path forwarding; an OSPFv3 multicast address-family engine (family.IPv4Multicast / family.IPv6Multicast, internal/plugins/ospf/multiaf.go:102-115) installs through the same NewInstallerFamily path (internal/plugins/ospf/spf_wiring.go:34) and inherits fast-reroute config (internal/plugins/ospf/config.go:709-711), so a multicast-AF route receives the same backup next-hop, which Section 4 confines to shortest-path traffic and Section 6.5 excludes from multicast RPF. Disclosed in the docs/features/rfc-status.md RFC 5286 row</td>
 </tr>
-<tr><td><a href="#rfc5286-x-6"><code>RFC5286-x-6</code></a> A router MUST limit the amount of time an alternate next-hop is used after the primary becomes unavailable</td>
+<tr><td><a href="#rfc5286-x-6"><code>RFC5286-x-6</code></a> A router MUST limit the amount of time an alternate next-hop is used after the primary next-hop has become unavailable. (§4.1)</td>
 <td>{gap}, no test</td>
 <td>ze relies on SPF reconvergence to replace a route with a stale alternate (internal/plugins/ospf/spf/install.go:171-195) and the kernel RTNH_F_LINKDOWN flag (internal/plugins/fib/kernel/nexthop_linux.go:113), but implements no explicit RFC 5286 Section 4.1 hold-down timer or termination-condition bounding how long an alternate stays active. Disclosed in the docs/features/rfc-status.md RFC 5286 row</td>
 </tr>
@@ -595,8 +603,8 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5286-x-1"><code>RFC5286-x-1</code></a></h3>
-<p>Alternate next-hops MUST conform to at least the loop-freeness</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Alternate next hops used by implementations following this specification MUST conform to at least the loop-freeness condition stated above in Inequality 1. (§3.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting an alternate N with D_opt(N,D) &gt;= D_opt(N,S)+D_opt(S,D). TestRFC5286LoopFreeInequality1 negative builds the equality case D(N,D)=21 == 10+11 with finite forward and reverse cost, and the `if _, ok := runSelect(...); ok { t.Fatalf(...) }` goes red on any selectLFA that accepts it (a &lt;= or a missing check). Positive 11 &lt; 21 asserts the backup is returned with next-hop N. Isolated: no other gate trips on either input. Unit-level on selectLFA (lfa.go), which is the production LFA selector.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -615,16 +623,26 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc5286-x-2"><code>RFC5286-x-2</code></a></h3>
-<p>For computing an alternate, a router MUST NOT use an alternate</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>For computing an alternate, a router MUST NOT use an alternate next- hop that is along a link whose cost or reverse cost is LSInfinity (for OSPF) or the maximum cost (for IS-IS) or that has the overload bit set (for IS-IS). (§3.5)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an alternate over an OSPF link whose forward or reverse cost is costed out. A Router-LSA link metric is 16 bits, so the costed-out value is MaxLinkMetric 0xffff (RFC 6987 Section 3). selectLFA (spf/lfa.go) now gates forwardCost and reverseCost on spf.MaxLinkMetric = 0xffff. TestRFC5286CostedOutLinkMetric drives selectLFA with forward cost 0xffff and reverse cost 0xffff (each must return no backup) and with 0xfffe on both (must return one), so a gate on the 24-bit LSInfinity or a missing gate goes red. The older TestRFC5286CostReverseCostGate still injects 0x00ffffff, a value no link carries; it stays true and adds nothing.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L32" title="internal/plugins/ospf/spf/rfc5286_costed_out_test.go" target="_blank" rel="noopener"><code>TestRFC5286CostedOutLinkMetric</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L66" title="internal/plugins/ospf/spf/rfc5286_lfa_test.go" target="_blank" rel="noopener"><code>TestRFC5286CostReverseCostGate</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L26" title="internal/plugins/ospf/spf/rfc5286_costed_out_test.go" target="_blank" rel="noopener"><code>TestRFC5286CostedOutLinkMetric</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L60" title="internal/plugins/ospf/spf/rfc5286_lfa_test.go" target="_blank" rel="noopener"><code>TestRFC5286CostReverseCostGate</code></a></td>
@@ -635,16 +653,26 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc5286-x-3"><code>RFC5286-x-3</code></a></h3>
-<p>In OSPF, if all links from S to a neighbor N_i have reverse</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In the case of OSPF, if all links from router S to a neighbor N_i have a reverse cost of LSInfinity, then router S MUST NOT use N_i as an alternate. (§3.5)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA-FIX re-read 2026-09-27. Forbidden: N_i as an alternate when every link from S to N_i has reverse cost LSInfinity. Asserted for point-to-point links only: TestRFC5286AllReverseLinksCostedOut and TestRFC5286ReverseCostAllInfinite derive the reverse cost with reverseP2PCost (spf/lfa.go) over parallel P2P links back to S, all 0xffff or none, and require no backup, with one finite link requiring the backup. A neighbour reached over a transit (broadcast) network takes its reverse cost from reverseTransitCost, which no tagged unit drives at 0xffff, so &#39;all links&#39; is proven for one of the two link kinds lfa.go enumerates. IS-IS computes no LFA in ze, so the row binds OSPF only.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L72" title="internal/plugins/ospf/spf/rfc5286_costed_out_test.go" target="_blank" rel="noopener"><code>TestRFC5286AllReverseLinksCostedOut</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L114" title="internal/plugins/ospf/spf/rfc5286_lfa_test.go" target="_blank" rel="noopener"><code>TestRFC5286ReverseCostAllInfinite</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L59" title="internal/plugins/ospf/spf/rfc5286_costed_out_test.go" target="_blank" rel="noopener"><code>TestRFC5286AllReverseLinksCostedOut</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L99" title="internal/plugins/ospf/spf/rfc5286_lfa_test.go" target="_blank" rel="noopener"><code>TestRFC5286ReverseCostAllInfinite</code></a></td>
@@ -655,15 +683,15 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc5286-x-4"><code>RFC5286-x-4</code></a></h3>
-<p>In IS-IS, if N_i has the overload bit set, S MUST NOT consider using N_i as an alternate</p>
+<p>Similarly in the case of IS-IS, if N_i has the overload bit set, then S MUST NOT consider using N_i as an alternate. (§3.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5286-x-4, so no unit is bound to it.</p>
 <h3><a href="#rfc5286-x-5"><code>RFC5286-x-5</code></a></h3>
-<p>The alternate next-hop MUST be used only for traffic types routed according to the shortest path</p>
+<p>The alternate next-hop MUST be used only for traffic types that are routed according to the shortest path. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5286-x-5, so no unit is bound to it.</p>
 <h3><a href="#rfc5286-x-6"><code>RFC5286-x-6</code></a></h3>
-<p>A router MUST limit the amount of time an alternate next-hop is used after the primary becomes unavailable</p>
+<p>A router MUST limit the amount of time an alternate next-hop is used after the primary next-hop has become unavailable. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5286-x-6, so no unit is bound to it.</p>
 </section>
@@ -940,7 +968,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

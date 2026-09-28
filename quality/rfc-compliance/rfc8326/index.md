@@ -23,7 +23,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 0 | of 3 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (blocked), so every share below reads what the summary records rather than what the gate enforces |
+| MUSTs declared | 0 | of 1 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (blocked), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 0 | of 0 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 0.0% | 0 of 0 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 0 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -53,10 +53,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | No row in the public ledger |
 | Enrolment | Not enrolled (blocked) |
-| Requirements | 3 |
+| Requirements | 1 |
 | Gated MUST-level | 0 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
@@ -65,11 +66,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc8326.md` |
 | Requirement shard | `rfc/requirements/rfc8326.md` |
-| RFC text | this checkout does not carry the RFC's own text |
+| RFC text | `rfc/full/rfc8326.txt` |
 
 ## Enrolment
 
-Not enrolled (blocked, something outside the summary stops the extraction, and it is named in the reason): Graceful BGP Session Shutdown. No source text at rfc/full/rfc8326.txt or rfc/drafts/rfc8326.txt, so check_enrolment refuses the enrolment. Fetch https://www.rfc-editor.org/rfc/rfc8326.txt, then extract.
+Not enrolled (blocked, something outside the summary stops the extraction, and it is named in the reason): Graceful BGP Session Shutdown. The text is at rfc/full/rfc8326.txt (fetched 2026-09-26); enrolment waits on its extraction walk.
 
 ## What the public ledger says
 
@@ -83,9 +84,7 @@ RFC 8326 declares no MUST-level requirement, so the gate counts nothing here.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8326-x-1` | Receiver should set LOCAL_PREF to lowest configured value for routes carrying GRACEFUL_SHUTDOWN community (Key Requirements) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC8326-x-2` | GSHUT community should be propagated to iBGP peers (Key Requirements) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC8326-x-3` | Initiator should strip GSHUT community before advertising to eBGP peers (unless the peer is the target session) (Key Requirements) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC8326-x-1` | The LOCAL_PREF value SHOULD be lower than any of the alternative paths. The RECOMMENDED value is 0. (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 

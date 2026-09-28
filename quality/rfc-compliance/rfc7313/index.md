@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 40.0% | 4 of 10 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 5 | of 10 gated MUSTs judged | 4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 10 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 4 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 23 |
 | Tagged units | 23 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 5 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc7313.md` |
 | Requirement shard | `rfc/requirements/rfc7313.md` |
@@ -114,17 +116,17 @@ Four MUST-level receive-side gaps annotated in [`rfc/short/rfc7313.md`](https://
 | `RFC7313-4-3` | In processing a ROUTE-REFRESH message from a peer, the BGP speaker MUST examine the "message subtype" field of the message and take the appropriate actions. (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestHandleRouteRefreshBoRR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2493). **positive:** `unit/verify` [`TestHandleRouteRefreshEoRR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2526). **negative:** `unit/verify` [`TestHandleRouteRefreshUnknown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2561). **negative:** `unit/verify` [`TestHandleRouteRefresh_UnknownSubtype`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L488) |
 | `RFC7313-4-4` | When a BGP speaker receives a BoRR message from a peer, it MUST mark all the routes with the given Address Family Identifier and Subsequent Address Family Identifier, <AFI, SAFI> [RFC2918], from that peer as stale. (§4) | MUST | 4 - Operation | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze logs a received BoRR but does not mark the peer's Adj-RIB-In routes stale -- internal/component/bgp/plugins/rib/rib.go:751-753 handles a received BoRR as log-only and rib_structured.go:506 returns early for a non-zero subtype, so no stale-marking occurs |
 | `RFC7313-4-5` | When a BGP speaker receives an EoRR message from a peer, it MUST immediately remove any routes from the peer that are still marked as stale for that <AFI, SAFI>. (§4) | MUST | 4 - Operation | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze logs a received EoRR but performs no stale-route removal -- internal/component/bgp/plugins/rib/rib.go:754-756 handles it as log-only, and because no BoRR stale-marking exists (RFC7313-4-4) there is nothing to purge |
-| `RFC7313-5-1` | If the length (excluding fixed header) of a BoRR/EoRR message is not 4, send NOTIFICATION with Error Code 7, subcode 1 (§5) | MUST | 5 - Error Handling | **positive:** `unit/verify` [`TestRouteRefreshBadLengthByMessageSubtype`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L204). **positive:** `unit/verify` [`TestRouteRefreshInvalidLengthNotDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2344). **negative:** `unit/verify` [`TestRouteRefreshBadLengthByMessageSubtype`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L208). **negative:** `unit/verify` [`TestRouteRefreshBadLengthWithoutCapability70`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L117). **negative:** `unit/verify` [`TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L268). **negative:** `unit/verify` [`TestRouteRefreshValidLengthDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2422). **negative:** `unit/verify` [`TestRouteRefreshWellFormedWithoutCapability70DrawsNoNotification`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L172) |
+| `RFC7313-5-1` | If the length, excluding the fixed-size message header, of the received ROUTE-REFRESH message with Message Subtype 1 and 2 is not 4, then the BGP speaker MUST send a NOTIFICATION message with the Error Code of "ROUTE-REFRESH Message Error" and the subcode of "Invalid Message Length". (§5) | MUST | 5 - Error Handling | **positive:** `unit/verify` [`TestRouteRefreshBadLengthByMessageSubtype`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L204). **positive:** `unit/verify` [`TestRouteRefreshInvalidLengthNotDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2344). **negative:** `unit/verify` [`TestRouteRefreshBadLengthByMessageSubtype`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L208). **negative:** `unit/verify` [`TestRouteRefreshBadLengthWithoutCapability70`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L117). **negative:** `unit/verify` [`TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L268). **negative:** `unit/verify` [`TestRouteRefreshValidLengthDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2422). **negative:** `unit/verify` [`TestRouteRefreshWellFormedWithoutCapability70DrawsNoNotification`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L172) |
 | `RFC7313-5-2` | The Data field of the NOTIFICATION message MUST contain the complete ROUTE-REFRESH message (§5) | MUST | 5 - Error Handling | **positive:** `unit/verify` [`TestRouteRefreshBadLengthByMessageSubtype`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L206). **positive:** `unit/verify` [`TestRouteRefreshInvalidLengthNotDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2347). **negative:** no negative test. **{single-polarity}:** routeRefreshNotificationData (internal/component/bgp/reactor/session_handlers.go) always copies the entire received body after the header, so every ROUTE-REFRESH NOTIFICATION carries the complete message; there is no truncating code path to drive a negative |
 | `RFC7313-5-3` | When the BGP speaker receives a ROUTE-REFRESH message with a "Message Subtype" field other than 0, 1, or 2, it MUST ignore the received ROUTE-REFRESH message. (§5) | MUST | 5 - Error Handling | **positive:** `unit/verify` [`TestHandleRouteRefreshReserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2592). **positive:** `unit/verify` [`TestHandleRouteRefreshUnknown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2559). **positive:** `unit/verify` [`TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L266). **negative:** `unit/verify` [`TestHandleRouteRefreshBoRR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2496) |
 | `RFC7313-4-6` | For a BGP speaker that supports the BGP Graceful Restart, it MUST NOT send a BoRR for an <AFI, SAFI> to a neighbor before it sends the EoR for the <AFI, SAFI> to the neighbor. (§4) | MUST NOT | 4 - Operation | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's sendRouteRefresh (internal/component/bgp/reactor/reactor_api_forward.go:112) applies no Graceful-Restart End-of-RIB gate, and rib.go:1008-1013 emits the BoRR without checking End-of-RIB state, so the GR/EoR interaction is not enforced |
 | `RFC7313-4-7` | A BGP speaker that has received the Graceful Restart Capability from its neighbor MUST ignore any BoRRs for an <AFI, SAFI> from the neighbor before the speaker receives the EoR for the given <AFI, SAFI> from the neighbor. (§4) | MUST | 4 - Operation | **positive:** no positive test. **negative:** no negative test. **{gap}:** the received-BoRR path is log-only (internal/component/bgp/plugins/rib/rib.go:751-753) with no Graceful-Restart End-of-RIB gating, and it depends on the unimplemented stale-marking of RFC7313-4-4 |
-| `RFC7313-4-8` | A BGP speaker supporting message subtypes and related procedures SHOULD advertise the Enhanced Route Refresh Capability (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
-| `RFC7313-5-4` | When receiving unknown subtype, the speaker SHOULD log an error for further analysis (§5) | SHOULD | 5 - Error Handling | **positive:** no positive test. **negative:** no negative test |
-| `RFC7313-4-9` | When ignoring BoRR before EoR (Graceful Restart), the speaker SHOULD log an error of the condition (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
-| `RFC7313-4-10` | A BGP speaker MAY ignore any EoRR received without a prior receipt of an associated BoRR (§4) | MAY | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
-| `RFC7313-4-11` | Purged stale routes MAY be logged for future analysis (§4) | MAY | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
-| `RFC7313-4-12` | An implementation MAY impose a locally configurable upper bound on how long it retains stale routes (§4) | MAY | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
+| `RFC7313-4-8` | A BGP speaker that supports the message subtypes for the ROUTE- REFRESH message and the related procedures SHOULD advertise the "Enhanced Route Refresh Capability". (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
+| `RFC7313-5-4` | When the BGP speaker receives a ROUTE-REFRESH message with a "Message Subtype" field other than 0, 1, or 2, it MUST ignore the received ROUTE-REFRESH message. It SHOULD log an error for further analysis. (§5) | SHOULD | 5 - Error Handling | **positive:** no positive test. **negative:** no negative test |
+| `RFC7313-4-9` | A BGP speaker that has received the Graceful Restart Capability from its neighbor MUST ignore any BoRRs for an <AFI, SAFI> from the neighbor before the speaker receives the EoR for the given <AFI, SAFI> from the neighbor. The BGP speaker SHOULD log an error of the condition for further analysis. (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
+| `RFC7313-4-10` | A BGP speaker MAY ignore any EoRR message received without a prior receipt of an associated BoRR message. (§4) | MAY | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
+| `RFC7313-4-11` | When a BGP speaker receives an EoRR message from a peer, it MUST immediately remove any routes from the peer that are still marked as stale for that <AFI, SAFI>. Such purged routes MAY be logged for future analysis. (§4) | MAY | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
+| `RFC7313-4-12` | An implementation MAY impose a locally configurable upper bound on how long it would retain any stale routes. (§4) | MAY | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -143,7 +145,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Before the speaker starts a route refresh that is either initiated locally, or in response to a "normal route refresh request" from the peer, the speaker MUST send a BoRR message. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Single-polarity positive. (a) forbidden: re-advertising before the BoRR, and a locally initiated refresh with no BoRR; (b) TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR asserts the dispatched command list equals [borr, eorr] for a peer-requested (subtype 0) refresh on both rails, but the re-advertised routes do not pass through dispatchHook, so their order against the BoRR is not observed: a producer sending routes first stays green. The 'initiated locally' clause has no tagged unit: TestDispatchBGPPeerBoRR only proves an operator 'borr' command reaches SendBoRR, and TestRouteRefreshSubtypes only encodes subtype 1.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -155,7 +157,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 After the speaker completes the re-advertisement of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Single-polarity positive. (a) forbidden: sending the EoRR before the re-advertisement of the entire Adj-RIB-Out completes; (b) the rib unit asserts [borr, eorr] only; the two ribOut routes are not in the captured sequence, so an EoRR sent before or without the routes stays green. Dispatch and encoding units prove the command path and subtype byte 2 only.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -167,7 +169,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In processing a ROUTE-REFRESH message from a peer, the BGP speaker MUST examine the "message subtype" field of the message and take the appropriate actions. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: handling a ROUTE-REFRESH without reading its subtype (every subtype treated alike); (b) no tagged assertion goes red on it. TestHandleRouteRefreshBoRR, TestHandleRouteRefreshEoRR, TestHandleRouteRefreshUnknown and TestHandleRouteRefresh_UnknownSubtype all assert only NoError and Established, the same outcome for every subtype, so a subtype-blind handler passes all of them. The differentiated action (only subtype 0 starts a refresh) lives in rib_structured.go and rs parseStructuredRefresh and is asserted only by an untagged rib test for subtype 1.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -194,9 +196,9 @@ No test carries RFC7313-4-5, so no unit is bound to it.
 
 ### [`RFC7313-5-1`](#rfc7313-5-1)
 
-If the length (excluding fixed header) of a BoRR/EoRR message is not 4, send NOTIFICATION with Error Code 7, subcode 1 (§5)
+If the length, excluding the fixed-size message header, of the received ROUTE-REFRESH message with Message Subtype 1 and 2 is not 4, then the BGP speaker MUST send a NOTIFICATION message with the Error Code of "ROUTE-REFRESH Message Error" and the subcode of "Invalid Message Length". (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: not sending Error 7/subcode 1 for a BoRR or EoRR whose body is not 4 octets; (b) TestRouteRefreshBadLengthByMessageSubtype assertNotification(raw, NotifyRouteRefresh, NotifyRouteRefreshInvalidLength, ...) for subtype 1 and 2, too short and too long, and TestRouteRefreshInvalidLengthNotDelivered asserts notif[HeaderLen]==7 and [HeaderLen+1]==1. Negatives: subtype 0 draws Bad Message Length instead, a peer without capability 70 draws Bad Message Length, a 4-octet body draws nothing, and an unknown subtype of wrong length draws nothing.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -223,7 +225,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 When the BGP speaker receives a ROUTE-REFRESH message with a "Message Subtype" field other than 0, 1, or 2, it MUST ignore the received ROUTE-REFRESH message. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: acting on a ROUTE-REFRESH whose subtype is not 0, 1 or 2 (starting a re-advertisement, treating it as BoRR/EoRR, or tearing the session down); (b) the tagged units assert no error, no NOTIFICATION and Established for subtypes 5, 42 and 255, which catches only the teardown. The message is still delivered to onMessageReceived before handleRouteRefresh runs (session_read.go:342 then :378; the unit asserts delivered==1), and the actual ignore is done by each consumer (rib_structured.go and rs/server.go parseStructuredRefresh drop subtype != 0). No tagged unit asserts that an unknown subtype starts no re-advertisement. The negative on TestHandleRouteRefreshBoRR asserts only NoError, not that the BoRR was acted on.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

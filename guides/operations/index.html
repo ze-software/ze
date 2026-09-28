@@ -161,6 +161,15 @@ beside the live location is refused without conversion. The diagnostic names
 <code>ze init --from &lt;source&gt;</code>, which imports a blob from a local path or from an
 <code>http</code> or <code>https</code> URL, optionally pinned with <code>--sha256 &lt;hex&gt;</code>.
 Appliance first boot already imports its seed explicitly.</p>
+<p>Stored history keeps each committed config once, named by its SHA-256, and every
+read of a version checks that hash. A store that <code>ze data repair</code> salvaged can
+keep an active pointer whose version was dropped. Bare <code>ze start</code> then exits 1
+and names <code>meta/config/&lt;name&gt;/active</code> and the stamp; it never serves the mirror,
+the rollback or an empty config. <code>ze start &lt;file&gt;</code> rebuilds the active version
+from the file, leaves <code>rollback</code> on the version that still reads, and logs the
+stamp that would not resolve. <code>ze data check</code> lists what repair left behind.</p>
+<!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig, PromoteCandidate -->
+<!-- source: cmd/ze/hub/config_source.go -- initializeConfigSource -->
 <!-- source: cmd/ze/ze_core_start.go -- openExplicitStore, cmdStart -->
 <!-- source: internal/plugins/init/main.go -- Run -->
 <!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->
@@ -845,7 +854,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 06:03 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

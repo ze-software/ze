@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5304 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5304: IS-IS Cryptographic Authentication. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5304: IS-IS Cryptographic Authentication. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5304 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5304: IS-IS Cryptographic Authentication. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5304: IS-IS Cryptographic Authentication. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5304 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5304: IS-IS Cryptographic Authentication. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5304: IS-IS Cryptographic Authentication. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -374,7 +377,7 @@ Same IS-IS experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L483" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthPurge</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5304-2.1-1">RFC5304-2.1-1</code></td><td colspan="3"><span class="rfc-subject">If an inbound LSP with an authentication failure has the local System ID and a higher Sequence Number than the IS-IS process has, the process SHOULD increase its own LSP Sequence Number accordingly and re-flood the LSPs (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5304-2.1-1">RFC5304-2.1-1</code></td><td colspan="3"><span class="rfc-subject">One possible solution to this problem is for the IS-IS process to detect if any inbound LSP with an authentication failure has the local System ID and also has a higher Sequence Number than the IS-IS process has. In this event, the IS-IS process SHOULD increase its own LSP Sequence Number accordingly and re-flood the LSPs. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1</td>
@@ -383,7 +386,7 @@ Same IS-IS experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5304-2-10">RFC5304-2-10</code></td><td colspan="3"><span class="rfc-subject">The Link Level Authentication String used by IS-IS Hello PDUs MAY be different from that of Link State PDUs (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5304-2-10">RFC5304-2-10</code></td><td colspan="3"><span class="rfc-subject">IS-IS Hello PDUs SHALL use the Link Level Authentication String, which MAY be different from that of Link State PDUs. (§2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2</td>
@@ -392,7 +395,7 @@ Same IS-IS experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5304-2-11">RFC5304-2-11</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY have a transition mode where it includes HMAC-MD5 Authentication Information in PDUs but does not verify the HMAC-MD5 Authentication Information (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5304-2-11">RFC5304-2-11</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY have a transition mode where it includes HMAC- MD5 Authentication Information in PDUs but does not verify the HMAC- MD5 Authentication Information. (§2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2</td>
@@ -774,7 +777,7 @@ Same IS-IS experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

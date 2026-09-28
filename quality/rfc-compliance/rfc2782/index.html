@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2782 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2782: A DNS RR for specifying the location of services (DNS SRV). 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 2782: A DNS RR for specifying the location of services (DNS SRV). 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2782 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2782: A DNS RR for specifying the location of services (DNS SRV). 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 2782: A DNS RR for specifying the location of services (DNS SRV). 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2782 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2782: A DNS RR for specifying the location of services (DNS SRV). 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 2782: A DNS RR for specifying the location of services (DNS SRV). 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -287,7 +290,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-applicability-1">RFC2782-Applicability-1</code></td><td colspan="3"><span class="rfc-subject">A protocol specification indicating SRV use MUST define the symbolic name to be used in the Service field of the SRV record (§Applicability)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-applicability-1">RFC2782-Applicability-1</code></td><td colspan="3"><span class="rfc-subject">Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. (§Applicability)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>Applicability</td>
@@ -296,7 +299,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this MUST binds the author of a protocol specification that adopts SRV to define the Service token; ze authors no such specification -- the _Service._Proto owner name is operator config data served verbatim (internal/plugins/geodns/config.go:319, server.go:111), not a name ze defines</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-applicability-2">RFC2782-Applicability-2</code></td><td colspan="3"><span class="rfc-subject">Such a specification MUST also include security considerations (§Applicability)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-applicability-2">RFC2782-Applicability-2</code></td><td colspan="3"><span class="rfc-subject">Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. It also MUST include security considerations. (§Applicability)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>Applicability</td>
@@ -314,7 +317,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements no SRV-cognizant connecting client; geodns is authoritative and serves SRV verbatim without selection (internal/plugins/geodns/server.go:111), and internal/component/resolve/dns returns target:port strings without contacting or ordering by priority (resolver.go:321) -- no production code resolves TypeSRV</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-target-1">RFC2782-Target-1</code></td><td colspan="3"><span class="rfc-subject">There MUST be one or more address records for the Target name (§Target)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-target-1">RFC2782-Target-1</code></td><td colspan="3"><span class="rfc-subject">There MUST be one or more address records for this name (§Target)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>Target</td>
@@ -323,7 +326,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> an SRV Target is an arbitrary FQDN that commonly lives outside any zone geodns is authoritative for, so geodns cannot require in-zone address records for it (internal/plugins/geodns/config.go:319); the address-record obligation belongs to the target&#39;s own authoritative zone</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-target-2">RFC2782-Target-2</code></td><td colspan="3"><span class="rfc-subject">The Target name MUST NOT be an alias, in the sense of RFC 1034 or RFC 2181 (§Target)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-target-2">RFC2782-Target-2</code></td><td colspan="3"><span class="rfc-subject">There MUST be one or more address records for this name, the name MUST NOT be an alias (in the sense of RFC 1034 or RFC 2181). (§Target)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>Target</td>
@@ -332,7 +335,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> geodns serves no CNAME record type (internal/plugins/geodns/record.go:10-14), so a geodns SRV Target can never resolve to a geodns-served alias; whether an external target name is a CNAME is outside geodns&#39;s authority</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-notes-2">RFC2782-Notes-2</code></td><td colspan="3"><span class="rfc-subject">A client MUST parse all of the RRs in the reply (§Notes)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-notes-2">RFC2782-Notes-2</code></td><td colspan="3"><span class="rfc-subject">A client MUST parse all of the RR&#39;s in the reply. (§Notes)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>Notes</td>
@@ -341,7 +344,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this parse-all-RRs MUST governs the SRV-cognizant client that locates and connects to servers; ze has no such client. internal/component/resolve/dns iterates every answer RR (resolver.go:299) but is a generic stub resolver surfacing data, not a connecting SRV client, and no production code drives it with TypeSRV</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-notes-3">RFC2782-Notes-3</code></td><td colspan="3"><span class="rfc-subject">If the Additional Data section lacks address records for all the SRV RRs, the client MUST look up the missing address records before connecting (§Notes)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-notes-3">RFC2782-Notes-3</code></td><td colspan="3"><span class="rfc-subject">If the Additional Data section doesn&#39;t contain address records for all the SRV RR&#39;s and the client may want to connect to the target host(s) involved, the client MUST look up the address record(s). (§Notes)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>Notes</td>
@@ -350,7 +353,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Additional-section address follow-up before connecting is a connecting-SRV-client obligation ze does not implement; internal/component/resolve/dns never reads the Additional section and never connects (resolver.go:299), and geodns as a server emits no target address glue for SRV answers (server.go:182-188)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-applicability-3">RFC2782-Applicability-3</code></td><td colspan="3"><span class="rfc-subject">Service SRV records SHOULD NOT be used in the absence of such a protocol specification (§Applicability)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-applicability-3">RFC2782-Applicability-3</code></td><td colspan="3"><span class="rfc-subject">Service SRV records SHOULD NOT be used in the absence of such specification. (§Applicability)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>Applicability</td>
@@ -359,7 +362,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-priority-2">RFC2782-Priority-2</code></td><td colspan="3"><span class="rfc-subject">Target hosts with the same priority SHOULD be tried in an order defined by the weight field (§Priority)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-priority-2">RFC2782-Priority-2</code></td><td colspan="3"><span class="rfc-subject">target hosts with the same priority SHOULD be tried in an order defined by the weight field. (§Priority)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>Priority</td>
@@ -377,7 +380,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-weight-2">RFC2782-Weight-2</code></td><td colspan="3"><span class="rfc-subject">Domain administrators SHOULD use Weight 0 when there is no server selection to do (§Weight)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-weight-2">RFC2782-Weight-2</code></td><td colspan="3"><span class="rfc-subject">Domain administrators SHOULD use Weight 0 when there isn&#39;t any server selection to do, to make the RR easier to read for humans (less noisy). (§Weight)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>Weight</td>
@@ -386,7 +389,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-weight-3">RFC2782-Weight-3</code></td><td colspan="3"><span class="rfc-subject">The specified ordering algorithm SHOULD be used to order the SRV RRs of the same priority (§Weight)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-weight-3">RFC2782-Weight-3</code></td><td colspan="3"><span class="rfc-subject">The following algorithm SHOULD be used to order the SRV RRs of the same priority (§Weight)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>Weight</td>
@@ -395,7 +398,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-usage-1">RFC2782-Usage-1</code></td><td colspan="3"><span class="rfc-subject">A SRV-cognizant client SHOULD use the specified procedure to locate servers and connect to the preferred one (§Usage)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-usage-1">RFC2782-Usage-1</code></td><td colspan="3"><span class="rfc-subject">A SRV-cognizant client SHOULD use this procedure to locate a list of servers and connect to the preferred one (§Usage)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>Usage</td>
@@ -422,11 +425,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc2782-applicability-1"><code>RFC2782-Applicability-1</code></a> A protocol specification indicating SRV use MUST define the symbolic name to be used in the Service field of the SRV record (§Applicability)</td>
+<tr><td><a href="#rfc2782-applicability-1"><code>RFC2782-Applicability-1</code></a> Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. (§Applicability)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this MUST binds the author of a protocol specification that adopts SRV to define the Service token; ze authors no such specification -- the _Service._Proto owner name is operator config data served verbatim (internal/plugins/geodns/config.go:319, server.go:111), not a name ze defines</td>
 </tr>
-<tr><td><a href="#rfc2782-applicability-2"><code>RFC2782-Applicability-2</code></a> Such a specification MUST also include security considerations (§Applicability)</td>
+<tr><td><a href="#rfc2782-applicability-2"><code>RFC2782-Applicability-2</code></a> Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. It also MUST include security considerations. (§Applicability)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this is a security-considerations obligation on the author of an SRV-adopting protocol specification; ze publishes no such specification</td>
 </tr>
@@ -434,19 +437,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze implements no SRV-cognizant connecting client; geodns is authoritative and serves SRV verbatim without selection (internal/plugins/geodns/server.go:111), and internal/component/resolve/dns returns target:port strings without contacting or ordering by priority (resolver.go:321) -- no production code resolves TypeSRV</td>
 </tr>
-<tr><td><a href="#rfc2782-target-1"><code>RFC2782-Target-1</code></a> There MUST be one or more address records for the Target name (§Target)</td>
+<tr><td><a href="#rfc2782-target-1"><code>RFC2782-Target-1</code></a> There MUST be one or more address records for this name (§Target)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: an SRV Target is an arbitrary FQDN that commonly lives outside any zone geodns is authoritative for, so geodns cannot require in-zone address records for it (internal/plugins/geodns/config.go:319); the address-record obligation belongs to the target&#39;s own authoritative zone</td>
 </tr>
-<tr><td><a href="#rfc2782-target-2"><code>RFC2782-Target-2</code></a> The Target name MUST NOT be an alias, in the sense of RFC 1034 or RFC 2181 (§Target)</td>
+<tr><td><a href="#rfc2782-target-2"><code>RFC2782-Target-2</code></a> There MUST be one or more address records for this name, the name MUST NOT be an alias (in the sense of RFC 1034 or RFC 2181). (§Target)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: geodns serves no CNAME record type (internal/plugins/geodns/record.go:10-14), so a geodns SRV Target can never resolve to a geodns-served alias; whether an external target name is a CNAME is outside geodns&#39;s authority</td>
 </tr>
-<tr><td><a href="#rfc2782-notes-2"><code>RFC2782-Notes-2</code></a> A client MUST parse all of the RRs in the reply (§Notes)</td>
+<tr><td><a href="#rfc2782-notes-2"><code>RFC2782-Notes-2</code></a> A client MUST parse all of the RR&#39;s in the reply. (§Notes)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this parse-all-RRs MUST governs the SRV-cognizant client that locates and connects to servers; ze has no such client. internal/component/resolve/dns iterates every answer RR (resolver.go:299) but is a generic stub resolver surfacing data, not a connecting SRV client, and no production code drives it with TypeSRV</td>
 </tr>
-<tr><td><a href="#rfc2782-notes-3"><code>RFC2782-Notes-3</code></a> If the Additional Data section lacks address records for all the SRV RRs, the client MUST look up the missing address records before connecting (§Notes)</td>
+<tr><td><a href="#rfc2782-notes-3"><code>RFC2782-Notes-3</code></a> If the Additional Data section doesn&#39;t contain address records for all the SRV RR&#39;s and the client may want to connect to the target host(s) involved, the client MUST look up the address record(s). (§Notes)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Additional-section address follow-up before connecting is a connecting-SRV-client obligation ze does not implement; internal/component/resolve/dns never reads the Additional section and never connects (resolver.go:299), and geodns as a server emits no target address glue for SRV answers (server.go:182-188)</td>
 </tr>
@@ -457,11 +460,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2782-applicability-1"><code>RFC2782-Applicability-1</code></a></h3>
-<p>A protocol specification indicating SRV use MUST define the symbolic name to be used in the Service field of the SRV record (§Applicability)</p>
+<p>Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. (§Applicability)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2782-Applicability-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2782-applicability-2"><code>RFC2782-Applicability-2</code></a></h3>
-<p>Such a specification MUST also include security considerations (§Applicability)</p>
+<p>Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. It also MUST include security considerations. (§Applicability)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2782-Applicability-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2782-priority-1"><code>RFC2782-Priority-1</code></a></h3>
@@ -469,19 +472,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2782-Priority-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2782-target-1"><code>RFC2782-Target-1</code></a></h3>
-<p>There MUST be one or more address records for the Target name (§Target)</p>
+<p>There MUST be one or more address records for this name (§Target)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2782-Target-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2782-target-2"><code>RFC2782-Target-2</code></a></h3>
-<p>The Target name MUST NOT be an alias, in the sense of RFC 1034 or RFC 2181 (§Target)</p>
+<p>There MUST be one or more address records for this name, the name MUST NOT be an alias (in the sense of RFC 1034 or RFC 2181). (§Target)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2782-Target-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2782-notes-2"><code>RFC2782-Notes-2</code></a></h3>
-<p>A client MUST parse all of the RRs in the reply (§Notes)</p>
+<p>A client MUST parse all of the RR&#39;s in the reply. (§Notes)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2782-Notes-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2782-notes-3"><code>RFC2782-Notes-3</code></a></h3>
-<p>If the Additional Data section lacks address records for all the SRV RRs, the client MUST look up the missing address records before connecting (§Notes)</p>
+<p>If the Additional Data section doesn&#39;t contain address records for all the SRV RR&#39;s and the client may want to connect to the target host(s) involved, the client MUST look up the address record(s). (§Notes)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2782-Notes-3, so no unit is bound to it.</p>
 </section>
@@ -608,7 +611,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

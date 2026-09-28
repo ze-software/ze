@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2181 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2181 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2181 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>8</strong><b>of 23 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>1</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>13</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -337,7 +341,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> geodns and as112 never set the TC bit or call miekg Truncate, and miekg WriteMsg at vendor/github.com/miekg/dns/server.go:747 packs and sends without auto-truncating, so an oversized RRSet would be sent unmarked</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.2-1">RFC2181-5.2-1</code></td><td colspan="3"><span class="rfc-subject">The TTLs of all RRs in an RRSet must be the same; in no case may a server send an RRSet with TTLs not all equal. (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.2-1">RFC2181-5.2-1</code></td><td colspan="3"><span class="rfc-subject">Consequently the use of differing TTLs in an RRSet is hereby deprecated, the TTLs of all RRs in an RRSet must be the same. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2</td>
@@ -364,7 +368,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s stub resolver extracts only answer-section A/AAAA/TXT/PTR/CNAME/MX/NS/SRV at internal/component/resolve/dns/resolver.go:299 and processes no SIG records, so there is no partial SIG RRSet to reason about</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.3.1-4">RFC2181-5.3.1-4</code></td><td colspan="3"><span class="rfc-subject">Such a server must not cache that SIG record in a way that would permit it to be returned in response to a query for SIG records. (§5.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.3.1-4">RFC2181-5.3.1-4</code></td><td colspan="3"><span class="rfc-subject">Thus, they must not cache that SIG record in a way that would permit it to be returned should a query for SIG records be received at that server. (§5.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.3.1</td>
@@ -391,7 +395,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> put discards the entire cached RRSet before storing the new answer at internal/component/resolve/dns/cache.go:145, taking the discard-cached branch of the rule rather than merging</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-3">RFC2181-5.4.1-3</code></td><td colspan="3"><span class="rfc-subject">Data trustworthiness shall rank, most to least: primary zone file (non-glue), zone transfer (non-glue), authoritative answer-section data, authority-section data of an authoritative answer, glue, non-authoritative answer data, then additional information and non-authoritative authority-section data. (§5.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-3">RFC2181-5.4.1-3</code></td><td colspan="3"><span class="rfc-subject">Trustworthiness shall be, in order from most to least: + Data from a primary zone file, other than glue data, + Data from a zone transfer, other than glue, + The authoritative data included in the answer section of an authoritative reply. + Data from the authority section of an authoritative answer, + Glue from a primary zone, or glue from a zone transfer, + Data from the answer section of a non-authoritative answer, and non-authoritative data from the answer section of authoritative answers, + Additional information from an authoritative answer, Data from the authority section of a non-authoritative answer, Additional information from non-authoritative answers. (§5.4.1)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>5.4.1</td>
@@ -427,7 +431,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze serves no AXFR -- the geodns YANG notes this at internal/plugins/geodns/yang/ze-geodns-conf.yang:95 and no plugin emits an SOA twice in one message, so no duplicate RRSet arises</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-8-1">RFC2181-8-1</code></td><td colspan="3"><span class="rfc-subject">A TTL is an unsigned number in the range 0..2147483647 (2^31 - 1); when transmitted it shall be encoded in the less significant 31 bits of the 32-bit TTL field, with the most significant (sign) bit set to zero. (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-8-1">RFC2181-8-1</code></td><td colspan="3"><span class="rfc-subject">It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647. That is, a maximum of 2^31 - 1. When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero. (§8)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>8</td>
@@ -436,7 +440,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L238" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-4">RFC2181-10.1-4</code></td><td colspan="3"><span class="rfc-subject">An alias (the label of a CNAME record) may have no data other than SIG, NXT, and KEY RRs; a CNAME must not coexist with any other data. (§10.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-4">RFC2181-10.1-4</code></td><td colspan="3"><span class="rfc-subject">An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs, but may have no other data. (§10.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>10.1</td>
@@ -481,7 +485,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns emits A glue for every synthesized NS target at internal/plugins/geodns/server.go:161, and as112 NS targets are canonical names whose address records are authoritative elsewhere, so the target name always has address records</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-11-1">RFC2181-11-1</code></td><td colspan="3"><span class="rfc-subject">Any one label is limited to between 1 and 63 octets; a full domain name is limited to 255 octets, including the separators. (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-11-1">RFC2181-11-1</code></td><td colspan="3"><span class="rfc-subject">The length of any one label is limited to between 1 and 63 octets. A full domain name is limited to 255 octets (including the separators). (§11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>11</td>
@@ -508,7 +512,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns never refuses a zone for questionable labels -- config parsing at internal/plugins/geodns/config.go:246 rejects only a missing zone suffix or an invalid IP, never label characters</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-4.1-3">RFC2181-4.1-3</code></td><td colspan="3"><span class="rfc-subject">If the required source address is not permitted for this purpose, the legal source address chosen should be one that maximises the possibility that the client can use it for further queries. (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-4.1-3">RFC2181-4.1-3</code></td><td colspan="3"><span class="rfc-subject">That address should be chosen to maximise the possibility that the client will be able to use it for further queries. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -526,7 +530,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5-1">RFC2181-5-1</code></td><td colspan="3"><span class="rfc-subject">Servers should suppress duplicate RRs (equal label, class, type, and data) if encountered. (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5-1">RFC2181-5-1</code></td><td colspan="3"><span class="rfc-subject">It is meaningless for two records to ever have label, class, type and data all equal - servers should suppress such duplicates if encountered. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -535,7 +539,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.2-2">RFC2181-5.2-2</code></td><td colspan="3"><span class="rfc-subject">A client that receives a response containing an RRSet whose RRs have differing TTLs should treat this as an error. (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.2-2">RFC2181-5.2-2</code></td><td colspan="3"><span class="rfc-subject">Should a client receive a response containing RRs from an RRSet with differing TTLs, it should treat this as an error. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.2</td>
@@ -553,7 +557,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.2-4">RFC2181-5.2-4</code></td><td colspan="3"><span class="rfc-subject">Clients configured to send all queries to one or more particular servers should treat those servers as authoritative for this purpose. (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.2-4">RFC2181-5.2-4</code></td><td colspan="3"><span class="rfc-subject">Clients that are configured to send all queries to one, or more, particular servers should treat those servers as authoritative for this purpose. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.2</td>
@@ -562,7 +566,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.2-5">RFC2181-5.2-5</code></td><td colspan="3"><span class="rfc-subject">Should an authoritative source send such a malformed RRSet, the client should treat all its RRs as if every TTL had been set to the value of the lowest TTL in the RRSet. (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.2-5">RFC2181-5.2-5</code></td><td colspan="3"><span class="rfc-subject">Should an authoritative source send such a malformed RRSet, the client should treat the RRs for all purposes as if all TTLs in the RRSet had been set to the value of the lowest TTL in the RRSet. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.2</td>
@@ -571,7 +575,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4-4">RFC2181-5.4-4</code></td><td colspan="3"><span class="rfc-subject">A server should update a cached RRSet&#39;s TTL from an identical received answer only if that answer would be considered more authoritative than the previously cached answer. (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4-4">RFC2181-5.4-4</code></td><td colspan="3"><span class="rfc-subject">It should do this if the received answer would be considered more authoritative (as discussed in the next section) than the previously cached answer. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.4</td>
@@ -580,7 +584,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-1">RFC2181-5.4.1-1</code></td><td colspan="3"><span class="rfc-subject">When deciding whether to accept a reply&#39;s RRSet or retain one already cached, a server should consider the relative likely trustworthiness of the various data. (§5.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-1">RFC2181-5.4.1-1</code></td><td colspan="3"><span class="rfc-subject">When considering whether to accept an RRSet in a reply, or retain an RRSet already in its cache instead, a server should consider the relative likely trustworthiness of the various data. (§5.4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.4.1</td>
@@ -598,7 +602,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-4">RFC2181-5.4.1-4</code></td><td colspan="3"><span class="rfc-subject">Clients should assume that records other than the alias record in an authoritative answer may have come from the server&#39;s cache. (§5.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-4">RFC2181-5.4.1-4</code></td><td colspan="3"><span class="rfc-subject">However when the name sought is an alias (see section 10.1.1) only the record describing that alias is necessarily authoritative. Clients should assume that other records may have come from the server&#39;s cache. (§5.4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.4.1</td>
@@ -616,7 +620,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-6">RFC2181-5.4.1-6</code></td><td colspan="3"><span class="rfc-subject">Unauthenticated RRs cached from the least trustworthy groupings (additional data, and the authority section of a non-authoritative answer) should not be cached in such a way that they would ever be returned as answers to a received query. (§5.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-6">RFC2181-5.4.1-6</code></td><td colspan="3"><span class="rfc-subject">Unauthenticated RRs received and cached from the least trustworthy of those groupings, that is data from the additional data section, and data from the authority section of a non-authoritative answer, should not be cached in such a way that they would ever be returned as answers to a received query. (§5.4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>5.4.1</td>
@@ -625,7 +629,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-10">RFC2181-5.4.1-10</code></td><td colspan="3"><span class="rfc-subject">Where glue for the same name exists in multiple zones and differs in value, the nameserver should select data from a primary zone file in preference to secondary. (§5.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-10">RFC2181-5.4.1-10</code></td><td colspan="3"><span class="rfc-subject">Where glue for the same name exists in multiple zones, and differs in value, the nameserver should select data from a primary zone file in preference to secondary (§5.4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.4.1</td>
@@ -634,7 +638,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-12">RFC2181-5.4.1-12</code></td><td colspan="3"><span class="rfc-subject">Where a server can detect from two zone files that one or more are incorrectly configured so as to create conflicts, it should refuse to load the zones determined to be erroneous and issue suitable diagnostics. (§5.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-12">RFC2181-5.4.1-12</code></td><td colspan="3"><span class="rfc-subject">Where a server can detect from two zone files that one or more are incorrectly configured, so as to create conflicts, it should refuse to load the zones determined to be erroneous, and issue suitable diagnostics. (§5.4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.4.1</td>
@@ -661,7 +665,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-6.1-1">RFC2181-6.1-1</code></td><td colspan="3"><span class="rfc-subject">A server for a zone should not return authoritative answers for queries related to names in another zone (including the NS, and perhaps A, records at a zone cut) unless it also happens to be a server for the other zone. (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-6.1-1">RFC2181-6.1-1</code></td><td colspan="3"><span class="rfc-subject">A server for a zone should not return authoritative answers for queries related to names in another zone, which includes the NS, and perhaps A, records at a zone cut, unless it also happens to be a server for the other zone. (§6.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>6.1</td>
@@ -670,7 +674,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-6.1-2">RFC2181-6.1-2</code></td><td colspan="3"><span class="rfc-subject">Servers should ignore data other than NS records, and the A records necessary to locate the servers listed in those NS records, that may happen to be configured in a zone at a zone cut. (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-6.1-2">RFC2181-6.1-2</code></td><td colspan="3"><span class="rfc-subject">Other than the DNSSEC cases mentioned immediately below, servers should ignore data other than NS records, and necessary A records to locate the servers listed in the NS records, that may happen to be configured in a zone at a zone cut. (§6.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1</td>
@@ -679,7 +683,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-6.2-2">RFC2181-6.2-2</code></td><td colspan="3"><span class="rfc-subject">Where a subzone is secure, its KEY and SIG records should also always be present in the parent zone (if secure). (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-6.2-2">RFC2181-6.2-2</code></td><td colspan="3"><span class="rfc-subject">Where a subzone is secure, the KEY and SIG records will be present, and authoritative, in that zone, but should also always be present in the parent zone (if secure). (§6.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.2</td>
@@ -688,7 +692,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-6.2-3">RFC2181-6.2-3</code></td><td colspan="3"><span class="rfc-subject">In none of these zone-cut cases should a server for the parent zone, not also being a server for the subzone, set the AA bit in any response for a label at a zone cut. (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-6.2-3">RFC2181-6.2-3</code></td><td colspan="3"><span class="rfc-subject">Note that in none of these cases should a server for the parent zone, not also being a server for the subzone, set the AA bit in any response for a label at a zone cut. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>6.2</td>
@@ -697,7 +701,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.2-1">RFC2181-7.2-1</code></td><td colspan="3"><span class="rfc-subject">Implementations should not assume that SOA records will have a TTL of zero. (§7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.2-1">RFC2181-7.2-1</code></td><td colspan="3"><span class="rfc-subject">Implementations should not assume that SOA records will have a TTL of zero (§7.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>7.2</td>
@@ -706,7 +710,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.3-1">RFC2181-7.3-1</code></td><td colspan="3"><span class="rfc-subject">The MNAME field of the SOA record should contain the name of the primary (master) server for the zone identified by the SOA. (§7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.3-1">RFC2181-7.3-1</code></td><td colspan="3"><span class="rfc-subject">the MNAME field of the SOA record should contain the name of the primary (master) server for the zone identified by the SOA. (§7.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7.3</td>
@@ -715,7 +719,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.3-2">RFC2181-7.3-2</code></td><td colspan="3"><span class="rfc-subject">The SOA MNAME field should not contain the name of the zone itself. (§7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.3-2">RFC2181-7.3-2</code></td><td colspan="3"><span class="rfc-subject">It should not contain the name of the zone itself. (§7.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>7.3</td>
@@ -742,7 +746,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-9-2">RFC2181-9-2</code></td><td colspan="3"><span class="rfc-subject">The TC bit should not be set merely because some extra information (including additional-section processing) could have been included but there was insufficient room. (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-9-2">RFC2181-9-2</code></td><td colspan="3"><span class="rfc-subject">The TC bit should not be set merely because some extra information could have been included, but there was insufficient room. This includes the results of additional section processing. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>9</td>
@@ -751,7 +755,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-9-3">RFC2181-9-3</code></td><td colspan="3"><span class="rfc-subject">In such cases the entire RRSet that will not fit should be omitted and the reply sent as is, with the TC bit clear. (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-9-3">RFC2181-9-3</code></td><td colspan="3"><span class="rfc-subject">In such cases the entire RRSet that will not fit in the response should be omitted, and the reply sent as is, with the TC bit clear. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>9</td>
@@ -760,7 +764,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-9-5">RFC2181-9-5</code></td><td colspan="3"><span class="rfc-subject">When a client receives a reply with TC set, it should ignore that response and query again using a mechanism, such as a TCP connection, that will permit larger replies. (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-9-5">RFC2181-9-5</code></td><td colspan="3"><span class="rfc-subject">When a DNS client receives a reply with TC set, it should ignore that response, and query again, using a mechanism, such as a TCP connection, that will permit larger replies. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>9</td>
@@ -769,7 +773,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-2">RFC2181-10.1-2</code></td><td colspan="3"><span class="rfc-subject">The canonical name given by a CNAME record should generally be a name that exists elsewhere in the DNS. (§10.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-2">RFC2181-10.1-2</code></td><td colspan="3"><span class="rfc-subject">That name should generally be a name that exists elsewhere in the DNS, though there are some rare applications for aliases with the accompanying canonical name undefined in the DNS. (§10.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>10.1</td>
@@ -778,7 +782,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.2-2">RFC2181-10.2-2</code></td><td colspan="3"><span class="rfc-subject">No restriction that only one PTR record is permitted for a name should be inferred. (§10.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.2-2">RFC2181-10.2-2</code></td><td colspan="3"><span class="rfc-subject">There is no implication in that section that only one PTR record is permitted for a name. No such restriction should be inferred. (§10.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>10.2</td>
@@ -787,7 +791,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-11-5">RFC2181-11-5</code></td><td colspan="3"><span class="rfc-subject">Warning about, or refusing to load, a primary zone because of questionable labels should not happen by default. (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-11-5">RFC2181-11-5</code></td><td colspan="3"><span class="rfc-subject">A DNS server may be configurable to issue warnings when loading, or even to refuse to load, a primary zone containing labels that might be considered questionable, however this should not happen by default. (§11)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>11</td>
@@ -796,7 +800,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-4.1-2">RFC2181-4.1-2</code></td><td colspan="3"><span class="rfc-subject">If setting the required source address is not permitted for this purpose, the response may be sent from any legal IP address allocated to the server. (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-4.1-2">RFC2181-4.1-2</code></td><td colspan="3"><span class="rfc-subject">If this would cause the response to be sent from an IP address that is not permitted for this purpose, then the response may be sent from any legal IP address allocated to the server. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.1</td>
@@ -805,7 +809,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.3.1-1">RFC2181-5.3.1-1</code></td><td colspan="3"><span class="rfc-subject">The authority section may contain only those SIG RRs whose &#34;type covered&#34; field equals the type field of an answer being returned. (§5.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.3.1-1">RFC2181-5.3.1-1</code></td><td colspan="3"><span class="rfc-subject">Thus, it is specifically permitted for the authority section to contain only those SIG RRs with the &#34;type covered&#34; field equal to the type field of an answer being returned. (§5.3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.3.1</td>
@@ -814,7 +818,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.3.2-1">RFC2181-5.3.2-1</code></td><td colspan="3"><span class="rfc-subject">Servers are not required to treat two differing NXT RRSets as a special case; they may elect to notice the two NXT RRSets and treat them as they would any two different RRSets (cache one, ignore the other). (§5.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.3.2-1">RFC2181-5.3.2-1</code></td><td colspan="3"><span class="rfc-subject">However, servers are not required to treat this as a special case when receiving NXT records in a response. They may elect to notice the existence of two different NXT RRSets, and treat that as they would two different RRSets of any other type. That is, cache one, and ignore the other. (§5.3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.3.2</td>
@@ -823,7 +827,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4-3">RFC2181-5.4-3</code></td><td colspan="3"><span class="rfc-subject">When a received answer contains an RRSet identical to the cached one except for the TTL value, the server may optionally update the TTL in its cache with the TTL of the received answer. (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4-3">RFC2181-5.4-3</code></td><td colspan="3"><span class="rfc-subject">Note that if a server receives an answer containing an RRSet that is identical to that in its cache, with the possible exception of the TTL value, it may, optionally, update the TTL in its cache with the TTL of the received answer. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.4</td>
@@ -832,7 +836,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-7">RFC2181-5.4.1-7</code></td><td colspan="3"><span class="rfc-subject">Such untrustworthy RRs may be returned as additional information where appropriate. (§5.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-7">RFC2181-5.4.1-7</code></td><td colspan="3"><span class="rfc-subject">They may be returned as additional information where appropriate. (§5.4.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.4.1</td>
@@ -841,7 +845,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-11">RFC2181-5.4.1-11</code></td><td colspan="3"><span class="rfc-subject">Where conflicting glue exists, the nameserver may otherwise choose any single set of such data. (§5.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-11">RFC2181-5.4.1-11</code></td><td colspan="3"><span class="rfc-subject">but otherwise may choose any single set of such data. (§5.4.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.4.1</td>
@@ -868,7 +872,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.1-1">RFC2181-7.1-1</code></td><td colspan="3"><span class="rfc-subject">The authority section of an authoritative answer may contain the SOA record for the zone; SOA records, if added, are to be placed in the authority section. (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.1-1">RFC2181-7.1-1</code></td><td colspan="3"><span class="rfc-subject">RFC1034, in section 3.7, indicates that the authority section of an authoritative answer may contain the SOA record for the zone from which the answer was obtained. When discussing negative caching, RFC1034 section 4.3.4 refers to this technique but mentions the additional section of the response. The former is correct, as is implied by the example shown in section 6.2.5 of RFC1034. SOA records, if added, are to be placed in the authority section. (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>7.1</td>
@@ -877,7 +881,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.2-2">RFC2181-7.2-2</code></td><td colspan="3"><span class="rfc-subject">Implementations are not required to send SOA records with a TTL of zero (they may send a non-zero SOA TTL). (§7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.2-2">RFC2181-7.2-2</code></td><td colspan="3"><span class="rfc-subject">nor are they required to send SOA records with a TTL of zero. (§7.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>7.2</td>
@@ -886,7 +890,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-8-3">RFC2181-8-3</code></td><td colspan="3"><span class="rfc-subject">Implementations are always free to place an upper bound on any received TTL and treat any larger values as if they were that upper bound. (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-8-3">RFC2181-8-3</code></td><td colspan="3"><span class="rfc-subject">Implementations are always free to place an upper bound on any TTL received, and treat any larger values as if they were that upper bound. (§8)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>8</td>
@@ -904,7 +908,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-1">RFC2181-10.1-1</code></td><td colspan="3"><span class="rfc-subject">There may be only one canonical name for any one alias. (§10.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-1">RFC2181-10.1-1</code></td><td colspan="3"><span class="rfc-subject">There may be only one such canonical name for any one alias. (§10.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>10.1</td>
@@ -913,7 +917,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-3">RFC2181-10.1-3</code></td><td colspan="3"><span class="rfc-subject">An alias (the label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs. (§10.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-3">RFC2181-10.1-3</code></td><td colspan="3"><span class="rfc-subject">An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs (§10.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>10.1</td>
@@ -922,7 +926,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-11-4">RFC2181-11-4</code></td><td colspan="3"><span class="rfc-subject">A DNS server may be configurable to issue warnings when loading, or even to refuse to load, a primary zone containing labels that might be considered questionable. (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-11-4">RFC2181-11-4</code></td><td colspan="3"><span class="rfc-subject">A DNS server may be configurable to issue warnings when loading, or even to refuse to load, a primary zone containing labels that might be considered questionable (§11)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>11</td>
@@ -952,11 +956,11 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s stub resolver extracts only answer-section A/AAAA/TXT/PTR/CNAME/MX/NS/SRV at internal/component/resolve/dns/resolver.go:299 and processes no SIG records, so there is no partial SIG RRSet to reason about</td>
 </tr>
-<tr><td><a href="#rfc2181-5.3.1-4"><code>RFC2181-5.3.1-4</code></a> Such a server must not cache that SIG record in a way that would permit it to be returned in response to a query for SIG records. (§5.3.1)</td>
+<tr><td><a href="#rfc2181-5.3.1-4"><code>RFC2181-5.3.1-4</code></a> Thus, they must not cache that SIG record in a way that would permit it to be returned should a query for SIG records be received at that server. (§5.3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the resolver caches only records it extracted from the answer section at internal/component/resolve/dns/resolver.go:299 and never handles SIG, so an authority-section SIG can never be cached or returned</td>
 </tr>
-<tr><td><a href="#rfc2181-5.4.1-3"><code>RFC2181-5.4.1-3</code></a> Data trustworthiness shall rank, most to least: primary zone file (non-glue), zone transfer (non-glue), authoritative answer-section data, authority-section data of an authoritative answer, glue, non-authoritative answer data, then additional information and non-authoritative authority-section data. (§5.4.1)</td>
+<tr><td><a href="#rfc2181-5.4.1-3"><code>RFC2181-5.4.1-3</code></a> Trustworthiness shall be, in order from most to least: + Data from a primary zone file, other than glue data, + Data from a zone transfer, other than glue, + The authoritative data included in the answer section of an authoritative reply. + Data from the authority section of an authoritative answer, + Glue from a primary zone, or glue from a zone transfer, + Data from the answer section of a non-authoritative answer, and non-authoritative data from the answer section of authoritative answers, + Additional information from an authoritative answer, Data from the authority section of a non-authoritative answer, Additional information from non-authoritative answers. (§5.4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s resolver is a stub forwarder to one configured upstream at internal/component/resolve/dns/resolver.go:263 with a single-source cache keyed by name+type, so it never ranks data from competing trustworthiness sources</td>
 </tr>
@@ -972,7 +976,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze serves no AXFR -- the geodns YANG notes this at internal/plugins/geodns/yang/ze-geodns-conf.yang:95 and no plugin emits an SOA twice in one message, so no duplicate RRSet arises</td>
 </tr>
-<tr><td><a href="#rfc2181-10.1-4"><code>RFC2181-10.1-4</code></a> An alias (the label of a CNAME record) may have no data other than SIG, NXT, and KEY RRs; a CNAME must not coexist with any other data. (§10.1)</td>
+<tr><td><a href="#rfc2181-10.1-4"><code>RFC2181-10.1-4</code></a> An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs, but may have no other data. (§10.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze serves no CNAME records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so no CNAME can coexist with other data</td>
 </tr>
@@ -992,7 +996,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2181-4.1-1"><code>RFC2181-4.1-1</code></a></h3>
 <p>To avoid these problems, servers when responding to queries using UDP must cause the reply to be sent with the source address field in the IP header set to the address that was in the destination address field of the IP header of the packet containing the query causing the response. (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_UDPReplySourceAndPort sends to 127.0.0.1 on loopback and asserts the reply source is 127.0.0.1; a wildcard-bound listener would also source a loopback reply from 127.0.0.1, so the assertion cannot fail for the regression the row guards (reply sourced from another address on a multi-homed host).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1022,7 +1026,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 </div>
 <h3><a href="#rfc2181-4.2-2"><code>RFC2181-4.2-2</code></a></h3>
 <p>For queries received by UDP the server must take note of the source port and use that as the destination port in the response. (§4.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2181_UDPReplySourceAndPort reads the reply on the client&#39;s own ephemeral socket and matches the query id; a reply sent to any other destination port never arrives and the read fails.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1040,8 +1044,8 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2181-5.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2181-5.2-1"><code>RFC2181-5.2-1</code></a></h3>
-<p>The TTLs of all RRs in an RRSet must be the same; in no case may a server send an RRSet with TTLs not all equal. (§5.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Consequently the use of differing TTLs in an RRSet is hereby deprecated, the TTLs of all RRs in an RRSet must be the same. (§5.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2181_RRSetEqualTTL drives answerQuestions for a three-address host and asserts every A record in the emitted RRSet carries the one configured TTL (120).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1063,7 +1067,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2181-5.3.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2181-5.3.1-4"><code>RFC2181-5.3.1-4</code></a></h3>
-<p>Such a server must not cache that SIG record in a way that would permit it to be returned in response to a query for SIG records. (§5.3.1)</p>
+<p>Thus, they must not cache that SIG record in a way that would permit it to be returned should a query for SIG records be received at that server. (§5.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2181-5.3.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc2181-5.4-1"><code>RFC2181-5.4-1</code></a></h3>
@@ -1083,7 +1087,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 </div>
 <h3><a href="#rfc2181-5.4-2"><code>RFC2181-5.4-2</code></a></h3>
 <p>If a response contains data that would form an RRSet with data in a server&#39;s cache the server must either ignore the RRs in the response, or discard the entire RRSet currently in the cache, as appropriate. (§5.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_CacheReplacesRRSetNoMerge: the assertion carrying this tag only checks one cache entry exists, which a merge into the same entry also satisfies; the discard of the whole cached RRSet is proven only by the RFC2181-5.4-1 assertions above it (same assertion wearing two hats).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1097,7 +1101,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 </table>
 </div>
 <h3><a href="#rfc2181-5.4.1-3"><code>RFC2181-5.4.1-3</code></a></h3>
-<p>Data trustworthiness shall rank, most to least: primary zone file (non-glue), zone transfer (non-glue), authoritative answer-section data, authority-section data of an authoritative answer, glue, non-authoritative answer data, then additional information and non-authoritative authority-section data. (§5.4.1)</p>
+<p>Trustworthiness shall be, in order from most to least: + Data from a primary zone file, other than glue data, + Data from a zone transfer, other than glue, + The authoritative data included in the answer section of an authoritative reply. + Data from the authority section of an authoritative answer, + Glue from a primary zone, or glue from a zone transfer, + Data from the answer section of a non-authoritative answer, and non-authoritative data from the answer section of authoritative answers, + Additional information from an authoritative answer, Data from the authority section of a non-authoritative answer, Additional information from non-authoritative answers. (§5.4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2181-5.4.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2181-5.4.1-8"><code>RFC2181-5.4.1-8</code></a></h3>
@@ -1113,8 +1117,8 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2181-5.5-4, so no unit is bound to it.</p>
 <h3><a href="#rfc2181-8-1"><code>RFC2181-8-1</code></a></h3>
-<p>A TTL is an unsigned number in the range 0..2147483647 (2^31 - 1); when transmitted it shall be encoded in the less significant 31 bits of the 32-bit TTL field, with the most significant (sign) bit set to zero. (§8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647. That is, a maximum of 2^31 - 1. When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero. (§8)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_TTLSignBitBound drives parseTTL alone: it accepts 2147483647 and rejects 2147483648, so a config parse that let the sign bit through goes red. Two clauses stay unproven: the &#39;when transmitted&#39; clause (no assertion reads the TTL field of an emitted RR, so a TTL from another source, SOA/NS/as112 constants, or a pack that set the top bit, stays green) and the minimum value of 0 (parseTTL(&#34;0&#34;) is never accepted under test).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1133,7 +1137,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 </table>
 </div>
 <h3><a href="#rfc2181-10.1-4"><code>RFC2181-10.1-4</code></a></h3>
-<p>An alias (the label of a CNAME record) may have no data other than SIG, NXT, and KEY RRs; a CNAME must not coexist with any other data. (§10.1)</p>
+<p>An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs, but may have no other data. (§10.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2181-10.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc2181-10.1.1-1"><code>RFC2181-10.1.1-1</code></a></h3>
@@ -1146,7 +1150,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <p>No test carries RFC2181-10.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2181-10.3-1"><code>RFC2181-10.3-1</code></a></h3>
 <p>The domain name used as the value of a NS resource record, or part of the value of a MX resource record must not be an alias. (§10.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_NSCanonicalWithGlue asserts the NS targets have an ns&lt;n&gt;.&lt;zone&gt; shape and that no CNAME appears in the NS answer or glue; it never queries the target name for a CNAME, so the name-shape check asserts what the code does rather than that the target is not an alias.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1161,7 +1165,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 </div>
 <h3><a href="#rfc2181-10.3-2"><code>RFC2181-10.3-2</code></a></h3>
 <p>This domain name must have as its value one or more address records. (§10.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2181_NSCanonicalWithGlue asserts every synthesized NS target has an A record in the additional section of the same answer.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1175,8 +1179,8 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 </table>
 </div>
 <h3><a href="#rfc2181-11-1"><code>RFC2181-11-1</code></a></h3>
-<p>Any one label is limited to between 1 and 63 octets; a full domain name is limited to 255 octets, including the separators. (§11)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The length of any one label is limited to between 1 and 63 octets. A full domain name is limited to 255 octets (including the separators). (§11)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_WireNameLimits proves the codec refuses a 64-octet label, but the emitted-name checks run over a short configured name and cannot fail, and the 255-octet full-name limit is never exercised against the codec or geodns config.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1542,7 +1546,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

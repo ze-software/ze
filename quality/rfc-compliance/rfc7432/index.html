@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7432 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 103 gated MUST-level requirements, 13 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 102 gated MUST-level requirements, 13 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7432 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 103 gated MUST-level requirements, 13 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 102 gated MUST-level requirements, 13 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7432 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 103 gated MUST-level requirements, 13 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 102 gated MUST-level requirements, 13 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,26 +116,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>9.7%</strong><b>10 of 103 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 103 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 103 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>9.8%</strong><b>10 of 102 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 102 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 102 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>48.1%</strong><b>13 of 27 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>103</strong><b>of 120 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>80</strong><b>of 103 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>75.7%</strong><b>78 of 103 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 103 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>1.9%</strong><b>2 of 103 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>102</strong><b>of 119 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>79</strong><b>of 102 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>75.5%</strong><b>77 of 102 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 102 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>2.0%</strong><b>2 of 102 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>12.6%</strong><b>13 of 103 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>12.7%</strong><b>13 of 102 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>9</strong><b>of 102 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 103 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 102 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -203,16 +204,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>120</td>
+<td>119</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>103</td>
+<td>102</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>78</td>
+<td>77</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>13</td>
+</tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>27</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>9</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>13</td>
@@ -271,7 +275,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>93</strong></td>
+<td><strong>92</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -290,12 +294,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>103</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>102</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (10):</strong> <a href="#rfc7432-5-1"><code>RFC7432-5-1</code></a>, <a href="#rfc7432-8.1.1-1"><code>RFC7432-8.1.1-1</code></a>, <a href="#rfc7432-8.1.1-2"><code>RFC7432-8.1.1-2</code></a>, <a href="#rfc7432-9.2.1-1"><code>RFC7432-9.2.1-1</code></a>, <a href="#rfc7432-10-1"><code>RFC7432-10-1</code></a>, <a href="#rfc7432-8.2.1-9"><code>RFC7432-8.2.1-9</code></a>, <a href="#rfc7432-8.2.1-10"><code>RFC7432-8.2.1-10</code></a>, <a href="#rfc7432-8.3-2"><code>RFC7432-8.3-2</code></a>, <a href="#rfc7432-9.2.1-6"><code>RFC7432-9.2.1-6</code></a>, <a href="#rfc7432-11.1-3"><code>RFC7432-11.1-3</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (93):</strong> <a href="#rfc7432-7.9-1"><code>RFC7432-7.9-1</code></a>, <a href="#rfc7432-7.9-2"><code>RFC7432-7.9-2</code></a>, <a href="#rfc7432-7.9-3"><code>RFC7432-7.9-3</code></a>, <a href="#rfc7432-8.2.1-1"><code>RFC7432-8.2.1-1</code></a>, <a href="#rfc7432-8.2.1-2"><code>RFC7432-8.2.1-2</code></a>, <a href="#rfc7432-8.2.1-3"><code>RFC7432-8.2.1-3</code></a>, <a href="#rfc7432-8.2.1-4"><code>RFC7432-8.2.1-4</code></a>, <a href="#rfc7432-8.2.1-5"><code>RFC7432-8.2.1-5</code></a>, <a href="#rfc7432-8.2.1-6"><code>RFC7432-8.2.1-6</code></a>, <a href="#rfc7432-8.2.1-7"><code>RFC7432-8.2.1-7</code></a>, <a href="#rfc7432-8.2.1-8"><code>RFC7432-8.2.1-8</code></a>, <a href="#rfc7432-7.6-1"><code>RFC7432-7.6-1</code></a>, <a href="#rfc7432-7.6-2"><code>RFC7432-7.6-2</code></a>, <a href="#rfc7432-11-1"><code>RFC7432-11-1</code></a>, <a href="#rfc7432-9.2.1-2"><code>RFC7432-9.2.1-2</code></a>, <a href="#rfc7432-9.2.1-3"><code>RFC7432-9.2.1-3</code></a>, <a href="#rfc7432-9.1-1"><code>RFC7432-9.1-1</code></a>, <a href="#rfc7432-9.2.1-4"><code>RFC7432-9.2.1-4</code></a>, <a href="#rfc7432-8.4.1-1"><code>RFC7432-8.4.1-1</code></a>, <a href="#rfc7432-10-2"><code>RFC7432-10-2</code></a>, <a href="#rfc7432-10-3"><code>RFC7432-10-3</code></a>, <a href="#rfc7432-10-4"><code>RFC7432-10-4</code></a>, <a href="#rfc7432-11.1-1"><code>RFC7432-11.1-1</code></a>, <a href="#rfc7432-11.1-2"><code>RFC7432-11.1-2</code></a>, <a href="#rfc7432-11.2-1"><code>RFC7432-11.2-1</code></a>, <a href="#rfc7432-11.2-2"><code>RFC7432-11.2-2</code></a>, <a href="#rfc7432-11.2-3"><code>RFC7432-11.2-3</code></a>, <a href="#rfc7432-6.1-1"><code>RFC7432-6.1-1</code></a>, <a href="#rfc7432-6.1-2"><code>RFC7432-6.1-2</code></a>, <a href="#rfc7432-6.2-1"><code>RFC7432-6.2-1</code></a>, <a href="#rfc7432-6.3-1"><code>RFC7432-6.3-1</code></a>, <a href="#rfc7432-6.3-2"><code>RFC7432-6.3-2</code></a>, <a href="#rfc7432-8.3.1.1-1"><code>RFC7432-8.3.1.1-1</code></a>, <a href="#rfc7432-8.3.1.2-1"><code>RFC7432-8.3.1.2-1</code></a>, <a href="#rfc7432-8.3.1-1"><code>RFC7432-8.3.1-1</code></a>, <a href="#rfc7432-15-1"><code>RFC7432-15-1</code></a>, <a href="#rfc7432-15-2"><code>RFC7432-15-2</code></a>, <a href="#rfc7432-15.1-1"><code>RFC7432-15.1-1</code></a>, <a href="#rfc7432-15.1-2"><code>RFC7432-15.1-2</code></a>, <a href="#rfc7432-15.2-1"><code>RFC7432-15.2-1</code></a>, <a href="#rfc7432-10.1-1"><code>RFC7432-10.1-1</code></a>, <a href="#rfc7432-17.3-1"><code>RFC7432-17.3-1</code></a>, <a href="#rfc7432-14.1.1-1"><code>RFC7432-14.1.1-1</code></a>, <a href="#rfc7432-8.4-1"><code>RFC7432-8.4-1</code></a>, <a href="#rfc7432-8.3.1.1-2"><code>RFC7432-8.3.1.1-2</code></a>, <a href="#rfc7432-8.3.1.1-3"><code>RFC7432-8.3.1.1-3</code></a>, <a href="#rfc7432-5-3"><code>RFC7432-5-3</code></a>, <a href="#rfc7432-5-4"><code>RFC7432-5-4</code></a>, <a href="#rfc7432-5-5"><code>RFC7432-5-5</code></a>, <a href="#rfc7432-5-6"><code>RFC7432-5-6</code></a>, <a href="#rfc7432-5-7"><code>RFC7432-5-7</code></a>, <a href="#rfc7432-5-8"><code>RFC7432-5-8</code></a>, <a href="#rfc7432-5-9"><code>RFC7432-5-9</code></a>, <a href="#rfc7432-5-10"><code>RFC7432-5-10</code></a>, <a href="#rfc7432-5-11"><code>RFC7432-5-11</code></a>, <a href="#rfc7432-5-12"><code>RFC7432-5-12</code></a>, <a href="#rfc7432-5-13"><code>RFC7432-5-13</code></a>, <a href="#rfc7432-12-1"><code>RFC7432-12-1</code></a>, <a href="#rfc7432-12.1-1"><code>RFC7432-12.1-1</code></a>, <a href="#rfc7432-12.1-2"><code>RFC7432-12.1-2</code></a>, <a href="#rfc7432-12.2-1"><code>RFC7432-12.2-1</code></a>, <a href="#rfc7432-13.1-1"><code>RFC7432-13.1-1</code></a>, <a href="#rfc7432-13.1-2"><code>RFC7432-13.1-2</code></a>, <a href="#rfc7432-13.1-3"><code>RFC7432-13.1-3</code></a>, <a href="#rfc7432-13.1-4"><code>RFC7432-13.1-4</code></a>, <a href="#rfc7432-13.1-5"><code>RFC7432-13.1-5</code></a>, <a href="#rfc7432-14.1-1"><code>RFC7432-14.1-1</code></a>, <a href="#rfc7432-14.1.1-2"><code>RFC7432-14.1.1-2</code></a>, <a href="#rfc7432-14.1.1-3"><code>RFC7432-14.1.1-3</code></a>, <a href="#rfc7432-14.1.2-1"><code>RFC7432-14.1.2-1</code></a>, <a href="#rfc7432-14.1.2-2"><code>RFC7432-14.1.2-2</code></a>, <a href="#rfc7432-9.2.2-1"><code>RFC7432-9.2.2-1</code></a>, <a href="#rfc7432-9.2.2-2"><code>RFC7432-9.2.2-2</code></a>, <a href="#rfc7432-10.1-4"><code>RFC7432-10.1-4</code></a>, <a href="#rfc7432-9.2.1-5"><code>RFC7432-9.2.1-5</code></a>, <a href="#rfc7432-6.2-2"><code>RFC7432-6.2-2</code></a>, <a href="#rfc7432-6.3-3"><code>RFC7432-6.3-3</code></a>, <a href="#rfc7432-6.3-4"><code>RFC7432-6.3-4</code></a>, <a href="#rfc7432-7.10.1-1"><code>RFC7432-7.10.1-1</code></a>, <a href="#rfc7432-7.10.1-2"><code>RFC7432-7.10.1-2</code></a>, <a href="#rfc7432-8.2.1.1-1"><code>RFC7432-8.2.1.1-1</code></a>, <a href="#rfc7432-8.3-1"><code>RFC7432-8.3-1</code></a>, <a href="#rfc7432-8.3.1.1-6"><code>RFC7432-8.3.1.1-6</code></a>, <a href="#rfc7432-8.3.1.1-7"><code>RFC7432-8.3.1.1-7</code></a>, <a href="#rfc7432-8.3.1.2-2"><code>RFC7432-8.3.1.2-2</code></a>, <a href="#rfc7432-8.5-2"><code>RFC7432-8.5-2</code></a>, <a href="#rfc7432-10.1-5"><code>RFC7432-10.1-5</code></a>, <a href="#rfc7432-11.2-5"><code>RFC7432-11.2-5</code></a>, <a href="#rfc7432-11.2-6"><code>RFC7432-11.2-6</code></a>, <a href="#rfc7432-11.2-7"><code>RFC7432-11.2-7</code></a>, <a href="#rfc7432-13.1-6"><code>RFC7432-13.1-6</code></a>, <a href="#rfc7432-13.1-7"><code>RFC7432-13.1-7</code></a>, <a href="#rfc7432-17.3-3"><code>RFC7432-17.3-3</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (92):</strong> <a href="#rfc7432-7.9-1"><code>RFC7432-7.9-1</code></a>, <a href="#rfc7432-7.9-2"><code>RFC7432-7.9-2</code></a>, <a href="#rfc7432-7.9-3"><code>RFC7432-7.9-3</code></a>, <a href="#rfc7432-8.2.1-1"><code>RFC7432-8.2.1-1</code></a>, <a href="#rfc7432-8.2.1-2"><code>RFC7432-8.2.1-2</code></a>, <a href="#rfc7432-8.2.1-3"><code>RFC7432-8.2.1-3</code></a>, <a href="#rfc7432-8.2.1-4"><code>RFC7432-8.2.1-4</code></a>, <a href="#rfc7432-8.2.1-5"><code>RFC7432-8.2.1-5</code></a>, <a href="#rfc7432-8.2.1-6"><code>RFC7432-8.2.1-6</code></a>, <a href="#rfc7432-8.2.1-7"><code>RFC7432-8.2.1-7</code></a>, <a href="#rfc7432-8.2.1-8"><code>RFC7432-8.2.1-8</code></a>, <a href="#rfc7432-7.6-1"><code>RFC7432-7.6-1</code></a>, <a href="#rfc7432-7.6-2"><code>RFC7432-7.6-2</code></a>, <a href="#rfc7432-11-1"><code>RFC7432-11-1</code></a>, <a href="#rfc7432-9.2.1-2"><code>RFC7432-9.2.1-2</code></a>, <a href="#rfc7432-9.2.1-3"><code>RFC7432-9.2.1-3</code></a>, <a href="#rfc7432-9.1-1"><code>RFC7432-9.1-1</code></a>, <a href="#rfc7432-9.2.1-4"><code>RFC7432-9.2.1-4</code></a>, <a href="#rfc7432-8.4.1-1"><code>RFC7432-8.4.1-1</code></a>, <a href="#rfc7432-10-2"><code>RFC7432-10-2</code></a>, <a href="#rfc7432-10-3"><code>RFC7432-10-3</code></a>, <a href="#rfc7432-10-4"><code>RFC7432-10-4</code></a>, <a href="#rfc7432-11.1-1"><code>RFC7432-11.1-1</code></a>, <a href="#rfc7432-11.1-2"><code>RFC7432-11.1-2</code></a>, <a href="#rfc7432-11.2-1"><code>RFC7432-11.2-1</code></a>, <a href="#rfc7432-11.2-2"><code>RFC7432-11.2-2</code></a>, <a href="#rfc7432-11.2-3"><code>RFC7432-11.2-3</code></a>, <a href="#rfc7432-6.1-1"><code>RFC7432-6.1-1</code></a>, <a href="#rfc7432-6.1-2"><code>RFC7432-6.1-2</code></a>, <a href="#rfc7432-6.2-1"><code>RFC7432-6.2-1</code></a>, <a href="#rfc7432-6.3-1"><code>RFC7432-6.3-1</code></a>, <a href="#rfc7432-6.3-2"><code>RFC7432-6.3-2</code></a>, <a href="#rfc7432-8.3.1.1-1"><code>RFC7432-8.3.1.1-1</code></a>, <a href="#rfc7432-8.3.1.2-1"><code>RFC7432-8.3.1.2-1</code></a>, <a href="#rfc7432-8.3.1-1"><code>RFC7432-8.3.1-1</code></a>, <a href="#rfc7432-15-1"><code>RFC7432-15-1</code></a>, <a href="#rfc7432-15-2"><code>RFC7432-15-2</code></a>, <a href="#rfc7432-15.1-1"><code>RFC7432-15.1-1</code></a>, <a href="#rfc7432-15.1-2"><code>RFC7432-15.1-2</code></a>, <a href="#rfc7432-15.2-1"><code>RFC7432-15.2-1</code></a>, <a href="#rfc7432-10.1-1"><code>RFC7432-10.1-1</code></a>, <a href="#rfc7432-17.3-1"><code>RFC7432-17.3-1</code></a>, <a href="#rfc7432-14.1.1-1"><code>RFC7432-14.1.1-1</code></a>, <a href="#rfc7432-8.4-1"><code>RFC7432-8.4-1</code></a>, <a href="#rfc7432-8.3.1.1-2"><code>RFC7432-8.3.1.1-2</code></a>, <a href="#rfc7432-8.3.1.1-3"><code>RFC7432-8.3.1.1-3</code></a>, <a href="#rfc7432-5-3"><code>RFC7432-5-3</code></a>, <a href="#rfc7432-5-4"><code>RFC7432-5-4</code></a>, <a href="#rfc7432-5-5"><code>RFC7432-5-5</code></a>, <a href="#rfc7432-5-6"><code>RFC7432-5-6</code></a>, <a href="#rfc7432-5-7"><code>RFC7432-5-7</code></a>, <a href="#rfc7432-5-8"><code>RFC7432-5-8</code></a>, <a href="#rfc7432-5-9"><code>RFC7432-5-9</code></a>, <a href="#rfc7432-5-10"><code>RFC7432-5-10</code></a>, <a href="#rfc7432-5-11"><code>RFC7432-5-11</code></a>, <a href="#rfc7432-5-12"><code>RFC7432-5-12</code></a>, <a href="#rfc7432-5-13"><code>RFC7432-5-13</code></a>, <a href="#rfc7432-12-1"><code>RFC7432-12-1</code></a>, <a href="#rfc7432-12.1-1"><code>RFC7432-12.1-1</code></a>, <a href="#rfc7432-12.1-2"><code>RFC7432-12.1-2</code></a>, <a href="#rfc7432-12.2-1"><code>RFC7432-12.2-1</code></a>, <a href="#rfc7432-13.1-1"><code>RFC7432-13.1-1</code></a>, <a href="#rfc7432-13.1-2"><code>RFC7432-13.1-2</code></a>, <a href="#rfc7432-13.1-3"><code>RFC7432-13.1-3</code></a>, <a href="#rfc7432-13.1-4"><code>RFC7432-13.1-4</code></a>, <a href="#rfc7432-13.1-5"><code>RFC7432-13.1-5</code></a>, <a href="#rfc7432-14.1-1"><code>RFC7432-14.1-1</code></a>, <a href="#rfc7432-14.1.1-2"><code>RFC7432-14.1.1-2</code></a>, <a href="#rfc7432-14.1.1-3"><code>RFC7432-14.1.1-3</code></a>, <a href="#rfc7432-14.1.2-1"><code>RFC7432-14.1.2-1</code></a>, <a href="#rfc7432-14.1.2-2"><code>RFC7432-14.1.2-2</code></a>, <a href="#rfc7432-9.2.2-1"><code>RFC7432-9.2.2-1</code></a>, <a href="#rfc7432-9.2.2-2"><code>RFC7432-9.2.2-2</code></a>, <a href="#rfc7432-10.1-4"><code>RFC7432-10.1-4</code></a>, <a href="#rfc7432-6.2-2"><code>RFC7432-6.2-2</code></a>, <a href="#rfc7432-6.3-3"><code>RFC7432-6.3-3</code></a>, <a href="#rfc7432-6.3-4"><code>RFC7432-6.3-4</code></a>, <a href="#rfc7432-7.10.1-1"><code>RFC7432-7.10.1-1</code></a>, <a href="#rfc7432-7.10.1-2"><code>RFC7432-7.10.1-2</code></a>, <a href="#rfc7432-8.2.1.1-1"><code>RFC7432-8.2.1.1-1</code></a>, <a href="#rfc7432-8.3-1"><code>RFC7432-8.3-1</code></a>, <a href="#rfc7432-8.3.1.1-6"><code>RFC7432-8.3.1.1-6</code></a>, <a href="#rfc7432-8.3.1.1-7"><code>RFC7432-8.3.1.1-7</code></a>, <a href="#rfc7432-8.3.1.2-2"><code>RFC7432-8.3.1.2-2</code></a>, <a href="#rfc7432-8.5-2"><code>RFC7432-8.5-2</code></a>, <a href="#rfc7432-10.1-5"><code>RFC7432-10.1-5</code></a>, <a href="#rfc7432-11.2-5"><code>RFC7432-11.2-5</code></a>, <a href="#rfc7432-11.2-6"><code>RFC7432-11.2-6</code></a>, <a href="#rfc7432-11.2-7"><code>RFC7432-11.2-7</code></a>, <a href="#rfc7432-13.1-6"><code>RFC7432-13.1-6</code></a>, <a href="#rfc7432-13.1-7"><code>RFC7432-13.1-7</code></a>, <a href="#rfc7432-17.3-3"><code>RFC7432-17.3-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -329,16 +333,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> each route command&#39;s RD is parsed on its own (internal/component/bgp/plugins/nlri/evpn/encode.go:73-77) and no code compares it against the RDs already in use, so nothing enforces uniqueness across instances</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-1">RFC7432-5-1</code></td><td colspan="3"><span class="rfc-subject">Ethernet Segment Identifier MUST be a 10-octet entity (§5, §8.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-1">RFC7432-5-1</code></td><td colspan="3"><span class="rfc-subject">The Ethernet Segment Identifier (ESI) MUST be set to the 10-octet value described in Section 5. (§8.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5</td>
+<td>8.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L400" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNESIIsTenOctets</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L440" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNESIIsTenOctets</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-1">RFC7432-8.2.1-1</code></td><td colspan="3"><span class="rfc-subject">For per-ES A-D route, Ethernet Tag ID MUST be set to MAX-ET (0xFFFFFFFF) (§8.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-1">RFC7432-8.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The Ethernet Tag ID MUST be set to MAX-ET. (§8.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.2.1</td>
@@ -392,7 +396,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, and ze sets up no P2MP LSP, so no upstream-assigned label is allocated</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-7">RFC7432-8.2.1-7</code></td><td colspan="3"><span class="rfc-subject">For single-active mode, Single-Active bit MUST be set to 1 (§8.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-7">RFC7432-8.2.1-7</code></td><td colspan="3"><span class="rfc-subject">If Single-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 1 (§8.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.2.1</td>
@@ -428,10 +432,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_evpn_rfc7432_test.go#L73" title="internal/component/bgp/message/update_build_evpn_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationRefused</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-7.6-1">RFC7432-7.6-1</code></td><td colspan="3"><span class="rfc-subject">Ethernet Segment route filtering MUST ensure route reaches all PEs attached to the ES (§7.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-7.6-1">RFC7432-7.6-1</code></td><td colspan="3"><span class="rfc-subject">The Ethernet Segment route filtering MUST be done such that the Ethernet Segment route is imported only by the PEs that are multihomed to the same Ethernet segment. (§8.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>7.6</td>
+<td>8.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-7.6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -509,7 +513,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> BuildEVPN emits an EXTENDED_COMMUNITIES attribute only when the caller hands it pre-packed bytes (internal/component/bgp/message/update_build_evpn.go:118-124), and l2vpnRouteToEVPNParams never fills ExtCommunityBytes (internal/component/bgp/plugins/nlri/evpn/encode.go:64-124), so an Ethernet A-D per EVI route configured without a route target is advertised carrying none</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10-1">RFC7432-10-1</code></td><td colspan="3"><span class="rfc-subject">IP Address Length field MUST be 0, 32, or 128 bits for ARP/ND purposes (§10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10-1">RFC7432-10-1</code></td><td colspan="3"><span class="rfc-subject">For ARP and ND purposes, the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address. (§10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>10</td>
@@ -590,7 +594,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze parses no PMSI Tunnel attribute: internal/core/bgp/attribute/wire.go:419 lists PMSI among the known attribute codes that have no parser, and grep -rni &#39;pmsi&#39; --include=*.go finds only MVPN route-type names</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-6.1-1">RFC7432-6.1-1</code></td><td colspan="3"><span class="rfc-subject">VLAN-based service: VID translation MUST be supported in data path and performed on disposition PE (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-6.1-1">RFC7432-6.1-1</code></td><td colspan="3"><span class="rfc-subject">a VID translation MUST be supported in the data path and MUST be performed on the disposition PE. (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.1</td>
@@ -653,10 +657,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no P2MP LSP and controls no penultimate hop popping: ze forwards no BUM traffic for EVPN: it terminates BGP UPDATEs and has no bridge domain, no ingress replication, and no P2MP LSP; grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ matches nothing</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.3.1-1">RFC7432-8.3.1-1</code></td><td colspan="3"><span class="rfc-subject">ESI label MUST be programmed in forwarding plane by all PEs that receive ES route (§8.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.3.1-1">RFC7432-8.3.1-1</code></td><td colspan="3"><span class="rfc-subject">This label MUST be programmed in the platform label space by the advertising PE, and the forwarding entry for this label must result in NOT forwarding packets received with this label onto the Ethernet segment for which the label was distributed. (§8.3.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>8.3.1</td>
+<td>8.3.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -689,7 +693,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze has no MAC Mobility extended community and no MAC table: grep -rni &#39;mac.mobility|macmobility&#39; --include=*.go over internal/ and pkg/ matches nothing, so no duplicate-MAC counter or operator alert exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-15.1-2">RFC7432-15.1-2</code></td><td colspan="3"><span class="rfc-subject">Values of M and N for duplicate MAC detection MUST be configurable (§15.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-15.1-2">RFC7432-15.1-2</code></td><td colspan="3"><span class="rfc-subject">The values of M and N MUST be configurable to allow for flexibility in operator control. (§15.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>15.1</td>
@@ -707,7 +711,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze has no MAC Mobility extended community and no MAC table: grep -rni &#39;mac.mobility|macmobility&#39; --include=*.go over internal/ and pkg/ matches nothing, so the sticky flag is never read and local learning never happens</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10.1-1">RFC7432-10.1-1</code></td><td colspan="3"><span class="rfc-subject">Default gateway route MUST carry Default Gateway Extended Community (§10.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10.1-1">RFC7432-10.1-1</code></td><td colspan="3"><span class="rfc-subject">This is accomplished by requiring the route to carry the Default Gateway extended community defined in Section 7.8 (§10.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>10.1</td>
@@ -716,7 +720,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze has no Default Gateway extended community: grep -rni &#39;default.gateway&#39; --include=*.go over internal/core/bgp/attribute matches nothing, and no default-gateway route origination exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-17.3-1">RFC7432-17.3-1</code></td><td colspan="3"><span class="rfc-subject">On PE-to-CE link failure, PE MUST withdraw Ethernet A-D per ES, per EVI routes, and MAC/IP Advertisement routes (§17.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-17.3-1">RFC7432-17.3-1</code></td><td colspan="3"><span class="rfc-subject">If the connectivity between the multihomed CE and one of the PEs to which it is attached fails, the PE MUST withdraw the set of Ethernet A-D per ES routes that had been previously advertised for that ES. (§17.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>17.3</td>
@@ -725,10 +729,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze models no PE-to-CE attachment circuit: grep -rni &#39;attachment circuit|pe.to.ce&#39; --include=*.go over internal/ matches nothing, so no link event drives an EVPN withdrawal</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-14.1.1-1">RFC7432-14.1.1-1</code></td><td colspan="3"><span class="rfc-subject">Single-active redundancy: ESI Label Extended Community MUST have Single-Active bit set (§14.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-14.1.1-1">RFC7432-14.1.1-1</code></td><td colspan="3"><span class="rfc-subject">In this case, the set of Ethernet A-D per ES routes advertised by each PE MUST have the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community set to 1. (§8.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>14.1.1</td>
+<td>8.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-14.1.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -770,7 +774,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-7.9-4">RFC7432-7.9-4</code></td><td colspan="3"><span class="rfc-subject">Use Type 1 RD for MAC-VRF (§7.9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-7.9-4">RFC7432-7.9-4</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to use the Type 1 RD [RFC4364]. (§7.9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7.9</td>
@@ -779,7 +783,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.4-2">RFC7432-8.4-2</code></td><td colspan="3"><span class="rfc-subject">Remote PE receiving MAC/IP route with non-reserved ESI SHOULD consider MAC reachable via all PEs advertising that ES (§8.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.4-2">RFC7432-8.4-2</code></td><td colspan="3"><span class="rfc-subject">A remote PE that receives a MAC/IP Advertisement route with a non-reserved ESI SHOULD consider the advertised MAC address to be reachable via all PEs that have advertised reachability to that MAC address&#39;s EVI/ES via the combination of an Ethernet A-D per EVI route for that EVI/ES (and Ethernet tag, if applicable) AND Ethernet A-D per ES routes for that ES with the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community set to 0. (§8.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8.4</td>
@@ -788,7 +792,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10-5">RFC7432-10-5</code></td><td colspan="3"><span class="rfc-subject">PE SHOULD perform ARP proxy when it has the MAC binding for a requested IP (§10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10-5">RFC7432-10-5</code></td><td colspan="3"><span class="rfc-subject">When a PE receives an ARP Request for an IP address from a CE, and if the PE has the MAC address binding for that IP address, the PE SHOULD perform ARP proxy by responding to the ARP Request. (§10)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>10</td>
@@ -797,7 +801,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.5-1">RFC7432-8.5-1</code></td><td colspan="3"><span class="rfc-subject">PE that becomes elected DF SHOULD trigger a MAC address flush notification (§8.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.5-1">RFC7432-8.5-1</code></td><td colspan="3"><span class="rfc-subject">In the case of Single-Active multihoming, when a service moves from one PE in the redundancy group to another PE as a result of re-carving, the PE, which ends up being the elected DF for the service, SHOULD trigger a MAC address flush notification towards the associated Ethernet segment. (§8.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8.5</td>
@@ -806,16 +810,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.3.1-2">RFC7432-8.3.1-2</code></td><td colspan="3"><span class="rfc-subject">ESI label SHOULD be distributed by all PEs in single-active mode (§8.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.3.1-2">RFC7432-8.3.1-2</code></td><td colspan="3"><span class="rfc-subject">The ESI label SHOULD be distributed by all PEs when operating in Single-Active redundancy mode using a set of Ethernet A-D per ES routes. (§8.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>8.3.1</td>
+<td>8.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.3.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.3.1.1-4">RFC7432-8.3.1.1-4</code></td><td colspan="3"><span class="rfc-subject">Ingress PE (DF or non-DF) SHOULD include ESI label for known unicast to multihomed ES (§8.3.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.3.1.1-4">RFC7432-8.3.1.1-4</code></td><td colspan="3"><span class="rfc-subject">An ingress PE (DF or non-DF) SHOULD include the ESI label distributed by each non-DF egress PE in the copy of a BUM packet sent to it. (§8.3.1.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8.3.1.1</td>
@@ -824,7 +828,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.6-1">RFC7432-8.6-1</code></td><td colspan="3"><span class="rfc-subject">DF election procedures SHOULD be supported even by single-homing PEs (§8.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.6-1">RFC7432-8.6-1</code></td><td colspan="3"><span class="rfc-subject">some of the multihoming procedures described above SHOULD be supported even by single- homing PEs (§8.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8.6</td>
@@ -833,7 +837,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10.1-2">RFC7432-10.1-2</code></td><td colspan="3"><span class="rfc-subject">PE SHOULD notify operator on default gateway discrepancy (§10.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10.1-2">RFC7432-10.1-2</code></td><td colspan="3"><span class="rfc-subject">if there is a discrepancy, then the PE SHOULD notify the operator and log an error message. (§10.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>10.1</td>
@@ -842,7 +846,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-9.1-2">RFC7432-9.1-2</code></td><td colspan="3"><span class="rfc-subject">PEs MAY learn MAC addresses via control plane or management plane integration (§9.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-9.1-2">RFC7432-9.1-2</code></td><td colspan="3"><span class="rfc-subject">Alternatively, PEs MAY learn the MAC addresses of the CEs in the control plane or via management-plane integration between the PEs and the CEs. (§9.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>9.1</td>
@@ -851,7 +855,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-11.2-4">RFC7432-11.2-4</code></td><td colspan="3"><span class="rfc-subject">A PE MAY aggregate two or more EVPN instances onto the same P-multicast tree (§11.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-11.2-4">RFC7432-11.2-4</code></td><td colspan="3"><span class="rfc-subject">A PE that uses a P-multicast tree for the P-tunnel MAY aggregate two or more EVPN instances (EVIs) present on the PE onto the same tree. (§11.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>11.2</td>
@@ -860,7 +864,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10.1-3">RFC7432-10.1-3</code></td><td colspan="3"><span class="rfc-subject">Each PE acting as default gateway MAY advertise a MAC/IP route with Default Gateway Extended Community (§10.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10.1-3">RFC7432-10.1-3</code></td><td colspan="3"><span class="rfc-subject">Each PE that acts as a default gateway for a given EVPN instance MAY advertise in the EVPN control plane its default gateway MAC address using the MAC/IP Advertisement route, and each such PE indicates that such a route is associated with the default gateway. (§10.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>10.1</td>
@@ -869,7 +873,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-3">RFC7432-5-3</code></td><td colspan="3"><span class="rfc-subject">ESI Type 1: CE LACP System MAC address MUST be encoded in high-order 6 octets of ESI Value (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-3">RFC7432-5-3</code></td><td colspan="3"><span class="rfc-subject">The CE LACP System MAC address MUST be encoded in the high-order 6 octets of the ESI Value field. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -878,7 +882,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze treats the ESI as ten opaque octets: ESI is declared as [10]byte at internal/component/bgp/plugins/nlri/evpn/types.go:95, ParseESIString reads hex or colon-hex text without inspecting the type octet, and grep -rn &#39;ESIType|esiType|esi\[0\]&#39; --include=*.go over internal/ matches only a formatting call in internal/component/bgp/plugins/cmd/update/update_text_evpn.go:335, so no type-specific ESI construction exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-4">RFC7432-5-4</code></td><td colspan="3"><span class="rfc-subject">ESI Type 1: CE LACP Port Key MUST be encoded in the 2 octets next to System MAC address (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-4">RFC7432-5-4</code></td><td colspan="3"><span class="rfc-subject">The CE LACP port key MUST be encoded in the 2 octets next to the System MAC address. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -887,7 +891,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze treats the ESI as ten opaque octets: ESI is declared as [10]byte at internal/component/bgp/plugins/nlri/evpn/types.go:95, ParseESIString reads hex or colon-hex text without inspecting the type octet, and grep -rn &#39;ESIType|esiType|esi\[0\]&#39; --include=*.go over internal/ matches only a formatting call in internal/component/bgp/plugins/cmd/update/update_text_evpn.go:335, so no type-specific ESI construction exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-5">RFC7432-5-5</code></td><td colspan="3"><span class="rfc-subject">ESI Type 2: Root Bridge MAC address MUST be encoded in high-order 6 octets of ESI Value (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-5">RFC7432-5-5</code></td><td colspan="3"><span class="rfc-subject">The Root Bridge MAC address MUST be encoded in the high-order 6 octets of the ESI Value field. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -905,7 +909,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze treats the ESI as ten opaque octets: ESI is declared as [10]byte at internal/component/bgp/plugins/nlri/evpn/types.go:95, ParseESIString reads hex or colon-hex text without inspecting the type octet, and grep -rn &#39;ESIType|esiType|esi\[0\]&#39; --include=*.go over internal/ matches only a formatting call in internal/component/bgp/plugins/cmd/update/update_text_evpn.go:335, so no type-specific ESI construction exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-7">RFC7432-5-7</code></td><td colspan="3"><span class="rfc-subject">ESI Type 3: System MAC address MUST be encoded in high-order 6 octets of ESI Value (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-7">RFC7432-5-7</code></td><td colspan="3"><span class="rfc-subject">The PE MAC address MUST be encoded in the high-order 6 octets of the ESI Value field. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -941,7 +945,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze treats the ESI as ten opaque octets: ESI is declared as [10]byte at internal/component/bgp/plugins/nlri/evpn/types.go:95, ParseESIString reads hex or colon-hex text without inspecting the type octet, and grep -rn &#39;ESIType|esiType|esi\[0\]&#39; --include=*.go over internal/ matches only a formatting call in internal/component/bgp/plugins/cmd/update/update_text_evpn.go:335, so no type-specific ESI construction exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-11">RFC7432-5-11</code></td><td colspan="3"><span class="rfc-subject">ESI Type 5: AS number MUST be encoded in high-order 4 octets of ESI Value (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-11">RFC7432-5-11</code></td><td colspan="3"><span class="rfc-subject">This is an AS number owned by the system and MUST be encoded in the high-order 4 octets of the ESI Value field. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -950,7 +954,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze treats the ESI as ten opaque octets: ESI is declared as [10]byte at internal/component/bgp/plugins/nlri/evpn/types.go:95, ParseESIString reads hex or colon-hex text without inspecting the type octet, and grep -rn &#39;ESIType|esiType|esi\[0\]&#39; --include=*.go over internal/ matches only a formatting call in internal/component/bgp/plugins/cmd/update/update_text_evpn.go:335, so no type-specific ESI construction exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-12">RFC7432-5-12</code></td><td colspan="3"><span class="rfc-subject">ESI Type 5: Local Discriminator MUST be encoded in 4 octets next to AS number (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-5-12">RFC7432-5-12</code></td><td colspan="3"><span class="rfc-subject">The Local Discriminator value MUST be encoded in the 4 octets next to the AS number. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -968,7 +972,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze models no multihomed Ethernet segment and no managed CE: ze holds no Ethernet segment state and elects no designated forwarder: grep -rni &#39;designated.forwarder|df.election|split.horizon&#39; --include=*.go over internal/ and pkg/ matches only a prose comment in the EVPN codec tests, never code; the ESI is operator-provided text parsed by ParseESIString (internal/component/bgp/plugins/nlri/evpn/types.go:119)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-12-1">RFC7432-12-1</code></td><td colspan="3"><span class="rfc-subject">PE receiving BUM packet from another PE MUST NOT send the frame to other PEs (§12)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-12-1">RFC7432-12-1</code></td><td colspan="3"><span class="rfc-subject">PEx MUST NOT send the frame to other PEs, since PEy would have already done so. (§12)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>12</td>
@@ -1004,7 +1008,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze parses no PMSI Tunnel attribute: internal/core/bgp/attribute/wire.go:419 lists PMSI among the known attribute codes that have no parser, and grep -rni &#39;pmsi&#39; --include=*.go finds only MVPN route-type names, and ze receives no P2MP LSP traffic</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-13.1-1">RFC7432-13.1-1</code></td><td colspan="3"><span class="rfc-subject">When flooding unknown unicast, PE MUST flood to other PEs and MUST first encapsulate with ESI label (§13.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-13.1-1">RFC7432-13.1-1</code></td><td colspan="3"><span class="rfc-subject">The PE MUST flood the packet to other PEs. The PE MUST first encapsulate the packet in the ESI MPLS label as described in Section 8.3. (§13.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>13.1</td>
@@ -1040,7 +1044,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze forwards no BUM traffic for EVPN: it terminates BGP UPDATEs and has no bridge domain, no ingress replication, and no P2MP LSP; grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ matches nothing</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-13.1-5">RFC7432-13.1-5</code></td><td colspan="3"><span class="rfc-subject">If no flooding allowed and MAC unknown, PE MUST drop the packet (§13.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-13.1-5">RFC7432-13.1-5</code></td><td colspan="3"><span class="rfc-subject">If the MAC address is unknown, then, if the administrative policy on the PE does not allow flooding of unknown unicast traffic: - the PE MUST drop the packet. (§13.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>13.1</td>
@@ -1067,7 +1071,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, so a receiving speaker deduces no redundancy mode</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-14.1.1-3">RFC7432-14.1.1-3</code></td><td colspan="3"><span class="rfc-subject">For Single-Active with multiple backup PEs, remote PE MUST use primary PE withdrawal to start flooding (§14.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-14.1.1-3">RFC7432-14.1.1-3</code></td><td colspan="3"><span class="rfc-subject">If there is more than one backup PE for a given ES, the remote PE MUST use the primary PE&#39;s withdrawal of its set of Ethernet A-D per ES routes as a trigger to start flooding traffic for the associated MAC addresses (as long as flooding of unknown unicast packets is administratively allowed), as it is not possible to select a single backup PE. (§14.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>14.1.1</td>
@@ -1121,16 +1125,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze has no Default Gateway extended community and allocates no label space for one: grep -rni &#39;default.gateway&#39; --include=*.go over internal/core/bgp/attribute matches nothing</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-9.2.1-5">RFC7432-9.2.1-5</code></td><td colspan="3"><span class="rfc-subject">PE creating MAC forwarding state from received MAC/IP routes MUST enable forwarding to remote destinations (§9.2.1)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>9.2.1</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-9.2.1-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs no EVPN forwarding plane: grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ and internal/component/iface/ matches nothing, so no encapsulation, label push, or bridge-port decision exists</p></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-6.2-2">RFC7432-6.2-2</code></td><td colspan="3"><span class="rfc-subject">VLAN-bundle service: MAC addresses MUST remain tagged with originating VID in MPLS encapsulation (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-6.2-2">RFC7432-6.2-2</code></td><td colspan="3"><span class="rfc-subject">The MPLS-encapsulated frames MUST remain tagged with the originating VID. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.2</td>
@@ -1148,7 +1143,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze models no EVPN service type: grep -rni &#39;vlan.based|vlan.bundle|vlan.aware&#39; --include=*.go over internal/ matches nothing, and the Ethernet Tag ID is simply the value the route command supplies (internal/component/bgp/plugins/nlri/evpn/encode.go:189), and ze programs no EVPN forwarding plane: grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ and internal/component/iface/ matches nothing, so no encapsulation, label push, or bridge-port decision exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-6.1-3">RFC7432-6.1-3</code></td><td colspan="3"><span class="rfc-subject">VLAN-based service: Ethernet frames SHOULD remain tagged with originating VID in MPLS transport (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-6.1-3">RFC7432-6.1-3</code></td><td colspan="3"><span class="rfc-subject">the Ethernet frames transported over an MPLS/IP network SHOULD remain tagged with the originating VID (§6.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1</td>
@@ -1157,7 +1152,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-17.3-2">RFC7432-17.3-2</code></td><td colspan="3"><span class="rfc-subject">Remote PE receiving Ethernet A-D per ES withdrawal SHOULD consider all MAC/IP routes from that ESI as withdrawn (§17.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-17.3-2">RFC7432-17.3-2</code></td><td colspan="3"><span class="rfc-subject">When a PE receives a withdrawal of a particular Ethernet A-D route from an advertising PE, it SHOULD consider all the MAC/IP Advertisement routes that are learned from the same ESI as in the Ethernet A-D route from the advertising PE as having been withdrawn. (§17.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>17.3</td>
@@ -1166,7 +1161,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.3.1.1-5">RFC7432-8.3.1.1-5</code></td><td colspan="3"><span class="rfc-subject">Non-DF PE receiving BUM from CE SHOULD not forward it back to CEs on same ES (§8.3.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.3.1.1-5">RFC7432-8.3.1.1-5</code></td><td colspan="3"><span class="rfc-subject">if PE2 receives a BUM packet for VLAN1 from CE1, then it SHOULD encapsulate the packet with an ESI label received from PE1 when sending it to PE1 in order to avoid any transient loops during a failure scenario that would impact ES1 (§8.3.1.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8.3.1.1</td>
@@ -1175,7 +1170,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-18-1">RFC7432-18-1</code></td><td colspan="3"><span class="rfc-subject">Preferred PW MPLS Control Word SHOULD NOT be used when sending EVPN-encapsulated packets over pseudowire (§18)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-18-1">RFC7432-18-1</code></td><td colspan="3"><span class="rfc-subject">If a network uses entropy labels [RFC6790], then the control word SHOULD NOT be used when sending EVPN-encapsulated packets over an MP2P LSP. - When sending EVPN-encapsulated packets over a P2MP LSP or P2P LSP, then the control word SHOULD NOT be used. (§18)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>18</td>
@@ -1184,7 +1179,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-18-2">RFC7432-18-2</code></td><td colspan="3"><span class="rfc-subject">Preferred PW MPLS Control Word SHOULD be used with the Ethernet pseudowire type (§18)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-18-2">RFC7432-18-2</code></td><td colspan="3"><span class="rfc-subject">If a network uses deep packet inspection for its ECMP, then the &#34;Preferred PW MPLS Control Word&#34; [RFC4385] SHOULD be used with the value 0 (e.g., a 4-octet field with a value of zero) when sending EVPN-encapsulated packets over an MP2P LSP. (§18)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>18</td>
@@ -1252,7 +1247,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze holds no Ethernet segment and no EVPN instance membership, so it has no set of EVIs whose RTs an A-D per ES route could carry: grep -rniE &#39;designated.forwarder|df.election&#39; --include=*.go over internal/ and pkg/ matches nothing, and internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination can only require that a locally originated A-D per ES route carries at least one route target, which it does</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.3-1">RFC7432-8.3-1</code></td><td colspan="3"><span class="rfc-subject">Where a BUM packet returns to the Ethernet segment it came from, the DF PE to which the CE is multihomed MUST drop the packet and not forward back to the CE (§8.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.3-1">RFC7432-8.3-1</code></td><td colspan="3"><span class="rfc-subject">In this case, the DF PE to which the CE is multihomed MUST drop the packet and not forward back to the CE. (§8.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.3</td>
@@ -1410,7 +1405,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>each route command&#39;s RD is parsed on its own (internal/component/bgp/plugins/nlri/evpn/encode.go:73-77) and no code compares it against the RDs already in use, so nothing enforces uniqueness across instances</td>
 </tr>
-<tr><td><a href="#rfc7432-8.2.1-1"><code>RFC7432-8.2.1-1</code></a> For per-ES A-D route, Ethernet Tag ID MUST be set to MAX-ET (0xFFFFFFFF) (§8.2.1)</td>
+<tr><td><a href="#rfc7432-8.2.1-1"><code>RFC7432-8.2.1-1</code></a> The Ethernet Tag ID MUST be set to MAX-ET. (§8.2.1)</td>
 <td>{gap}, no test</td>
 <td>NewEVPNType1 stores the operator-supplied Ethernet Tag unchanged (internal/component/bgp/plugins/nlri/evpn/encode.go:90-95) and parseEVPNType1 reads it back verbatim (internal/component/bgp/plugins/nlri/evpn/types.go:281); ze draws no per-ES versus per-EVI distinction and never forces MAX-ET</td>
 </tr>
@@ -1434,7 +1429,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, and ze sets up no P2MP LSP, so no upstream-assigned label is allocated</td>
 </tr>
-<tr><td><a href="#rfc7432-8.2.1-7"><code>RFC7432-8.2.1-7</code></a> For single-active mode, Single-Active bit MUST be set to 1 (§8.2.1)</td>
+<tr><td><a href="#rfc7432-8.2.1-7"><code>RFC7432-8.2.1-7</code></a> If Single-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 1 (§8.2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, and ze signals no single-active redundancy mode</td>
 </tr>
@@ -1442,7 +1437,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>BuildEVPN emits an EXTENDED_COMMUNITIES attribute only when the caller hands it pre-packed bytes (internal/component/bgp/message/update_build_evpn.go:118-124), and l2vpnRouteToEVPNParams never fills ExtCommunityBytes (internal/component/bgp/plugins/nlri/evpn/encode.go:64-124), so an Ethernet A-D per ES route configured without a route target is advertised carrying none</td>
 </tr>
-<tr><td><a href="#rfc7432-7.6-1"><code>RFC7432-7.6-1</code></a> Ethernet Segment route filtering MUST ensure route reaches all PEs attached to the ES (§7.6)</td>
+<tr><td><a href="#rfc7432-7.6-1"><code>RFC7432-7.6-1</code></a> The Ethernet Segment route filtering MUST be done such that the Ethernet Segment route is imported only by the PEs that are multihomed to the same Ethernet segment. (§8.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze&#39;s selected boundary is explicit control-plane origination, not the EVPN PE segment-discovery role. Configured ES-Import bytes can be advertised, but Ze has no Ethernet-segment membership or automatically constructed segment import rules; the origin guard does not establish this distribution behavior</td>
 </tr>
@@ -1506,7 +1501,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze parses no PMSI Tunnel attribute: internal/core/bgp/attribute/wire.go:419 lists PMSI among the known attribute codes that have no parser, and grep -rni &#39;pmsi&#39; --include=*.go finds only MVPN route-type names</td>
 </tr>
-<tr><td><a href="#rfc7432-6.1-1"><code>RFC7432-6.1-1</code></a> VLAN-based service: VID translation MUST be supported in data path and performed on disposition PE (§6.1)</td>
+<tr><td><a href="#rfc7432-6.1-1"><code>RFC7432-6.1-1</code></a> a VID translation MUST be supported in the data path and MUST be performed on the disposition PE. (§6.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze models no EVPN service type: grep -rni &#39;vlan.based|vlan.bundle|vlan.aware&#39; --include=*.go over internal/ matches nothing, and the Ethernet Tag ID is simply the value the route command supplies (internal/component/bgp/plugins/nlri/evpn/encode.go:189), and no data path performs VID translation</td>
 </tr>
@@ -1534,7 +1529,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no P2MP LSP and controls no penultimate hop popping: ze forwards no BUM traffic for EVPN: it terminates BGP UPDATEs and has no bridge domain, no ingress replication, and no P2MP LSP; grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ matches nothing</td>
 </tr>
-<tr><td><a href="#rfc7432-8.3.1-1"><code>RFC7432-8.3.1-1</code></a> ESI label MUST be programmed in forwarding plane by all PEs that receive ES route (§8.3.1)</td>
+<tr><td><a href="#rfc7432-8.3.1-1"><code>RFC7432-8.3.1-1</code></a> This label MUST be programmed in the platform label space by the advertising PE, and the forwarding entry for this label must result in NOT forwarding packets received with this label onto the Ethernet segment for which the label was distributed. (§8.3.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, and ze programs no EVPN forwarding plane: grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ and internal/component/iface/ matches nothing, so no encapsulation, label push, or bridge-port decision exists</td>
 </tr>
@@ -1550,7 +1545,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze has no MAC Mobility extended community and no MAC table: grep -rni &#39;mac.mobility|macmobility&#39; --include=*.go over internal/ and pkg/ matches nothing, so no duplicate-MAC counter or operator alert exists</td>
 </tr>
-<tr><td><a href="#rfc7432-15.1-2"><code>RFC7432-15.1-2</code></a> Values of M and N for duplicate MAC detection MUST be configurable (§15.1)</td>
+<tr><td><a href="#rfc7432-15.1-2"><code>RFC7432-15.1-2</code></a> The values of M and N MUST be configurable to allow for flexibility in operator control. (§15.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze has no MAC Mobility extended community and no MAC table: grep -rni &#39;mac.mobility|macmobility&#39; --include=*.go over internal/ and pkg/ matches nothing, so the M and N duplicate-detection parameters have nothing to configure</td>
 </tr>
@@ -1558,15 +1553,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze has no MAC Mobility extended community and no MAC table: grep -rni &#39;mac.mobility|macmobility&#39; --include=*.go over internal/ and pkg/ matches nothing, so the sticky flag is never read and local learning never happens</td>
 </tr>
-<tr><td><a href="#rfc7432-10.1-1"><code>RFC7432-10.1-1</code></a> Default gateway route MUST carry Default Gateway Extended Community (§10.1)</td>
+<tr><td><a href="#rfc7432-10.1-1"><code>RFC7432-10.1-1</code></a> This is accomplished by requiring the route to carry the Default Gateway extended community defined in Section 7.8 (§10.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze has no Default Gateway extended community: grep -rni &#39;default.gateway&#39; --include=*.go over internal/core/bgp/attribute matches nothing, and no default-gateway route origination exists</td>
 </tr>
-<tr><td><a href="#rfc7432-17.3-1"><code>RFC7432-17.3-1</code></a> On PE-to-CE link failure, PE MUST withdraw Ethernet A-D per ES, per EVI routes, and MAC/IP Advertisement routes (§17.3)</td>
+<tr><td><a href="#rfc7432-17.3-1"><code>RFC7432-17.3-1</code></a> If the connectivity between the multihomed CE and one of the PEs to which it is attached fails, the PE MUST withdraw the set of Ethernet A-D per ES routes that had been previously advertised for that ES. (§17.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze models no PE-to-CE attachment circuit: grep -rni &#39;attachment circuit|pe.to.ce&#39; --include=*.go over internal/ matches nothing, so no link event drives an EVPN withdrawal</td>
 </tr>
-<tr><td><a href="#rfc7432-14.1.1-1"><code>RFC7432-14.1.1-1</code></a> Single-active redundancy: ESI Label Extended Community MUST have Single-Active bit set (§14.1.1)</td>
+<tr><td><a href="#rfc7432-14.1.1-1"><code>RFC7432-14.1.1-1</code></a> In this case, the set of Ethernet A-D per ES routes advertised by each PE MUST have the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community set to 1. (§8.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value</td>
 </tr>
@@ -1582,15 +1577,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze forwards no BUM traffic for EVPN: it terminates BGP UPDATEs and has no bridge domain, no ingress replication, and no P2MP LSP; grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ matches nothing, and ze holds no Ethernet segment state and elects no designated forwarder: grep -rni &#39;designated.forwarder|df.election|split.horizon&#39; --include=*.go over internal/ and pkg/ matches only a prose comment in the EVPN codec tests, never code</td>
 </tr>
-<tr><td><a href="#rfc7432-5-3"><code>RFC7432-5-3</code></a> ESI Type 1: CE LACP System MAC address MUST be encoded in high-order 6 octets of ESI Value (§5)</td>
+<tr><td><a href="#rfc7432-5-3"><code>RFC7432-5-3</code></a> The CE LACP System MAC address MUST be encoded in the high-order 6 octets of the ESI Value field. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze treats the ESI as ten opaque octets: ESI is declared as [10]byte at internal/component/bgp/plugins/nlri/evpn/types.go:95, ParseESIString reads hex or colon-hex text without inspecting the type octet, and grep -rn &#39;ESIType|esiType|esi\[0\]&#39; --include=*.go over internal/ matches only a formatting call in internal/component/bgp/plugins/cmd/update/update_text_evpn.go:335, so no type-specific ESI construction exists</td>
 </tr>
-<tr><td><a href="#rfc7432-5-4"><code>RFC7432-5-4</code></a> ESI Type 1: CE LACP Port Key MUST be encoded in the 2 octets next to System MAC address (§5)</td>
+<tr><td><a href="#rfc7432-5-4"><code>RFC7432-5-4</code></a> The CE LACP port key MUST be encoded in the 2 octets next to the System MAC address. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze treats the ESI as ten opaque octets: ESI is declared as [10]byte at internal/component/bgp/plugins/nlri/evpn/types.go:95, ParseESIString reads hex or colon-hex text without inspecting the type octet, and grep -rn &#39;ESIType|esiType|esi\[0\]&#39; --include=*.go over internal/ matches only a formatting call in internal/component/bgp/plugins/cmd/update/update_text_evpn.go:335, so no type-specific ESI construction exists</td>
 </tr>
-<tr><td><a href="#rfc7432-5-5"><code>RFC7432-5-5</code></a> ESI Type 2: Root Bridge MAC address MUST be encoded in high-order 6 octets of ESI Value (§5)</td>
+<tr><td><a href="#rfc7432-5-5"><code>RFC7432-5-5</code></a> The Root Bridge MAC address MUST be encoded in the high-order 6 octets of the ESI Value field. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze treats the ESI as ten opaque octets: ESI is declared as [10]byte at internal/component/bgp/plugins/nlri/evpn/types.go:95, ParseESIString reads hex or colon-hex text without inspecting the type octet, and grep -rn &#39;ESIType|esiType|esi\[0\]&#39; --include=*.go over internal/ matches only a formatting call in internal/component/bgp/plugins/cmd/update/update_text_evpn.go:335, so no type-specific ESI construction exists</td>
 </tr>
@@ -1598,7 +1593,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze treats the ESI as ten opaque octets: ESI is declared as [10]byte at internal/component/bgp/plugins/nlri/evpn/types.go:95, ParseESIString reads hex or colon-hex text without inspecting the type octet, and grep -rn &#39;ESIType|esiType|esi\[0\]&#39; --include=*.go over internal/ matches only a formatting call in internal/component/bgp/plugins/cmd/update/update_text_evpn.go:335, so no type-specific ESI construction exists</td>
 </tr>
-<tr><td><a href="#rfc7432-5-7"><code>RFC7432-5-7</code></a> ESI Type 3: System MAC address MUST be encoded in high-order 6 octets of ESI Value (§5)</td>
+<tr><td><a href="#rfc7432-5-7"><code>RFC7432-5-7</code></a> The PE MAC address MUST be encoded in the high-order 6 octets of the ESI Value field. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze treats the ESI as ten opaque octets: ESI is declared as [10]byte at internal/component/bgp/plugins/nlri/evpn/types.go:95, ParseESIString reads hex or colon-hex text without inspecting the type octet, and grep -rn &#39;ESIType|esiType|esi\[0\]&#39; --include=*.go over internal/ matches only a formatting call in internal/component/bgp/plugins/cmd/update/update_text_evpn.go:335, so no type-specific ESI construction exists</td>
 </tr>
@@ -1614,11 +1609,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze treats the ESI as ten opaque octets: ESI is declared as [10]byte at internal/component/bgp/plugins/nlri/evpn/types.go:95, ParseESIString reads hex or colon-hex text without inspecting the type octet, and grep -rn &#39;ESIType|esiType|esi\[0\]&#39; --include=*.go over internal/ matches only a formatting call in internal/component/bgp/plugins/cmd/update/update_text_evpn.go:335, so no type-specific ESI construction exists</td>
 </tr>
-<tr><td><a href="#rfc7432-5-11"><code>RFC7432-5-11</code></a> ESI Type 5: AS number MUST be encoded in high-order 4 octets of ESI Value (§5)</td>
+<tr><td><a href="#rfc7432-5-11"><code>RFC7432-5-11</code></a> This is an AS number owned by the system and MUST be encoded in the high-order 4 octets of the ESI Value field. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze treats the ESI as ten opaque octets: ESI is declared as [10]byte at internal/component/bgp/plugins/nlri/evpn/types.go:95, ParseESIString reads hex or colon-hex text without inspecting the type octet, and grep -rn &#39;ESIType|esiType|esi\[0\]&#39; --include=*.go over internal/ matches only a formatting call in internal/component/bgp/plugins/cmd/update/update_text_evpn.go:335, so no type-specific ESI construction exists</td>
 </tr>
-<tr><td><a href="#rfc7432-5-12"><code>RFC7432-5-12</code></a> ESI Type 5: Local Discriminator MUST be encoded in 4 octets next to AS number (§5)</td>
+<tr><td><a href="#rfc7432-5-12"><code>RFC7432-5-12</code></a> The Local Discriminator value MUST be encoded in the 4 octets next to the AS number. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze treats the ESI as ten opaque octets: ESI is declared as [10]byte at internal/component/bgp/plugins/nlri/evpn/types.go:95, ParseESIString reads hex or colon-hex text without inspecting the type octet, and grep -rn &#39;ESIType|esiType|esi\[0\]&#39; --include=*.go over internal/ matches only a formatting call in internal/component/bgp/plugins/cmd/update/update_text_evpn.go:335, so no type-specific ESI construction exists</td>
 </tr>
@@ -1626,7 +1621,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze models no multihomed Ethernet segment and no managed CE: ze holds no Ethernet segment state and elects no designated forwarder: grep -rni &#39;designated.forwarder|df.election|split.horizon&#39; --include=*.go over internal/ and pkg/ matches only a prose comment in the EVPN codec tests, never code; the ESI is operator-provided text parsed by ParseESIString (internal/component/bgp/plugins/nlri/evpn/types.go:119)</td>
 </tr>
-<tr><td><a href="#rfc7432-12-1"><code>RFC7432-12-1</code></a> PE receiving BUM packet from another PE MUST NOT send the frame to other PEs (§12)</td>
+<tr><td><a href="#rfc7432-12-1"><code>RFC7432-12-1</code></a> PEx MUST NOT send the frame to other PEs, since PEy would have already done so. (§12)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze forwards no BUM traffic for EVPN: it terminates BGP UPDATEs and has no bridge domain, no ingress replication, and no P2MP LSP; grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ matches nothing</td>
 </tr>
@@ -1642,7 +1637,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze parses no PMSI Tunnel attribute: internal/core/bgp/attribute/wire.go:419 lists PMSI among the known attribute codes that have no parser, and grep -rni &#39;pmsi&#39; --include=*.go finds only MVPN route-type names, and ze receives no P2MP LSP traffic</td>
 </tr>
-<tr><td><a href="#rfc7432-13.1-1"><code>RFC7432-13.1-1</code></a> When flooding unknown unicast, PE MUST flood to other PEs and MUST first encapsulate with ESI label (§13.1)</td>
+<tr><td><a href="#rfc7432-13.1-1"><code>RFC7432-13.1-1</code></a> The PE MUST flood the packet to other PEs. The PE MUST first encapsulate the packet in the ESI MPLS label as described in Section 8.3. (§13.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze forwards no BUM traffic for EVPN: it terminates BGP UPDATEs and has no bridge domain, no ingress replication, and no P2MP LSP; grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ matches nothing</td>
 </tr>
@@ -1658,7 +1653,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze forwards no BUM traffic for EVPN: it terminates BGP UPDATEs and has no bridge domain, no ingress replication, and no P2MP LSP; grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ matches nothing</td>
 </tr>
-<tr><td><a href="#rfc7432-13.1-5"><code>RFC7432-13.1-5</code></a> If no flooding allowed and MAC unknown, PE MUST drop the packet (§13.1)</td>
+<tr><td><a href="#rfc7432-13.1-5"><code>RFC7432-13.1-5</code></a> If the MAC address is unknown, then, if the administrative policy on the PE does not allow flooding of unknown unicast traffic: - the PE MUST drop the packet. (§13.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze forwards no BUM traffic for EVPN: it terminates BGP UPDATEs and has no bridge domain, no ingress replication, and no P2MP LSP; grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ matches nothing, so no packet is dropped for an unknown MAC</td>
 </tr>
@@ -1670,7 +1665,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, so a receiving speaker deduces no redundancy mode</td>
 </tr>
-<tr><td><a href="#rfc7432-14.1.1-3"><code>RFC7432-14.1.1-3</code></a> For Single-Active with multiple backup PEs, remote PE MUST use primary PE withdrawal to start flooding (§14.1.1)</td>
+<tr><td><a href="#rfc7432-14.1.1-3"><code>RFC7432-14.1.1-3</code></a> If there is more than one backup PE for a given ES, the remote PE MUST use the primary PE&#39;s withdrawal of its set of Ethernet A-D per ES routes as a trigger to start flooding traffic for the associated MAC addresses (as long as flooding of unknown unicast packets is administratively allowed), as it is not possible to select a single backup PE. (§14.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs no EVPN forwarding plane: grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ and internal/component/iface/ matches nothing, so no encapsulation, label push, or bridge-port decision exists, so no primary or backup PE state and no flooding decision exists</td>
 </tr>
@@ -1694,11 +1689,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze has no Default Gateway extended community and allocates no label space for one: grep -rni &#39;default.gateway&#39; --include=*.go over internal/core/bgp/attribute matches nothing</td>
 </tr>
-<tr><td><a href="#rfc7432-9.2.1-5"><code>RFC7432-9.2.1-5</code></a> PE creating MAC forwarding state from received MAC/IP routes MUST enable forwarding to remote destinations (§9.2.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze programs no EVPN forwarding plane: grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ and internal/component/iface/ matches nothing, so no encapsulation, label push, or bridge-port decision exists</td>
-</tr>
-<tr><td><a href="#rfc7432-6.2-2"><code>RFC7432-6.2-2</code></a> VLAN-bundle service: MAC addresses MUST remain tagged with originating VID in MPLS encapsulation (§6.2)</td>
+<tr><td><a href="#rfc7432-6.2-2"><code>RFC7432-6.2-2</code></a> The MPLS-encapsulated frames MUST remain tagged with the originating VID. (§6.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze models no EVPN service type: grep -rni &#39;vlan.based|vlan.bundle|vlan.aware&#39; --include=*.go over internal/ matches nothing, and the Ethernet Tag ID is simply the value the route command supplies (internal/component/bgp/plugins/nlri/evpn/encode.go:189), and ze programs no EVPN forwarding plane: grep -rni &#39;evpn&#39; --include=*.go over internal/plugins/fib/ and internal/component/iface/ matches nothing, so no encapsulation, label push, or bridge-port decision exists</td>
 </tr>
@@ -1722,7 +1713,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze holds no Ethernet segment and no EVPN instance membership, so it has no set of EVIs whose RTs an A-D per ES route could carry: grep -rniE &#39;designated.forwarder|df.election&#39; --include=*.go over internal/ and pkg/ matches nothing, and internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination can only require that a locally originated A-D per ES route carries at least one route target, which it does</td>
 </tr>
-<tr><td><a href="#rfc7432-8.3-1"><code>RFC7432-8.3-1</code></a> Where a BUM packet returns to the Ethernet segment it came from, the DF PE to which the CE is multihomed MUST drop the packet and not forward back to the CE (§8.3)</td>
+<tr><td><a href="#rfc7432-8.3-1"><code>RFC7432-8.3-1</code></a> In this case, the DF PE to which the CE is multihomed MUST drop the packet and not forward back to the CE. (§8.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze forwards no EVPN traffic: it has no bridge domain, no BUM replication and no P2MP LSP, grep -rli evpn over internal/plugins/fib/ and internal/component/iface/ matches nothing, and EVPN routes reach ze only as BGP UPDATEs it encodes, decodes and originates from configuration (internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute)</td>
 </tr>
@@ -1789,8 +1780,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-7.9-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-5-1"><code>RFC7432-5-1</code></a></h3>
-<p>Ethernet Segment Identifier MUST be a 10-octet entity (§5, §8.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The Ethernet Segment Identifier (ESI) MUST be set to the 10-octet value described in Section 5. (§8.1.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. row now quotes the §8.1.1 sentence that the ESI MUST be the 10-octet value of §5 (the extraction maps 8.1.1:2 here). types_test.go::TestEVPNESIIsTenOctets decodes and re-encodes a 10-octet ESI on the Ethernet Segment and Ethernet A-D routes and asserts the following field starts after octet ten; the negatives cut the ESI to nine octets and assert ErrEVPNTruncated. ESI is a [10]byte, so no origination path can produce another width</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1809,7 +1800,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc7432-8.2.1-1"><code>RFC7432-8.2.1-1</code></a></h3>
-<p>For per-ES A-D route, Ethernet Tag ID MUST be set to MAX-ET (0xFFFFFFFF) (§8.2.1)</p>
+<p>The Ethernet Tag ID MUST be set to MAX-ET. (§8.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-8.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.2.1-2"><code>RFC7432-8.2.1-2</code></a></h3>
@@ -1833,7 +1824,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-8.2.1-6, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.2.1-7"><code>RFC7432-8.2.1-7</code></a></h3>
-<p>For single-active mode, Single-Active bit MUST be set to 1 (§8.2.1)</p>
+<p>If Single-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 1 (§8.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-8.2.1-7, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.2.1-8"><code>RFC7432-8.2.1-8</code></a></h3>
@@ -1842,7 +1833,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-8.2.1-8, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.1.1-1"><code>RFC7432-8.1.1-1</code></a></h3>
 <p>The Route Distinguisher (RD) MUST be a Type 1 RD [RFC4364]. (§8.1.1). `message.ValidateEVPNOrigination` checks locally originated Type 4 NLRIs; current verification remains required. The receive codec remains permissive because this is an origination requirement.</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. update_build_evpn_rfc7432_test.go: TestRFC7432EthernetSegmentOriginationAccepted builds an ES route with a Type 1 RD; TestRFC7432EthernetSegmentOriginationRefused asserts ErrEVPNOrigination and no UPDATE for Type 0 and Type 2 RDs, isolated with a valid ES-Import RT</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1862,7 +1853,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7432-8.1.1-2"><code>RFC7432-8.1.1-2</code></a></h3>
 <p>The BGP advertisement that advertises the Ethernet Segment route MUST also carry an ES-Import Route Target, as defined in Section 7.6. (§8.1.1). `message.ValidateEVPNOrigination` requires extended community type 0x06/subtype 0x02 for local Type 4 origination; an ESI Label community is not a substitute. Current verification remains required.</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the ES-Import presence rule is proven: TestRFC7432EthernetSegmentOriginationAccepted carries the 0x06/0x02 community byte-for-byte and TestRFC7432EthernetSegmentOriginationRefused refuses an ordinary RT or no community with a Type 1 RD. But the row also claims an ESI Label community is not a substitute, and no tagged unit offers the ESI Label (0x06/0x01, same type octet) in place of ES-Import, so a guard that matched only type 0x06 stays green. The untagged config test TestConfiguredEVPNEthernetSegmentRequirements does offer it</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1881,7 +1872,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc7432-7.6-1"><code>RFC7432-7.6-1</code></a></h3>
-<p>Ethernet Segment route filtering MUST ensure route reaches all PEs attached to the ES (§7.6)</p>
+<p>The Ethernet Segment route filtering MUST be done such that the Ethernet Segment route is imported only by the PEs that are multihomed to the same Ethernet segment. (§8.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-7.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-7.6-2"><code>RFC7432-7.6-2</code></a></h3>
@@ -1894,7 +1885,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-11-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-9.2.1-1"><code>RFC7432-9.2.1-1</code></a></h3>
 <p>The encoding of a MAC address MUST be the 6-octet MAC address specified by [802.1Q] and [802.1D-REV]. (§9.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. types_test.go::TestEVPNMACAddressLength: length 48 decodes to the 6-octet MAC and the encoder writes length 48 and six MAC octets; lengths 0,32,47,49,64,255 are rejected with ErrEVPNInvalidAddress</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1933,8 +1924,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-8.4.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-10-1"><code>RFC7432-10-1</code></a></h3>
-<p>IP Address Length field MUST be 0, 32, or 128 bits for ARP/ND purposes (§10)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>For ARP and ND purposes, the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address. (§10)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. row now quotes &#39;the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address&#39;, an obligation on the sender. types_test.go::TestEVPNIPAddressLength only decodes: 0/32/128 accepted, other lengths rejected. No unit re-encodes a MAC/IP route with an IPv4 or IPv6 address and asserts the length octet the encoder writes is 32 or 128, so an encoder writing the octet count (4 or 16) stays green</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1985,7 +1976,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-11.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-6.1-1"><code>RFC7432-6.1-1</code></a></h3>
-<p>VLAN-based service: VID translation MUST be supported in data path and performed on disposition PE (§6.1)</p>
+<p>a VID translation MUST be supported in the data path and MUST be performed on the disposition PE. (§6.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-6.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-6.1-2"><code>RFC7432-6.1-2</code></a></h3>
@@ -2013,7 +2004,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-8.3.1.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.3.1-1"><code>RFC7432-8.3.1-1</code></a></h3>
-<p>ESI label MUST be programmed in forwarding plane by all PEs that receive ES route (§8.3.1)</p>
+<p>This label MUST be programmed in the platform label space by the advertising PE, and the forwarding entry for this label must result in NOT forwarding packets received with this label onto the Ethernet segment for which the label was distributed. (§8.3.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-8.3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-15-1"><code>RFC7432-15-1</code></a></h3>
@@ -2029,7 +2020,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-15.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-15.1-2"><code>RFC7432-15.1-2</code></a></h3>
-<p>Values of M and N for duplicate MAC detection MUST be configurable (§15.1)</p>
+<p>The values of M and N MUST be configurable to allow for flexibility in operator control. (§15.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-15.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-15.2-1"><code>RFC7432-15.2-1</code></a></h3>
@@ -2037,15 +2028,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-15.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-10.1-1"><code>RFC7432-10.1-1</code></a></h3>
-<p>Default gateway route MUST carry Default Gateway Extended Community (§10.1)</p>
+<p>This is accomplished by requiring the route to carry the Default Gateway extended community defined in Section 7.8 (§10.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-10.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-17.3-1"><code>RFC7432-17.3-1</code></a></h3>
-<p>On PE-to-CE link failure, PE MUST withdraw Ethernet A-D per ES, per EVI routes, and MAC/IP Advertisement routes (§17.3)</p>
+<p>If the connectivity between the multihomed CE and one of the PEs to which it is attached fails, the PE MUST withdraw the set of Ethernet A-D per ES routes that had been previously advertised for that ES. (§17.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-17.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-14.1.1-1"><code>RFC7432-14.1.1-1</code></a></h3>
-<p>Single-active redundancy: ESI Label Extended Community MUST have Single-Active bit set (§14.1.1)</p>
+<p>In this case, the set of Ethernet A-D per ES routes advertised by each PE MUST have the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community set to 1. (§8.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-14.1.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.4-1"><code>RFC7432-8.4-1</code></a></h3>
@@ -2061,15 +2052,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-8.3.1.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-5-3"><code>RFC7432-5-3</code></a></h3>
-<p>ESI Type 1: CE LACP System MAC address MUST be encoded in high-order 6 octets of ESI Value (§5)</p>
+<p>The CE LACP System MAC address MUST be encoded in the high-order 6 octets of the ESI Value field. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-5-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-5-4"><code>RFC7432-5-4</code></a></h3>
-<p>ESI Type 1: CE LACP Port Key MUST be encoded in the 2 octets next to System MAC address (§5)</p>
+<p>The CE LACP port key MUST be encoded in the 2 octets next to the System MAC address. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-5-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-5-5"><code>RFC7432-5-5</code></a></h3>
-<p>ESI Type 2: Root Bridge MAC address MUST be encoded in high-order 6 octets of ESI Value (§5)</p>
+<p>The Root Bridge MAC address MUST be encoded in the high-order 6 octets of the ESI Value field. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-5-5, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-5-6"><code>RFC7432-5-6</code></a></h3>
@@ -2077,7 +2068,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-5-6, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-5-7"><code>RFC7432-5-7</code></a></h3>
-<p>ESI Type 3: System MAC address MUST be encoded in high-order 6 octets of ESI Value (§5)</p>
+<p>The PE MAC address MUST be encoded in the high-order 6 octets of the ESI Value field. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-5-7, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-5-8"><code>RFC7432-5-8</code></a></h3>
@@ -2093,11 +2084,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-5-10, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-5-11"><code>RFC7432-5-11</code></a></h3>
-<p>ESI Type 5: AS number MUST be encoded in high-order 4 octets of ESI Value (§5)</p>
+<p>This is an AS number owned by the system and MUST be encoded in the high-order 4 octets of the ESI Value field. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-5-11, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-5-12"><code>RFC7432-5-12</code></a></h3>
-<p>ESI Type 5: Local Discriminator MUST be encoded in 4 octets next to AS number (§5)</p>
+<p>The Local Discriminator value MUST be encoded in the 4 octets next to the AS number. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-5-12, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-5-13"><code>RFC7432-5-13</code></a></h3>
@@ -2105,7 +2096,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-5-13, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-12-1"><code>RFC7432-12-1</code></a></h3>
-<p>PE receiving BUM packet from another PE MUST NOT send the frame to other PEs (§12)</p>
+<p>PEx MUST NOT send the frame to other PEs, since PEy would have already done so. (§12)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-12-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-12.1-1"><code>RFC7432-12.1-1</code></a></h3>
@@ -2121,7 +2112,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-12.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-13.1-1"><code>RFC7432-13.1-1</code></a></h3>
-<p>When flooding unknown unicast, PE MUST flood to other PEs and MUST first encapsulate with ESI label (§13.1)</p>
+<p>The PE MUST flood the packet to other PEs. The PE MUST first encapsulate the packet in the ESI MPLS label as described in Section 8.3. (§13.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-13.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-13.1-2"><code>RFC7432-13.1-2</code></a></h3>
@@ -2137,7 +2128,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-13.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-13.1-5"><code>RFC7432-13.1-5</code></a></h3>
-<p>If no flooding allowed and MAC unknown, PE MUST drop the packet (§13.1)</p>
+<p>If the MAC address is unknown, then, if the administrative policy on the PE does not allow flooding of unknown unicast traffic: - the PE MUST drop the packet. (§13.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-13.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-14.1-1"><code>RFC7432-14.1-1</code></a></h3>
@@ -2149,7 +2140,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-14.1.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-14.1.1-3"><code>RFC7432-14.1.1-3</code></a></h3>
-<p>For Single-Active with multiple backup PEs, remote PE MUST use primary PE withdrawal to start flooding (§14.1.1)</p>
+<p>If there is more than one backup PE for a given ES, the remote PE MUST use the primary PE&#39;s withdrawal of its set of Ethernet A-D per ES routes as a trigger to start flooding traffic for the associated MAC addresses (as long as flooding of unknown unicast packets is administratively allowed), as it is not possible to select a single backup PE. (§14.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-14.1.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-14.1.2-1"><code>RFC7432-14.1.2-1</code></a></h3>
@@ -2172,12 +2163,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>Unless it is known a priori (by means outside of this document) that all PEs of a given EVPN instance act as a default gateway for that EVPN instance, the MPLS label MUST be set to a valid downstream assigned label. (§10.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-10.1-4, so no unit is bound to it.</p>
-<h3><a href="#rfc7432-9.2.1-5"><code>RFC7432-9.2.1-5</code></a></h3>
-<p>PE creating MAC forwarding state from received MAC/IP routes MUST enable forwarding to remote destinations (§9.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7432-9.2.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-6.2-2"><code>RFC7432-6.2-2</code></a></h3>
-<p>VLAN-bundle service: MAC addresses MUST remain tagged with originating VID in MPLS encapsulation (§6.2)</p>
+<p>The MPLS-encapsulated frames MUST remain tagged with the originating VID. (§6.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-6.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-6.3-3"><code>RFC7432-6.3-3</code></a></h3>
@@ -2198,7 +2185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-7.10.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.2.1-9"><code>RFC7432-8.2.1-9</code></a></h3>
 <p>Support of this route is REQUIRED. (§8.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. row is &#39;Support of this route is REQUIRED.&#39; The positives do show support: bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute and origination_test.go (per-ES A-D originated) and session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel (received per-ES route survives ingress). But every tag&#39;s prose, and every negative (TestConfiguredEVPNRefusesInvalidPerESRoute label case, TestOriginEthernetADPerESRefusesLabelStack, TestEVPNIngressRejectsVariableLengthADLabels), proves the zero/three-octet NLRI label, which is RFC7432-8.2.1-2, a neighbouring requirement. No negative violates &#39;support of this route&#39;</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2233,7 +2220,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7432-8.2.1-10"><code>RFC7432-8.2.1-10</code></a></h3>
 <p>The Route Distinguisher (RD) MUST be a Type 1 RD [RFC4364]. (§8.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD asserts RD type 1 on the originated per-ES route; TestOriginEthernetADPerESRefusesASTypeRD refuses an AS-specific RD on per-ES and still allows it per-EVI; bgp_routes_evpn_test.go pair repeats both through native config</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2266,12 +2253,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-8.2.1.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.3-1"><code>RFC7432-8.3-1</code></a></h3>
-<p>Where a BUM packet returns to the Ethernet segment it came from, the DF PE to which the CE is multihomed MUST drop the packet and not forward back to the CE (§8.3)</p>
+<p>In this case, the DF PE to which the CE is multihomed MUST drop the packet and not forward back to the CE. (§8.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-8.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.3-2"><code>RFC7432-8.3-2</code></a></h3>
 <p>This label is referred to as the ESI label and MUST be distributed by all PEs when operating in All-Active redundancy mode using a set of Ethernet A-D per ES routes, per Section 8.2.1 above. (§8.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. update_build_evpn_rfc7432_test.go::TestRFC7432PerESRouteDistributesESILabel: a per-ES A-D route with the ESI Label community (flags 0, All-Active) and an RT builds an UPDATE carrying both; without the ESI Label community it is refused with ErrEVPNOrigination while the RT is present, so the RT rule cannot trip first</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2331,7 +2318,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-10.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-11.1-3"><code>RFC7432-11.1-3</code></a></h3>
 <p>The BGP advertisement for the Inclusive Multicast Ethernet Tag route MUST also carry one or more Route Target (RT) attributes. (§11.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. origination_test.go and bgp_routes_evpn_test.go: IMET with target:65000:100 emits the exact RT bytes; IMET with no extended community, or only a Route Origin (subtype 0x03), is refused</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -3071,7 +3058,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

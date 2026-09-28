@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3032 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3032: MPLS Label Stack Encoding. 17 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 3032: MPLS Label Stack Encoding. 18 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3032 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3032: MPLS Label Stack Encoding. 17 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 3032: MPLS Label Stack Encoding. 18 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3032 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3032: MPLS Label Stack Encoding. 17 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 3032: MPLS Label Stack Encoding. 18 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,22 +116,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5.6%</strong><b>1 of 18 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>1 of 1 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>17</strong><b>of 23 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>17</strong><b>of 17 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>100.0%</strong><b>17 of 17 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>18</strong><b>of 24 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>17</strong><b>of 18 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>94.4%</strong><b>17 of 18 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 17 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>1</strong><b>of 18 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 18 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -199,15 +204,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>23</td>
+<td>24</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>17</td>
+<td>18</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>17</td>
 </tr>
 <tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
@@ -217,16 +225,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3032.md</code></td>
@@ -261,7 +269,7 @@ No tracked gap in current source anchors.
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>17</strong></td>
+<td><strong>18</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -280,11 +288,11 @@ No tracked gap in current source anchors.
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>17</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>18</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Annotated instead of tested (17):</strong> <a href="#rfc3032-1-1"><code>RFC3032-1-1</code></a>, <a href="#rfc3032-2.2-1"><code>RFC3032-2.2-1</code></a>, <a href="#rfc3032-2.2-2"><code>RFC3032-2.2-2</code></a>, <a href="#rfc3032-2.2-3"><code>RFC3032-2.2-3</code></a>, <a href="#rfc3032-2.4.2-1"><code>RFC3032-2.4.2-1</code></a>, <a href="#rfc3032-2.4.2-2"><code>RFC3032-2.4.2-2</code></a>, <a href="#rfc3032-2.4.2-3"><code>RFC3032-2.4.2-3</code></a>, <a href="#rfc3032-2.4.3-1"><code>RFC3032-2.4.3-1</code></a>, <a href="#rfc3032-3.3-1"><code>RFC3032-3.3-1</code></a>, <a href="#rfc3032-3.3-2"><code>RFC3032-3.3-2</code></a>, <a href="#rfc3032-3.4-1"><code>RFC3032-3.4-1</code></a>, <a href="#rfc3032-3.4-2"><code>RFC3032-3.4-2</code></a>, <a href="#rfc3032-3.4-3"><code>RFC3032-3.4-3</code></a>, <a href="#rfc3032-3.5-1"><code>RFC3032-3.5-1</code></a>, <a href="#rfc3032-3.5-2"><code>RFC3032-3.5-2</code></a>, <a href="#rfc3032-3.6-1"><code>RFC3032-3.6-1</code></a>, <a href="#rfc3032-3.6-2"><code>RFC3032-3.6-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (18):</strong> <a href="#rfc3032-1-1"><code>RFC3032-1-1</code></a>, <a href="#rfc3032-2.1-1"><code>RFC3032-2.1-1</code></a>, <a href="#rfc3032-2.2-1"><code>RFC3032-2.2-1</code></a>, <a href="#rfc3032-2.2-2"><code>RFC3032-2.2-2</code></a>, <a href="#rfc3032-2.2-3"><code>RFC3032-2.2-3</code></a>, <a href="#rfc3032-2.4.2-1"><code>RFC3032-2.4.2-1</code></a>, <a href="#rfc3032-2.4.2-2"><code>RFC3032-2.4.2-2</code></a>, <a href="#rfc3032-2.4.2-3"><code>RFC3032-2.4.2-3</code></a>, <a href="#rfc3032-2.4.3-1"><code>RFC3032-2.4.3-1</code></a>, <a href="#rfc3032-3.3-1"><code>RFC3032-3.3-1</code></a>, <a href="#rfc3032-3.3-2"><code>RFC3032-3.3-2</code></a>, <a href="#rfc3032-3.4-1"><code>RFC3032-3.4-1</code></a>, <a href="#rfc3032-3.4-2"><code>RFC3032-3.4-2</code></a>, <a href="#rfc3032-3.4-3"><code>RFC3032-3.4-3</code></a>, <a href="#rfc3032-3.5-1"><code>RFC3032-3.5-1</code></a>, <a href="#rfc3032-3.5-2"><code>RFC3032-3.5-2</code></a>, <a href="#rfc3032-3.6-1"><code>RFC3032-3.6-1</code></a>, <a href="#rfc3032-3.6-2"><code>RFC3032-3.6-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -300,6 +308,15 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze has no ATM/Frame-Relay MPLS top-label path so the condition never arises, and the on-wire shim for additional entries is built by the kernel/VPP dataplane; ze&#39;s only shim encoder is the 3-octet BGP NLRI (internal/core/bgp/nlri/helpers.go:61), which carries no TTL</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.1-1">RFC3032-2.1-1</code></td><td colspan="3"><span class="rfc-subject">A value of 3 represents the &#34;Implicit NULL Label&#34;. This is a label that an LSR may assign and distribute, but which never actually appears in the encapsulation. When an LSR would otherwise replace the label at the top of the stack with a new label, but the new label is &#34;Implicit NULL&#34;, the LSR will pop the stack instead of doing the replacement. Although this value may never appear in the encapsulation, it needs to be specified in the Label Distribution Protocol, so a value is reserved. v. Values 4-15 are reserved. (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1 - Encoding the Label Stack</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/fsm_test.go#L70" title="internal/plugins/rsvpte/fsm_test.go" target="_blank" rel="noopener"><code>TestLSPTableAllocateSkipsReservedLabels</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the local label allocator starts at firstDynamicLabel=1000 and wraps back to 1000, so ze never hands out any label in 0-15 and there is no receive path that would allocate a reserved label (internal/plugins/rsvpte/fsm.go:184, :205, :215-217)</p></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.2-1">RFC3032-2.2-1</code></td><td colspan="3"><span class="rfc-subject">This means that the identity of the network layer protocol must be inferable from the value of the label which is popped from the bottom of the stack, possibly along with the contents of the network layer header itself. (S2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
@@ -309,7 +326,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> disposition-time protocol identification when the stack empties is performed by the kernel AF_MPLS route (loopback re-injection into the IP path) or VPP dataplane, not by any ze control-plane function (internal/plugins/fib/kernel/mplsentry_linux.go:44)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.2-2">RFC3032-2.2-2</code></td><td colspan="3"><span class="rfc-subject">When the first label is pushed, it MUST be used ONLY for packets of a particular network layer, OR ONLY for a specified set distinguishable by header inspection (S2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.2-2">RFC3032-2.2-2</code></td><td colspan="3"><span class="rfc-subject">Therefore, when the first label is pushed onto a network layer packet, either the label must be one which is used ONLY for packets of a particular network layer, or the label must be one which is used ONLY for a specified set of network layer protocols, where packets of the specified network layers can be distinguished by inspection of the network layer header. (S2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.2 - Determining the Network Layer Protocol</td>
@@ -327,16 +344,16 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the discard-on-unidentifiable-protocol decision is a forwarding-plane action of the kernel/VPP MPLS datapath; ze forwards no MPLS packets in-process</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.2-1">RFC3032-2.4.2-1</code></td><td colspan="3"><span class="rfc-subject">If outgoing TTL is 0, the labeled packet MUST NOT be further forwarded (S2.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.2-1">RFC3032-2.4.2-1</code></td><td colspan="3"><span class="rfc-subject">If the outgoing TTL of a labeled packet is 0, then the labeled packet MUST NOT be further forwarded (S2.4.2)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
+<td>MUST NOT</td>
 <td>2.4.2 - Protocol-independent rules</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-2.4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> TTL decrement and TTL-zero discard are per-packet forwarding operations performed by the kernel AF_MPLS path or VPP dataplane; no TTL logic exists in any ze MPLS Go path (internal/plugins/fib/kernel/)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.2-2">RFC3032-2.4.2-2</code></td><td colspan="3"><span class="rfc-subject">When TTL=0, the label stack MUST NOT be stripped off and the packet forwarded as unlabeled (S2.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.2-2">RFC3032-2.4.2-2</code></td><td colspan="3"><span class="rfc-subject">If the outgoing TTL of a labeled packet is 0, then the labeled packet MUST NOT be further forwarded; nor may the label stack be stripped off and the packet forwarded as an unlabeled packet. (S2.4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.4.2 - Protocol-independent rules</td>
@@ -381,7 +398,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the too-big MTU determination on forwarded labeled datagrams is a dataplane classification made by the kernel/VPP, not by ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.4-1">RFC3032-3.4-1</code></td><td colspan="3"><span class="rfc-subject">If a labeled IPv4 datagram is too big and has the DF bit set, the LSR MUST execute the strip/fragment/ICMP algorithm (S3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.4-1">RFC3032-3.4-1</code></td><td colspan="3"><span class="rfc-subject">If the LSR chooses not to discard a labeled IPv4 datagram which is too big, or if the DF bit is set in that datagram, then it MUST execute the following algorithm: (S3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.4 - Processing Labeled IPv4 Datagrams which are Too Big</td>
@@ -390,7 +407,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> strip-labels/fragment/emit-ICMP for a too-big DF-set IPv4 datagram is entirely the kernel/VPP IPv4 forwarding path; ze neither fragments nor originates ICMP for forwarded packets</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.4-2">RFC3032-3.4-2</code></td><td colspan="3"><span class="rfc-subject">Each IPv4 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.4-2">RFC3032-3.4-2</code></td><td colspan="3"><span class="rfc-subject">If the IP datagram does NOT have the &#34;Don&#39;t Fragment&#34; bit set in its IP header: a. convert it into fragments, each of which MUST be at least N bytes less than the Effective Maximum Frame Payload Size. (S3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.4 - Processing Labeled IPv4 Datagrams which are Too Big</td>
@@ -399,7 +416,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> fragment sizing during labeled-packet forwarding is a dataplane computation performed by the kernel/VPP; ze has no fragmentation code</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.4-3">RFC3032-3.4-3</code></td><td colspan="3"><span class="rfc-subject">If the DF bit is set and packet is too big, the datagram MUST NOT be forwarded (S3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.4-3">RFC3032-3.4-3</code></td><td colspan="3"><span class="rfc-subject">If the IP datagram has the &#34;Don&#39;t Fragment&#34; bit set in its IP header: a. the datagram MUST NOT be forwarded (S3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.4 - Processing Labeled IPv4 Datagrams which are Too Big</td>
@@ -408,7 +425,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the DF-set too-big drop decision is a forwarding-plane action of the kernel/VPP datapath</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.5-1">RFC3032-3.5-1</code></td><td colspan="3"><span class="rfc-subject">To process a labeled IPv6 datagram that is too big, the LSR MUST execute the specified algorithm (S3.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.5-1">RFC3032-3.5-1</code></td><td colspan="3"><span class="rfc-subject">To process a labeled IPv6 datagram which is too big, an LSR MUST execute the following algorithm: (S3.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.5 - Processing Labeled IPv6 Datagrams which are Too Big</td>
@@ -417,7 +434,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the IPv6 too-big strip/ICMP-Packet-Too-Big/fragment algorithm is the kernel/VPP IPv6 forwarding path; ze runs no such path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.5-2">RFC3032-3.5-2</code></td><td colspan="3"><span class="rfc-subject">Each IPv6 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.5-2">RFC3032-3.5-2</code></td><td colspan="3"><span class="rfc-subject">If the IP datagram is not larger than 1280 octets, and it contains a fragment header, then a. Convert it into fragments, each of which MUST be at least N bytes less than the Effective Maximum Frame Payload Size. (S3.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.5 - Processing Labeled IPv6 Datagrams which are Too Big</td>
@@ -444,7 +461,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> generating ICMP Destination Unreachable for oversized DF-set packets entering a tunnel is a kernel/VPP forwarding-plane action; ze originates no such ICMP</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.3-2">RFC3032-2.4.3-2</code></td><td colspan="3"><span class="rfc-subject">When the last label is popped (stack empty), the IP TTL field SHOULD be replaced with the outgoing TTL value (S2.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.3-2">RFC3032-2.4.3-2</code></td><td colspan="3"><span class="rfc-subject">When a label is popped, and the resulting label stack is empty, then the value of the IP TTL field SHOULD BE replaced with the outgoing TTL value, as defined above. (S2.4.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.4.3 - IP-dependent rules</td>
@@ -453,7 +470,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.2-1">RFC3032-3.2-1</code></td><td colspan="3"><span class="rfc-subject">LSR SHOULD support a &#34;Maximum Initially Labeled IP Datagram Size&#34; configuration parameter (S3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.2-1">RFC3032-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Every LSR which is capable of a) receiving an unlabeled IP datagram, b) adding a label stack to the datagram, and c) forwarding the resulting labeled packet, SHOULD support a configuration parameter known as the &#34;Maximum Initially Labeled IP Datagram Size&#34; (S3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2 - Maximum Initially Labeled IP Datagram Size</td>
@@ -462,7 +479,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.2-4">RFC3032-2.4.2-4</code></td><td colspan="3"><span class="rfc-subject">When outgoing TTL is 0, the packet MAY be simply discarded or passed to the network layer for error processing depending on the label value (S2.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.2-4">RFC3032-2.4.2-4</code></td><td colspan="3"><span class="rfc-subject">Depending on the label value in the label stack entry, the packet MAY be simply discarded, or it may be passed to the appropriate &#34;ordinary&#34; network layer for error processing (S2.4.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.4.2 - Protocol-independent rules</td>
@@ -471,7 +488,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.3-3">RFC3032-3.3-3</code></td><td colspan="3"><span class="rfc-subject">A labeled IP datagram exceeding the Conventional Maximum Frame Payload Size MAY be considered &#34;too big&#34; (S3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.3-3">RFC3032-3.3-3</code></td><td colspan="3"><span class="rfc-subject">A labeled IP datagram whose size exceeds the Conventional Maximum Frame Payload Size of the data link over which it is to be forwarded MAY be considered to be &#34;too big&#34;. (S3.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.3</td>
@@ -480,7 +497,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.4-4">RFC3032-3.4-4</code></td><td colspan="3"><span class="rfc-subject">If a labeled IPv4 datagram is too big and DF is not set, the LSR MAY silently discard it (S3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.4-4">RFC3032-3.4-4</code></td><td colspan="3"><span class="rfc-subject">If a labeled IPv4 datagram is &#34;too big&#34;, and the DF bit is not set in its IP header, then the LSR MAY silently discard the datagram. (S3.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.4 - Processing Labeled IPv4 Datagrams which are Too Big</td>
@@ -489,7 +506,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.6-3">RFC3032-3.6-3</code></td><td colspan="3"><span class="rfc-subject">The tunnel endpoint MAY determine tunnel MTU by sending packets and performing Path MTU Discovery (S3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.6-3">RFC3032-3.6-3</code></td><td colspan="3"><span class="rfc-subject">The LSR at the transmitting end of the tunnel MUST be able to determine the MTU of the tunnel as a whole. It MAY do this by sending packets through the tunnel to the tunnel&#39;s receiving endpoint, and performing Path MTU Discovery with those packets. (S3.6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.6 - Implications with respect to Path MTU Discovery</td>
@@ -515,7 +532,7 @@ No tracked gap in current source anchors.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: disposition-time protocol identification when the stack empties is performed by the kernel AF_MPLS route (loopback re-injection into the IP path) or VPP dataplane, not by any ze control-plane function (internal/plugins/fib/kernel/mplsentry_linux.go:44)</td>
 </tr>
-<tr><td><a href="#rfc3032-2.2-2"><code>RFC3032-2.2-2</code></a> When the first label is pushed, it MUST be used ONLY for packets of a particular network layer, OR ONLY for a specified set distinguishable by header inspection (S2.2)</td>
+<tr><td><a href="#rfc3032-2.2-2"><code>RFC3032-2.2-2</code></a> Therefore, when the first label is pushed onto a network layer packet, either the label must be one which is used ONLY for packets of a particular network layer, or the label must be one which is used ONLY for a specified set of network layer protocols, where packets of the specified network layers can be distinguished by inspection of the network layer header. (S2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze binds every label to a single FEC within one address family by construction, but the operative used-only-for-one-protocol forwarding disposition is realized by the kernel&#39;s per-in-label AF_MPLS entry, with no dedicated ze guard (internal/plugins/fib/kernel/mplsentry.go:69)</td>
 </tr>
@@ -523,11 +540,11 @@ No tracked gap in current source anchors.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the discard-on-unidentifiable-protocol decision is a forwarding-plane action of the kernel/VPP MPLS datapath; ze forwards no MPLS packets in-process</td>
 </tr>
-<tr><td><a href="#rfc3032-2.4.2-1"><code>RFC3032-2.4.2-1</code></a> If outgoing TTL is 0, the labeled packet MUST NOT be further forwarded (S2.4.2)</td>
+<tr><td><a href="#rfc3032-2.4.2-1"><code>RFC3032-2.4.2-1</code></a> If the outgoing TTL of a labeled packet is 0, then the labeled packet MUST NOT be further forwarded (S2.4.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: TTL decrement and TTL-zero discard are per-packet forwarding operations performed by the kernel AF_MPLS path or VPP dataplane; no TTL logic exists in any ze MPLS Go path (internal/plugins/fib/kernel/)</td>
 </tr>
-<tr><td><a href="#rfc3032-2.4.2-2"><code>RFC3032-2.4.2-2</code></a> When TTL=0, the label stack MUST NOT be stripped off and the packet forwarded as unlabeled (S2.4.2)</td>
+<tr><td><a href="#rfc3032-2.4.2-2"><code>RFC3032-2.4.2-2</code></a> If the outgoing TTL of a labeled packet is 0, then the labeled packet MUST NOT be further forwarded; nor may the label stack be stripped off and the packet forwarded as an unlabeled packet. (S2.4.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the TTL-expiry no-strip-and-forward decision is the same forwarding action executed by the kernel/VPP dataplane, not by ze&#39;s control plane</td>
 </tr>
@@ -547,23 +564,23 @@ No tracked gap in current source anchors.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the too-big MTU determination on forwarded labeled datagrams is a dataplane classification made by the kernel/VPP, not by ze</td>
 </tr>
-<tr><td><a href="#rfc3032-3.4-1"><code>RFC3032-3.4-1</code></a> If a labeled IPv4 datagram is too big and has the DF bit set, the LSR MUST execute the strip/fragment/ICMP algorithm (S3.4)</td>
+<tr><td><a href="#rfc3032-3.4-1"><code>RFC3032-3.4-1</code></a> If the LSR chooses not to discard a labeled IPv4 datagram which is too big, or if the DF bit is set in that datagram, then it MUST execute the following algorithm: (S3.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: strip-labels/fragment/emit-ICMP for a too-big DF-set IPv4 datagram is entirely the kernel/VPP IPv4 forwarding path; ze neither fragments nor originates ICMP for forwarded packets</td>
 </tr>
-<tr><td><a href="#rfc3032-3.4-2"><code>RFC3032-3.4-2</code></a> Each IPv4 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.4)</td>
+<tr><td><a href="#rfc3032-3.4-2"><code>RFC3032-3.4-2</code></a> If the IP datagram does NOT have the &#34;Don&#39;t Fragment&#34; bit set in its IP header: a. convert it into fragments, each of which MUST be at least N bytes less than the Effective Maximum Frame Payload Size. (S3.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: fragment sizing during labeled-packet forwarding is a dataplane computation performed by the kernel/VPP; ze has no fragmentation code</td>
 </tr>
-<tr><td><a href="#rfc3032-3.4-3"><code>RFC3032-3.4-3</code></a> If the DF bit is set and packet is too big, the datagram MUST NOT be forwarded (S3.4)</td>
+<tr><td><a href="#rfc3032-3.4-3"><code>RFC3032-3.4-3</code></a> If the IP datagram has the &#34;Don&#39;t Fragment&#34; bit set in its IP header: a. the datagram MUST NOT be forwarded (S3.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the DF-set too-big drop decision is a forwarding-plane action of the kernel/VPP datapath</td>
 </tr>
-<tr><td><a href="#rfc3032-3.5-1"><code>RFC3032-3.5-1</code></a> To process a labeled IPv6 datagram that is too big, the LSR MUST execute the specified algorithm (S3.5)</td>
+<tr><td><a href="#rfc3032-3.5-1"><code>RFC3032-3.5-1</code></a> To process a labeled IPv6 datagram which is too big, an LSR MUST execute the following algorithm: (S3.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the IPv6 too-big strip/ICMP-Packet-Too-Big/fragment algorithm is the kernel/VPP IPv6 forwarding path; ze runs no such path</td>
 </tr>
-<tr><td><a href="#rfc3032-3.5-2"><code>RFC3032-3.5-2</code></a> Each IPv6 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.5)</td>
+<tr><td><a href="#rfc3032-3.5-2"><code>RFC3032-3.5-2</code></a> If the IP datagram is not larger than 1280 octets, and it contains a fragment header, then a. Convert it into fragments, each of which MUST be at least N bytes less than the Effective Maximum Frame Payload Size. (S3.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: IPv6 fragment sizing during forwarding is a dataplane computation of the kernel/VPP, absent from ze</td>
 </tr>
@@ -585,12 +602,27 @@ No tracked gap in current source anchors.
 <p>When the label stack has additional entries, however, the encoding technique described in this document MUST be used for the additional label stack entries. (S1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3032-1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-2.1-1"><code>RFC3032-2.1-1</code></a></h3>
+<p>A value of 3 represents the &#34;Implicit NULL Label&#34;. This is a label that an LSR may assign and distribute, but which never actually appears in the encapsulation. When an LSR would otherwise replace the label at the top of the stack with a new label, but the new label is &#34;Implicit NULL&#34;, the LSR will pop the stack instead of doing the replacement. Although this value may never appear in the encapsulation, it needs to be specified in the Label Distribution Protocol, so a value is reserved. v. Values 4-15 are reserved. (§2.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. {single-polarity: positive} covers only allocation. Asserted: AllocateLabel never returns below firstDynamicLabel, including across the MaxLabel wrap, so 0-15 is never allocated. The quote also states the Implicit NULL semantics: when the new label is 3 the LSR pops instead of swapping, and 3 never appears in the encapsulation. No tagged assertion covers a received label 3.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/fsm_test.go#L70" title="internal/plugins/rsvpte/fsm_test.go" target="_blank" rel="noopener"><code>TestLSPTableAllocateSkipsReservedLabels</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3032-2.2-1"><code>RFC3032-2.2-1</code></a></h3>
 <p>This means that the identity of the network layer protocol must be inferable from the value of the label which is popped from the bottom of the stack, possibly along with the contents of the network layer header itself. (S2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3032-2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3032-2.2-2"><code>RFC3032-2.2-2</code></a></h3>
-<p>When the first label is pushed, it MUST be used ONLY for packets of a particular network layer, OR ONLY for a specified set distinguishable by header inspection (S2.2)</p>
+<p>Therefore, when the first label is pushed onto a network layer packet, either the label must be one which is used ONLY for packets of a particular network layer, or the label must be one which is used ONLY for a specified set of network layer protocols, where packets of the specified network layers can be distinguished by inspection of the network layer header. (S2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3032-2.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3032-2.2-3"><code>RFC3032-2.2-3</code></a></h3>
@@ -598,11 +630,11 @@ No tracked gap in current source anchors.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3032-2.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc3032-2.4.2-1"><code>RFC3032-2.4.2-1</code></a></h3>
-<p>If outgoing TTL is 0, the labeled packet MUST NOT be further forwarded (S2.4.2)</p>
+<p>If the outgoing TTL of a labeled packet is 0, then the labeled packet MUST NOT be further forwarded (S2.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3032-2.4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3032-2.4.2-2"><code>RFC3032-2.4.2-2</code></a></h3>
-<p>When TTL=0, the label stack MUST NOT be stripped off and the packet forwarded as unlabeled (S2.4.2)</p>
+<p>If the outgoing TTL of a labeled packet is 0, then the labeled packet MUST NOT be further forwarded; nor may the label stack be stripped off and the packet forwarded as an unlabeled packet. (S2.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3032-2.4.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3032-2.4.2-3"><code>RFC3032-2.4.2-3</code></a></h3>
@@ -622,23 +654,23 @@ No tracked gap in current source anchors.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3032-3.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3032-3.4-1"><code>RFC3032-3.4-1</code></a></h3>
-<p>If a labeled IPv4 datagram is too big and has the DF bit set, the LSR MUST execute the strip/fragment/ICMP algorithm (S3.4)</p>
+<p>If the LSR chooses not to discard a labeled IPv4 datagram which is too big, or if the DF bit is set in that datagram, then it MUST execute the following algorithm: (S3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3032-3.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3032-3.4-2"><code>RFC3032-3.4-2</code></a></h3>
-<p>Each IPv4 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.4)</p>
+<p>If the IP datagram does NOT have the &#34;Don&#39;t Fragment&#34; bit set in its IP header: a. convert it into fragments, each of which MUST be at least N bytes less than the Effective Maximum Frame Payload Size. (S3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3032-3.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3032-3.4-3"><code>RFC3032-3.4-3</code></a></h3>
-<p>If the DF bit is set and packet is too big, the datagram MUST NOT be forwarded (S3.4)</p>
+<p>If the IP datagram has the &#34;Don&#39;t Fragment&#34; bit set in its IP header: a. the datagram MUST NOT be forwarded (S3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3032-3.4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc3032-3.5-1"><code>RFC3032-3.5-1</code></a></h3>
-<p>To process a labeled IPv6 datagram that is too big, the LSR MUST execute the specified algorithm (S3.5)</p>
+<p>To process a labeled IPv6 datagram which is too big, an LSR MUST execute the following algorithm: (S3.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3032-3.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3032-3.5-2"><code>RFC3032-3.5-2</code></a></h3>
-<p>Each IPv6 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.5)</p>
+<p>If the IP datagram is not larger than 1280 octets, and it contains a fragment header, then a. Convert it into fragments, each of which MUST be at least N bytes less than the Effective Maximum Frame Payload Size. (S3.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3032-3.5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3032-3.6-1"><code>RFC3032-3.6-1</code></a></h3>
@@ -1040,7 +1072,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

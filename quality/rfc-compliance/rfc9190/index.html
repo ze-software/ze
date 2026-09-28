@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9190 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 52 gated MUST-level requirements, 0 declared gaps, 26 with no test." />
+        <meta name="description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 52 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 26 with no test." />
         <meta property="og:title" content="RFC 9190 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 52 gated MUST-level requirements, 0 declared gaps, 26 with no test." />
+        <meta property="og:description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 52 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 26 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9190 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 52 gated MUST-level requirements, 0 declared gaps, 26 with no test." />
+        <meta name="twitter:description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 52 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 26 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -214,6 +214,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>26</td>
 </tr>
@@ -311,7 +314,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-3">RFC9190-2.1-3</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS servers MUST NOT send an &#34;early_data&#34; extension (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-3">RFC9190-2.1-3</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS servers MUST NOT send an early_data extension (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.1</td>
@@ -320,7 +323,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-4">RFC9190-2.1-4</code></td><td colspan="3"><span class="rfc-subject">Clients MUST NOT send an EndOfEarlyData message (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-4">RFC9190-2.1-4</code></td><td colspan="3"><span class="rfc-subject">clients MUST NOT send an EndOfEarlyData message (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.1</td>
@@ -511,7 +514,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L73" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSSetsNoLengthBitOnAnUnfragmentedMessage</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.9-2">RFC9190-2.1.9-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST accept unfragmented messages with and without the L bit set (§2.1.9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.9-2">RFC9190-2.1.9-2</code></td><td colspan="3"><span class="rfc-subject">they MUST accept unfragmented messages with and without the L bit set (§2.1.9)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.9</td>
@@ -538,7 +541,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.3-2">RFC9190-2.3-2</code></td><td colspan="3"><span class="rfc-subject">The key derivation MUST use the length values given in the section, 128 octets for Key_Material and 64 octets for Method-Id (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.3-2">RFC9190-2.3-2</code></td><td colspan="3"><span class="rfc-subject">Note that the key derivation MUST use the length values given above. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3</td>
@@ -574,7 +577,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.5-1">RFC9190-2.5-1</code></td><td colspan="3"><span class="rfc-subject">The protected success result indication procedure MUST be followed: after processing the client Finished and sending its last handshake message, the server sends an encrypted TLS record with application data 0x00, then sends no further EAP-Request and may only send EAP-Success (§2.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.5-1">RFC9190-2.5-1</code></td><td colspan="3"><span class="rfc-subject">To provide a protected success result indication and to decrease the uncertainty for the EAP-TLS peer, the following procedure MUST be followed: When an EAP-TLS server has successfully processed the TLS client Finished and sent its last handshake message (Finished or a post- handshake message), it sends an encrypted TLS record with application data 0x00. The encrypted TLS record with application data 0x00 is a protected success result indication, as defined in [RFC3748]. After sending an EAP-Request that contains the protected success result indication, the EAP-TLS server must not send any more EAP-Requests and may only send an EAP-Success. (§2.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.5</td>
@@ -622,7 +625,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L198" title="internal/core/eap/rfc9190_ocsp_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13StaplesNothingWhenTheCertificateCarriesNoResponse</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.4-3">RFC9190-5.4-3</code></td><td colspan="3"><span class="rfc-subject">An EAP-TLS peer using Certificate Status Requests MUST treat a CertificateEntry without a valid CertificateStatus extension as invalid, except the trust anchor, and abort the handshake with an appropriate alert (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.4-3">RFC9190-5.4-3</code></td><td colspan="3"><span class="rfc-subject">When an EAP-TLS peer uses Certificate Status Requests to check the revocation status of the EAP-TLS server&#39;s certificate chain, it MUST treat a CertificateEntry (but not the trust anchor) without a valid CertificateStatus extension as invalid and abort the handshake with an appropriate alert. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4</td>
@@ -670,7 +673,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.6-2">RFC9190-5.6-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.6-2">RFC9190-5.6-2</code></td><td colspan="3"><span class="rfc-subject">implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.6</td>
@@ -755,7 +758,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L265" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-1">RFC9190-5.8-1</code></td><td colspan="3"><span class="rfc-subject">When anonymous NAIs are not used, privacy-friendly identities MUST be generated in a cryptographically secure way, so that an attacker cannot differentiate two identities belonging to the same user from two identities belonging to different users in the same realm (§5.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-1">RFC9190-5.8-1</code></td><td colspan="3"><span class="rfc-subject">If anonymous NAIs are not used, the privacy-friendly identifiers need to be generated with care. The identities MUST be generated in a cryptographically secure way so that it is computationally infeasible for an attacker to differentiate two identities belonging to the same user from two identities belonging to different users in the same realm. (§5.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.8</td>
@@ -805,7 +808,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L475" title="internal/core/eap/rfc9190_attack_mitigation_test.go" target="_blank" rel="noopener"><code>TestRFC9190MitigationRefusesTLS11</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-1">RFC9190-2.1-1</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD NOT send the KeyUpdate message (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-1">RFC9190-2.1-1</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD NOT send this message (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>2.1</td>
@@ -814,7 +817,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.1-3">RFC9190-2.1.1-3</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS server SHOULD require the EAP-TLS peer to authenticate with a certificate (§2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.1-3">RFC9190-2.1.1-3</code></td><td colspan="3"><span class="rfc-subject">SHOULD require the EAP-TLS peer to authenticate with a certificate (§2.1.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1.1</td>
@@ -823,7 +826,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-3">RFC9190-2.1.3-3</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS peer SHOULD supply a &#34;key_share&#34; extension when attempting resumption (§2.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-3">RFC9190-2.1.3-3</code></td><td colspan="3"><span class="rfc-subject">the EAP-TLS peer SHOULD supply a &#34;key_share&#34; extension when attempting resumption (§2.1.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1.3</td>
@@ -832,7 +835,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-4">RFC9190-2.1.3-4</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS peers and EAP-TLS servers SHOULD follow the client tracking preventions in Appendix C.4 of RFC 8446 (§2.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-4">RFC9190-2.1.3-4</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS peers and EAP-TLS servers SHOULD follow the client tracking preventions in Appendix C.4 of [RFC8446]. (§2.1.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1.3</td>
@@ -841,7 +844,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-5">RFC9190-2.1.3-5</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED that the EAP-TLS peer use resumption if it has a valid ticket that has not been used before (§2.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-5">RFC9190-2.1.3-5</code></td><td colspan="3"><span class="rfc-subject">it is RECOMMENDED that the EAP-TLS peer use resumption if it has a valid ticket that has not been used before. (§2.1.3)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>2.1.3</td>
@@ -850,7 +853,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-6">RFC9190-2.1.3-6</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED that the EAP-TLS server accept resumption if the ticket that was issued is still valid (§2.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-6">RFC9190-2.1.3-6</code></td><td colspan="3"><span class="rfc-subject">it is RECOMMENDED that the EAP-TLS server accept resumption if the ticket that was issued is still valid. (§2.1.3)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>2.1.3</td>
@@ -859,7 +862,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-7">RFC9190-2.1.3-7</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to use Network Access Identifiers with the same realm during resumption and the original full handshake (§2.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-7">RFC9190-2.1.3-7</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to use Network Access Identifiers (NAIs) with the same realm during resumption and the original full handshake. (§2.1.3)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>2.1.3</td>
@@ -889,7 +892,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cert_nai_test.go#L350" title="internal/core/eap/rfc9190_cert_nai_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerPrefersTheConfiguredRealmOverTheCertificate</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.7-2">RFC9190-2.1.7-2</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to use anonymous NAIs in the Identity Response (§2.1.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.7-2">RFC9190-2.1.7-2</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to use anonymous NAIs [RFC7542] in the Identity Response as such identities are routable and privacy-friendly. (§2.1.7)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>2.1.7</td>
@@ -898,7 +901,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.7-3">RFC9190-2.1.7-3</code></td><td colspan="3"><span class="rfc-subject">Opaque blob identities are NOT RECOMMENDED because they are not routable (§2.1.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.7-3">RFC9190-2.1.7-3</code></td><td colspan="3"><span class="rfc-subject">opaque blobs are allowed by [RFC3748], such identities are NOT RECOMMENDED as they are not routable (§2.1.7)</span></td></tr>
 <tr><td></td>
 <td>NOT RECOMMENDED</td>
 <td>2.1.7</td>
@@ -907,7 +910,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.8-5">RFC9190-2.1.8-5</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to omit the username, so that the NAI is @realm (§2.1.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.8-5">RFC9190-2.1.8-5</code></td><td colspan="3"><span class="rfc-subject">Following [RFC7542], it is RECOMMENDED to omit the username (i.e., the NAI is @realm) (§2.1.8)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>2.1.8</td>
@@ -916,7 +919,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.9-3">RFC9190-2.1.9-3</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to keep the sizes of peer, server, and trust anchor certificates small and the certificate chains short (§2.1.9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.9-3">RFC9190-2.1.9-3</code></td><td colspan="3"><span class="rfc-subject">To avoid fragmentation, it is RECOMMENDED to keep the sizes of EAP-TLS peer, EAP-TLS server, and trust anchor certificates small and the length of the certificate chains short. (§2.1.9)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>2.1.9</td>
@@ -925,7 +928,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.9-4">RFC9190-2.1.9-4</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to use mechanisms that reduce the sizes of Certificate messages (§2.1.9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.9-4">RFC9190-2.1.9-4</code></td><td colspan="3"><span class="rfc-subject">In addition, it is RECOMMENDED to use mechanisms that reduce the sizes of Certificate messages. (§2.1.9)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>2.1.9</td>
@@ -934,7 +937,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.2-2">RFC9190-2.2-2</code></td><td colspan="3"><span class="rfc-subject">EAP peer implementations SHOULD allow configuration of one or more trusted root certificates and one or more server names to match against the SubjectAltName extension (§2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.2-2">RFC9190-2.2-2</code></td><td colspan="3"><span class="rfc-subject">EAP peer implementations SHOULD allow for the configuration of one or more trusted root certificates (CA certificate) to authenticate the server certificate and one or more server names to match against the SubjectAltName (SAN) extension in the server certificate. (§2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.2</td>
@@ -943,7 +946,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.2-3">RFC9190-2.2-3</code></td><td colspan="3"><span class="rfc-subject">Automated methods of provisioning the root CA certificate and the server name are RECOMMENDED (§2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.2-3">RFC9190-2.2-3</code></td><td colspan="3"><span class="rfc-subject">The process of configuring a root CA certificate and a server name is non-trivial; therefore, automated methods of provisioning are RECOMMENDED. (§2.2)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>2.2</td>
@@ -961,7 +964,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.4-6">RFC9190-5.4-6</code></td><td colspan="3"><span class="rfc-subject">An EAP peer implementation SHOULD NOT trust the network, and any services, until it has verified the revocation status of the server certificate after receiving network connectivity (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.4-6">RFC9190-5.4-6</code></td><td colspan="3"><span class="rfc-subject">An EAP peer implementation SHOULD NOT trust the network (and any services) until it has verified the revocation status of the server certificate after receiving network connectivity. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>5.4</td>
@@ -988,7 +991,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-7">RFC9190-5.7-7</code></td><td colspan="3"><span class="rfc-subject">Systems that expect to perform accounting for the session SHOULD cache an identifier that can be used in subsequent accounting (§5.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-7">RFC9190-5.7-7</code></td><td colspan="3"><span class="rfc-subject">Therefore, systems that expect to perform accounting for the session SHOULD cache an identifier that can be used in subsequent accounting. (§5.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.7</td>
@@ -1015,7 +1018,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-4">RFC9190-5.8-4</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS peers SHOULD use record padding to reduce information leakage of certificate sizes (§5.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-4">RFC9190-5.8-4</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS peers SHOULD use record padding; see Section 5.4 of [RFC8446] to reduce information leakage of certificate sizes. (§5.8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.8</td>
@@ -1024,7 +1027,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-5">RFC9190-5.8-5</code></td><td colspan="3"><span class="rfc-subject">An EAP-TLS peer SHOULD NOT continue the EAP authentication attempt if a TLS 1.2 EAP-TLS server sends an EAP-TLS/Request with a TLS alert message in response to an empty certificate message from the peer (§5.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-5">RFC9190-5.8-5</code></td><td colspan="3"><span class="rfc-subject">This implies that an EAP-TLS peer SHOULD NOT continue the EAP authentication attempt if a TLS 1.2 EAP-TLS server sends an EAP-TLS/Request with a TLS alert message in response to an empty certificate message from the peer. (§5.8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>5.8</td>
@@ -1033,7 +1036,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-6">RFC9190-5.8-6</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED for EAP-TLS peers to not use EAP-TLS with TLS 1.2 and static RSA-based cipher suites without privacy (§5.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-6">RFC9190-5.8-6</code></td><td colspan="3"><span class="rfc-subject">Therefore, it is RECOMMENDED for EAP-TLS peers to not use EAP-TLS with TLS 1.2 and static RSA-based cipher suites without privacy. (§5.8)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>5.8</td>
@@ -1042,7 +1045,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.11-1">RFC9190-5.11-1</code></td><td colspan="3"><span class="rfc-subject">Using different certificates and resumption caches for different protocols is RECOMMENDED (§5.11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.11-1">RFC9190-5.11-1</code></td><td colspan="3"><span class="rfc-subject">Along with making sure that appropriate authorization information is available and used during resumption, using different certificates and resumption caches for different protocols is RECOMMENDED to help keep different protocol usages separate. (§5.11)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>5.11</td>
@@ -1051,7 +1054,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.1-4">RFC9190-2.1.1-4</code></td><td colspan="3"><span class="rfc-subject">A TLS implementation MAY not allow the EAP-TLS layer to control the order in which things are sent (§2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.1-4">RFC9190-2.1.1-4</code></td><td colspan="3"><span class="rfc-subject">a TLS implementation MAY not allow the EAP-TLS layer to control in which order things are sent (§2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.1.1</td>
@@ -1060,7 +1063,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.1-5">RFC9190-2.1.1-5</code></td><td colspan="3"><span class="rfc-subject">The application data 0x00 MAY therefore be sent before a NewSessionTicket (§2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.1-5">RFC9190-2.1.1-5</code></td><td colspan="3"><span class="rfc-subject">Note that a TLS implementation MAY not allow the EAP-TLS layer to control in which order things are sent and the application data MAY therefore be sent before a NewSessionTicket. (§2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.1.1</td>
@@ -1069,7 +1072,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-9">RFC9190-2.1.3-9</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS server MAY choose to require a full handshake instead of accepting resumption (§2.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-9">RFC9190-2.1.3-9</code></td><td colspan="3"><span class="rfc-subject">However, the EAP-TLS server MAY choose to require a full handshake. (§2.1.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.1.3</td>
@@ -1078,7 +1081,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.8-6">RFC9190-2.1.8-6</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS server MAY treat an empty certificate_list as a terminal condition (§2.1.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.8-6">RFC9190-2.1.8-6</code></td><td colspan="3"><span class="rfc-subject">the EAP-TLS server MAY treat an empty certificate_list as a terminal condition. (§2.1.8)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.1.8</td>
@@ -1105,7 +1108,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.2-6">RFC9190-2.2-6</code></td><td colspan="3"><span class="rfc-subject">In the absence of a trusted root CA certificate, EAP peers MAY implement a trust on first use mechanism (§2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.2-6">RFC9190-2.2-6</code></td><td colspan="3"><span class="rfc-subject">In the absence of a trusted root CA certificate (user configured or system-wide), EAP peers MAY implement a trust on first use (TOFU) mechanism where the peer trusts and stores the server certificate during the first connection attempt. (§2.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.2</td>
@@ -1114,7 +1117,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.4-3">RFC9190-2.4-3</code></td><td colspan="3"><span class="rfc-subject">The negotiated cipher suites and algorithms MAY be used to secure data as done in other TLS-based EAP methods (§2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.4-3">RFC9190-2.4-3</code></td><td colspan="3"><span class="rfc-subject">While EAP-TLS does not protect any application data except for the 0x00 byte that serves as protected success indication, the negotiated cipher suites and algorithms MAY be used to secure data as done in other TLS-based EAP methods. (§2.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.4</td>
@@ -1141,7 +1144,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.6-6">RFC9190-5.6-6</code></td><td colspan="3"><span class="rfc-subject">EAP peer implementations MAY allow binding the configured acceptable SubjectAltName to a specific CA that should have issued the server certificate (§5.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.6-6">RFC9190-5.6-6</code></td><td colspan="3"><span class="rfc-subject">EAP peer implementations MAY allow binding the configured acceptable SAN to a specific CA (or CAs) that should have issued the server certificate to prevent attacks from rogue or compromised CAs. (§5.6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.6</td>
@@ -1168,7 +1171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-12">RFC9190-5.7-12</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS peer MAY delete resumption PSKs or tickets earlier based on local policy (§5.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-12">RFC9190-5.7-12</code></td><td colspan="3"><span class="rfc-subject">The EAP- TLS peer MAY delete them earlier based on local policy. (§5.7)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.7</td>
@@ -1208,11 +1211,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc9190-2.1-3"><code>RFC9190-2.1-3</code></a> EAP-TLS servers MUST NOT send an &#34;early_data&#34; extension (§2.1)</td>
+<tr><td><a href="#rfc9190-2.1-3"><code>RFC9190-2.1-3</code></a> EAP-TLS servers MUST NOT send an early_data extension (§2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc9190-2.1-4"><code>RFC9190-2.1-4</code></a> Clients MUST NOT send an EndOfEarlyData message (§2.1)</td>
+<tr><td><a href="#rfc9190-2.1-4"><code>RFC9190-2.1-4</code></a> clients MUST NOT send an EndOfEarlyData message (§2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
@@ -1260,7 +1263,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc9190-2.3-2"><code>RFC9190-2.3-2</code></a> The key derivation MUST use the length values given in the section, 128 octets for Key_Material and 64 octets for Method-Id (§2.3)</td>
+<tr><td><a href="#rfc9190-2.3-2"><code>RFC9190-2.3-2</code></a> Note that the key derivation MUST use the length values given above. (§2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
@@ -1280,7 +1283,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc9190-5.6-2"><code>RFC9190-5.6-2</code></a> Implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6)</td>
+<tr><td><a href="#rfc9190-5.6-2"><code>RFC9190-5.6-2</code></a> implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
@@ -1296,7 +1299,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc9190-5.8-1"><code>RFC9190-5.8-1</code></a> When anonymous NAIs are not used, privacy-friendly identities MUST be generated in a cryptographically secure way, so that an attacker cannot differentiate two identities belonging to the same user from two identities belonging to different users in the same realm (§5.8)</td>
+<tr><td><a href="#rfc9190-5.8-1"><code>RFC9190-5.8-1</code></a> If anonymous NAIs are not used, the privacy-friendly identifiers need to be generated with care. The identities MUST be generated in a cryptographically secure way so that it is computationally infeasible for an attacker to differentiate two identities belonging to the same user from two identities belonging to different users in the same realm. (§5.8)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
@@ -1339,11 +1342,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9190-2.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9190-2.1-3"><code>RFC9190-2.1-3</code></a></h3>
-<p>EAP-TLS servers MUST NOT send an &#34;early_data&#34; extension (§2.1)</p>
+<p>EAP-TLS servers MUST NOT send an early_data extension (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9190-2.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9190-2.1-4"><code>RFC9190-2.1-4</code></a></h3>
-<p>Clients MUST NOT send an EndOfEarlyData message (§2.1)</p>
+<p>clients MUST NOT send an EndOfEarlyData message (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9190-2.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc9190-2.1-5"><code>RFC9190-2.1-5</code></a></h3>
@@ -1572,7 +1575,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc9190-2.1.9-2"><code>RFC9190-2.1.9-2</code></a></h3>
-<p>Implementations MUST accept unfragmented messages with and without the L bit set (§2.1.9)</p>
+<p>they MUST accept unfragmented messages with and without the L bit set (§2.1.9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1611,7 +1614,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc9190-2.3-2"><code>RFC9190-2.3-2</code></a></h3>
-<p>The key derivation MUST use the length values given in the section, 128 octets for Key_Material and 64 octets for Method-Id (§2.3)</p>
+<p>Note that the key derivation MUST use the length values given above. (§2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9190-2.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9190-2.3-3"><code>RFC9190-2.3-3</code></a></h3>
@@ -1627,7 +1630,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9190-2.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9190-2.5-1"><code>RFC9190-2.5-1</code></a></h3>
-<p>The protected success result indication procedure MUST be followed: after processing the client Finished and sending its last handshake message, the server sends an encrypted TLS record with application data 0x00, then sends no further EAP-Request and may only send EAP-Success (§2.5)</p>
+<p>To provide a protected success result indication and to decrease the uncertainty for the EAP-TLS peer, the following procedure MUST be followed: When an EAP-TLS server has successfully processed the TLS client Finished and sent its last handshake message (Finished or a post- handshake message), it sends an encrypted TLS record with application data 0x00. The encrypted TLS record with application data 0x00 is a protected success result indication, as defined in [RFC3748]. After sending an EAP-Request that contains the protected success result indication, the EAP-TLS server must not send any more EAP-Requests and may only send an EAP-Success. (§2.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1767,7 +1770,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc9190-5.4-3"><code>RFC9190-5.4-3</code></a></h3>
-<p>An EAP-TLS peer using Certificate Status Requests MUST treat a CertificateEntry without a valid CertificateStatus extension as invalid, except the trust anchor, and abort the handshake with an appropriate alert (§5.4)</p>
+<p>When an EAP-TLS peer uses Certificate Status Requests to check the revocation status of the EAP-TLS server&#39;s certificate chain, it MUST treat a CertificateEntry (but not the trust anchor) without a valid CertificateStatus extension as invalid and abort the handshake with an appropriate alert. (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1891,7 +1894,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9190-5.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9190-5.6-2"><code>RFC9190-5.6-2</code></a></h3>
-<p>Implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6)</p>
+<p>implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9190-5.6-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9190-5.6-3"><code>RFC9190-5.6-3</code></a></h3>
@@ -2022,7 +2025,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc9190-5.8-1"><code>RFC9190-5.8-1</code></a></h3>
-<p>When anonymous NAIs are not used, privacy-friendly identities MUST be generated in a cryptographically secure way, so that an attacker cannot differentiate two identities belonging to the same user from two identities belonging to different users in the same realm (§5.8)</p>
+<p>If anonymous NAIs are not used, the privacy-friendly identifiers need to be generated with care. The identities MUST be generated in a cryptographically secure way so that it is computationally infeasible for an attacker to differentiate two identities belonging to the same user from two identities belonging to different users in the same realm. (§5.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9190-5.8-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9190-5.8-2"><code>RFC9190-5.8-2</code></a></h3>
@@ -2159,7 +2162,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc9190-2.1.8-5"><code>RFC9190-2.1.8-5</code></a></h3>
-<p>It is RECOMMENDED to omit the username, so that the NAI is @realm (§2.1.8)</p>
+<p>Following [RFC7542], it is RECOMMENDED to omit the username (i.e., the NAI is @realm) (§2.1.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2497,7 +2500,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

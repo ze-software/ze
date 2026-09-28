@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 6286 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 6286: Autonomous-System-Wide Unique BGP Identifier for BGP-4. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 6286: Autonomous-System-Wide Unique BGP Identifier for BGP-4. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 6286 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 6286: Autonomous-System-Wide Unique BGP Identifier for BGP-4. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 6286: Autonomous-System-Wide Unique BGP Identifier for BGP-4. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 6286 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 6286: Autonomous-System-Wide Unique BGP Identifier for BGP-4. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 6286: Autonomous-System-Wide Unique BGP Identifier for BGP-4. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 4 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>12</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -296,7 +304,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6286-2.1-1">RFC6286-2.1-1</code></td><td colspan="3"><span class="rfc-subject">The BGP Identifier is a 4-octet, unsigned, NON-ZERO integer whose value is determined on startup and is the same for every local interface and every BGP peer (Section 2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6286-2.1-1">RFC6286-2.1-1</code></td><td colspan="3"><span class="rfc-subject">The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. (Section 2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1 - Definition of the BGP Identifier</td>
@@ -305,7 +313,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the definition&#39;s other two properties are structural and have no failure mode a negative test could exercise -- the wire field is a uint32 (internal/component/bgp/message/open.go:55), and the value is read once at config load into reactor.Config.RouterID and used for every peer and every OPEN (internal/component/bgp/reactor/session_negotiate.go:160). The non-zero half IS enforced and tested: parseRouterID (internal/component/bgp/reactor/config.go) rejects 0.0.0.0 for both the global leaf and a per-peer override</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6286-2.1-2">RFC6286-2.1-2</code></td><td colspan="3"><span class="rfc-subject">The BGP Identifier should be unique within an AS (Section 2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6286-2.1-2">RFC6286-2.1-2</code></td><td colspan="3"><span class="rfc-subject">The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. (Section 2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1 - Definition of the BGP Identifier</td>
@@ -314,7 +322,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the negative case -- ze accepting a duplicate -- is the operator-selected `bgp/session/allow-shared-router-id true` path, which is conformant precisely because the requirement is a lowercase &#34;should&#34;, so there is no violation for a negative test to catch. Enforcement is proven by TestRouterIDClaimConcurrentOnlyOneWins and the TestRouterIDConflict* family; the opt-out by TestValidateOpenAllowSharedRouterID</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6286-2.2-1">RFC6286-2.2-1</code></td><td colspan="3"><span class="rfc-subject">An OPEN whose BGP Identifier field is zero is rejected with Error Subcode &#34;Bad BGP Identifier&#34; (Section 2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6286-2.2-1">RFC6286-2.2-1</code></td><td colspan="3"><span class="rfc-subject">If the BGP Identifier field of the OPEN message is zero, or if it is the same as the BGP Identifier of the local BGP speaker and the message is from an internal peer, then the Error Subcode is set to &#34;Bad BGP Identifier&#34;. (Section 2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.2 - Open Message Error Handling</td>
@@ -325,7 +333,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L447" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenValidateBGPIdentifier</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6286-2.2-2">RFC6286-2.2-2</code></td><td colspan="3"><span class="rfc-subject">An OPEN whose BGP Identifier equals the local BGP Identifier AND comes from an internal peer is rejected with Error Subcode &#34;Bad BGP Identifier&#34;; the same identifier from an EXTERNAL peer is not rejected (Section 2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6286-2.2-2">RFC6286-2.2-2</code></td><td colspan="3"><span class="rfc-subject">If the BGP Identifier field of the OPEN message is zero, or if it is the same as the BGP Identifier of the local BGP speaker and the message is from an internal peer, then the Error Subcode is set to &#34;Bad BGP Identifier&#34;. (Section 2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.2 - Open Message Error Handling</td>
@@ -336,7 +344,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L451" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenValidateBGPIdentifier</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6286-2.3-1">RFC6286-2.3-1</code></td><td colspan="3"><span class="rfc-subject">When the BGP Identifiers involved in a connection collision are identical, the connection initiated by the BGP speaker with the larger AS number is preserved (Section 2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6286-2.3-1">RFC6286-2.3-1</code></td><td colspan="3"><span class="rfc-subject">If the BGP Identifiers of the peers involved in the connection collision are identical, then the connection initiated by the BGP speaker with the larger AS number is preserved. (Section 2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3 - Connection Collision Resolution</td>
@@ -355,8 +363,8 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc6286-2.1-1"><code>RFC6286-2.1-1</code></a></h3>
-<p>The BGP Identifier is a 4-octet, unsigned, NON-ZERO integer whose value is determined on startup and is the same for every local interface and every BGP peer (Section 2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. (Section 2.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The only tag (config_test zero_router_id_rejected) proves the non-zero clause for a peer-level router-id. No tagged assertion covers the global router-id leaf, or &#39;the same for every local interface and every BGP peer&#39;: Ze accepts a per-peer router-id override (parsePeerFromTree, session router-id), so a configuration giving peers different identifiers is accepted and nothing tagged goes red on it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -370,8 +378,8 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 </table>
 </div>
 <h3><a href="#rfc6286-2.1-2"><code>RFC6286-2.1-2</code></a></h3>
-<p>The BGP Identifier should be unique within an AS (Section 2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. (Section 2.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) identifiers within one AS that are not unique, including this speaker&#39;s own identifier shared with a speaker of its AS; (b) TestRouterIDClaimConcurrentOnlyOneWins goes red only when two REMOTE peers of one AS presenting one identifier are both accepted (require.ErrorAs routerIDConflictError, accepted == 1). No tagged assertion covers the local identifier colliding with a speaker of its own AS, so that half of &#39;unique within an AS&#39; stays unproven under this tag (the Section 2.2 internal-peer rejection is tagged to RFC6286-2.2-2 only). Single-polarity marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -385,8 +393,8 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 </table>
 </div>
 <h3><a href="#rfc6286-2.2-1"><code>RFC6286-2.2-1</code></a></h3>
-<p>An OPEN whose BGP Identifier field is zero is rejected with Error Subcode &#34;Bad BGP Identifier&#34; (Section 2.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the BGP Identifier field of the OPEN message is zero, or if it is the same as the BGP Identifier of the local BGP speaker and the message is from an internal peer, then the Error Subcode is set to &#34;Bad BGP Identifier&#34;. (Section 2.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) accepting an OPEN whose BGP Identifier is zero; (b) TestOpenValidateBGPIdentifier: zero from internal and from external wantErr with NotifyOpenMessage / NotifyOpenBadBGPID; negative: 1 and 0xFFFFFFFF accepted. The same unit also proves the sentence&#39;s second clause (local id from internal rejected, from external accepted). handleOpen and processOpen rails tagged positive too.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -415,8 +423,8 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 </table>
 </div>
 <h3><a href="#rfc6286-2.2-2"><code>RFC6286-2.2-2</code></a></h3>
-<p>An OPEN whose BGP Identifier equals the local BGP Identifier AND comes from an internal peer is rejected with Error Subcode &#34;Bad BGP Identifier&#34;; the same identifier from an EXTERNAL peer is not rejected (Section 2.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the BGP Identifier field of the OPEN message is zero, or if it is the same as the BGP Identifier of the local BGP speaker and the message is from an internal peer, then the Error Subcode is set to &#34;Bad BGP Identifier&#34;. (Section 2.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) accepting the local identifier from an internal peer, or rejecting it from an external one; (b) TestOpenValidateBGPIdentifier rows &#39;local identifier from internal peer&#39; wantErr 2/3 and &#39;from external peer&#39; no error, plus localID+-1 accepted; zero rows cover the first clause. TestHandleOpenRejectsBadBGPIdentifier repeats both polarities on the FSM rail.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -445,8 +453,8 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 </table>
 </div>
 <h3><a href="#rfc6286-2.3-1"><code>RFC6286-2.3-1</code></a></h3>
-<p>When the BGP Identifiers involved in a connection collision are identical, the connection initiated by the BGP speaker with the larger AS number is preserved (Section 2.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the BGP Identifiers of the peers involved in the connection collision are identical, then the connection initiated by the BGP speaker with the larger AS number is preserved. (Section 2.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) with identical identifiers, preserving the connection of the smaller AS; (b) TestDetectCollisionEqualIdentifierPrefersLargerAS asserts accept/close for peer AS &gt; local AS and peer AS &lt; local AS with equal identifiers; negative rows show unequal identifiers ignore the AS.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -627,7 +635,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

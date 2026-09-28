@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 1035 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 1035: Domain Names - Implementation and Specification. 27 gated MUST-level requirements, 0 declared gaps, 2 with no test." />
+        <meta name="description" content="RFC 1035: Domain Names - Implementation and Specification. 27 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 2 with no test." />
         <meta property="og:title" content="RFC 1035 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 1035: Domain Names - Implementation and Specification. 27 gated MUST-level requirements, 0 declared gaps, 2 with no test." />
+        <meta property="og:description" content="RFC 1035: Domain Names - Implementation and Specification. 27 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 2 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 1035 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 1035: Domain Names - Implementation and Specification. 27 gated MUST-level requirements, 0 declared gaps, 2 with no test." />
+        <meta name="twitter:description" content="RFC 1035: Domain Names - Implementation and Specification. 27 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 2 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -214,6 +214,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>2</td>
 </tr>
@@ -316,7 +319,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L148" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_QueryNameCasePreservedInTheReply</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.4-1">RFC1035-2.3.4-1</code></td><td colspan="3"><span class="rfc-subject">Size limit -- TTL: positive values of a signed 32 bit number (§2.3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.4-1">RFC1035-2.3.4-1</code></td><td colspan="3"><span class="rfc-subject">TTL positive values of a signed 32 bit number. (§2.3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3.4 - Size limits</td>
@@ -325,7 +328,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L159" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.4-2">RFC1035-2.3.4-2</code></td><td colspan="3"><span class="rfc-subject">Size limit -- UDP messages: 512 octets or less (§2.3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.4-2">RFC1035-2.3.4-2</code></td><td colspan="3"><span class="rfc-subject">UDP messages 512 octets or less (§2.3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3.4 - Size limits</td>
@@ -363,7 +366,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L67" title="test/parse/dns-name-too-long.ci" target="_blank" rel="noopener"><code>dns-name-too-long.ci</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-3.1-4">RFC1035-3.1-4</code></td><td colspan="3"><span class="rfc-subject">The total length of a domain name (i.e., label octets and label length octets) is restricted to 255 octets or less (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-3.1-4">RFC1035-3.1-4</code></td><td colspan="3"><span class="rfc-subject">To simplify implementations, the total length of a domain name (i.e., label octets and label length octets) is restricted to 255 octets or less. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1 - Name space definitions: the wire form of a domain name</td>
@@ -410,7 +413,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L102" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ReservedZFieldIsZero</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.1-2">RFC1035-4.1.1-2</code></td><td colspan="3"><span class="rfc-subject">AA (Authoritative Answer) is valid in responses and specifies that the responding name server is an authority for the domain name in question section (§4.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.1-2">RFC1035-4.1.1-2</code></td><td colspan="3"><span class="rfc-subject">AA Authoritative Answer - this bit is valid in responses, and specifies that the responding name server is an authority for the domain name in question section. (§4.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.1 - Header section format</td>
@@ -421,7 +424,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L253" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.1-3">RFC1035-4.1.1-3</code></td><td colspan="3"><span class="rfc-subject">RCODE 3 (Name Error), meaningful only for responses from an authoritative name server, signifies that the domain name referenced in the query does not exist (§4.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.1-3">RFC1035-4.1.1-3</code></td><td colspan="3"><span class="rfc-subject">3 Name Error - Meaningful only for responses from an authoritative name server, this code signifies that the domain name referenced in the query does not exist. (§4.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.1 - Header section format</td>
@@ -432,7 +435,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L242" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.3-1">RFC1035-4.1.3-1</code></td><td colspan="3"><span class="rfc-subject">TTL is a 32 bit unsigned integer that specifies the time interval in seconds that the resource record may be cached (§4.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.3-1">RFC1035-4.1.3-1</code></td><td colspan="3"><span class="rfc-subject">TTL a 32 bit unsigned integer that specifies the time interval (in seconds) that the resource record may be cached before it should be discarded. (§4.1.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.3 - Resource record format</td>
@@ -441,7 +444,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L127" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.3-2">RFC1035-4.1.3-2</code></td><td colspan="3"><span class="rfc-subject">RDLENGTH is an unsigned 16 bit integer that specifies the length in octets of the RDATA field (§4.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.3-2">RFC1035-4.1.3-2</code></td><td colspan="3"><span class="rfc-subject">RDLENGTH an unsigned 16 bit integer that specifies the length in octets of the RDATA field. (§4.1.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.3 - Resource record format</td>
@@ -459,7 +462,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L225" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.4-2">RFC1035-4.1.4-2</code></td><td colspan="3"><span class="rfc-subject">The OFFSET field specifies an offset from the start of the message, i.e. the first octet of the ID field in the domain header (§4.1.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.4-2">RFC1035-4.1.4-2</code></td><td colspan="3"><span class="rfc-subject">The OFFSET field specifies an offset from the start of the message (i.e., the first octet of the ID field in the domain header). (§4.1.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.4 - Message compression</td>
@@ -477,7 +480,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L232" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.4-4">RFC1035-4.1.4-4</code></td><td colspan="3"><span class="rfc-subject">If a domain name is contained in a part of the message subject to a length field, such as the RDATA section of an RR, and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name (§4.1.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.4-4">RFC1035-4.1.4-4</code></td><td colspan="3"><span class="rfc-subject">If a domain name is contained in a part of the message subject to a length field (such as the RDATA section of an RR), and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name. (§4.1.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.4 - Message compression</td>
@@ -504,7 +507,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.2.1-1">RFC1035-4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">Messages carried by UDP are restricted to 512 bytes, not counting the IP or UDP headers (§4.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.2.1-1">RFC1035-4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">Messages carried by UDP are restricted to 512 bytes (not counting the IP or UDP headers). (§4.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.1 - UDP usage</td>
@@ -535,7 +538,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L49" title="internal/plugins/as112/rfc1035_port_test.go" target="_blank" rel="noopener"><code>TestRFC1035_DNSTransportsUseServerPort53</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.2.2-1">RFC1035-4.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Messages sent over TCP connections use server port 53 decimal, and the message is prefixed with a two byte length field which gives the message length (§4.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.2.2-1">RFC1035-4.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Messages sent over TCP connections use server port 53 (decimal). The message is prefixed with a two byte length field which gives the message length, excluding the two byte length field. (§4.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.2 - TCP usage</td>
@@ -553,7 +556,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L290" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_QueryOpcodeAnsweredNormally</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.1-1">RFC1035-2.3.1-1</code></td><td colspan="3"><span class="rfc-subject">Preferred name syntax: labels must start with a letter, end with a letter or digit, and have as interior characters only letters, digits, and hyphen (§2.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.1-1">RFC1035-2.3.1-1</code></td><td colspan="3"><span class="rfc-subject">The labels must follow the rules for ARPANET host names. They must start with a letter, end with a letter or digit, and have as interior characters only letters, digits, and hyphen. (§2.3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.3.1 - Preferred name syntax</td>
@@ -571,7 +574,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.3-4">RFC1035-2.3.3-4</code></td><td colspan="3"><span class="rfc-subject">Attempts to store domain names in 7-bit ASCII or use of special bytes to terminate labels, etc., should be avoided (§2.3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.3-4">RFC1035-2.3.3-4</code></td><td colspan="3"><span class="rfc-subject">However, future additions beyond current usage may need to use the full binary octet capabilities in names, so attempts to store domain names in 7-bit ASCII or use of special bytes to terminate labels, etc., should be avoided. (§2.3.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>2.3.3 - Character Case</td>
@@ -589,7 +592,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-3.3.13-2">RFC1035-3.3.13-2</code></td><td colspan="3"><span class="rfc-subject">This use of MINIMUM should occur when the RRs are copied into the response and not when the zone is loaded from a master file or via a zone transfer (§3.3.13)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-3.3.13-2">RFC1035-3.3.13-2</code></td><td colspan="3"><span class="rfc-subject">Note that this use of MINIMUM should occur when the RRs are copied into the response and not when the zone is loaded from a master file or via a zone transfer. (§3.3.13)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.3.13</td>
@@ -598,7 +601,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.3-3">RFC1035-4.1.3-3</code></td><td colspan="3"><span class="rfc-subject">Zero TTL values are interpreted to mean that the RR can only be used for the transaction in progress, and should not be cached (§4.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.3-3">RFC1035-4.1.3-3</code></td><td colspan="3"><span class="rfc-subject">Zero values are interpreted to mean that the RR can only be used for the transaction in progress, and should not be cached. (§4.1.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4.1.3 - Resource record format</td>
@@ -671,7 +674,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 </table>
 </div>
 <h3><a href="#rfc1035-2.3.4-1"><code>RFC1035-2.3.4-1</code></a></h3>
-<p>Size limit -- TTL: positive values of a signed 32 bit number (§2.3.4)</p>
+<p>TTL positive values of a signed 32 bit number. (§2.3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -691,7 +694,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 </table>
 </div>
 <h3><a href="#rfc1035-2.3.4-2"><code>RFC1035-2.3.4-2</code></a></h3>
-<p>Size limit -- UDP messages: 512 octets or less (§2.3.4)</p>
+<p>UDP messages 512 octets or less (§2.3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -781,7 +784,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 </table>
 </div>
 <h3><a href="#rfc1035-3.1-4"><code>RFC1035-3.1-4</code></a></h3>
-<p>The total length of a domain name (i.e., label octets and label length octets) is restricted to 255 octets or less (§3.1)</p>
+<p>To simplify implementations, the total length of a domain name (i.e., label octets and label length octets) is restricted to 255 octets or less. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -875,7 +878,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 </table>
 </div>
 <h3><a href="#rfc1035-4.1.1-2"><code>RFC1035-4.1.1-2</code></a></h3>
-<p>AA (Authoritative Answer) is valid in responses and specifies that the responding name server is an authority for the domain name in question section (§4.1.1)</p>
+<p>AA Authoritative Answer - this bit is valid in responses, and specifies that the responding name server is an authority for the domain name in question section. (§4.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -905,7 +908,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 </table>
 </div>
 <h3><a href="#rfc1035-4.1.1-3"><code>RFC1035-4.1.1-3</code></a></h3>
-<p>RCODE 3 (Name Error), meaningful only for responses from an authoritative name server, signifies that the domain name referenced in the query does not exist (§4.1.1)</p>
+<p>3 Name Error - Meaningful only for responses from an authoritative name server, this code signifies that the domain name referenced in the query does not exist. (§4.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -935,7 +938,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 </table>
 </div>
 <h3><a href="#rfc1035-4.1.3-1"><code>RFC1035-4.1.3-1</code></a></h3>
-<p>TTL is a 32 bit unsigned integer that specifies the time interval in seconds that the resource record may be cached (§4.1.3)</p>
+<p>TTL a 32 bit unsigned integer that specifies the time interval (in seconds) that the resource record may be cached before it should be discarded. (§4.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -955,7 +958,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 </table>
 </div>
 <h3><a href="#rfc1035-4.1.3-2"><code>RFC1035-4.1.3-2</code></a></h3>
-<p>RDLENGTH is an unsigned 16 bit integer that specifies the length in octets of the RDATA field (§4.1.3)</p>
+<p>RDLENGTH an unsigned 16 bit integer that specifies the length in octets of the RDATA field. (§4.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -995,7 +998,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 </table>
 </div>
 <h3><a href="#rfc1035-4.1.4-2"><code>RFC1035-4.1.4-2</code></a></h3>
-<p>The OFFSET field specifies an offset from the start of the message, i.e. the first octet of the ID field in the domain header (§4.1.4)</p>
+<p>The OFFSET field specifies an offset from the start of the message (i.e., the first octet of the ID field in the domain header). (§4.1.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1035,7 +1038,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 </table>
 </div>
 <h3><a href="#rfc1035-4.1.4-4"><code>RFC1035-4.1.4-4</code></a></h3>
-<p>If a domain name is contained in a part of the message subject to a length field, such as the RDATA section of an RR, and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name (§4.1.4)</p>
+<p>If a domain name is contained in a part of the message subject to a length field (such as the RDATA section of an RR), and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name. (§4.1.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1079,7 +1082,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC1035-4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc1035-4.2.1-1"><code>RFC1035-4.2.1-1</code></a></h3>
-<p>Messages carried by UDP are restricted to 512 bytes, not counting the IP or UDP headers (§4.2.1)</p>
+<p>Messages carried by UDP are restricted to 512 bytes (not counting the IP or UDP headers). (§4.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1159,7 +1162,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 </table>
 </div>
 <h3><a href="#rfc1035-4.2.2-1"><code>RFC1035-4.2.2-1</code></a></h3>
-<p>Messages sent over TCP connections use server port 53 decimal, and the message is prefixed with a two byte length field which gives the message length (§4.2.2)</p>
+<p>Messages sent over TCP connections use server port 53 (decimal). The message is prefixed with a two byte length field which gives the message length, excluding the two byte length field. (§4.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1457,12 +1460,6 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>1</td>
 <td>walked</td>
 <td>WKS RDATA format. Its one site is the bit-map alignment rule, excluded below because Ze emits no WKS record.</td>
-</tr>
-<tr><td><code>25</code></td>
-<td>not stated</td>
-<td>0</td>
-<td>walked</td>
-<td>NOT A SECTION. The derivation&#39;s heading pattern over-matches a column-0 line inside section 3.4.2&#39;s WKS bit-map explanation (&#39;25 (SMTP). If this bit is set, a SMTP server should be listening on TCP port 25&#39;), which _SECTION_HEADING_RE documents as unavoidable by shape alone. It carries no site and no obligation; it is classified so the artifact stays complete against the derivation.</td>
 </tr>
 <tr><td><code>3.5</code></td>
 <td>IN-ADDR.ARPA domain</td>
@@ -1824,7 +1821,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

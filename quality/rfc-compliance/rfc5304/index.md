@@ -56,6 +56,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 9 |
 | Not applicable, so out of scope | 1 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 16 |
@@ -111,9 +112,9 @@ Same IS-IS experimental status.
 | `RFC5304-2-7` | ISes (routers) that implement HMAC-MD5 authentication and initiate LSP purges MUST remove the body of the LSP and add the authentication TLV (§2) | MUST | 2 | **positive:** `unit/verify` [`TestISISAuthPurge`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L455). **negative:** `unit/verify` [`TestISISAuthPurge`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L466) |
 | `RFC5304-2-8` | ISes implementing HMAC-MD5 authentication MUST NOT accept unauthenticated purges (§2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISAuthPurge`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L447). **negative:** `unit/verify` [`TestISISAuthPurge`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L464) |
 | `RFC5304-2-9` | ISes MUST NOT accept purges that contain TLVs other than the authentication TLV (§2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISAuthPurge`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L449). **negative:** `unit/verify` [`TestISISAuthPurge`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L483) |
-| `RFC5304-2.1-1` | If an inbound LSP with an authentication failure has the local System ID and a higher Sequence Number than the IS-IS process has, the process SHOULD increase its own LSP Sequence Number accordingly and re-flood the LSPs (§2.1) | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5304-2-10` | The Link Level Authentication String used by IS-IS Hello PDUs MAY be different from that of Link State PDUs (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5304-2-11` | An implementation MAY have a transition mode where it includes HMAC-MD5 Authentication Information in PDUs but does not verify the HMAC-MD5 Authentication Information (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5304-2.1-1` | One possible solution to this problem is for the IS-IS process to detect if any inbound LSP with an authentication failure has the local System ID and also has a higher Sequence Number than the IS-IS process has. In this event, the IS-IS process SHOULD increase its own LSP Sequence Number accordingly and re-flood the LSPs. (§2.1) | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5304-2-10` | IS-IS Hello PDUs SHALL use the Link Level Authentication String, which MAY be different from that of Link State PDUs. (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5304-2-11` | An implementation MAY have a transition mode where it includes HMAC- MD5 Authentication Information in PDUs but does not verify the HMAC- MD5 Authentication Information. (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5304-2-12` | An implementation MAY check a set of passwords when verifying the Authentication Value (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5304-2-13` | An implementation that does not implement HMAC-MD5 authentication MAY accept a PDU that contains the HMAC-MD5 Authentication Type (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
 

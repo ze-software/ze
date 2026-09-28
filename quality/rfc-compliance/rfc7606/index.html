@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7606 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 1 declared gaps (1 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7606 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 1 declared gaps (1 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7606 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 1 declared gaps (1 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,7 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>1.9%</strong><b>1 of 53 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>52</strong><b>of 53 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>53</strong><b>of 53 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 53 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -215,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>1</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>1</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -228,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>197</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>52</td>
+<td>53</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>8</td>
@@ -255,7 +258,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 Structural UPDATE validation, treat-as-withdraw (routes are synthesized into withdrawals and removed from the Adj-RIB-In), attribute-discard decisions, session-reset with NOTIFICATION UPDATE Message Error, per-attribute validation for 15 attribute codes, §3.c attribute-flags validation for every attribute whose own specification fixes an Optional or Transitive value (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/flags_spec.go" target="_blank" rel="noopener"><code>internal/core/bgp/attribute/flags_spec.go</code></a>, which also carries the two attributes whose RFC mandates other handling: the MP pair and AIGP), inner MP_REACH/MP_UNREACH NLRI overrun and RFC 4760 flag-consistency validation (§5.3, session reset via §3.j) for IPv4/IPv6 unicast and multicast (ADD-PATH aware, RFC 7911 path-ids skipped when negotiated), tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc7606.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc7606.md</code></a>.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-<p>One MUST-level gap, annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc7606.md" target="_blank" rel="noopener"><code>rfc/short/rfc7606.md</code></a> and gated by <code>./le rfc check</code>: §5.1 first bullet: Ze intentionally emits MP_UNREACH first and MP_REACH last (<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/wire/mp-nlri-ordering.md" target="_blank" rel="noopener"><code>docs/architecture/wire/mp-nlri-ordering.md</code></a>).</p>
+<p>One MUST-level gap, annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc7606.md" target="_blank" rel="noopener"><code>rfc/short/rfc7606.md</code></a> and gated by <code>./le rfc check</code>: §5.1 first bullet: Ze emits MP_UNREACH first and MP_REACH in type-code order after ORIGIN and AS_PATH, so the MP attribute of an announcement is not the very first path attribute (<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/wire/mp-nlri-ordering.md" target="_blank" rel="noopener"><code>docs/architecture/wire/mp-nlri-ordering.md</code></a>). <code>TestRFC7606Section51MPAttributeEncodedFirst</code> demonstrates the gap and fails the day it closes.</p>
 <p class="rfc-prose"><strong>Closed 2026-08-01:</strong> §5.4. A route whose NLRI type Ze does not implement is now discarded at ingress, in <code>enforceRFC7606</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/session_validation.go</code></a>), so it reaches neither the RIB nor the forward path. The RIB alone would not have sufficed, because <code>reactorForwardRS</code> relays the received wire without consulting it. The ruling is per family, because §5.4 discards &#34;unless the relevant specification for that address family specifies otherwise&#34; and RFC 9552 §5.2 uses that clause to REQUIRE preserve-and-propagate for BGP-LS. Each NLRI plugin registers its own recognizer (<code>internal/core/bgp/nlri/nlritype</code>), so the three families §5.4 binds each carry their own ruling: EVPN discards route types outside 1..5 (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7606.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/nlri/evpn/rfc7606.go</code></a>), MCAST-VPN outside 1..7 (<code>.../nlri/mvpn/rfc7606.go</code>, RFC 6514 §4), and BGP-MUP anything but Architecture Type 1 with Route Type 1..4 (<code>.../nlri/mup/rfc7606.go</code>, draft-ietf-bess-mup-safi §3.1). BGP-LS registers no recognizer and propagates unchanged, and a family nobody has ruled on keeps its previous behavior. Judging a route type needs the section carved into single NLRIs, so MCAST-VPN and BGP-MUP gained <code>nlrisplit</code> splitters, which also made <code>nlrisplit.Supported</code> true for them: ze now installs both as opaque Adj-RIB-In entries the way it already installed EVPN (<code>insertPoolNLRIs</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rib/rib.go</code></a>). This reverses the divergence disclosed here until 2026-08-01.</p>
 <p class="rfc-prose"><strong>Closed 2026-07-20:</strong> §7.13, §7.15 and §7.16 gained attribute validators for codes 24, 25 and 128, §7.15&#39;s unrecognized-type tolerance is now met by design rather than by omission (the validator reads length only), and §6&#39;s debugging facility now logs the NLRI involved and the entire malformed UPDATE.</p>
 <p class="rfc-prose"><strong>Also closed 2026-07-20:</strong> §5.1&#39;s second bullet. Ze already originated only compliant UPDATEs; the relay now splits a received mixed shape as well, in both the zero-copy same-context branch and the re-encode branch, so every UPDATE ze sends carries at most one NLRI-bearing field. A compliant single-field UPDATE keeps the zero-copy forward: the shape verdict is cached per received message and the received bytes are handed on unchanged. Receive-side tolerance of any position or combination (§5.1 third bullet) is unchanged.</p>
@@ -464,7 +467,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7606-5.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze intentionally emits MP_UNREACH first and MP_REACH last, treating them as NLRI-carrying wire structures rather than descriptive attributes; deliberate design decision recorded in docs/architecture/wire/mp-nlri-ordering.md and disclosed publicly in the docs/features/rfc-status.md RFC 7606 row</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze emits MP_UNREACH first and every other attribute by type code, so MP_REACH follows ORIGIN and AS_PATH and is not the very first path attribute; recorded in docs/architecture/wire/mp-nlri-ordering.md and disclosed publicly in the docs/features/rfc-status.md RFC 7606 row</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7606-5.1-2">RFC7606-5.1-2</code></td><td colspan="3"><span class="rfc-subject">o An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute. (§5.1)</span></td></tr>
 <tr><td></td>
@@ -925,8 +928,8 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc7606-5.1-1"><code>RFC7606-5.1-1</code></a> o The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded as the very first path attribute in an UPDATE message. (§5.1)</td>
-<td>{gap}, no test</td>
-<td>Ze intentionally emits MP_UNREACH first and MP_REACH last, treating them as NLRI-carrying wire structures rather than descriptive attributes; deliberate design decision recorded in docs/architecture/wire/mp-nlri-ordering.md and disclosed publicly in the docs/features/rfc-status.md RFC 7606 row</td>
+<td>{gap}, demonstrated by internal/component/bgp/message/rfc7606_mp_first_test.go::TestRFC7606Section51MPAttributeEncodedFirst</td>
+<td>Ze emits MP_UNREACH first and every other attribute by type code, so MP_REACH follows ORIGIN and AS_PATH and is not the very first path attribute; recorded in docs/architecture/wire/mp-nlri-ordering.md and disclosed publicly in the docs/features/rfc-status.md RFC 7606 row</td>
 </tr>
 <tr><td><a href="#rfc7606-8-1"><code>RFC7606-8-1</code></a> A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled. (§8)</td>
 <td>no test</td>
@@ -2144,7 +2147,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 </div>
 <h3><a href="#rfc7606-4-3"><code>RFC7606-4-3</code></a></h3>
 <p>the Total Attribute Length MUST be relied upon to enable the beginning of the NLRI field to be located. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: locating the NLRI from an overrunning attribute&#39;s own length instead of the Total Attribute Length. TestRFC7606NLRILocatedByTotalAttributeLength builds an UPDATE whose COMMUNITY declares 8 octets where 4 remain, confirms the validator returns TreatAsWithdraw at code 8, and fails unless SynthesizeWithdraw&#39;s Withdrawn Routes equal the two prefixes at the Total Attribute Length offset (assert.Equal nlri); the negative assert.NotEqual rejects the tail the overrun would have pointed at. SynthesizeWithdraw is SynthesizeWithdrawFamilies(body, nil), the same locator the receive path calls in session_read.go.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2758,7 +2761,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 06:03 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

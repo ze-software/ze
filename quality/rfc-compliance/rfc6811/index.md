@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 5 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 5 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 1 | of 5 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 5 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 15 |
 | Tagged units | 15 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 1 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc6811.md` |
 | Requirement shard | `rfc/requirements/rfc6811.md` |
@@ -105,9 +114,9 @@ No tracked gap in current source anchors.
 | `RFC6811-3-1` | An implementation MUST provide the ability to match and set the validation state of routes as part of its route policy filtering function (Section 3) | MUST | 3 - Policy Control | **positive:** `unit/verify` [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_batch_test.go#L110). **negative:** `unit/verify` [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_batch_test.go#L113) |
 | `RFC6811-3-2` | An implementation MUST also support four-octet AS numbers (Section 3) | MUST | 3 - Policy Control | **positive:** `unit/verify` [`TestValidateFourOctetAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L94). **negative:** `unit/verify` [`TestValidateFourOctetAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L96) |
 | `RFC6811-4-1` | When a mapping is added or deleted, the implementation MUST re-validate any affected prefixes and run the BGP decision process if needed (Section 4) | MUST | 4 - Interaction with Local Cache | **positive:** `unit/verify` [`TestHandleROAChangeReValidates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/origin_tracker_test.go#L45). **positive:** `unit/verify` [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L375). **negative:** `unit/verify` [`TestHandleROAChangeReValidates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/origin_tracker_test.go#L48). **negative:** `unit/verify` [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L378) |
-| `RFC6811-2-3` | When receiving an UPDATE, the implementation SHOULD perform a validation lookup for each Route in the message (Section 2) | SHOULD | 2 - Prefix-to-AS Mapping Database | **positive:** no positive test. **negative:** no negative test |
-| `RFC6811-2-4` | The lookup SHOULD also be applied to routes redistributed into BGP from other sources (Section 2) | SHOULD | 2 - Prefix-to-AS Mapping Database | **positive:** no positive test. **negative:** no negative test |
-| `RFC6811-2-5` | If validation is not performed on a Route, the implementation SHOULD initialize the validation state to "NotFound" (Section 2) | SHOULD | 2 - Prefix-to-AS Mapping Database | **positive:** no positive test. **negative:** no negative test |
+| `RFC6811-2-3` | When a BGP speaker receives an UPDATE from a neighbor, it SHOULD perform a lookup as described above for each of the Routes in the UPDATE message. (Section 2) | SHOULD | 2 - Prefix-to-AS Mapping Database | **positive:** no positive test. **negative:** no negative test |
+| `RFC6811-2-4` | The lookup SHOULD also be applied to routes that are redistributed into BGP from another source, such as another protocol or a locally defined static route. (Section 2) | SHOULD | 2 - Prefix-to-AS Mapping Database | **positive:** no positive test. **negative:** no negative test |
+| `RFC6811-2-5` | If validation is not performed on a Route, the implementation SHOULD initialize the validation state of such a route to "NotFound". (Section 2) | SHOULD | 2 - Prefix-to-AS Mapping Database | **positive:** no positive test. **negative:** no negative test |
 | `RFC6811-2-6` | An implementation MAY provide configuration options to control which routes the lookup is applied to (Section 2) | MAY | 2 - Prefix-to-AS Mapping Database | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
@@ -122,7 +131,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 The validation state of the Route MUST be set to reflect the result of the lookup. (Section 2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The Validate units (TestValidateValid/Invalid) prove the lookup result, and TestRPKIOriginASFromASPathRFC6811 the origin derivation, but no tagged assertion checks that the Route's stored state is SET from that result: TestBatchValidateTypedMatchesString only compares the string and typed paths to each other, so a bug that stored the wrong state on both paths (e.g. left Pending or defaulted Valid) stays green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4761 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4761 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4761 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -300,7 +303,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> maintaining a separate routing/forwarding store per VPLS service is a VPLS-PE VSI duty; ze is not a VPLS PE: its RFC 4761 support is a control-plane L2VPN/VPLS (AFI 25, SAFI 65) NLRI codec (internal/component/bgp/plugins/nlri/vpls/vpls.go:45 Mode decode; types.go:82 ParseVPLS, types.go:163 WriteTo) plus route-injection encoders, with no VPLS instance (VSI), no pseudowire signaling, no MAC FIB, and no VPLS forwarding data path, so there is no per-service VSI store to maintain</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-1">RFC4761-3.2.4-1</code></td><td colspan="3"><span class="rfc-subject">MBZ bits in Control Flags MUST be set to zero when sending (Section 3.2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-1">RFC4761-3.2.4-1</code></td><td colspan="3"><span class="rfc-subject">the remaining bits, designated MBZ, MUST be set to zero when sending (Section 3.2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.4 - Signaling PE Capabilities</td>
@@ -309,7 +312,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> signalling the Layer2 Info Extended Community (0x800A) Control Flags is a duty of a VPLS PE originating auto-discovery; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no PW signaling), and the only l2info code is an operator-driven raw ext-community encoder that packs the supplied control byte verbatim (internal/component/bgp/config/routeattr_community.go:283-305 parseL2InfoExtCommunity), not a PE Control-Flags sender, so ze originates no VPLS Control Flags whose MBZ bits it must zero</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-2">RFC4761-3.2.4-2</code></td><td colspan="3"><span class="rfc-subject">MBZ bits in Control Flags MUST be ignored when receiving (Section 3.2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-2">RFC4761-3.2.4-2</code></td><td colspan="3"><span class="rfc-subject">the remaining bits, designated MBZ, MUST be set to zero when sending and MUST be ignored when receiving this community. (Section 3.2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.4 - Signaling PE Capabilities</td>
@@ -318,7 +321,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ignoring MBZ bits on receipt of the Layer2 Info Control Flags is a VPLS-PE receive duty; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no PW state) and has no Layer2 Info decoder, so no MBZ-on-receive processing exists to exercise</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-3">RFC4761-3.2.4-3</code></td><td colspan="3"><span class="rfc-subject">When C flag is 1, a Control Word MUST be present when sending VPLS packets to that PE (Section 3.2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-3">RFC4761-3.2.4-3</code></td><td colspan="3"><span class="rfc-subject">A Control word [7] MUST or MUST NOT be present when sending VPLS packets to this PE, depending on whether C is 1 or 0, respectively (Section 3.2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.4 - Signaling PE Capabilities</td>
@@ -327,7 +330,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> inserting a Control Word into VPLS packets when the C flag is 1 is a pseudowire data-plane encapsulation choice; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no PW signaling, no VPLS forwarding data path), so it sends no VPLS packets and the C-flag data-plane obligation has no host</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-4">RFC4761-3.2.4-4</code></td><td colspan="3"><span class="rfc-subject">When C flag is 0, a Control Word MUST NOT be present when sending VPLS packets to that PE (Section 3.2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-4">RFC4761-3.2.4-4</code></td><td colspan="3"><span class="rfc-subject">A Control word [7] MUST or MUST NOT be present when sending VPLS packets to this PE, depending on whether C is 1 or 0, respectively (Section 3.2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2.4 - Signaling PE Capabilities</td>
@@ -336,7 +339,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> omitting the Control Word from VPLS packets when the C flag is 0 is a pseudowire data-plane choice; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it sends no VPLS packets to constrain</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-5">RFC4761-3.2.4-5</code></td><td colspan="3"><span class="rfc-subject">When S flag is 1, sequenced delivery of frames MUST be used when sending VPLS packets to that PE (Section 3.2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-5">RFC4761-3.2.4-5</code></td><td colspan="3"><span class="rfc-subject">Sequenced delivery of frames MUST or MUST NOT be used when sending VPLS packets to this PE, depending on whether S is 1 or 0, respectively (Section 3.2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.4 - Signaling PE Capabilities</td>
@@ -345,7 +348,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> using sequenced delivery for VPLS packets when the S flag is 1 is a pseudowire data-plane behavior; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it delivers no VPLS packets</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-6">RFC4761-3.2.4-6</code></td><td colspan="3"><span class="rfc-subject">When S flag is 0, sequenced delivery MUST NOT be used when sending VPLS packets to that PE (Section 3.2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-6">RFC4761-3.2.4-6</code></td><td colspan="3"><span class="rfc-subject">Sequenced delivery of frames MUST or MUST NOT be used when sending VPLS packets to this PE, depending on whether S is 1 or 0, respectively (Section 3.2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2.4 - Signaling PE Capabilities</td>
@@ -354,7 +357,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> refraining from sequenced delivery when the S flag is 0 is a pseudowire data-plane behavior; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it delivers no VPLS packets</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.3-1">RFC4761-3.2.3-1</code></td><td colspan="3"><span class="rfc-subject">If announcing PE&#39;s VE ID is not covered by any remote VE set that PE-b announced, PE-b MUST make a new announcement covering it (Section 3.2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.3-1">RFC4761-3.2.3-1</code></td><td colspan="3"><span class="rfc-subject">checks if V is part of any &#39;remote VE set&#39; that PE-b announced, i.e., PE-b checks if V belongs to some remote VE set that PE-b announced, say with VE Block Offset VBO&#39;, VE Block Size VBS&#39;, and label base LB&#39;. If not, PE-b MUST make a new announcement as described in Section 3.3. (Section 3.2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.3 - PW Setup and Teardown</td>
@@ -426,7 +429,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> flushing an aged-out source MAC from the FIB is VPLS-PE data-plane bridging; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45), and maintains no MAC FIB to age</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.5-1">RFC4761-4.2.5-1</code></td><td colspan="3"><span class="rfc-subject">For split horizon: PE MUST NOT send frames received from another PE to other PEs (Section 4.2.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.5-1">RFC4761-4.2.5-1</code></td><td colspan="3"><span class="rfc-subject">If, on the other hand, the frame arrived from another PE (say PEy), PEx must send a copy of the packet only to attached CEs. PEx MUST NOT send the frame to other PEs, since PEy would have already done so. (Section 4.2.5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.2.5 - &#39;Split Horizon&#39; Forwarding</td>
@@ -444,7 +447,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it tunnels no VPLS packets over MPLS-in-IP/GRE and the must-contain-IPsec trigger never fires (the IKE/IPsec engine in internal/component/ike is unrelated to VPLS tunneling)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-6-2">RFC4761-6-2</code></td><td colspan="3"><span class="rfc-subject">If not using IPsec, implementation MUST allow egress PE to validate the IP source address of any tunneled packet (Section 6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-6-2">RFC4761-6-2</code></td><td colspan="3"><span class="rfc-subject">Any implementation that allows MPLS-in-IP and/or MPLS-in-GRE tunneling to be used without IPsec MUST allow the egress PE to validate in this manner the IP source address of any tunneled packet that it receives. (Section 6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6 - Security Considerations</td>
@@ -453,7 +456,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> validating the IP source address of a tunneled VPLS packet is an egress-PE data-plane check; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VPLS forwarding data path), so there is no MPLS-in-IP/GRE VPLS data path at an egress PE to validate a packet&#39;s source</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.3-2">RFC4761-3.3-2</code></td><td colspan="3"><span class="rfc-subject">When all CE links go down, PE SHOULD either withdraw all NLRIs or signal unavailability (Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.3-2">RFC4761-3.3-2</code></td><td colspan="3"><span class="rfc-subject">If all of PE-a&#39;s links to its CEs in VPLS foo go down, then PE-a SHOULD either withdraw all its NLRIs for VPLS foo or let other PEs in the VPLS foo know in some way that PE-a is no longer connected to its CEs. (Section 3.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.3 - BGP VPLS Operation</td>
@@ -462,7 +465,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.5-3">RFC4761-3.5-3</code></td><td colspan="3"><span class="rfc-subject">Multi-homed PEs with same VE ID SHOULD announce the same VE Block Size for a given VE Offset (Section 3.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.5-3">RFC4761-3.5-3</code></td><td colspan="3"><span class="rfc-subject">If two PEs are assigned the same VE ID in a given VPLS, they MUST use the same Route Distinguisher, and they SHOULD announce the same VE Block Size for a given VE Offset. (Section 3.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.5 - Multi-homing and Path Selection</td>
@@ -471,7 +474,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.2-2">RFC4761-4.2.2-2</code></td><td colspan="3"><span class="rfc-subject">VPLS PEs SHOULD have an aging mechanism to remove MAC addresses (Section 4.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.2-2">RFC4761-4.2.2-2</code></td><td colspan="3"><span class="rfc-subject">VPLS PEs SHOULD have an aging mechanism to remove a MAC address associated with a logical port, much the same as learning bridges do. (Section 4.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.2 - Aging</td>
@@ -507,7 +510,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.2-4">RFC4761-4.2.2-4</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY accelerate aging of all MAC addresses on topology change (Section 4.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.2-4">RFC4761-4.2.2-4</code></td><td colspan="3"><span class="rfc-subject">In addition, an implementation MAY accelerate aging of all MAC addresses in a VPLS if it detects certain situations, such as a Spanning Tree topology change in that VPLS. (Section 4.2.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.2.2 - Aging</td>
@@ -516,7 +519,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.4-1">RFC4761-4.2.4-1</code></td><td colspan="3"><span class="rfc-subject">A VE MAY use techniques to restrict multicast frame transmission to a smaller set of receivers (Section 4.2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.4-1">RFC4761-4.2.4-1</code></td><td colspan="3"><span class="rfc-subject">a VE MAY also use certain techniques to restrict transmission of multicast frames to a smaller set of receivers, those that have indicated interest in the corresponding multicast group. (Section 4.2.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.2.4 - Broadcast and Multicast</td>
@@ -525,7 +528,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.7-2">RFC4761-4.2.7-2</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY choose to map 802.1p bits to EXP bits for Class of Service (Section 4.2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.7-2">RFC4761-4.2.7-2</code></td><td colspan="3"><span class="rfc-subject">In order to offer different Classes of Service within a VPLS, an implementation MAY choose to map 802.1p bits in a customer Ethernet frame with a VLAN tag to an appropriate setting of EXP bits in the pseudowire and/or tunnel label, allowing for differential treatment of VPLS frames in the packet switched network. (Section 4.2.7)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.2.7 - Class of Service</td>
@@ -547,31 +550,31 @@ No tracked gap in current source anchors.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: maintaining a separate routing/forwarding store per VPLS service is a VPLS-PE VSI duty; ze is not a VPLS PE: its RFC 4761 support is a control-plane L2VPN/VPLS (AFI 25, SAFI 65) NLRI codec (internal/component/bgp/plugins/nlri/vpls/vpls.go:45 Mode decode; types.go:82 ParseVPLS, types.go:163 WriteTo) plus route-injection encoders, with no VPLS instance (VSI), no pseudowire signaling, no MAC FIB, and no VPLS forwarding data path, so there is no per-service VSI store to maintain</td>
 </tr>
-<tr><td><a href="#rfc4761-3.2.4-1"><code>RFC4761-3.2.4-1</code></a> MBZ bits in Control Flags MUST be set to zero when sending (Section 3.2.4)</td>
+<tr><td><a href="#rfc4761-3.2.4-1"><code>RFC4761-3.2.4-1</code></a> the remaining bits, designated MBZ, MUST be set to zero when sending (Section 3.2.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: signalling the Layer2 Info Extended Community (0x800A) Control Flags is a duty of a VPLS PE originating auto-discovery; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no PW signaling), and the only l2info code is an operator-driven raw ext-community encoder that packs the supplied control byte verbatim (internal/component/bgp/config/routeattr_community.go:283-305 parseL2InfoExtCommunity), not a PE Control-Flags sender, so ze originates no VPLS Control Flags whose MBZ bits it must zero</td>
 </tr>
-<tr><td><a href="#rfc4761-3.2.4-2"><code>RFC4761-3.2.4-2</code></a> MBZ bits in Control Flags MUST be ignored when receiving (Section 3.2.4)</td>
+<tr><td><a href="#rfc4761-3.2.4-2"><code>RFC4761-3.2.4-2</code></a> the remaining bits, designated MBZ, MUST be set to zero when sending and MUST be ignored when receiving this community. (Section 3.2.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ignoring MBZ bits on receipt of the Layer2 Info Control Flags is a VPLS-PE receive duty; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no PW state) and has no Layer2 Info decoder, so no MBZ-on-receive processing exists to exercise</td>
 </tr>
-<tr><td><a href="#rfc4761-3.2.4-3"><code>RFC4761-3.2.4-3</code></a> When C flag is 1, a Control Word MUST be present when sending VPLS packets to that PE (Section 3.2.4)</td>
+<tr><td><a href="#rfc4761-3.2.4-3"><code>RFC4761-3.2.4-3</code></a> A Control word [7] MUST or MUST NOT be present when sending VPLS packets to this PE, depending on whether C is 1 or 0, respectively (Section 3.2.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: inserting a Control Word into VPLS packets when the C flag is 1 is a pseudowire data-plane encapsulation choice; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no PW signaling, no VPLS forwarding data path), so it sends no VPLS packets and the C-flag data-plane obligation has no host</td>
 </tr>
-<tr><td><a href="#rfc4761-3.2.4-4"><code>RFC4761-3.2.4-4</code></a> When C flag is 0, a Control Word MUST NOT be present when sending VPLS packets to that PE (Section 3.2.4)</td>
+<tr><td><a href="#rfc4761-3.2.4-4"><code>RFC4761-3.2.4-4</code></a> A Control word [7] MUST or MUST NOT be present when sending VPLS packets to this PE, depending on whether C is 1 or 0, respectively (Section 3.2.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: omitting the Control Word from VPLS packets when the C flag is 0 is a pseudowire data-plane choice; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it sends no VPLS packets to constrain</td>
 </tr>
-<tr><td><a href="#rfc4761-3.2.4-5"><code>RFC4761-3.2.4-5</code></a> When S flag is 1, sequenced delivery of frames MUST be used when sending VPLS packets to that PE (Section 3.2.4)</td>
+<tr><td><a href="#rfc4761-3.2.4-5"><code>RFC4761-3.2.4-5</code></a> Sequenced delivery of frames MUST or MUST NOT be used when sending VPLS packets to this PE, depending on whether S is 1 or 0, respectively (Section 3.2.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: using sequenced delivery for VPLS packets when the S flag is 1 is a pseudowire data-plane behavior; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it delivers no VPLS packets</td>
 </tr>
-<tr><td><a href="#rfc4761-3.2.4-6"><code>RFC4761-3.2.4-6</code></a> When S flag is 0, sequenced delivery MUST NOT be used when sending VPLS packets to that PE (Section 3.2.4)</td>
+<tr><td><a href="#rfc4761-3.2.4-6"><code>RFC4761-3.2.4-6</code></a> Sequenced delivery of frames MUST or MUST NOT be used when sending VPLS packets to this PE, depending on whether S is 1 or 0, respectively (Section 3.2.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: refraining from sequenced delivery when the S flag is 0 is a pseudowire data-plane behavior; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it delivers no VPLS packets</td>
 </tr>
-<tr><td><a href="#rfc4761-3.2.3-1"><code>RFC4761-3.2.3-1</code></a> If announcing PE&#39;s VE ID is not covered by any remote VE set that PE-b announced, PE-b MUST make a new announcement covering it (Section 3.2.3)</td>
+<tr><td><a href="#rfc4761-3.2.3-1"><code>RFC4761-3.2.3-1</code></a> checks if V is part of any &#39;remote VE set&#39; that PE-b announced, i.e., PE-b checks if V belongs to some remote VE set that PE-b announced, say with VE Block Offset VBO&#39;, VE Block Size VBS&#39;, and label base LB&#39;. If not, PE-b MUST make a new announcement as described in Section 3.3. (Section 3.2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: computing and announcing a new label block to cover a peer&#39;s VE ID is VPLS-PE auto-discovery signaling; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI), and runs no label-block allocation or pseudowire-setup algorithm</td>
 </tr>
@@ -603,7 +606,7 @@ No tracked gap in current source anchors.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: flushing an aged-out source MAC from the FIB is VPLS-PE data-plane bridging; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45), and maintains no MAC FIB to age</td>
 </tr>
-<tr><td><a href="#rfc4761-4.2.5-1"><code>RFC4761-4.2.5-1</code></a> For split horizon: PE MUST NOT send frames received from another PE to other PEs (Section 4.2.5)</td>
+<tr><td><a href="#rfc4761-4.2.5-1"><code>RFC4761-4.2.5-1</code></a> If, on the other hand, the frame arrived from another PE (say PEy), PEx must send a copy of the packet only to attached CEs. PEx MUST NOT send the frame to other PEs, since PEy would have already done so. (Section 4.2.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: split-horizon flooding (never sending a PE-sourced frame back to other PEs) is VPLS-PE data-plane forwarding; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VPLS forwarding data path), so it floods no VPLS frames</td>
 </tr>
@@ -611,7 +614,7 @@ No tracked gap in current source anchors.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it tunnels no VPLS packets over MPLS-in-IP/GRE and the must-contain-IPsec trigger never fires (the IKE/IPsec engine in internal/component/ike is unrelated to VPLS tunneling)</td>
 </tr>
-<tr><td><a href="#rfc4761-6-2"><code>RFC4761-6-2</code></a> If not using IPsec, implementation MUST allow egress PE to validate the IP source address of any tunneled packet (Section 6)</td>
+<tr><td><a href="#rfc4761-6-2"><code>RFC4761-6-2</code></a> Any implementation that allows MPLS-in-IP and/or MPLS-in-GRE tunneling to be used without IPsec MUST allow the egress PE to validate in this manner the IP source address of any tunneled packet that it receives. (Section 6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: validating the IP source address of a tunneled VPLS packet is an egress-PE data-plane check; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VPLS forwarding data path), so there is no MPLS-in-IP/GRE VPLS data path at an egress PE to validate a packet&#39;s source</td>
 </tr>
@@ -626,31 +629,31 @@ No tracked gap in current source anchors.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-2.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.2.4-1"><code>RFC4761-3.2.4-1</code></a></h3>
-<p>MBZ bits in Control Flags MUST be set to zero when sending (Section 3.2.4)</p>
+<p>the remaining bits, designated MBZ, MUST be set to zero when sending (Section 3.2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-3.2.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.2.4-2"><code>RFC4761-3.2.4-2</code></a></h3>
-<p>MBZ bits in Control Flags MUST be ignored when receiving (Section 3.2.4)</p>
+<p>the remaining bits, designated MBZ, MUST be set to zero when sending and MUST be ignored when receiving this community. (Section 3.2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-3.2.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.2.4-3"><code>RFC4761-3.2.4-3</code></a></h3>
-<p>When C flag is 1, a Control Word MUST be present when sending VPLS packets to that PE (Section 3.2.4)</p>
+<p>A Control word [7] MUST or MUST NOT be present when sending VPLS packets to this PE, depending on whether C is 1 or 0, respectively (Section 3.2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-3.2.4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.2.4-4"><code>RFC4761-3.2.4-4</code></a></h3>
-<p>When C flag is 0, a Control Word MUST NOT be present when sending VPLS packets to that PE (Section 3.2.4)</p>
+<p>A Control word [7] MUST or MUST NOT be present when sending VPLS packets to this PE, depending on whether C is 1 or 0, respectively (Section 3.2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-3.2.4-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.2.4-5"><code>RFC4761-3.2.4-5</code></a></h3>
-<p>When S flag is 1, sequenced delivery of frames MUST be used when sending VPLS packets to that PE (Section 3.2.4)</p>
+<p>Sequenced delivery of frames MUST or MUST NOT be used when sending VPLS packets to this PE, depending on whether S is 1 or 0, respectively (Section 3.2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-3.2.4-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.2.4-6"><code>RFC4761-3.2.4-6</code></a></h3>
-<p>When S flag is 0, sequenced delivery MUST NOT be used when sending VPLS packets to that PE (Section 3.2.4)</p>
+<p>Sequenced delivery of frames MUST or MUST NOT be used when sending VPLS packets to this PE, depending on whether S is 1 or 0, respectively (Section 3.2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-3.2.4-6, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.2.3-1"><code>RFC4761-3.2.3-1</code></a></h3>
-<p>If announcing PE&#39;s VE ID is not covered by any remote VE set that PE-b announced, PE-b MUST make a new announcement covering it (Section 3.2.3)</p>
+<p>checks if V is part of any &#39;remote VE set&#39; that PE-b announced, i.e., PE-b checks if V belongs to some remote VE set that PE-b announced, say with VE Block Offset VBO&#39;, VE Block Size VBS&#39;, and label base LB&#39;. If not, PE-b MUST make a new announcement as described in Section 3.3. (Section 3.2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-3.2.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.2.3-2"><code>RFC4761-3.2.3-2</code></a></h3>
@@ -682,7 +685,7 @@ No tracked gap in current source anchors.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-4.2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-4.2.5-1"><code>RFC4761-4.2.5-1</code></a></h3>
-<p>For split horizon: PE MUST NOT send frames received from another PE to other PEs (Section 4.2.5)</p>
+<p>If, on the other hand, the frame arrived from another PE (say PEy), PEx must send a copy of the packet only to attached CEs. PEx MUST NOT send the frame to other PEs, since PEy would have already done so. (Section 4.2.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-4.2.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-6-1"><code>RFC4761-6-1</code></a></h3>
@@ -690,7 +693,7 @@ No tracked gap in current source anchors.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-6-2"><code>RFC4761-6-2</code></a></h3>
-<p>If not using IPsec, implementation MUST allow egress PE to validate the IP source address of any tunneled packet (Section 6)</p>
+<p>Any implementation that allows MPLS-in-IP and/or MPLS-in-GRE tunneling to be used without IPsec MUST allow the egress PE to validate in this manner the IP source address of any tunneled packet that it receives. (Section 6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-6-2, so no unit is bound to it.</p>
 </section>
@@ -1169,7 +1172,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

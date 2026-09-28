@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7999 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7999: BLACKHOLE Community. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7999: BLACKHOLE Community. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7999 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7999: BLACKHOLE Community. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7999: BLACKHOLE Community. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7999 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7999: BLACKHOLE Community. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7999: BLACKHOLE Community. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 4 gated MUSTs judged</b><p>6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>26</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -307,7 +315,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L302" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.3-1">RFC7999-3.3-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker in a bilateral peering relationship using BLACKHOLE MUST only accept and honor an announcement carrying BLACKHOLE when the announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.3-1">RFC7999-3.3-1</code></td><td colspan="3"><span class="rfc-subject">BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3 - Accepting Blackholed IP Prefixes</td>
@@ -320,7 +328,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L761" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.3-2">RFC7999-3.3-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker in a bilateral peering relationship using BLACKHOLE MUST only accept and honor an announcement carrying BLACKHOLE when the receiving party agreed to honor the BLACKHOLE community on that particular BGP session (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.3-2">RFC7999-3.3-2</code></td><td colspan="3"><span class="rfc-subject">BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. o The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3 - Accepting Blackholed IP Prefixes</td>
@@ -345,7 +353,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/blackhole_decision_test.go#L80" title="internal/component/bgp/plugins/rpki/blackhole_decision_test.go" target="_blank" rel="noopener"><code>TestBlackholeDoesNotSurviveAWrongOrigin</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.1-3">RFC7999-3.1-3</code></td><td colspan="3"><span class="rfc-subject">&#34;The community SHOULD be ignored, if it is received by a network that it [sic] not using it&#34; (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.1-3">RFC7999-3.1-3</code></td><td colspan="3"><span class="rfc-subject">The community SHOULD be ignored, if it is received by a network that it not using it. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1 - IP Prefix Announcements with BLACKHOLE Community Attached</td>
@@ -354,7 +362,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.1-5">RFC7999-3.1-5</code></td><td colspan="3"><span class="rfc-subject">A network that announces a prefix covering the victim addresses under DDoS duress SHOULD attach the BLACKHOLE community (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.1-5">RFC7999-3.1-5</code></td><td colspan="3"><span class="rfc-subject">When a network is under DDoS duress, it MAY announce an IP prefix covering the victim&#39;s IP address(es) for the purpose of signaling to neighboring networks that any traffic destined for these IP address(es) should be discarded. In such a scenario, the network operator SHOULD attach the BLACKHOLE community. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1 - IP Prefix Announcements with BLACKHOLE Community Attached</td>
@@ -363,7 +371,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.2-1">RFC7999-3.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS&#34; (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.2-1">RFC7999-3.2-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2 - Local Scope of Blackholes</td>
@@ -373,7 +381,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/community-blackhole-noexport.ci#L6" title="test/plugin/community-blackhole-noexport.ci" target="_blank" rel="noopener"><code>community-blackhole-noexport.ci</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.2-2">RFC7999-3.2-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The community to prevent propagation SHOULD be chosen according to the operator&#39;s routing policy&#34; (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.2-2">RFC7999-3.2-2</code></td><td colspan="3"><span class="rfc-subject">The community to prevent propagation SHOULD be chosen according to the operator&#39;s routing policy. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2 - Local Scope of Blackholes</td>
@@ -382,7 +390,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.3-3">RFC7999-3.3-3</code></td><td colspan="3"><span class="rfc-subject">In topologies with a route server or other multilateral peering relationships, BGP speakers SHOULD accept and honor BGP announcements under the same two conditions that bind a bilateral speaker (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.3-3">RFC7999-3.3-3</code></td><td colspan="3"><span class="rfc-subject">In topologies with a route server or other multilateral peering relationships, BGP speakers SHOULD accept and honor BGP announcements under the same conditions. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.3 - Accepting Blackholed IP Prefixes</td>
@@ -391,7 +399,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-4-1">RFC7999-4-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Without an explicit configuration directive set by the operator, network elements SHOULD NOT discard traffic destined towards IP prefixes that are tagged with the BLACKHOLE community&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-4-1">RFC7999-4-1</code></td><td colspan="3"><span class="rfc-subject">Without an explicit configuration directive set by the operator, network elements SHOULD NOT discard traffic destined towards IP prefixes that are tagged with the BLACKHOLE community. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4 - Vendor Implementation Recommendations</td>
@@ -401,7 +409,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-6-1">RFC7999-6-1</code></td><td colspan="3"><span class="rfc-subject">The receiving BGP speaker SHOULD verify by applying strict filtering (RFC 7454 Section 6.2.1.1.2) that the peer announcing the prefix is authorized to do so (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-6-1">RFC7999-6-1</code></td><td colspan="3"><span class="rfc-subject">In order to further limit the impact of unauthorized BGP announcements carrying the BLACKHOLE community, the receiving BGP speaker SHOULD verify by applying strict filtering (see Section 6.2.1.1.2 of [RFC7454]) that the peer announcing the prefix is authorized to do so. (§6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6 - Security Considerations</td>
@@ -410,7 +418,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-6-2">RFC7999-6-2</code></td><td colspan="3"><span class="rfc-subject">&#34;It is RECOMMENDED that operators use best common practices to protect their BGP sessions, such as the ones in [RFC7454]&#34; (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-6-2">RFC7999-6-2</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED that operators use best common practices to protect their BGP sessions, such as the ones in [RFC7454]. (§6)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>6 - Security Considerations</td>
@@ -419,7 +427,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.1-1">RFC7999-3.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;This community MAY be used in all bilateral and multilateral BGP deployment scenarios&#34; (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.1-1">RFC7999-3.1-1</code></td><td colspan="3"><span class="rfc-subject">This community MAY be used in all bilateral and multilateral BGP deployment scenarios. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1 - IP Prefix Announcements with BLACKHOLE Community Attached</td>
@@ -428,7 +436,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.1-4">RFC7999-3.1-4</code></td><td colspan="3"><span class="rfc-subject">A network under DDoS duress MAY announce an IP prefix covering the victim&#39;s IP addresses, to signal to neighboring networks that traffic destined for those addresses is to be discarded (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.1-4">RFC7999-3.1-4</code></td><td colspan="3"><span class="rfc-subject">When a network is under DDoS duress, it MAY announce an IP prefix covering the victim&#39;s IP address(es) for the purpose of signaling to neighboring networks that any traffic destined for these IP address(es) should be discarded. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1 - IP Prefix Announcements with BLACKHOLE Community Attached</td>
@@ -437,7 +445,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.1-6">RFC7999-3.1-6</code></td><td colspan="3"><span class="rfc-subject">&#34;The BLACKHOLE community MAY also be used as one of the trigger communities in a destination-based Remote Triggered Blackhole (RTBH) [RFC5635] configuration&#34; (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.1-6">RFC7999-3.1-6</code></td><td colspan="3"><span class="rfc-subject">The BLACKHOLE community MAY also be used as one of the trigger communities in a destination-based Remote Triggered Blackhole (RTBH) [RFC5635] configuration. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1 - IP Prefix Announcements with BLACKHOLE Community Attached</td>
@@ -446,7 +454,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-4-2">RFC7999-4-2</code></td><td colspan="3"><span class="rfc-subject">Vendors MAY provide a shorthand keyword in their configuration language for the well-known BLACKHOLE community value. The suggested string is &#34;blackhole&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-4-2">RFC7999-4-2</code></td><td colspan="3"><span class="rfc-subject">Vendors MAY provide a shorthand keyword in their configuration language to reference the well-known BLACKHOLE community attribute value. The suggested string to be used is &#34;blackhole&#34;. (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4 - Vendor Implementation Recommendations</td>
@@ -466,7 +474,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7999-3.1-2"><code>RFC7999-3.1-2</code></a></h3>
 <p>In a bilateral peering relationship, use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it. (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: advertising BLACKHOLE to a bilateral peer that did not agree. internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeReachesAnAgreedPeer / ::TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree / ::TestAnnounceBlackholeReachesAMemberOfADynamicGroup / ::TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup all drive handleAnnounceBlackhole only. The second originating path the enrolment names, send ... unicast community 65535:666, is tested by TestAnnounceUnicastWithBlackholeCommunityMeetsTheSameGate, which carries no tag, and no unit covers re-advertising a received BLACKHOLE-tagged route to an un-agreed peer.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -495,8 +503,8 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 </table>
 </div>
 <h3><a href="#rfc7999-3.3-1"><code>RFC7999-3.3-1</code></a></h3>
-<p>A BGP speaker in a bilateral peering relationship using BLACKHOLE MUST only accept and honor an announcement carrying BLACKHOLE when the announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise (§3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. (§3.3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: honoring BLACKHOLE when no equal or shorter authorized prefix covers the announced one. internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath (authorized /24 covers /32: stamped) and ::TestBlackholeNotStampedOutsideAuthorization (uncovered /32: not stamped); ::TestBlackholeRuleForDynamicGroup and rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent use the same /24 over /32. The &#39;equal&#39; case (announced prefix equal to the authorized one) is never asserted, so a strict-shorter comparison stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -535,8 +543,8 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 </table>
 </div>
 <h3><a href="#rfc7999-3.3-2"><code>RFC7999-3.3-2</code></a></h3>
-<p>A BGP speaker in a bilateral peering relationship using BLACKHOLE MUST only accept and honor an announcement carrying BLACKHOLE when the receiving party agreed to honor the BLACKHOLE community on that particular BGP session (§3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. o The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. (§3.3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: honoring BLACKHOLE unless BOTH conditions hold. Condition 2 (agreement on the session) is asserted both ways: internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists, ::TestBlackholeRuleForDynamicGroup outside-group subtest, filter_modify/match_test.go::TestBlackholeCommunityRewritesNextHopWhenAgreed / ::TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement. The quoted sentence also carries condition 1, and no unit tagged 3.3-2 has an uncovered-prefix negative or the equal-prefix case (those sit under 3.3-1&#39;s tag, without the equal case).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -591,7 +599,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 </div>
 <h3><a href="#rfc7999-3.3-4"><code>RFC7999-3.3-4</code></a></h3>
 <p>An operator MUST ensure that origin validation techniques (such as the one described in [RFC6811]) do not inadvertently block legitimate announcements carrying the BLACKHOLE community. (§3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: origin validation rejecting a legitimate BLACKHOLE announcement. internal/component/bgp/plugins/rpki/blackhole_decision_test.go::TestBlackholeSurvivesLengthOnlyInvalid: a /32 Invalid only by maxLength with BLACKHOLE must be Accept (Error if not). Negative ::TestBlackholeDoesNotSurviveAWrongOrigin keeps a wrong-origin BLACKHOLE rejected, delimiting &#39;legitimate&#39;. The exemption is operator opt-in (blackholeDecisionPlugin(t, true)), matching the sentence binding the operator.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -610,8 +618,8 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 </table>
 </div>
 <h3><a href="#rfc7999-3.2-1"><code>RFC7999-3.2-1</code></a></h3>
-<p>&#34;A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS&#34; (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS. (§3.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a received BLACKHOLE route kept without NO_EXPORT/NO_ADVERTISE or similar. internal/component/bgp/plugins/filter_community/blackhole_test.go::TestRFC7999BlackholeFieldHasReader asserts NO_EXPORT appended; test/plugin/community-blackhole-noexport.ci asserts the stored route carries both. Positive only, and the row has no single-polarity marker; no tagged negative (an untagged-route or guard-off case) is tagged for this row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -630,8 +638,8 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 </table>
 </div>
 <h3><a href="#rfc7999-3.2-2"><code>RFC7999-3.2-2</code></a></h3>
-<p>&#34;The community to prevent propagation SHOULD be chosen according to the operator&#39;s routing policy&#34; (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The community to prevent propagation SHOULD be chosen according to the operator&#39;s routing policy. (§3.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a propagation community forced rather than chosen by operator policy. internal/component/bgp/plugins/filter_community/blackhole_test.go::TestBlackholeGuardNoAdvertise asserts the leaf selects NO_ADVERTISE. Positive only with no single-polarity marker; no tagged unit shows that an operator choice is honored over a fixed default in both directions.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -645,8 +653,8 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 </table>
 </div>
 <h3><a href="#rfc7999-4-1"><code>RFC7999-4-1</code></a></h3>
-<p>&#34;Without an explicit configuration directive set by the operator, network elements SHOULD NOT discard traffic destined towards IP prefixes that are tagged with the BLACKHOLE community&#34; (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Without an explicit configuration directive set by the operator, network elements SHOULD NOT discard traffic destined towards IP prefixes that are tagged with the BLACKHOLE community. (§4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: discarding traffic toward a BLACKHOLE-tagged prefix without an explicit operator directive. internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedWithoutAgreement (no config: RouteType 0 on both rails) and ::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists. Both tags are positive and the row has no single-polarity marker, so the pair is incomplete.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -841,7 +849,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

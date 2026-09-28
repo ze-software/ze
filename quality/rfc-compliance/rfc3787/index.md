@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 33.3% | 1 of 3 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 2 | of 3 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 3 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 1 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 4 |
 | Tagged units | 4 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 2 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc3787.md` |
 | Requirement shard | `rfc/requirements/rfc3787.md` |
@@ -111,18 +113,18 @@ One MUST gap, gated in [`rfc/short/rfc3787.md`](https://github.com/ze-software/z
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC3787-x-1` | Ignore TLV 131 (Inter-Domain Routing Protocol Information) and TLV 133 (Authentication, replaced by TLV 10) if received (Sections 3.1, 3.2) | MUST | x | **positive:** `unit/verify` [`TestISISIgnoreObsoleteTLVs131And133`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_opaque_test.go#L54). **negative:** `unit/verify` [`TestISISIgnoreObsoleteTLVs131And133`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_opaque_test.go#L61) |
-| `RFC3787-4-1` | Use the Overload Bit to signal not ready for transit traffic; set it in non-pseudonode LSP number Zero, not in PseudoNode LSPs; ignore OL in PseudoNode LSPs (Section 4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3787-4-2` | On receiving an OL-set LSP number Zero, treat all IP reachability advertisements as directly connected in SPF (Section 4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3787-5-1` | Continue using narrow metrics unless all devices in the domain support wide metrics (Section 5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze originates ONLY wide metrics by umbrella decision -- it never emits the narrow TLV 2 (internal/plugins/isis/packet/tlv_neighbours.go:59-60 "Ze never originates TLV 2"; internal/plugins/isis/types/metric.go:15 "Only wide metrics are originated by Ze"). Ze DECODES a legacy neighbor's narrow TLV 2 (decode-only) so it can parse mixed-domain LSPs, but it does not fall back to narrow-metric ORIGINATION, so a narrow-only router cannot interpret Ze's advertisements. Ze therefore requires every device in the domain to support wide metrics rather than continuing with narrow until the whole domain is wide-capable. Disclosed in docs/features/rfc-status.md |
-| `RFC3787-8-1` | Generate default routes in Level 1 (Section 8) | MAY | 8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3787-x-2` | Generate a Protocol Supported TLV (code 129) including IP, and include an IP Interface Address TLV (132) in IIH PDUs for mixed-environment interoperability (Sections 9, 10) | MUST | x | **positive:** `unit/verify` [`TestISISIIHOriginationTLVs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L146). **negative:** `unit/verify` [`TestISISHelloTLV132RequiresInterfaceAddr`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L196) |
+| `RFC3787-x-1` | TLV 131 is not used, and MUST be ignored if received. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestISISIgnoreObsoleteTLVs131And133`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_opaque_test.go#L54). **negative:** `unit/verify` [`TestISISIgnoreObsoleteTLVs131And133`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_opaque_test.go#L61) |
+| `RFC3787-4-1` | An implementation SHOULD use the Overload Bit to signal that it is not ready to accept transit traffic. An implementation SHOULD not set the Overload bit in PseudoNode LSPs that it generates, and Overload bits seen in PseudoNode LSPs SHOULD be ignored. (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3787-4-2` | When processing LSPs received from a router which has the Overload bit set in LSP number Zero, the receiving router SHOULD treat all IP reachability advertisements as directly connected and use them in its SPF computation. (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3787-5-1` | If not all devices in the IS-IS domain support wide metrics, narrow metrics MUST continue to be used. (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze originates ONLY wide metrics by umbrella decision -- it never emits the narrow TLV 2 (internal/plugins/isis/packet/tlv_neighbours.go:59-60 "Ze never originates TLV 2"; internal/plugins/isis/types/metric.go:15 "Only wide metrics are originated by Ze"). Ze DECODES a legacy neighbor's narrow TLV 2 (decode-only) so it can parse mixed-domain LSPs, but it does not fall back to narrow-metric ORIGINATION, so a narrow-only router cannot interpret Ze's advertisements. Ze therefore requires every device in the domain to support wide metrics rather than continuing with narrow until the whole domain is wide-capable. Disclosed in docs/features/rfc-status.md |
+| `RFC3787-8-1` | an implementation MAY generate default routes in Level 1. (§8) | MAY | 8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3787-x-2` | IP capable routers MUST generate a Protocol Supported TLV, and MUST include the IP protocol as a supported protocol. (§9) | MUST | 9 | **positive:** `unit/verify` [`TestISISIIHOriginationTLVs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L146). **negative:** `unit/verify` [`TestISISHelloTLV132RequiresInterfaceAddr`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L196) |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC3787-5-1`](#rfc3787-5-1) Continue using narrow metrics unless all devices in the domain support wide metrics (Section 5) | {gap}, no test | Ze originates ONLY wide metrics by umbrella decision -- it never emits the narrow TLV 2 (internal/plugins/isis/packet/tlv_neighbours.go:59-60 "Ze never originates TLV 2"; internal/plugins/isis/types/metric.go:15 "Only wide metrics are originated by Ze"). Ze DECODES a legacy neighbor's narrow TLV 2 (decode-only) so it can parse mixed-domain LSPs, but it does not fall back to narrow-metric ORIGINATION, so a narrow-only router cannot interpret Ze's advertisements. Ze therefore requires every device in the domain to support wide metrics rather than continuing with narrow until the whole domain is wide-capable. Disclosed in docs/features/rfc-status.md |
+| [`RFC3787-5-1`](#rfc3787-5-1) If not all devices in the IS-IS domain support wide metrics, narrow metrics MUST continue to be used. (§5) | {gap}, no test | Ze originates ONLY wide metrics by umbrella decision -- it never emits the narrow TLV 2 (internal/plugins/isis/packet/tlv_neighbours.go:59-60 "Ze never originates TLV 2"; internal/plugins/isis/types/metric.go:15 "Only wide metrics are originated by Ze"). Ze DECODES a legacy neighbor's narrow TLV 2 (decode-only) so it can parse mixed-domain LSPs, but it does not fall back to narrow-metric ORIGINATION, so a narrow-only router cannot interpret Ze's advertisements. Ze therefore requires every device in the domain to support wide metrics rather than continuing with narrow until the whole domain is wide-capable. Disclosed in docs/features/rfc-status.md |
 
 ## Proof state
 
@@ -130,9 +132,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC3787-x-1`](#rfc3787-x-1)
 
-Ignore TLV 131 (Inter-Domain Routing Protocol Information) and TLV 133 (Authentication, replaced by TLV 10) if received (Sections 3.1, 3.2)
+TLV 131 is not used, and MUST be ignored if received. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Quote is now Section 3.1 only (TLV 131 MUST be ignored if received); the Section 3.2 TLV 133 obligation is reported split-needed and the tag prose still names both. Forbidden: acting on a received TLV 131 (rejecting the PDU, interpreting its value). TestISISIgnoreObsoleteTLVs131And133 drives only the codec: DecodeTLVs err == nil and 131 retained are the producer-sensitive assertions. No receive path (IIH or LSP handler) is driven with a TLV 131, so a handler that refused an adjacency or LSP carrying 131 stays green; the 'recognized' loop iterates a test-local literal list and cannot go red on any producer change.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -141,7 +143,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3787-5-1`](#rfc3787-5-1)
 
-Continue using narrow metrics unless all devices in the domain support wide metrics (Section 5)
+If not all devices in the IS-IS domain support wide metrics, narrow metrics MUST continue to be used. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -149,9 +151,9 @@ No test carries RFC3787-5-1, so no unit is bound to it.
 
 ### [`RFC3787-x-2`](#rfc3787-x-2)
 
-Generate a Protocol Supported TLV (code 129) including IP, and include an IP Interface Address TLV (132) in IIH PDUs for mixed-environment interoperability (Sections 9, 10)
+IP capable routers MUST generate a Protocol Supported TLV, and MUST include the IP protocol as a supported protocol. (§9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Quote is now Section 9 (IP capable routers MUST generate a Protocol Supported TLV, and MUST include the IP protocol); the Section 10 TLV 132 obligation is reported split-needed. Clause 1 (generate TLV 129): TestISISIIHOriginationTLVs asserts hasTLV(TLVProtocolsSupported) on the LAN and P2P IIH, red on dropping it from hello.go:59. The same paragraph places the TLV in ISH and LSP number Zero too; no tagged unit reads the LSP 0 origination (lsdb/origination.go:534) or the ISH (circuit/ish.go:30). Clause 2 (IP included): TestISISHelloTLV132RequiresInterfaceAddr asserts NLPIDIPv4 in c.protocolsSupportedTLV(), the IIH/ISH builder only, not the LSP 0 value. No negative case targets the Section 9 sentence; the negative tag asserts TLV 132 omission, the Section 10 obligation.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7012 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7012: Information Model for IP Flow Information Export (IPFIX). 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7012: Information Model for IP Flow Information Export (IPFIX). 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7012 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7012: Information Model for IP Flow Information Export (IPFIX). 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7012: Information Model for IP Flow Information Export (IPFIX). 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7012 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7012: Information Model for IP Flow Information Export (IPFIX). 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7012: Information Model for IP Flow Information Export (IPFIX). 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>1</strong><b>of 6 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>1</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -287,7 +295,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7012-2.1-1">RFC7012-2.1-1</code></td><td colspan="3"><span class="rfc-subject">Every IE MUST have: name, elementId, description, dataType, and status (current or deprecated) (Section 2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7012-2.1-1">RFC7012-2.1-1</code></td><td colspan="3"><span class="rfc-subject">All Information Elements specified for the IPFIX protocol MUST have the following properties defined: name - A unique and meaningful name for the Information Element. elementId - A numeric identifier of the Information Element. If this identifier is used without an enterprise identifier (see [RFC7011] and the definition of enterpriseId listed below), then it is globally unique, and the list of allowed values is administered by IANA. It is used for compact identification of an Information Element when encoding Templates in the protocol. description - The semantics of this Information Element. Describes how this Information Element is derived from the Flow or other information available to the observer. Information Elements of dataType string or octetArray that have length constraints (fixed length, minimum and/or maximum length) MUST note these constraints in their descriptions. dataType - One of the types listed in Section 3.1 of this document or registered in the IANA &#34;IPFIX Information Element Data Types&#34; subregistry. The type space for attributes is constrained to facilitate implementation. The existing type space encompasses most primitive types used in modern programming languages, as well as some derived types (such as ipv4Address) that are common to this domain. status - The status of the specification of this Information Element. Allowed values are &#39;current&#39; and &#39;deprecated&#39;. (Section 2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1 - Information Element properties</td>
@@ -296,7 +304,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this binds the author of an IE definition in the IANA registry; ze references registered IEs by numeric elementId alone and emits no IE metadata in-band (internal/plugins/flowexport/ipfix/ie.go)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7012-2.1-2">RFC7012-2.1-2</code></td><td colspan="3"><span class="rfc-subject">Enterprise-specific Information Elements MUST have the enterpriseId property defined (Section 2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7012-2.1-2">RFC7012-2.1-2</code></td><td colspan="3"><span class="rfc-subject">Enterprise-specific Information Elements MUST have the following property defined: enterpriseId (Section 2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1 - Information Element properties</td>
@@ -314,7 +322,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze emits no enterprise-specific IEs and never pairs an identifier with an enterprise number, so it publishes no enterprise-specific identifier to make unique (internal/plugins/flowexport/ipfix/flow_template.go:114-120)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7012-2.1-5">RFC7012-2.1-5</code></td><td colspan="3"><span class="rfc-subject">Where an Information Element has a valid inclusive range, values for that Information Element outside the range are invalid and MUST NOT be exported (Section 2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7012-2.1-5">RFC7012-2.1-5</code></td><td colspan="3"><span class="rfc-subject">values for this Information Element outside the range are invalid and MUST NOT be exported. (Section 2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.1 - Information Element properties</td>
@@ -323,7 +331,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> none of the IEs the exporter writes has a Range in the IANA IPFIX registry (elements 1, 2, 4, 7, 8, 10, 11, 12, 14, 16, 17, 27, 28, 85, 86 and 150 to 153, checked against ipfix-information-elements.csv on 2026-09-24; internal/plugins/flowexport/ipfix/ie.go), so no out-of-range value exists to withhold</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7012-4-1">RFC7012-4-1</code></td><td colspan="3"><span class="rfc-subject">Information Element identifier values are in the range 1-32767, and for enterprise-specific Information Elements identifier 0 is also reserved (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7012-4-1">RFC7012-4-1</code></td><td colspan="3"><span class="rfc-subject">The values of these identifiers are in the range of 1-32767. Within this range, Information Element identifier values in the sub-range of 1-127 are compatible with field types used by NetFlow version 9 [RFC3954] for historical reasons. In general, IANA will add newly registered Information Elements to the registry, assigning the lowest available Information Element identifier in the range of 128-32767. Enterprise-specific Information Element identifiers have the same range of 1-32767, but they are coupled with an additional enterprise identifier. For enterprise-specific Information Elements, Information Element identifier 0 is also reserved. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4 - Information Element Identifiers</td>
@@ -332,7 +340,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s static templates reference only non-zero IANA IE IDs and it has no code path that constructs IE identifier 0 to drive a negative test</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7012-4-2">RFC7012-4-2</code></td><td colspan="3"><span class="rfc-subject">Enterprise-specific Information Element identifiers have the same range of 1-32767, coupled with an additional enterprise identifier (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7012-4-2">RFC7012-4-2</code></td><td colspan="3"><span class="rfc-subject">Enterprise-specific Information Element identifiers have the same range of 1-32767, but they are coupled with an additional enterprise identifier. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4 - Information Element Identifiers</td>
@@ -350,11 +358,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc7012-2.1-1"><code>RFC7012-2.1-1</code></a> Every IE MUST have: name, elementId, description, dataType, and status (current or deprecated) (Section 2.1)</td>
+<tr><td><a href="#rfc7012-2.1-1"><code>RFC7012-2.1-1</code></a> All Information Elements specified for the IPFIX protocol MUST have the following properties defined: name - A unique and meaningful name for the Information Element. elementId - A numeric identifier of the Information Element. If this identifier is used without an enterprise identifier (see [RFC7011] and the definition of enterpriseId listed below), then it is globally unique, and the list of allowed values is administered by IANA. It is used for compact identification of an Information Element when encoding Templates in the protocol. description - The semantics of this Information Element. Describes how this Information Element is derived from the Flow or other information available to the observer. Information Elements of dataType string or octetArray that have length constraints (fixed length, minimum and/or maximum length) MUST note these constraints in their descriptions. dataType - One of the types listed in Section 3.1 of this document or registered in the IANA &#34;IPFIX Information Element Data Types&#34; subregistry. The type space for attributes is constrained to facilitate implementation. The existing type space encompasses most primitive types used in modern programming languages, as well as some derived types (such as ipv4Address) that are common to this domain. status - The status of the specification of this Information Element. Allowed values are &#39;current&#39; and &#39;deprecated&#39;. (Section 2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this binds the author of an IE definition in the IANA registry; ze references registered IEs by numeric elementId alone and emits no IE metadata in-band (internal/plugins/flowexport/ipfix/ie.go)</td>
 </tr>
-<tr><td><a href="#rfc7012-2.1-2"><code>RFC7012-2.1-2</code></a> Enterprise-specific Information Elements MUST have the enterpriseId property defined (Section 2.1)</td>
+<tr><td><a href="#rfc7012-2.1-2"><code>RFC7012-2.1-2</code></a> Enterprise-specific Information Elements MUST have the following property defined: enterpriseId (Section 2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze emits no enterprise-specific IEs; every field specifier it writes is an IANA IE with the E bit clear (internal/plugins/flowexport/ipfix/flow_template.go:114-120)</td>
 </tr>
@@ -362,11 +370,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze emits no enterprise-specific IEs and never pairs an identifier with an enterprise number, so it publishes no enterprise-specific identifier to make unique (internal/plugins/flowexport/ipfix/flow_template.go:114-120)</td>
 </tr>
-<tr><td><a href="#rfc7012-2.1-5"><code>RFC7012-2.1-5</code></a> Where an Information Element has a valid inclusive range, values for that Information Element outside the range are invalid and MUST NOT be exported (Section 2.1)</td>
+<tr><td><a href="#rfc7012-2.1-5"><code>RFC7012-2.1-5</code></a> values for this Information Element outside the range are invalid and MUST NOT be exported. (Section 2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: none of the IEs the exporter writes has a Range in the IANA IPFIX registry (elements 1, 2, 4, 7, 8, 10, 11, 12, 14, 16, 17, 27, 28, 85, 86 and 150 to 153, checked against ipfix-information-elements.csv on 2026-09-24; internal/plugins/flowexport/ipfix/ie.go), so no out-of-range value exists to withhold</td>
 </tr>
-<tr><td><a href="#rfc7012-4-2"><code>RFC7012-4-2</code></a> Enterprise-specific Information Element identifiers have the same range of 1-32767, coupled with an additional enterprise identifier (Section 4)</td>
+<tr><td><a href="#rfc7012-4-2"><code>RFC7012-4-2</code></a> Enterprise-specific Information Element identifiers have the same range of 1-32767, but they are coupled with an additional enterprise identifier. (Section 4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze emits no enterprise-specific IEs, so no enterprise IE ID range applies to its output (internal/plugins/flowexport/ipfix/flow_template.go:114-120)</td>
 </tr>
@@ -377,11 +385,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7012-2.1-1"><code>RFC7012-2.1-1</code></a></h3>
-<p>Every IE MUST have: name, elementId, description, dataType, and status (current or deprecated) (Section 2.1)</p>
+<p>All Information Elements specified for the IPFIX protocol MUST have the following properties defined: name - A unique and meaningful name for the Information Element. elementId - A numeric identifier of the Information Element. If this identifier is used without an enterprise identifier (see [RFC7011] and the definition of enterpriseId listed below), then it is globally unique, and the list of allowed values is administered by IANA. It is used for compact identification of an Information Element when encoding Templates in the protocol. description - The semantics of this Information Element. Describes how this Information Element is derived from the Flow or other information available to the observer. Information Elements of dataType string or octetArray that have length constraints (fixed length, minimum and/or maximum length) MUST note these constraints in their descriptions. dataType - One of the types listed in Section 3.1 of this document or registered in the IANA &#34;IPFIX Information Element Data Types&#34; subregistry. The type space for attributes is constrained to facilitate implementation. The existing type space encompasses most primitive types used in modern programming languages, as well as some derived types (such as ipv4Address) that are common to this domain. status - The status of the specification of this Information Element. Allowed values are &#39;current&#39; and &#39;deprecated&#39;. (Section 2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7012-2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7012-2.1-2"><code>RFC7012-2.1-2</code></a></h3>
-<p>Enterprise-specific Information Elements MUST have the enterpriseId property defined (Section 2.1)</p>
+<p>Enterprise-specific Information Elements MUST have the following property defined: enterpriseId (Section 2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7012-2.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7012-2.1-3"><code>RFC7012-2.1-3</code></a></h3>
@@ -389,12 +397,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7012-2.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7012-2.1-5"><code>RFC7012-2.1-5</code></a></h3>
-<p>Where an Information Element has a valid inclusive range, values for that Information Element outside the range are invalid and MUST NOT be exported (Section 2.1)</p>
+<p>values for this Information Element outside the range are invalid and MUST NOT be exported. (Section 2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7012-2.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc7012-4-1"><code>RFC7012-4-1</code></a></h3>
-<p>Information Element identifier values are in the range 1-32767, and for enterprise-specific Information Elements identifier 0 is also reserved (Section 4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The values of these identifiers are in the range of 1-32767. Within this range, Information Element identifier values in the sub-range of 1-127 are compatible with field types used by NetFlow version 9 [RFC3954] for historical reasons. In general, IANA will add newly registered Information Elements to the registry, assigning the lowest available Information Element identifier in the range of 128-32767. Enterprise-specific Information Element identifiers have the same range of 1-32767, but they are coupled with an additional enterprise identifier. For enterprise-specific Information Elements, Information Element identifier 0 is also reserved. (Section 4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestIPFIXFlowTemplate checks the E bit on all 11 fields (so ids stay &lt;= 32767) but pins exact IE ids for only fields 0, 4 and 9. A template that emitted IE id 0 in any other field stays green, so the &#39;range of 1-32767&#39; lower bound is not asserted for the emitted template. Single-polarity marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -408,7 +416,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc7012-4-2"><code>RFC7012-4-2</code></a></h3>
-<p>Enterprise-specific Information Element identifiers have the same range of 1-32767, coupled with an additional enterprise identifier (Section 4)</p>
+<p>Enterprise-specific Information Element identifiers have the same range of 1-32767, but they are coupled with an additional enterprise identifier. (Section 4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7012-4-2, so no unit is bound to it.</p>
 </section>
@@ -851,7 +859,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

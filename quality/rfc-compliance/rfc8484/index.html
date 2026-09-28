@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8484 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8484: DNS Queries over HTTPS (DoH). 16 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8484: DNS Queries over HTTPS (DoH). 16 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8484 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8484: DNS Queries over HTTPS (DoH). 16 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8484: DNS Queries over HTTPS (DoH). 16 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8484 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8484: DNS Queries over HTTPS (DoH). 16 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8484: DNS Queries over HTTPS (DoH). 16 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>6.2%</strong><b>1 of 16 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>1</strong><b>of 16 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>1</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>14</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -325,7 +329,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L230" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHMethodNotAllowed</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-4.1-3">RFC8484-4.1-3</code></td><td colspan="3"><span class="rfc-subject">Irrespective of the value of the Accept request header field, the client MUST be prepared to process &#34;application/dns-message&#34; responses (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-4.1-3">RFC8484-4.1-3</code></td><td colspan="3"><span class="rfc-subject">Irrespective of the value of the Accept request header field, the client MUST be prepared to process &#34;application/dns-message&#34; (as described in Section 6) responses (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -460,7 +464,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5.1-4">RFC8484-5.1-4</code></td><td colspan="3"><span class="rfc-subject">DoH servers SHOULD assign an explicit HTTP freshness lifetime so that the DoH client is more likely to use fresh DNS data (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5.1-4">RFC8484-5.1-4</code></td><td colspan="3"><span class="rfc-subject">In particular, DoH servers SHOULD assign an explicit HTTP freshness lifetime (see Section 4.2 of [RFC7234]) so that the DoH client is more likely to use fresh DNS data. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.1</td>
@@ -478,7 +482,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5.2-1">RFC8484-5.2-1</code></td><td colspan="3"><span class="rfc-subject">HTTP/2 is the minimum RECOMMENDED version of HTTP for use with DoH (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5.2-1">RFC8484-5.2-1</code></td><td colspan="3"><span class="rfc-subject">HTTP/2 [RFC7540] is the minimum RECOMMENDED version of HTTP for use with DoH. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>5.2</td>
@@ -487,7 +491,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-8.2-1">RFC8484-8.2-1</code></td><td colspan="3"><span class="rfc-subject">HTTP cookies SHOULD NOT be accepted by DoH clients unless they are explicitly required by a use case (§8.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-8.2-1">RFC8484-8.2-1</code></td><td colspan="3"><span class="rfc-subject">HTTP cookies SHOULD NOT be accepted by DOH clients unless they are explicitly required by a use case. (§8.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>8.2</td>
@@ -496,7 +500,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-10-1">RFC8484-10-1</code></td><td colspan="3"><span class="rfc-subject">The authentication given DoH servers SHOULD NOT rely on DNS-based references to external resources in the TLS handshake (§10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-10-1">RFC8484-10-1</code></td><td colspan="3"><span class="rfc-subject">To mitigate the possibility of deadlock, the authentication given DoH servers SHOULD NOT rely on DNS-based references to external resources in the TLS handshake. (§10)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>10</td>
@@ -514,7 +518,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-4.1-6">RFC8484-4.1-6</code></td><td colspan="3"><span class="rfc-subject">The client MAY also process other DNS-related media types it receives (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-4.1-6">RFC8484-4.1-6</code></td><td colspan="3"><span class="rfc-subject">MAY also process other DNS- related media types it receives. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.1</td>
@@ -532,7 +536,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-6-5">RFC8484-6-5</code></td><td colspan="3"><span class="rfc-subject">DoH clients using this media type MAY include one or more Extension Mechanisms for DNS EDNS options in the request (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-6-5">RFC8484-6-5</code></td><td colspan="3"><span class="rfc-subject">DoH clients using this media type MAY have one or more Extension Mechanisms for DNS (EDNS) options [RFC6891] in the request. (§6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6</td>
@@ -558,7 +562,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this binds authors of new DoH media-type specifications, and ze defines no media type beyond application/dns-message (internal/core/dnsserver/secure.go:47)</td>
 </tr>
-<tr><td><a href="#rfc8484-4.1-3"><code>RFC8484-4.1-3</code></a> Irrespective of the value of the Accept request header field, the client MUST be prepared to process &#34;application/dns-message&#34; responses (§4.1)</td>
+<tr><td><a href="#rfc8484-4.1-3"><code>RFC8484-4.1-3</code></a> Irrespective of the value of the Accept request header field, the client MUST be prepared to process &#34;application/dns-message&#34; (as described in Section 6) responses (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this binds a DoH client preparing to process responses, and ze implements no DoH client (server role only)</td>
 </tr>
@@ -613,7 +617,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 </table>
 </div>
 <h3><a href="#rfc8484-4.1-3"><code>RFC8484-4.1-3</code></a></h3>
-<p>Irrespective of the value of the Accept request header field, the client MUST be prepared to process &#34;application/dns-message&#34; responses (§4.1)</p>
+<p>Irrespective of the value of the Accept request header field, the client MUST be prepared to process &#34;application/dns-message&#34; (as described in Section 6) responses (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8484-4.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8484-4.2-1"><code>RFC8484-4.2-1</code></a></h3>
@@ -719,7 +723,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 </div>
 <h3><a href="#rfc8484-6-2"><code>RFC8484-6-2</code></a></h3>
 <p>When using the GET method, the data payload for this media type MUST be encoded with base64url [RFC4648] and then provided as a variable named &#34;dns&#34; to the URI Template expansion. (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. GET data MUST be base64url and carried in the variable &#39;dns&#39;. Positive TestDoH... GET is answered. The negative TestDoHGetRejectsBadDNSParam sends a missing &#39;dns&#39; (goes red if another variable name were read) and &#39;*&#39;, which is outside both the base64 and base64url alphabets. A server that decoded standard base64 (&#39;+&#39;, &#39;/&#39;) would still pass: no assertion sends a standard-alphabet value, so the base64url clause is unproven.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1022,7 +1026,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

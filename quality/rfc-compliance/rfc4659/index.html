@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4659 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4659: BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN. 16 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4659: BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN. 16 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4659 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4659: BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN. 16 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4659: BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN. 16 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4659 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4659: BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN. 16 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4659: BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN. 16 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>18.8%</strong><b>3 of 16 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>4</strong><b>of 16 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>3</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>6</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>4</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -305,7 +309,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/vpn/vpn_test.go#L83" title="internal/component/bgp/plugins/nlri/vpn/vpn_test.go" target="_blank" rel="noopener"><code>TestVPNv6RejectsLabellessEncode</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2-2">RFC4659-3.2-2</code></td><td colspan="3"><span class="rfc-subject">AFI and SAFI fields MUST be set to AFI=2, SAFI=128 (Section 3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2-2">RFC4659-3.2-2</code></td><td colspan="3"><span class="rfc-subject">The Address Family Identifier (AFI) and Subsequent Address Family Identifier (SAFI) fields MUST be set as follows: - AFI: 2; for IPv6 - SAFI: 128; for MPLS labeled VPN-IPv6 (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
@@ -314,7 +318,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation is to SET AFI=2/SAFI=128 when advertising a VPNv6 route, so the only conforming assertion is that the emitted fields equal 2/128 and a MUST-NOT-set-other-values companion is degenerate (internal/component/bgp/message/update_build_vpn.go:221, internal/component/bgp/plugins/nlri/vpn/types.go:37)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.4-1">RFC4659-3.4-1</code></td><td colspan="3"><span class="rfc-subject">Two PEs MUST use BGP Capabilities Negotiation (capability code 1, AFI=2, SAFI=128) to ensure both can process VPN-IPv6 NLRIs (Section 3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.4-1">RFC4659-3.4-1</code></td><td colspan="3"><span class="rfc-subject">In order for two PEs to exchange labeled IPv6 VPN NLRIs, they MUST use BGP Capabilities Negotiation to ensure that they both are capable of properly processing such NLRIs. This is done as specified in [BGP-MP] and [BGP-CAP], by using capability code 1 (multiprotocol BGP), with AFI and SAFI values as specified above, in Section 3.2. (§3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.4</td>
@@ -350,7 +354,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> a data-plane transport-selection decision for a forwarding PE, a role ze does not perform</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-4-4">RFC4659-4-4</code></td><td colspan="3"><span class="rfc-subject">When tunneling using IPv4, MUST use the IPv4 address encoded in the IPv4-mapped field as the tunnel destination (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-4-4">RFC4659-4-4</code></td><td colspan="3"><span class="rfc-subject">When tunneling is done using IPv4 tunnels (whether IPsec secured or not), the Ingress PE Router MUST use the IPv4 address that is encoded in the IPv4-mapped IPv6 address field of the BGP next hop field as the destination address of the prepended IPv4 tunneling header. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -359,7 +363,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> a data-plane encapsulation behavior; ze installs no VPNv6 IPv4-tunnel forwarding entries</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-4-5">RFC4659-4-5</code></td><td colspan="3"><span class="rfc-subject">When tunneling using IPv6, MUST use the IPv6 address from the Next Hop as the tunnel destination (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-4-5">RFC4659-4-5</code></td><td colspan="3"><span class="rfc-subject">When tunneling is done using IPv6 tunnels (whether IPsec secured or not), the Ingress PE Router MUST use the IPv6 address that is contained in the IPv6 address field of the BGP next hop field as the destination address of the prepended IPv6 tunneling header. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -386,7 +390,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> binds the ingress-PE VPN-data-over-LDP-LSP forwarding role; ze has LDP label distribution and an MPLS FIB but performs no VPNv6 customer-data forwarding</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-8-1">RFC4659-8-1</code></td><td colspan="3"><span class="rfc-subject">Multi-AS approach (a): Exchange of IPv6 routes MUST be carried out as per RFC 2545 (Section 8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-8-1">RFC4659-8-1</code></td><td colspan="3"><span class="rfc-subject">The exchange of IPv6 routes MUST be carried out as per [BGP-IPv6]. (§8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8</td>
@@ -395,7 +399,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the inter-provider option-A back-to-back-VRF ASBR role; ze has no per-VPN VRF inter-AS exchange, and the referenced RFC 2545 IPv6 next-hop wire behavior is enrolled under its own RFC</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-8-2">RFC4659-8-2</code></td><td colspan="3"><span class="rfc-subject">Multi-AS approach (b): Exchange of labeled VPN-IPv6 routes MUST be carried out as per RFC 2545 and RFC 3107 (Section 8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-8-2">RFC4659-8-2</code></td><td colspan="3"><span class="rfc-subject">The exchange of labeled VPN-IPv6 routes MUST be carried out as per [BGP-IPv6] and [MPLS-BGP]. (§8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8</td>
@@ -404,10 +408,10 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the inter-provider option-B ASBR label-swap/redistribution role; ze implements the VPNv6 NLRI and next-hop encodings but performs no inter-AS VPN ASBR redistribution</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-8-3">RFC4659-8-3</code></td><td colspan="3"><span class="rfc-subject">Multi-AS approach (b) with IPv6 tunneling: Next Hop Field MUST contain global IPv6 address; when ASBRs share IPv6 subnet, MUST include both global and link-local (Section 8, Section 3.2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-8-3">RFC4659-8-3</code></td><td colspan="3"><span class="rfc-subject">An example scenario where both the global IPv6 address and the link- local IPv6 address shall be included in the BGP Next Hop address field is that where the IPv6 VPN service is supported over a multi- Autonomous System (AS) backbone with redistribution of labeled VPN- IPv6 routes between Autonomous System Border Routers (ASBR) of different ASes sharing a common IPv6 subnet: in that case, both the global IPv6 address and the link-local IPv6 address shall be advertised by the ASBRs. (§3.2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>8</td>
+<td>3.2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4659-8-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -422,7 +426,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation is to EMIT a 24-octet zero-RD + global-IPv6 next-hop, which ze produces for a VPNv6 route with an IPv6 next-hop; the decode side is not RD-aware and is not a gated obligation (internal/component/bgp/message/update_build_vpn.go:246, internal/component/bgp/rib/commit.go:498)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2.1.2-1">RFC4659-3.2.1.2-1</code></td><td colspan="3"><span class="rfc-subject">When requesting IPv4 transport, BGP speaker SHALL advertise a Next Hop containing a VPN-IPv6 address with zero RD and IPv4-mapped IPv6 address (Section 3.2.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2.1.2-1">RFC4659-3.2.1.2-1</code></td><td colspan="3"><span class="rfc-subject">When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv4 tunneling (e.g., IPv4 MPLS LSPs, IPsec-protected IPv4 tunnels), the BGP speaker SHALL advertise to its peer a Next Hop Network Address field containing a VPN-IPv6 address: - whose 8-octet RD is set to zero, and - whose 16-octet IPv6 address is encoded as an IPv4-mapped IPv6 address [V6ADDR] containing the IPv4 address of the advertising BGP speaker. (§3.2.1.2)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>3.2.1.2</td>
@@ -440,7 +444,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the same missing IPv4-mapped-IPv6 next-hop construction as RFC4659-3.2.1.2-1; ze never emits a zero-RD + ::ffff:a.b.c.d VPNv6 next-hop (internal/component/bgp/message/update_build_vpn.go:246; no IPv4-mapped VPNv6 next-hop producer)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2.1.1-2">RFC4659-3.2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">&#34;As a consequence, a BGP speaker that advertises a route to an internal peer may modify the Network Address of Next Hop field by removing the link-local IPv6 address of the next hop&#34; (Section 3.2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2.1.1-2">RFC4659-3.2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">As a consequence, a BGP speaker that advertises a route to an internal peer may modify the Network Address of Next Hop field by removing the link-local IPv6 address of the next hop. (§3.2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.2.1.1</td>
@@ -449,7 +453,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-1-1">RFC4659-1-1</code></td><td colspan="3"><span class="rfc-subject">Same single set of MP-BGP peering relationships and same PE-PE tunnel mesh MAY be used for both IPv4 and IPv6 VPNs (Section 1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-1-1">RFC4659-1-1</code></td><td colspan="3"><span class="rfc-subject">Where both IPv4 VPNs and IPv6 VPN services are supported over an IPv4 core, the same single set of MP-BGP peering relationships and the same single PE-PE tunnel mesh MAY be used for both. (§1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>1</td>
@@ -458,7 +462,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-2-1">RFC4659-2-1</code></td><td colspan="3"><span class="rfc-subject">Same RD MAY be used for IPv6 and IPv4 addresses from the same site (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-2-1">RFC4659-2-1</code></td><td colspan="3"><span class="rfc-subject">When a site is IPv4 capable and IPv6 capable, the same RD MAY be used for the advertisement of IPv6 addresses and IPv4 addresses. (§2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2</td>
@@ -467,7 +471,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-2-2">RFC4659-2-2</code></td><td colspan="3"><span class="rfc-subject">Different RD MAY be used for IPv4 and IPv6 addresses (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-2-2">RFC4659-2-2</code></td><td colspan="3"><span class="rfc-subject">Alternatively, a different RD MAY be used for the advertisement of the IPv4 addresses and of the IPv6 addresses. (§2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2</td>
@@ -476,7 +480,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.1-1">RFC4659-3.1-1</code></td><td colspan="3"><span class="rfc-subject">For IPv6 VPN route distribution, PEs MAY use iBGP over IPv4 or IPv6 (Section 3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.1-1">RFC4659-3.1-1</code></td><td colspan="3"><span class="rfc-subject">For IPv6 VPN, the iBGP connections MAY be over IPv4 or over IPv6. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1</td>
@@ -485,7 +489,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-4-8">RFC4659-4-8</code></td><td colspan="3"><span class="rfc-subject">Ingress PE MAY optionally allow IPv6 tunneling when Next Hop is IPv4-mapped via explicit configuration (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-4-8">RFC4659-4-8</code></td><td colspan="3"><span class="rfc-subject">The ingress PE MAY optionally allow, through explicit configuration, the use of IPv6 tunneling when the 16-octet IPv6 address contained in the BGP Next Hop field is encoded as an IPv4- mapped IPv6 address. (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4</td>
@@ -515,11 +519,11 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: a data-plane transport-selection decision for a forwarding PE, a role ze does not perform</td>
 </tr>
-<tr><td><a href="#rfc4659-4-4"><code>RFC4659-4-4</code></a> When tunneling using IPv4, MUST use the IPv4 address encoded in the IPv4-mapped field as the tunnel destination (Section 4)</td>
+<tr><td><a href="#rfc4659-4-4"><code>RFC4659-4-4</code></a> When tunneling is done using IPv4 tunnels (whether IPsec secured or not), the Ingress PE Router MUST use the IPv4 address that is encoded in the IPv4-mapped IPv6 address field of the BGP next hop field as the destination address of the prepended IPv4 tunneling header. (§4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: a data-plane encapsulation behavior; ze installs no VPNv6 IPv4-tunnel forwarding entries</td>
 </tr>
-<tr><td><a href="#rfc4659-4-5"><code>RFC4659-4-5</code></a> When tunneling using IPv6, MUST use the IPv6 address from the Next Hop as the tunnel destination (Section 4)</td>
+<tr><td><a href="#rfc4659-4-5"><code>RFC4659-4-5</code></a> When tunneling is done using IPv6 tunnels (whether IPsec secured or not), the Ingress PE Router MUST use the IPv6 address that is contained in the IPv6 address field of the BGP next hop field as the destination address of the prepended IPv6 tunneling header. (§4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: a data-plane encapsulation behavior; ze installs no VPNv6 IPv6-tunnel forwarding entries</td>
 </tr>
@@ -531,19 +535,19 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: binds the ingress-PE VPN-data-over-LDP-LSP forwarding role; ze has LDP label distribution and an MPLS FIB but performs no VPNv6 customer-data forwarding</td>
 </tr>
-<tr><td><a href="#rfc4659-8-1"><code>RFC4659-8-1</code></a> Multi-AS approach (a): Exchange of IPv6 routes MUST be carried out as per RFC 2545 (Section 8)</td>
+<tr><td><a href="#rfc4659-8-1"><code>RFC4659-8-1</code></a> The exchange of IPv6 routes MUST be carried out as per [BGP-IPv6]. (§8)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the inter-provider option-A back-to-back-VRF ASBR role; ze has no per-VPN VRF inter-AS exchange, and the referenced RFC 2545 IPv6 next-hop wire behavior is enrolled under its own RFC</td>
 </tr>
-<tr><td><a href="#rfc4659-8-2"><code>RFC4659-8-2</code></a> Multi-AS approach (b): Exchange of labeled VPN-IPv6 routes MUST be carried out as per RFC 2545 and RFC 3107 (Section 8)</td>
+<tr><td><a href="#rfc4659-8-2"><code>RFC4659-8-2</code></a> The exchange of labeled VPN-IPv6 routes MUST be carried out as per [BGP-IPv6] and [MPLS-BGP]. (§8)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the inter-provider option-B ASBR label-swap/redistribution role; ze implements the VPNv6 NLRI and next-hop encodings but performs no inter-AS VPN ASBR redistribution</td>
 </tr>
-<tr><td><a href="#rfc4659-8-3"><code>RFC4659-8-3</code></a> Multi-AS approach (b) with IPv6 tunneling: Next Hop Field MUST contain global IPv6 address; when ASBRs share IPv6 subnet, MUST include both global and link-local (Section 8, Section 3.2.1.1)</td>
+<tr><td><a href="#rfc4659-8-3"><code>RFC4659-8-3</code></a> An example scenario where both the global IPv6 address and the link- local IPv6 address shall be included in the BGP Next Hop address field is that where the IPv6 VPN service is supported over a multi- Autonomous System (AS) backbone with redistribution of labeled VPN- IPv6 routes between Autonomous System Border Routers (ASBR) of different ASes sharing a common IPv6 subnet: in that case, both the global IPv6 address and the link-local IPv6 address shall be advertised by the ASBRs. (§3.2.1.1)</td>
 <td>{gap}, no test</td>
 <td>ze&#39;s VPNv6 next-hop encoder emits only the single global-IPv6 24-octet form and never the 48-octet global+link-local next-hop, so the shared-subnet clause is unmet (internal/component/bgp/message/update_build_vpn.go:229; no 48-octet producer exists)</td>
 </tr>
-<tr><td><a href="#rfc4659-3.2.1.2-1"><code>RFC4659-3.2.1.2-1</code></a> When requesting IPv4 transport, BGP speaker SHALL advertise a Next Hop containing a VPN-IPv6 address with zero RD and IPv4-mapped IPv6 address (Section 3.2.1.2)</td>
+<tr><td><a href="#rfc4659-3.2.1.2-1"><code>RFC4659-3.2.1.2-1</code></a> When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv4 tunneling (e.g., IPv4 MPLS LSPs, IPsec-protected IPv4 tunnels), the BGP speaker SHALL advertise to its peer a Next Hop Network Address field containing a VPN-IPv6 address: - whose 8-octet RD is set to zero, and - whose 16-octet IPv6 address is encoded as an IPv4-mapped IPv6 address [V6ADDR] containing the IPv4 address of the advertising BGP speaker. (§3.2.1.2)</td>
 <td>{gap}, no test</td>
 <td>ze constructs no IPv4-mapped-IPv6 next-hop for VPNv6 -- a plain IPv4 next-hop on a VPNv6 route emits a non-conformant 12-octet zero-RD+IPv4 next-hop, and no ::ffff:a.b.c.d mapping exists in the BGP path (internal/component/bgp/message/update_build_vpn.go:229; Is4In6 appears only in ISIS/OSPF)</td>
 </tr>
@@ -559,7 +563,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc4659-3.2-1"><code>RFC4659-3.2-1</code></a></h3>
 <p>When distributing IPv6 VPN routes, the advertising PE router MUST assign and distribute MPLS labels with the IPv6 VPN routes. (Section 3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an IPv6 VPN route advertised without an MPLS label. internal/component/bgp/plugins/nlri/vpn/vpn_test.go::TestVPNv6WireRoundTrip proves an NLRI built with a label round-trips it; ::TestVPNv6RejectsLabellessEncode refuses a labelless route only at EncodeNLRIHex (errLabelRequiredForVpn has one producer, vpn.go EncodeNLRIHex). No assertion covers the UPDATE advertising path (message BuildVPN with empty Labels) or any other route source, so a labelless VPNv6 advertisement there stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -578,8 +582,8 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 </table>
 </div>
 <h3><a href="#rfc4659-3.2-2"><code>RFC4659-3.2-2</code></a></h3>
-<p>AFI and SAFI fields MUST be set to AFI=2, SAFI=128 (Section 3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The Address Family Identifier (AFI) and Subsequent Address Family Identifier (SAFI) fields MUST be set as follows: - AFI: 2; for IPv6 - SAFI: 128; for MPLS labeled VPN-IPv6 (§3.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: MP_REACH for a VPNv6 route with AFI != 2 or SAFI != 128. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6: afi != 2 and value[2] != 128 are Errorf. Single-polarity marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -593,8 +597,8 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 </table>
 </div>
 <h3><a href="#rfc4659-3.4-1"><code>RFC4659-3.4-1</code></a></h3>
-<p>Two PEs MUST use BGP Capabilities Negotiation (capability code 1, AFI=2, SAFI=128) to ensure both can process VPN-IPv6 NLRIs (Section 3.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In order for two PEs to exchange labeled IPv6 VPN NLRIs, they MUST use BGP Capabilities Negotiation to ensure that they both are capable of properly processing such NLRIs. This is done as specified in [BGP-MP] and [BGP-CAP], by using capability code 1 (multiprotocol BGP), with AFI and SAFI values as specified above, in Section 3.2. (§3.4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: exchanging labeled VPN-IPv6 NLRIs with a peer that did not negotiate AFI 2/SAFI 128. internal/component/bgp/reactor/session_negotiate_test.go::TestOpenAdvertisesVPNv6Capability asserts the OPEN carries MP 2/128; ::TestNegotiateWith_VPNv6NotActiveWithoutPeerCapability asserts SupportsFamily false. No tagged unit shows a VPNv6 UPDATE is withheld from, or refused from, a peer without the capability, so a send or receive path that ignores the negotiated set stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -625,11 +629,11 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4659-4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4659-4-4"><code>RFC4659-4-4</code></a></h3>
-<p>When tunneling using IPv4, MUST use the IPv4 address encoded in the IPv4-mapped field as the tunnel destination (Section 4)</p>
+<p>When tunneling is done using IPv4 tunnels (whether IPsec secured or not), the Ingress PE Router MUST use the IPv4 address that is encoded in the IPv4-mapped IPv6 address field of the BGP next hop field as the destination address of the prepended IPv4 tunneling header. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4659-4-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4659-4-5"><code>RFC4659-4-5</code></a></h3>
-<p>When tunneling using IPv6, MUST use the IPv6 address from the Next Hop as the tunnel destination (Section 4)</p>
+<p>When tunneling is done using IPv6 tunnels (whether IPsec secured or not), the Ingress PE Router MUST use the IPv6 address that is contained in the IPv6 address field of the BGP next hop field as the destination address of the prepended IPv6 tunneling header. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4659-4-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4659-4-6"><code>RFC4659-4-6</code></a></h3>
@@ -641,20 +645,20 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4659-4-7, so no unit is bound to it.</p>
 <h3><a href="#rfc4659-8-1"><code>RFC4659-8-1</code></a></h3>
-<p>Multi-AS approach (a): Exchange of IPv6 routes MUST be carried out as per RFC 2545 (Section 8)</p>
+<p>The exchange of IPv6 routes MUST be carried out as per [BGP-IPv6]. (§8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4659-8-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4659-8-2"><code>RFC4659-8-2</code></a></h3>
-<p>Multi-AS approach (b): Exchange of labeled VPN-IPv6 routes MUST be carried out as per RFC 2545 and RFC 3107 (Section 8)</p>
+<p>The exchange of labeled VPN-IPv6 routes MUST be carried out as per [BGP-IPv6] and [MPLS-BGP]. (§8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4659-8-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4659-8-3"><code>RFC4659-8-3</code></a></h3>
-<p>Multi-AS approach (b) with IPv6 tunneling: Next Hop Field MUST contain global IPv6 address; when ASBRs share IPv6 subnet, MUST include both global and link-local (Section 8, Section 3.2.1.1)</p>
+<p>An example scenario where both the global IPv6 address and the link- local IPv6 address shall be included in the BGP Next Hop address field is that where the IPv6 VPN service is supported over a multi- Autonomous System (AS) backbone with redistribution of labeled VPN- IPv6 routes between Autonomous System Border Routers (ASBR) of different ASes sharing a common IPv6 subnet: in that case, both the global IPv6 address and the link-local IPv6 address shall be advertised by the ASBRs. (§3.2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4659-8-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4659-3.2.1.1-1"><code>RFC4659-3.2.1.1-1</code></a></h3>
 <p>When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address (Section 3.2.1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a VPNv6 next hop that is not a VPN-IPv6 address (zero RD + global IPv6) when IPv6 transport is used. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop: nhLen != 24, any non-zero RD byte, and next-hop bytes != the global address are each Errorf. Single-polarity marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -668,7 +672,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 </table>
 </div>
 <h3><a href="#rfc4659-3.2.1.2-1"><code>RFC4659-3.2.1.2-1</code></a></h3>
-<p>When requesting IPv4 transport, BGP speaker SHALL advertise a Next Hop containing a VPN-IPv6 address with zero RD and IPv4-mapped IPv6 address (Section 3.2.1.2)</p>
+<p>When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv4 tunneling (e.g., IPv4 MPLS LSPs, IPsec-protected IPv4 tunnels), the BGP speaker SHALL advertise to its peer a Next Hop Network Address field containing a VPN-IPv6 address: - whose 8-octet RD is set to zero, and - whose 16-octet IPv6 address is encoded as an IPv4-mapped IPv6 address [V6ADDR] containing the IPv4 address of the advertising BGP speaker. (§3.2.1.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4659-3.2.1.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4659-8-4"><code>RFC4659-8-4</code></a></h3>
@@ -913,7 +917,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

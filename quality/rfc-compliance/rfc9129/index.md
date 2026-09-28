@@ -23,7 +23,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 0 | of 7 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (blocked), so every share below reads what the summary records rather than what the gate enforces |
+| MUSTs declared | 0 | of 6 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (blocked), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 0 | of 0 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 0.0% | 0 of 0 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 0 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -53,10 +53,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | No row in the public ledger |
 | Enrolment | Not enrolled (blocked) |
-| Requirements | 7 |
+| Requirements | 6 |
 | Gated MUST-level | 0 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
@@ -65,11 +66,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc9129.md` |
 | Requirement shard | `rfc/requirements/rfc9129.md` |
-| RFC text | this checkout does not carry the RFC's own text |
+| RFC text | `rfc/full/rfc9129.txt` |
 
 ## Enrolment
 
-Not enrolled (blocked, something outside the summary stops the extraction, and it is named in the reason): YANG Data Model for the OSPF Protocol. No source text at rfc/full/rfc9129.txt or rfc/drafts/rfc9129.txt, so check_enrolment refuses the enrolment. Fetch https://www.rfc-editor.org/rfc/rfc9129.txt, then extract.
+Not enrolled (blocked, something outside the summary stops the extraction, and it is named in the reason): YANG Data Model for the OSPF Protocol. The text is at rfc/full/rfc9129.txt (fetched 2026-09-26); enrolment waits on its extraction walk.
 
 ## What the public ledger says
 
@@ -83,13 +84,12 @@ RFC 9129 declares no MUST-level requirement, so the gate counts nothing here.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC9129-2.5-1` | Instance carries `address-family` / `router-id` semantics equivalent to §2.5 | SHOULD | 2.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9129-2.6-1` | Area list keyed by `area-id` with `area-type` covering normal/stub/nssa (§2.6) | SHOULD | 2.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9129-2.6-2` | Area `ranges/range` aggregation with `advertise` + `cost`, and stub/NSSA `default-cost` (§2.6) | SHOULD | 2.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9129-2.7-1` | Interface carries `interface-type` (broadcast/point-to-point/nbma/point-to-multipoint), `cost`, `hello-interval`, `dead-interval`, `retransmit-interval`, `transmit-delay`, `priority`, `passive`, `mtu-ignore` (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9129-2.7-2` | Authentication supports a key-chain reference per RFC 8177 plus explicit key + crypto-algorithm (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9129-2.5-2` | Operational state exposes neighbors (with adjacency state), LSDB by scope, and statistics (§2.5, §2.6) | SHOULD | 2.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9129-2.9-1` | Provide `clear-neighbor` / `clear-database` RPC equivalents (§2.9) | MAY | 2.9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9129-2.5-1` | The "ospf" container is the top-level container in this data model. It represents an OSPF protocol instance and contains the router-level configuration and operational state. (§2.5) | SHOULD | 2.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9129-2.6-1` | The "area" container contains OSPF area configuration and the list of interface containers representing all the OSPF interfaces in the area. (§2.6) | SHOULD | 2.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9129-2.6-2` | Summarizes routes matching the address/mask. Applicable to Area Border Routers (ABRs) only. (§3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9129-2.7-1` | The "interface" container contains OSPF interface configuration and operational state. (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9129-2.7-2` | Key chain or explicit key parameter specification. (§3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9129-2.9-1` | The "ietf-ospf" module defines two RPC operations: clear-database: Resets the contents of a particular OSPF LSDB, forces neighbor adjacencies to the 'DOWN' state, and reoriginates self-originated LSAs. clear-neighbor: Resets a particular OSPF neighbor or group of neighbors associated with an OSPF interface. (§2.9) | MAY | 2.9 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 

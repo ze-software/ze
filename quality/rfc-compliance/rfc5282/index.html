@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5282 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5282 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5282 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>18</strong><b>of 19 gated MUSTs judged</b><p>8 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 19 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>38</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>18</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>38</td>
@@ -320,7 +328,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L413" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-1">RFC5282-3.2-1</code></td><td colspan="3"><span class="rfc-subject">AES GCM implementations MUST support a full-length 16 octet ICV (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-1">RFC5282-3.2-1</code></td><td colspan="3"><span class="rfc-subject">The AES GCM ICV consists solely of the AES GCM Authentication Tag. Implementations MUST support a full-length 16 octet ICV (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
@@ -329,7 +337,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L467" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADReceiveRefusesADamagedICV</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-2">RFC5282-3.2-2</code></td><td colspan="3"><span class="rfc-subject">AES GCM implementations MUST NOT support ICV lengths other than 16, 8 and 12 octets (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-2">RFC5282-3.2-2</code></td><td colspan="3"><span class="rfc-subject">The AES GCM ICV consists solely of the AES GCM Authentication Tag. Implementations MUST support a full-length 16 octet ICV, MAY support 8 or 12 octet ICVs, and MUST NOT support other ICV lengths. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2</td>
@@ -347,7 +355,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L228" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-4">RFC5282-3.2-4</code></td><td colspan="3"><span class="rfc-subject">AES CCM implementations MUST NOT support ICV lengths other than 8, 16 and 12 octets (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-4">RFC5282-3.2-4</code></td><td colspan="3"><span class="rfc-subject">AES CCM provides an encrypted ICV. Implementations MUST support ICV sizes of 8 octets and 16 octets. Implementations MAY also support 12 octet ICVs and MUST NOT support other ICV lengths. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2</td>
@@ -356,7 +364,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_ccm_test.go#L90" title="internal/component/ike/crypto/rfc5282_ccm_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMSupportsTheThreePermittedICVLengths</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-1">RFC5282-4-1</code></td><td colspan="3"><span class="rfc-subject">For AES GCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-1">RFC5282-4-1</code></td><td colspan="3"><span class="rfc-subject">When this default nonce format is used, both the encryptor and decryptor construct the nonce by concatenating the salt with the IV, in that order. For the use of AES GCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -365,7 +373,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L519" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADRefusesAReversedNonce</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-2">RFC5282-4-2</code></td><td colspan="3"><span class="rfc-subject">For AES GCM a 12 octet nonce MUST be used (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-2">RFC5282-4-2</code></td><td colspan="3"><span class="rfc-subject">For the use of AES GCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used and a 12 octet nonce MUST be used. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -374,7 +382,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L564" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-3">RFC5282-4-3</code></td><td colspan="3"><span class="rfc-subject">For AES CCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-3">RFC5282-4-3</code></td><td colspan="3"><span class="rfc-subject">When this default nonce format is used, both the encryptor and decryptor construct the nonce by concatenating the salt with the IV, in that order. For the use of AES GCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used and a 12 octet nonce MUST be used. Note that this format matches the one specified in Section 4 of [RFC4106], providing compatibility between the use of AES GCM in IKEv2 and ESP. All of the requirements of Section 4 of [RFC4106] apply to the use of AES GCM with the IKEv2 Encrypted Payload. For the use of AES CCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -383,7 +391,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L291" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMRefusesAReversedNonce</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-4">RFC5282-4-4</code></td><td colspan="3"><span class="rfc-subject">For AES CCM an 11 octet nonce MUST be used (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-4">RFC5282-4-4</code></td><td colspan="3"><span class="rfc-subject">For the use of AES CCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used and an 11 octet nonce MUST be used. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -410,7 +418,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L662" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADRefusesAssociatedDataCoveringTheIV</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-7.1-1">RFC5282-7.1-1</code></td><td colspan="3"><span class="rfc-subject">With an AEAD cipher the SK_ai and SK_ar integrity keys are unused, and each MUST be treated as having a size of zero octets (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-7.1-1">RFC5282-7.1-1</code></td><td colspan="3"><span class="rfc-subject">When AES GCM or AES CCM is used with the IKEv2 Encrypted Payload, the SK_ai and SK_ar integrity protection keys are not used; each key MUST be treated as having a size of zero (0) octets. (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
@@ -419,7 +427,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L153" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282NonAEADIntegrityKeysAreDerived</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-7.1-2">RFC5282-7.1-2</code></td><td colspan="3"><span class="rfc-subject">Each of SK_ei and SK_er MUST have the size and format of the KEYMAT for the AES key size in use, the cipher key followed by the salt (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-7.1-2">RFC5282-7.1-2</code></td><td colspan="3"><span class="rfc-subject">The size of each of the SK_ei and SK_er encryption keys includes additional salt bytes. The size and format of each of the SK_ei and SK_er encryption keys MUST be: o For AES GCM, each encryption key has the size and format of the &#34;KEYMAT requested&#34; material specified in Section 8.1 of [RFC4106] for the AES key size being used. For example, if the AES key size is 128 bits, each encryption key is 20 octets, consisting of a 16-octet AES cipher key followed by 4 octets of salt. o For AES CCM, each key has the size and format of the &#34;KEYMAT requested&#34; material specified in Section 7.1 of [RFC4309] for the AES key size being used. For example, if the AES key size is 128 bits, each encryption key is 19 octets, consisting of a 16-octet AES cipher key followed by 3 octets of salt. (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
@@ -464,7 +472,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_proposal_test.go#L74" title="internal/component/ike/engine/rfc5282_aead_proposal_test.go" target="_blank" rel="noopener"><code>TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-5">RFC5282-4-5</code></td><td colspan="3"><span class="rfc-subject">Specific authenticated encryption algorithms SHOULD use the default nonce format (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-5">RFC5282-4-5</code></td><td colspan="3"><span class="rfc-subject">Specific authenticated encryption algorithms MAY use different nonce formats, but they SHOULD use the default nonce format specified in this section. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4</td>
@@ -482,7 +490,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-7.2-2">RFC5282-7.2-2</code></td><td colspan="3"><span class="rfc-subject">The use of 12-octet ICVs, transform identifiers 15 and 19, is discouraged (§7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-7.2-2">RFC5282-7.2-2</code></td><td colspan="3"><span class="rfc-subject">In general, the use of 12-octet ICVs (values 15 and 19) is NOT RECOMMENDED in order to reduce the number of options for ICV size. (§7.2)</span></td></tr>
 <tr><td></td>
 <td>NOT RECOMMENDED</td>
 <td>7.2</td>
@@ -500,7 +508,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-7.3-3">RFC5282-7.3-3</code></td><td colspan="3"><span class="rfc-subject">The use of the Key Length value 192 is discouraged (§7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-7.3-3">RFC5282-7.3-3</code></td><td colspan="3"><span class="rfc-subject">The use of the value 192 is NOT RECOMMENDED. (§7.3)</span></td></tr>
 <tr><td></td>
 <td>NOT RECOMMENDED</td>
 <td>7.3</td>
@@ -536,7 +544,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-5">RFC5282-3.2-5</code></td><td colspan="3"><span class="rfc-subject">AES GCM implementations MAY support 8 or 12 octet ICVs (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-5">RFC5282-3.2-5</code></td><td colspan="3"><span class="rfc-subject">The AES GCM ICV consists solely of the AES GCM Authentication Tag. Implementations MUST support a full-length 16 octet ICV, MAY support 8 or 12 octet ICVs (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.2</td>
@@ -545,7 +553,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-6">RFC5282-3.2-6</code></td><td colspan="3"><span class="rfc-subject">AES CCM implementations MAY also support 12 octet ICVs (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-6">RFC5282-3.2-6</code></td><td colspan="3"><span class="rfc-subject">AES CCM provides an encrypted ICV. Implementations MUST support ICV sizes of 8 octets and 16 octets. Implementations MAY also support 12 octet ICVs (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.2</td>
@@ -574,7 +582,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5282-3-1"><code>RFC5282-3-1</code></a></h3>
 <p>There are no alignment requirements on the length of the Padding field; the recipient MUST accept any amount of Padding up to 255 octets. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a receiver refusing a message for its Padding length (0..255). Red: TestRFC5282AEADReceiveAcceptsAnyPaddingTo255 fatals &#39;decryptAndParse = %v, want the message accepted&#39; for every length 0..255. Negative TestRFC5282AEADReceiveRefusesATruncatedInnerPayload bounds it (expectRefused).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -594,7 +602,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </div>
 <h3><a href="#rfc5282-3.1-1"><code>RFC5282-3.1-1</code></a></h3>
 <p>The Initialization Vector (IV) MUST be eight octets. (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an IV other than eight octets. Sender: TestRFC5282AEADSendIVIsEightOctets opens ze&#39;s LastSentMsg with the first 8 octets as IV and asserts gotIVOctets == 8. Receiver: TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets expectRefused for 7 and 9. The IV length is the shared ikeIVOctets for GCM and CCM.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -614,7 +622,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </div>
 <h3><a href="#rfc5282-3.1-2"><code>RFC5282-3.1-2</code></a></h3>
 <p>The IV MUST be chosen by the encryptor in a manner that ensures that the same IV value is used only once for a given key. (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an IV repeated under one key. Red: TestRFC5282AEADSendIVIsUniquePerKey fatals on any repeat over 512 builds under one SA; TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage fatals when two byte-identical builds share an IV.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -633,8 +641,8 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </table>
 </div>
 <h3><a href="#rfc5282-3.2-1"><code>RFC5282-3.2-1</code></a></h3>
-<p>AES GCM implementations MUST support a full-length 16 octet ICV (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The AES GCM ICV consists solely of the AES GCM Authentication Tag. Implementations MUST support a full-length 16 octet ICV (§3.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: not supporting the 16 octet AES GCM ICV. Red: TestRFC5282AEADSendICVIsSixteenOctets asserts len(raw)==prefix+IV+plaintext+16 and expectOneDelete on the receiver; TestRFC5282AEADReceiveRefusesADamagedICV proves the 16 octets are verified (flipped and stripped ICV refused).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -653,8 +661,8 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </table>
 </div>
 <h3><a href="#rfc5282-3.2-2"><code>RFC5282-3.2-2</code></a></h3>
-<p>AES GCM implementations MUST NOT support ICV lengths other than 16, 8 and 12 octets (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The AES GCM ICV consists solely of the AES GCM Authentication Tag. Implementations MUST support a full-length 16 octet ICV, MAY support 8 or 12 octet ICVs, and MUST NOT support other ICV lengths. (§3.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: supporting an AES GCM ICV other than 16, 8, 12. Red: TestRFC5282AEADRefusesAForbiddenICVLength fatals if OpenIKEAEAD(ENCR_AES_GCM_16) accepts a real 13, 14 or 15 octet ICV sealing; TestRFC5282AEADOpensTheFullLengthICV keeps 16 open. Lengths below 12 are not constructed (stdlib limit); ze&#39;s only GCM transform (20) fixes the tag at 16, so no other length is reachable.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -674,7 +682,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </div>
 <h3><a href="#rfc5282-3.2-3"><code>RFC5282-3.2-3</code></a></h3>
 <p>Implementations MUST support ICV sizes of 8 octets and 16 octets. (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: not supporting AES CCM ICVs of 8 and 16. Red: TestRFC5282CCMSupportsTheEightAndSixteenOctetICV establishes under CCM8 and CCM16, measures the ICV (t.Errorf on mismatch) and expectOneDelete; TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV refuses a flipped ICV bit and a flipped ciphertext bit at each size.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -693,8 +701,8 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </table>
 </div>
 <h3><a href="#rfc5282-3.2-4"><code>RFC5282-3.2-4</code></a></h3>
-<p>AES CCM implementations MUST NOT support ICV lengths other than 8, 16 and 12 octets (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>AES CCM provides an encrypted ICV. Implementations MUST support ICV sizes of 8 octets and 16 octets. Implementations MAY also support 12 octet ICVs and MUST NOT support other ICV lengths. (§3.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an AES CCM ICV length other than 8, 16, 12. Red: TestRFC5282CCMRefusesEveryOtherICVLength sweeps Transform IDs 0..35, errors if AEADICVOctets answers a length outside {8,12,16} or answers for any id beyond 14,15,16,20, and requires SealIKEAEAD/OpenIKEAEAD to refuse the rest; TestRFC5282CCMSupportsTheThreePermittedICVLengths seals and opens 8, 12 and 16.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -713,8 +721,8 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </table>
 </div>
 <h3><a href="#rfc5282-4-1"><code>RFC5282-4-1</code></a></h3>
-<p>For AES GCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>When this default nonce format is used, both the encryptor and decryptor construct the nonce by concatenating the salt with the IV, in that order. For the use of AES GCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used (§4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;both the encryptor and decryptor construct the nonce by concatenating the salt with the IV&#39; for AES GCM. Decryptor: TestRFC5282AEADNonceIsSaltThenIV accepts salt||IV, TestRFC5282AEADRefusesAReversedNonce refuses IV||salt. Encryptor: no 4-1 tagged unit checks the nonce ze seals under; SealIKEAEAD calling ikeAEADNonce with its arguments swapped keeps the same length and turns no 4-1 unit red. TestRFC5282AEADSendIVIsEightOctets opens ze&#39;s own message under salt||IV but is tagged 3.1-1 only.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -733,8 +741,8 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </table>
 </div>
 <h3><a href="#rfc5282-4-2"><code>RFC5282-4-2</code></a></h3>
-<p>For AES GCM a 12 octet nonce MUST be used (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>For the use of AES GCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used and a 12 octet nonce MUST be used. (§4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an AES GCM nonce other than 12 octets. Red: TestRFC5282AEADNonceIsTwelveOctets asserts len(nonce)==12 and expectOneDelete; TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets refuses 11 and 13. Sender side: the nonce size is fixed once in newIKEAEAD (salt+ikeIVOctets, checked by newAESGCM) and shared by SealIKEAEAD and OpenIKEAEAD, and Go&#39;s AEAD panics on a wrong-length nonce, so a sender-only length change is not reachable without reddening the receive units.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -753,8 +761,8 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </table>
 </div>
 <h3><a href="#rfc5282-4-3"><code>RFC5282-4-3</code></a></h3>
-<p>For AES CCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>When this default nonce format is used, both the encryptor and decryptor construct the nonce by concatenating the salt with the IV, in that order. For the use of AES GCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used and a 12 octet nonce MUST be used. Note that this format matches the one specified in Section 4 of [RFC4106], providing compatibility between the use of AES GCM in IKEv2 and ESP. All of the requirements of Section 4 of [RFC4106] apply to the use of AES GCM with the IKEv2 Encrypted Payload. For the use of AES CCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used (§4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an AES CCM nonce not built as salt||IV. Encryptor: TestRFC5282CCMNonceIsSaltThenIV opens ze&#39;s own sent message with an independent CCM under the 3 salt octets then the wire IV (fatal on failure). Decryptor: TestRFC5282CCMRefusesAReversedNonce refuses IV||salt.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -773,8 +781,8 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </table>
 </div>
 <h3><a href="#rfc5282-4-4"><code>RFC5282-4-4</code></a></h3>
-<p>For AES CCM an 11 octet nonce MUST be used (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>For the use of AES CCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used and an 11 octet nonce MUST be used. (§4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an AES CCM nonce other than 11 octets. Red: TestRFC5282CCMNonceIsElevenOctets asserts len(nonce)==11 and expectOneDelete; TestRFC5282CCMRefusesANonceThatIsNotElevenOctets refuses 10 and 12. Sender length is fixed by the shared newIKEAEAD (ccm.New with salt+IV), so a sender-only change is not reachable without reddening these.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -794,7 +802,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </div>
 <h3><a href="#rfc5282-5.1-1"><code>RFC5282-5.1-1</code></a></h3>
 <p>The associated data (A) MUST consist of the partial contents of the IKEv2 message, starting from the first octet of the Fixed IKE Header through the last octet of the Payload Header of the Encrypted Payload (i.e., the fourth octet of the Encrypted Payload), as shown in Figure 3. (§5.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The associated data MUST span the fixed header through the SK generic header, including intervening payloads. Receiver: TestRFC5282AEADAssociatedDataCoversAnInterveningPayload accepts a test-sealed message over that span, TestRFC5282AEADRefusesAnAlteredInterveningPayload refuses an altered Notify. Sender: the AAD ze seals under is cut in buildSKMessageAEADWithMsgID, a separate producer, and no 5.1-1 tagged unit checks it; a sender cutting the AAD at 32 octets or past the SK header turns no 5.1-1 unit red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -814,7 +822,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </div>
 <h3><a href="#rfc5282-5.1-2"><code>RFC5282-5.1-2</code></a></h3>
 <p>The Initialization Vector and Ciphertext fields shown in Figure 1 (above) MUST NOT be included in the associated data. (§5.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The IV and Ciphertext MUST NOT be in the associated data. Receiver: TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext accepts a span ending at the SK header, TestRFC5282AEADRefusesAssociatedDataCoveringTheIV refuses one covering the IV. Sender: no 5.1-2 tagged unit checks the AAD buildSKMessageAEADWithMsgID seals under; TestRFC5282AEADSendIVIsEightOctets opens ze&#39;s message under raw[:DataOffset] but is tagged 3.1-1 only.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -833,8 +841,8 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </table>
 </div>
 <h3><a href="#rfc5282-7.1-1"><code>RFC5282-7.1-1</code></a></h3>
-<p>With an AEAD cipher the SK_ai and SK_ar integrity keys are unused, and each MUST be treated as having a size of zero octets (§7.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>When AES GCM or AES CCM is used with the IKEv2 Encrypted Payload, the SK_ai and SK_ar integrity protection keys are not used; each key MUST be treated as having a size of zero (0) octets. (§7.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;When AES GCM or AES CCM is used ... each key MUST be treated as having a size of zero&#39;. AES GCM: TestRFC5282AEADIntegrityKeysAreZeroOctets asserts zero-length SK_ai/SK_ar and the SK_ei offset; TestRFC5282NonAEADIntegrityKeysAreDerived is the negative. AES CCM: no tagged unit derives a CCM key hierarchy, so a CCM derivation reserving integrity key material turns nothing red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -853,8 +861,8 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </table>
 </div>
 <h3><a href="#rfc5282-7.1-2"><code>RFC5282-7.1-2</code></a></h3>
-<p>Each of SK_ei and SK_er MUST have the size and format of the KEYMAT for the AES key size in use, the cipher key followed by the salt (§7.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The size of each of the SK_ei and SK_er encryption keys includes additional salt bytes. The size and format of each of the SK_ei and SK_er encryption keys MUST be: o For AES GCM, each encryption key has the size and format of the &#34;KEYMAT requested&#34; material specified in Section 8.1 of [RFC4106] for the AES key size being used. For example, if the AES key size is 128 bits, each encryption key is 20 octets, consisting of a 16-octet AES cipher key followed by 4 octets of salt. o For AES CCM, each key has the size and format of the &#34;KEYMAT requested&#34; material specified in Section 7.1 of [RFC4309] for the AES key size being used. For example, if the AES key size is 128 bits, each encryption key is 19 octets, consisting of a 16-octet AES cipher key followed by 3 octets of salt. (§7.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Both bullets are obligations. AES GCM: TestRFC5282AEADEncryptionKeysCarryTheirSalt asserts 20/36 octets and a key-then-salt round trip; TestRFC5282NonAEADEncryptionKeysCarryNoSalt is the negative. AES CCM bullet (19 octets at 128 bits, key then 3 octets of salt): no 7.1-2 tagged unit asserts it; encKeyMaterialLen&#39;s CCM branch could size the key wrong with no 7.1-2 unit red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -874,7 +882,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </div>
 <h3><a href="#rfc5282-7.3-1"><code>RFC5282-7.3-1</code></a></h3>
 <p>Because the AES supports three key lengths, the Key Length attribute MUST be specified when any of the identifiers for AES GCM or AES CCM, specified in Section 7.2 of this document, is used. (§7.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;any of the identifiers for AES GCM or AES CCM&#39;. AES GCM: TestRFC5282AEADProposalCarriesTheKeyLengthAttribute asserts exactly one Key Length attribute on the IKE and ESP rails; TestRFC5282AEADOfferWithoutAKeyLengthIsRefused refuses a missing attribute. AES CCM (identifiers 14, 15, 16, offered on the IKE rail): no tagged unit asserts ze sends the attribute; assertKeyLength even fatals on any Transform ID other than 20.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -914,7 +922,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </div>
 <h3><a href="#rfc5282-8-1"><code>RFC5282-8-1</code></a></h3>
 <p>This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA. (§8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;for any SA (IKE or ESP)&#39;. IKE SA: TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm asserts AUTH_NONE, zero key length and zero SK_ai/SK_ar; TestRFC5282AEADOfferWithIntegrityIsRefused refuses a peer&#39;s integrity transform beside AES GCM. ESP SA: no tagged unit asserts that ESP negotiation with an AEAD cipher selects no integrity algorithm.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -934,7 +942,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </div>
 <h3><a href="#rfc5282-8-2"><code>RFC5282-8-2</code></a></h3>
 <p>This document further updates [RFC4306] to require that if all of the encryption algorithms in any proposal are authenticated encryption algorithms, then the proposal MUST NOT propose any integrity transforms. (§8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;any proposal&#39;. IKE proposal: TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform asserts zero Transform Type 3 from buildWireIKEProposals; TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform is the negative. ESP proposal: espProposalToWire&#39;s omission for an AEAD ESP proposal is not asserted by any 8-2 tagged unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1283,7 +1291,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

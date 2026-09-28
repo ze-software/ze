@@ -56,11 +56,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 5 |
 | Not applicable, so out of scope | 4 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 2 |
 | Tagged units | 2 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 1 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc3630.md` |
 | Requirement shard | `rfc/requirements/rfc3630.md` |
@@ -102,25 +103,25 @@ Same OSPF experimental status.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC3630-1-1` | Non-TE capable nodes must flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (§1) -- the ext-1 opaque carrier floods Type 10 by scope regardless of any TE consumer (Ze: spec-ospf-ext-2) | MUST | 1 | **positive:** `unit/verify` [`TestRFC3630NonTECapableFloodsTELSAByScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3630_te_test.go#L23). **negative:** `unit/verify` [`TestRFC3630NonTECapableFloodsTELSAByScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3630_te_test.go#L28) |
+| `RFC3630-1-1` | if non-TE capable nodes exist in the topology, they MUST flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (see [3]). (§1) -- the ext-1 opaque carrier floods Type 10 by scope regardless of any TE consumer; Ze: spec-ospf-ext-2 | MUST | 1 | **positive:** `unit/verify` [`TestRFC3630NonTECapableFloodsTELSAByScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3630_te_test.go#L23). **negative:** `unit/verify` [`TestRFC3630NonTECapableFloodsTELSAByScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3630_te_test.go#L28) |
 | `RFC3630-6-1` | o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental top-level Type range 32768-32777 |
-| `RFC3630-6-2` | Top-level Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved top-level Type range 32778-65535 |
+| `RFC3630-6-2` | Here are the guidelines (using terms defined in [10]) for the assignment of top level Types in TE LSAs: o Types in the range 3-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved top-level Type range 32778-65535 |
 | `RFC3630-6-3` | o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental sub-TLV Type range 32768-32777 |
-| `RFC3630-6-4` | Sub-TLV Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved sub-TLV Type range 32778-65535 |
-| `RFC3630-2.4.1-1` | If a router advertises BGP routes with the BGP next hop attribute set to the BGP router ID, the Router Address should be the same as the BGP router ID (§2.4.1) | SHOULD | 2.4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3630-2.5.7-1` | Maximum Reservable Bandwidth should be user-configurable; default value should be the Maximum Bandwidth (§2.5.7) -- Ze: `max-reservable-bandwidth` leaf, defaulting to `max-bandwidth` (applyTELinkAttributes) | SHOULD | 2.5.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3630-3-1` | Origination of Traffic Engineering LSAs should be rate-limited to at most one every MinLSInterval (§3) -- Ze reuses the carrier's MinLSInterval rate-limit (OriginateSelf); a pull-model unchanged body floods nothing | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3630-2.5.4-1` | An implementation may choose not to send the Remote Interface IP Address sub-TLV for Multi-access links (§2.5.4) -- Ze omits sub-TLV 4 on multi-access links | MAY | 2.5.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3630-3-2` | An implementation may set thresholds (e.g., a bandwidth change threshold) that trigger immediate flooding (§3) | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3630-6-4` | The guidelines for the assignment of types for sub-TLVs in a TE LSA are as follows: o Types in the range 10-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved sub-TLV Type range 32778-65535 |
+| `RFC3630-2.4.1-1` | If a router advertises BGP routes with the BGP next hop attribute set to the BGP router ID, then the Router Address SHOULD be the same as the BGP router ID. (§2.4.1) | SHOULD | 2.4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3630-2.5.7-1` | This SHOULD be user-configurable; the default value should be the Maximum Bandwidth. (§2.5.7) -- Ze: `max-reservable-bandwidth` leaf, defaulting to `max-bandwidth`, in applyTELinkAttributes | SHOULD | 2.5.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3630-3-1` | In any case, the origination of Traffic Engineering LSAs SHOULD be rate-limited to at most one every MinLSInterval [1]. (§3) -- Ze reuses the carrier's MinLSInterval rate-limit in OriginateSelf; a pull-model unchanged body floods nothing | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3630-2.5.4-1` | If the Link Type of the link is Multi-access, the Remote Interface IP Address is set to 0.0.0.0; alternatively, an implementation MAY choose not to send this sub-TLV. (§2.5.4) -- Ze omits sub-TLV 4 on multi-access links | MAY | 2.5.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3630-3-2` | an implementation MAY set thresholds (for example, a bandwidth change threshold) that trigger immediate flooding (§3) | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC3630-6-1`](#rfc3630-6-1) o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental top-level Type range 32768-32777 |
-| [`RFC3630-6-2`](#rfc3630-6-2) Top-level Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved top-level Type range 32778-65535 |
+| [`RFC3630-6-2`](#rfc3630-6-2) Here are the guidelines (using terms defined in [10]) for the assignment of top level Types in TE LSAs: o Types in the range 3-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved top-level Type range 32778-65535 |
 | [`RFC3630-6-3`](#rfc3630-6-3) o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental sub-TLV Type range 32768-32777 |
-| [`RFC3630-6-4`](#rfc3630-6-4) Sub-TLV Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved sub-TLV Type range 32778-65535 |
+| [`RFC3630-6-4`](#rfc3630-6-4) The guidelines for the assignment of types for sub-TLVs in a TE LSA are as follows: o Types in the range 10-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved sub-TLV Type range 32778-65535 |
 
 ## Proof state
 
@@ -128,9 +129,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC3630-1-1`](#rfc3630-1-1)
 
-Non-TE capable nodes must flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (§1) -- the ext-1 opaque carrier floods Type 10 by scope regardless of any TE consumer (Ze: spec-ospf-ext-2)
+if non-TE capable nodes exist in the topology, they MUST flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (see [3]). (§1) -- the ext-1 opaque carrier floods Type 10 by scope regardless of any TE consumer; Ze: spec-ospf-ext-2
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Non-TE capable nodes MUST flood TE LSAs as any other type 10 opaque LSA. TestRFC3630NonTECapableFloodsTELSAByScope (ospf/lsdb) asserts the TE LSA reaches the retransmit list of the same-area opaque-capable neighbour. That goes red if the carrier drops or withholds TE LSAs. It also asserts the LSA is absent from the other area's neighbour, which goes red if TE LSAs were flooded beyond area-local scope, unlike any other type 10.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -147,7 +148,7 @@ No test carries RFC3630-6-1, so no unit is bound to it.
 
 ### [`RFC3630-6-2`](#rfc3630-6-2)
 
-Top-level Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6)
+Here are the guidelines (using terms defined in [10]) for the assignment of top level Types in TE LSAs: o Types in the range 3-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -163,7 +164,7 @@ No test carries RFC3630-6-3, so no unit is bound to it.
 
 ### [`RFC3630-6-4`](#rfc3630-6-4)
 
-Sub-TLV Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6)
+The guidelines for the assignment of types for sub-TLVs in a TE LSA are as follows: o Types in the range 10-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 

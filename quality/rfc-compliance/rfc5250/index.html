@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5250 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5250: The OSPF Opaque LSA Option. 13 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5250: The OSPF Opaque LSA Option. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5250 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5250: The OSPF Opaque LSA Option. 13 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5250: The OSPF Opaque LSA Option. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5250 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5250: The OSPF Opaque LSA Option. 13 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5250: The OSPF Opaque LSA Option. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>10</strong><b>of 13 gated MUSTs judged</b><p>6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>27</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>10</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>6</td>
@@ -292,7 +300,7 @@ Same OSPF experimental status.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3-1">RFC5250-3-1</code></td><td colspan="3"><span class="rfc-subject">Recognize LS types 9, 10, 11 as Opaque LSAs and apply scope-specific flooding (§3, §3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3-1">RFC5250-3-1</code></td><td colspan="3"><span class="rfc-subject">Opaque LSAs are types 9, 10, and 11 link state advertisements. Opaque LSAs consist of a standard LSA header followed by a 32-bit aligned application-specific information field. Standard link-state database flooding mechanisms are used for distribution of Opaque LSAs. The range of topological distribution (i.e., the flooding scope) of an Opaque LSA is identified by its link-state type. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -312,7 +320,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L120" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType9WrongInterfaceDiscarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-2">RFC5250-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Type-10 LSA whose area differs from the target interface&#39;s area MUST be discarded (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-2">RFC5250-3.1-2</code></td><td colspan="3"><span class="rfc-subject">If the Opaque LSA is type-10 (the flooding scope is area-local) and the area associated with the Opaque LSA (as identified during origination or from a received LSA&#39;s associated OSPF packet header) is not the same as the area associated with the target interface, the Opaque LSA MUST be discarded and not acknowledged. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -322,7 +330,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L207" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType10ConfinedToItsArea</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-3">RFC5250-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Type-11 LSA MUST NOT be flooded into stub areas or NSSAs; received on such an interface it MUST be discarded (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-3">RFC5250-3.1-3</code></td><td colspan="3"><span class="rfc-subject">If the Opaque LSA is type-11 (the LSA is flooded throughout the AS) and the target interface is associated with a stub area or NSSA, the Opaque LSA MUST NOT be flooded out the interface. A type-11 Opaque LSA that is received on an interface associated with a stub area or NSSA MUST be discarded and not acknowledged (the neighboring router has flooded the LSA in error). (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -331,7 +339,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L152" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11StubDiscarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-4">RFC5250-3.1-4</code></td><td colspan="3"><span class="rfc-subject">Flood Opaque LSAs only to opaque-capable neighbors (O-bit set in DD) (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-4">RFC5250-3.1-4</code></td><td colspan="3"><span class="rfc-subject">Opaque LSAs are only flooded to opaque-capable neighbors. To be more precise, in Section 13.3 of [OSPF], Opaque LSAs MUST be placed on the link-state retransmission lists of opaque-capable neighbors and MUST NOT be placed on the link-state retransmission lists of non-opaque-capable neighbors. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -340,7 +348,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_flood_test.go#L42" title="internal/plugins/ospf/lsdb/opaque_flood_test.go" target="_blank" rel="noopener"><code>TestOpaqueFloodOnlyToOpaqueNeighbor</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3-2">RFC5250-3-2</code></td><td colspan="3"><span class="rfc-subject">Split the Link State ID into a 1-byte Opaque Type + 3-byte Opaque ID for the LSDB key (§3, Appendix A.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3-2">RFC5250-3-2</code></td><td colspan="3"><span class="rfc-subject">The link-state ID of the Opaque LSA is divided into an Opaque type field (the first 8 bits) and a type-specific ID (the remaining 24 bits). (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -349,7 +357,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Link State ID split is a pure bit operation (high octet is the Opaque Type, low 24 bits the Opaque ID) with no validation or reject path, so there is no negative behavior to drive</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-5">RFC5250-3.1-5</code></td><td colspan="3"><span class="rfc-subject">Ignore the O-bit when received in packets other than Database Description packets (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-5">RFC5250-3.1-5</code></td><td colspan="3"><span class="rfc-subject">the O-bit SHOULD NOT be set and MUST be ignored when received in packets other than Database Description packets. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -376,7 +384,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> reachability is recomputed from a live SPF seam on every opaque delivery (internal/plugins/ospf/opaque.go:126,243) and never cached, so a now-unreachable originator yields not-usable on the next evaluation; there is no stale-cache code path to drive a negative</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.2-1">RFC5250-3.2-1</code></td><td colspan="3"><span class="rfc-subject">At ExStart/NegotiationDone, list the entire area link-state database in the neighbor Database summary list, which now includes type-9 and type-10 Opaque LSAs from the area structure and type-11 Opaque LSAs from the global structure (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.2-1">RFC5250-3.2-1</code></td><td colspan="3"><span class="rfc-subject">The router MUST list the contents of its entire area link-state database in the neighbor Database summary list. The area link-state database consists of the Router LSAs, Network LSAs, Summary LSAs, type-9 Opaque LSAs, and type-10 Opaque LSAs contained in the area structure, along with AS External and type-11 Opaque LSAs contained in the global structure. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
@@ -412,7 +420,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/dd_summary_rfc5250_test.go#L61" title="internal/plugins/ospf/neighbor/dd_summary_rfc5250_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsOtherInterfaceType9</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-6">RFC5250-3.1-6</code></td><td colspan="3"><span class="rfc-subject">Set the O-bit in DD packets to advertise opaque capability; SHOULD NOT set it in non-DD packets (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-6">RFC5250-3.1-6</code></td><td colspan="3"><span class="rfc-subject">A neighbor is opaque-capable if and only if it sets the O-bit in the Options field of its Database Description packets; the O-bit SHOULD NOT be set and MUST be ignored when received in packets other than Database Description packets. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1</td>
@@ -421,7 +429,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-8-1">RFC5250-8-1</code></td><td colspan="3"><span class="rfc-subject">Rate-limit Opaque LSA origination (&gt;= 5 s) and acceptance (&gt;= 1 s) (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-8-1">RFC5250-8-1</code></td><td colspan="3"><span class="rfc-subject">The frequency at which new LSA instances may be originated is set equal to once every MinLSInterval seconds, whose value is 5 seconds (see Section 12.4 of [OSPF]). The frequency at which new LSA instances are accepted during flooding is once every MinLSArrival seconds, whose value is set to 1 (see Section 13, Appendix B, and G.5 of [OSPF]). (§8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8</td>
@@ -440,8 +448,8 @@ Same OSPF experimental status.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5250-3-1"><code>RFC5250-3-1</code></a></h3>
-<p>Recognize LS types 9, 10, 11 as Opaque LSAs and apply scope-specific flooding (§3, §3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Opaque LSAs are types 9, 10, and 11 link state advertisements. Opaque LSAs consist of a standard LSA header followed by a 32-bit aligned application-specific information field. Standard link-state database flooding mechanisms are used for distribution of Opaque LSAs. The range of topological distribution (i.e., the flooding scope) of an Opaque LSA is identified by its link-state type. (§3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Types 9/10/11 as Opaque and scope-by-type are enforced: lstype_test.go fatals if a standard type IsOpaque or an opaque type is not; TestOpaqueScopeRouting fatals if Type 11 is not AS-wide or a Type 9 is accepted into an area store. The quoted span also states that Opaque LSAs consist of a standard LSA header followed by a 32-bit aligned body and that standard flooding mechanisms distribute them; no tagged unit asserts either.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -471,7 +479,7 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc5250-3.1-1"><code>RFC5250-3.1-1</code></a></h3>
 <p>o If the Opaque LSA is type-9 (the flooding scope is link-local) and the interface that the LSA was received on is not the same as the target interface (e.g., the interface associated with a particular target neighbor), the Opaque LSA MUST be discarded and not acknowledged. (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Discard is enforced: TestOpaqueType9WrongInterfaceDiscarded fatals if a Type 9 received on eth0 is found in the eth1 link store, flooded as an LSUpdate out eth1, or queued for retransmission to the eth1 neighbor. The &#34;not acknowledged&#34; clause has no assertion: the send loop checks only s.pkt.LSUpdate, so an LSAck out eth1 passes.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -490,8 +498,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5250-3.1-2"><code>RFC5250-3.1-2</code></a></h3>
-<p>Type-10 LSA whose area differs from the target interface&#39;s area MUST be discarded (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the Opaque LSA is type-10 (the flooding scope is area-local) and the area associated with the Opaque LSA (as identified during origination or from a received LSA&#39;s associated OSPF packet header) is not the same as the area associated with the target interface, the Opaque LSA MUST be discarded and not acknowledged. (§3.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Type 10 flooded to or read from an area other than its own. TestOpaqueType10ConfinedToItsArea fatals if the LSA is readable (LookupLSA or Lookup) from area 0.0.0.2, if floodExcept emits anything but exactly one send, on eth0, which also refuses any acknowledgement out the other area interface, or if the eth1 neighbor is queued to retransmit it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -515,8 +523,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5250-3.1-3"><code>RFC5250-3.1-3</code></a></h3>
-<p>Type-11 LSA MUST NOT be flooded into stub areas or NSSAs; received on such an interface it MUST be discarded (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the Opaque LSA is type-11 (the LSA is flooded throughout the AS) and the target interface is associated with a stub area or NSSA, the Opaque LSA MUST NOT be flooded out the interface. A type-11 Opaque LSA that is received on an interface associated with a stub area or NSSA MUST be discarded and not acknowledged (the neighboring router has flooded the LSA in error). (§3.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clause 1 forbidden: a Type 11 flooded out a stub interface; TestOpaqueType11StubDiscarded fatals if floodExcept sends on eth0 (stub). Clause 2 forbidden: a Type 11 received on a stub interface installed or acknowledged; the same test fatals if it is found in the store or if any packet at all is sent (len(tx.sends) != 0, which covers an LSAck).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -535,8 +543,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5250-3.1-4"><code>RFC5250-3.1-4</code></a></h3>
-<p>Flood Opaque LSAs only to opaque-capable neighbors (O-bit set in DD) (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Opaque LSAs are only flooded to opaque-capable neighbors. To be more precise, in Section 13.3 of [OSPF], Opaque LSAs MUST be placed on the link-state retransmission lists of opaque-capable neighbors and MUST NOT be placed on the link-state retransmission lists of non-opaque-capable neighbors. (§3.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an opaque LSA placed on the retransmission list of a non-opaque-capable neighbor, or missing from an opaque-capable one. The opaque_flood_test.go unit fatals if db.retransmit lacks the Type 11 for 2.2.2.2 (OpaqueCapable) or holds it for 3.3.3.3 (not capable), and shows a Router LSA still reaches both.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -555,8 +563,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5250-3-2"><code>RFC5250-3-2</code></a></h3>
-<p>Split the Link State ID into a 1-byte Opaque Type + 3-byte Opaque ID for the LSDB key (§3, Appendix A.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The link-state ID of the Opaque LSA is divided into an Opaque type field (the first 8 bits) and a type-specific ID (the remaining 24 bits). (§3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Link State ID split other than 8-bit type and 24-bit ID. TestOpaqueLinkStateIDSplit fatals if OpaqueTypeOf(AA BB CC DD) != 0xAA or OpaqueIDOf != 0x00BBCCDD, on a failed round trip, on a high id byte leaking into the type, and at the 0xFF/0xFFFFFF boundary. Row carries {single-polarity: positive}.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -570,8 +578,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5250-3.1-5"><code>RFC5250-3.1-5</code></a></h3>
-<p>Ignore the O-bit when received in packets other than Database Description packets (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>the O-bit SHOULD NOT be set and MUST be ignored when received in packets other than Database Description packets. (§3.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The negative in dd_opaque_test.go asserts a neighbor is not opaque-capable after Hellos, but HelloInput carries no Options field and the Hellos carry no O-bit, so no non-DD packet with the O-bit set is ever received: a NAS that read the O-bit from a Hello is not driven. The quoted &#34;SHOULD NOT be set&#34; clause (no O-bit sent in non-DD packets) has no assertion either.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -591,7 +599,7 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc5250-5-1"><code>RFC5250-5-1</code></a></h3>
 <p>(2) When processing a received type-11 Opaque LSA, the router MUST look up the routing table entries (potentially one per attached area) for the ASBR that originated the LSA. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The unit replaces eng.opaqueReachableFn with a stub keyed on router ID and checks deliverOpaque reports Reachable accordingly. The sentence obliges a lookup of the routing table entries for the originating ASBR; the seam is faked, so a predicate that never consulted the routing table (or looked up the router rather than the ASBR entry) stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -611,7 +619,7 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc5250-5-2"><code>RFC5250-5-2</code></a></h3>
 <p>It also MUST discontinue using all Opaque LSAs injected into the network by the same originator whenever it is detected that the originator is unreachable. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: continuing to use Opaque LSAs already delivered from an originator once it becomes unreachable. The tagged positive delivers one LSA from an unreachable and one from a reachable originator; no unit delivers from an originator, flips it unreachable, and asserts its earlier LSAs stop being used, so a consumer holding stale Reachable=true data stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -625,8 +633,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5250-3.2-1"><code>RFC5250-3.2-1</code></a></h3>
-<p>At ExStart/NegotiationDone, list the entire area link-state database in the neighbor Database summary list, which now includes type-9 and type-10 Opaque LSAs from the area structure and type-11 Opaque LSAs from the global structure (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The router MUST list the contents of its entire area link-state database in the neighbor Database summary list. The area link-state database consists of the Router LSAs, Network LSAs, Summary LSAs, type-9 Opaque LSAs, and type-10 Opaque LSAs contained in the area structure, along with AS External and type-11 Opaque LSAs contained in the global structure. (§3.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The normal-area summary is asserted to list type-10, type-5 and type-11 LSAs (TestRFC5250SummaryListsOpaqueAndGlobalLSAs). The quoted list also names type-9 Opaque LSAs and Router, Network and Summary LSAs, and no tagged unit asserts any of them in the Database summary list; the tagged negative is the stub/NSSA omission of RFC5250-3.2-3.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -968,7 +976,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 0.0% | 0 of 10 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 10 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 10 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 12 | of 15 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces |
-| Out of scope | 6 | of 12 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 50.0% | 6 of 12 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| MUSTs declared | 10 | of 12 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces |
+| Out of scope | 4 | of 10 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 40.0% | 4 of 10 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 10 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 10 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 50.0% | 6 of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 60.0% | 6 of 10 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,10 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | No row in the public ledger |
 | Enrolment | Not enrolled (third-party) |
-| Requirements | 15 |
-| Gated MUST-level | 12 |
-| Not applicable, so out of scope | 6 |
+| Requirements | 12 |
+| Gated MUST-level | 10 |
+| Not applicable, so out of scope | 4 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 6 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
@@ -86,14 +87,14 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 6 | one part of the gated population |
+| Annotated instead of tested | 4 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 6 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **12** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **10** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (6):** [`RFC3031-3.8-1`](#rfc3031-3.8-1), [`RFC3031-3.10-1`](#rfc3031-3.10-1), [`RFC3031-3.24-1`](#rfc3031-3.24-1), [`RFC3031-3.24-2`](#rfc3031-3.24-2), [`RFC3031-3.10-2`](#rfc3031-3.10-2), [`RFC3031-x-1`](#rfc3031-x-1)
+**Annotated instead of tested (4):** [`RFC3031-3.8-1`](#rfc3031-3.8-1), [`RFC3031-3.10-1`](#rfc3031-3.10-1), [`RFC3031-3.10-2`](#rfc3031-3.10-2), [`RFC3031-x-1`](#rfc3031-x-1)
 
 **No test and no annotation (6):** [`RFC3031-3.14-1`](#rfc3031-3.14-1), [`RFC3031-3.16-1`](#rfc3031-3.16-1), [`RFC3031-3.16-2`](#rfc3031-3.16-2), [`RFC3031-3.16-3`](#rfc3031-3.16-3), [`RFC3031-3.23-1`](#rfc3031-3.23-1), [`RFC3031-4.1.2.2-1`](#rfc3031-4.1.2.2-1)
 
@@ -101,38 +102,33 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC3031-3.8-1` | Label forwarding MUST use the Next Hop Label Forwarding Entry (NHLFE) for lookup (S3.8) | MUST | 3.8 - Label Retention Mode | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an MPLS control plane that programs the incoming-label-to-NHLFE mapping as kernel AF_MPLS routes (internal/plugins/fib/kernel/mplsentry_linux.go:21 addMPLSSwap) and VPP entries (internal/plugins/fib/vpp/mpls.go); the NHLFE lookup on a forwarded packet is executed by the kernel/VPP dataplane, and ze has no in-process MPLS packet-forwarding path |
+| `RFC3031-3.8-1` | The "Next Hop Label Forwarding Entry" (NHLFE) is used when forwarding a labeled packet. (§3.10) | MUST | 3.10 - The NHLFE | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an MPLS control plane that programs the incoming-label-to-NHLFE mapping as kernel AF_MPLS routes (internal/plugins/fib/kernel/mplsentry_linux.go:21 addMPLSSwap) and VPP entries (internal/plugins/fib/vpp/mpls.go); the NHLFE lookup on a forwarded packet is executed by the kernel/VPP dataplane, and ze has no in-process MPLS packet-forwarding path |
 | `RFC3031-3.14-1` | In all other cases, Rd MUST NOT distribute to Ru bindings of the same label value to two different FECs (S3.14) | MUST | 3.14 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3031-3.10-1` | If the packet's "next hop" is the current LSR, then the label stack operation MUST be to "pop the stack" (S3.10) | MUST | 3.10 - The NHLFE | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the NHLFE label stack operation is executed on a forwarded packet by the kernel AF_MPLS or VPP dataplane; ze programs the pop disposition as a route (internal/plugins/fib/kernel/mplsentry_linux.go:44-56) and has no in-process MPLS packet-forwarding path |
-| `RFC3031-3.24-1` | TTL field MUST be decremented at each LSR (S3.24) | MUST | 3.24 - Loop Control | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** MPLS label-stack TTL decrement on a forwarded packet is performed by the kernel/VPP dataplane; ze sets only the initial push TTL (internal/plugins/fib/vpp/mpls.go) and has no transit packet-forwarding TTL code path |
-| `RFC3031-3.24-2` | If TTL reaches 0, packet MUST be discarded (S3.24) | MUST | 3.24 - Loop Control | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** discarding a packet whose MPLS TTL reached zero is executed by the kernel/VPP dataplane; ze has no MPLS packet-forwarding path that could observe or act on the label-stack TTL |
-| `RFC3031-3.10-2` | Top label only determines forwarding; lower labels are opaque to transit LSRs (S3.10) | MUST | 3.10 - The NHLFE | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze keys each programmed swap entry on the top/incoming label (internal/plugins/fib/kernel/mplsentry_linux.go:24 MPLSDst), but the top-label-only forwarding decision on a packet is executed by the kernel dataplane; ze has no in-process forwarding path |
-| `RFC3031-x-1` | Unknown label in lookup: discard packet (Validation) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** discarding a packet whose top label has no ILM entry is executed by the kernel/VPP dataplane on a lookup miss; ze programs the entries and has no MPLS packet-forwarding path that could observe an unknown-label miss |
+| `RFC3031-3.10-2` | The processing is always based on the top label, without regard for the possibility that some number of other labels may have been "above it" in the past, or that some number of other labels may be below it at present. (§3.9) | MUST | 3.9 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze keys each programmed swap entry on the top/incoming label (internal/plugins/fib/kernel/mplsentry_linux.go:24 MPLSDst), but the top-label-only forwarding decision on a packet is executed by the kernel dataplane; ze has no in-process forwarding path |
+| `RFC3031-x-1` | Therefore, when a labeled packet is received with an invalid incoming label, it MUST be discarded, UNLESS it is determined by some means (not within the scope of the current document) that forwarding it unlabeled cannot cause any harm. (§3.18) | MUST | 3.18 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** discarding a packet whose top label has no ILM entry is executed by the kernel/VPP dataplane on a lookup miss; ze programs the entries and has no MPLS packet-forwarding path that could observe an unknown-label miss |
 | `RFC3031-3.16-1` | An LSR which is capable of popping the label stack at all MUST do penultimate hop popping when so requested by its downstream label distribution peer (S3.16) | MUST | 3.16 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3031-3.16-2` | Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRS are capable of popping the label stack. (S3.16) | MUST | 3.16 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3031-3.16-3` | A LSR MUST NOT request a label distribution peer to pop the label stack unless it is capable of doing so (S3.16) | MUST | 3.16 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3031-3.23-1` | If the label values are encoded in a "shim" that sits between the data link and network layer headers, then this shim MUST have a TTL field that SHOULD be initially loaded from the network layer header TTL field, SHOULD be decremented at each LSR-hop, and SHOULD be copied into the network layer header TTL field when the packet emerges from its LSP (S3.23) | MUST | 3.23 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3031-4.1.2.2-1` | In order to use MPLS for the forwarding of packets according to the hop-by-hop route corresponding to any address prefix, each LSR MUST bind one or more labels to each address prefix that appears in its routing table, and for each such address prefix X use a label distribution protocol to distribute the binding of a label to X to each of its label distribution peers for X (S4.1.2.2) | MUST | 4.1.2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3031-3.15-1` | An LSR SHOULD be able to support both liberal and conservative label retention modes (S3.15) | SHOULD | 3.15 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3031-3.14-2` | LSR MAY support label merging to reduce label consumption (S3.14) | MAY | 3.14 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3031-2.1-1` | Explicitly routed LSPs MAY be used for traffic engineering (S2.1) | MAY | 2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3031-4.1.2.2-1` | In order to use MPLS for the forwarding of packets according to the hop-by-hop route corresponding to any address prefix, each LSR MUST: 1. bind one or more labels to each address prefix that appears in its routing table; 2. for each such address prefix X, use a label distribution protocol to distribute the binding of a label to X to each of its label distribution peers for X. (S4.1.2.2) | MUST | 4.1.2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3031-3.14-2` | The MPLS architecture accommodates both merging and non-merging LSRs, but allows for the fact that there may be LSRs which do not support label merging. (§3.26) | MAY | 3.26 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3031-2.1-1` | Sometimes it is desirable to force a packet to follow a particular route which is explicitly chosen at or before the time the packet enters the network, rather than being chosen by the normal dynamic routing algorithm as the packet travels through the network. This may be done as a matter of policy, or to support traffic engineering. (S2.1) | MAY | 2.1 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC3031-3.8-1`](#rfc3031-3.8-1) Label forwarding MUST use the Next Hop Label Forwarding Entry (NHLFE) for lookup (S3.8) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an MPLS control plane that programs the incoming-label-to-NHLFE mapping as kernel AF_MPLS routes (internal/plugins/fib/kernel/mplsentry_linux.go:21 addMPLSSwap) and VPP entries (internal/plugins/fib/vpp/mpls.go); the NHLFE lookup on a forwarded packet is executed by the kernel/VPP dataplane, and ze has no in-process MPLS packet-forwarding path |
+| [`RFC3031-3.8-1`](#rfc3031-3.8-1) The "Next Hop Label Forwarding Entry" (NHLFE) is used when forwarding a labeled packet. (§3.10) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an MPLS control plane that programs the incoming-label-to-NHLFE mapping as kernel AF_MPLS routes (internal/plugins/fib/kernel/mplsentry_linux.go:21 addMPLSSwap) and VPP entries (internal/plugins/fib/vpp/mpls.go); the NHLFE lookup on a forwarded packet is executed by the kernel/VPP dataplane, and ze has no in-process MPLS packet-forwarding path |
 | [`RFC3031-3.14-1`](#rfc3031-3.14-1) In all other cases, Rd MUST NOT distribute to Ru bindings of the same label value to two different FECs (S3.14) | no test | no test carries this requirement id |
 | [`RFC3031-3.10-1`](#rfc3031-3.10-1) If the packet's "next hop" is the current LSR, then the label stack operation MUST be to "pop the stack" (S3.10) | no test | no test carries this requirement id; annotated {not-applicable}: the NHLFE label stack operation is executed on a forwarded packet by the kernel AF_MPLS or VPP dataplane; ze programs the pop disposition as a route (internal/plugins/fib/kernel/mplsentry_linux.go:44-56) and has no in-process MPLS packet-forwarding path |
-| [`RFC3031-3.24-1`](#rfc3031-3.24-1) TTL field MUST be decremented at each LSR (S3.24) | no test | no test carries this requirement id; annotated {not-applicable}: MPLS label-stack TTL decrement on a forwarded packet is performed by the kernel/VPP dataplane; ze sets only the initial push TTL (internal/plugins/fib/vpp/mpls.go) and has no transit packet-forwarding TTL code path |
-| [`RFC3031-3.24-2`](#rfc3031-3.24-2) If TTL reaches 0, packet MUST be discarded (S3.24) | no test | no test carries this requirement id; annotated {not-applicable}: discarding a packet whose MPLS TTL reached zero is executed by the kernel/VPP dataplane; ze has no MPLS packet-forwarding path that could observe or act on the label-stack TTL |
-| [`RFC3031-3.10-2`](#rfc3031-3.10-2) Top label only determines forwarding; lower labels are opaque to transit LSRs (S3.10) | no test | no test carries this requirement id; annotated {not-applicable}: ze keys each programmed swap entry on the top/incoming label (internal/plugins/fib/kernel/mplsentry_linux.go:24 MPLSDst), but the top-label-only forwarding decision on a packet is executed by the kernel dataplane; ze has no in-process forwarding path |
-| [`RFC3031-x-1`](#rfc3031-x-1) Unknown label in lookup: discard packet (Validation) | no test | no test carries this requirement id; annotated {not-applicable}: discarding a packet whose top label has no ILM entry is executed by the kernel/VPP dataplane on a lookup miss; ze programs the entries and has no MPLS packet-forwarding path that could observe an unknown-label miss |
+| [`RFC3031-3.10-2`](#rfc3031-3.10-2) The processing is always based on the top label, without regard for the possibility that some number of other labels may have been "above it" in the past, or that some number of other labels may be below it at present. (§3.9) | no test | no test carries this requirement id; annotated {not-applicable}: ze keys each programmed swap entry on the top/incoming label (internal/plugins/fib/kernel/mplsentry_linux.go:24 MPLSDst), but the top-label-only forwarding decision on a packet is executed by the kernel dataplane; ze has no in-process forwarding path |
+| [`RFC3031-x-1`](#rfc3031-x-1) Therefore, when a labeled packet is received with an invalid incoming label, it MUST be discarded, UNLESS it is determined by some means (not within the scope of the current document) that forwarding it unlabeled cannot cause any harm. (§3.18) | no test | no test carries this requirement id; annotated {not-applicable}: discarding a packet whose top label has no ILM entry is executed by the kernel/VPP dataplane on a lookup miss; ze programs the entries and has no MPLS packet-forwarding path that could observe an unknown-label miss |
 | [`RFC3031-3.16-1`](#rfc3031-3.16-1) An LSR which is capable of popping the label stack at all MUST do penultimate hop popping when so requested by its downstream label distribution peer (S3.16) | no test | no test carries this requirement id |
 | [`RFC3031-3.16-2`](#rfc3031-3.16-2) Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRS are capable of popping the label stack. (S3.16) | no test | no test carries this requirement id |
 | [`RFC3031-3.16-3`](#rfc3031-3.16-3) A LSR MUST NOT request a label distribution peer to pop the label stack unless it is capable of doing so (S3.16) | no test | no test carries this requirement id |
 | [`RFC3031-3.23-1`](#rfc3031-3.23-1) If the label values are encoded in a "shim" that sits between the data link and network layer headers, then this shim MUST have a TTL field that SHOULD be initially loaded from the network layer header TTL field, SHOULD be decremented at each LSR-hop, and SHOULD be copied into the network layer header TTL field when the packet emerges from its LSP (S3.23) | no test | no test carries this requirement id |
-| [`RFC3031-4.1.2.2-1`](#rfc3031-4.1.2.2-1) In order to use MPLS for the forwarding of packets according to the hop-by-hop route corresponding to any address prefix, each LSR MUST bind one or more labels to each address prefix that appears in its routing table, and for each such address prefix X use a label distribution protocol to distribute the binding of a label to X to each of its label distribution peers for X (S4.1.2.2) | no test | no test carries this requirement id |
+| [`RFC3031-4.1.2.2-1`](#rfc3031-4.1.2.2-1) In order to use MPLS for the forwarding of packets according to the hop-by-hop route corresponding to any address prefix, each LSR MUST: 1. bind one or more labels to each address prefix that appears in its routing table; 2. for each such address prefix X, use a label distribution protocol to distribute the binding of a label to X to each of its label distribution peers for X. (S4.1.2.2) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -140,7 +136,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC3031-3.8-1`](#rfc3031-3.8-1)
 
-Label forwarding MUST use the Next Hop Label Forwarding Entry (NHLFE) for lookup (S3.8)
+The "Next Hop Label Forwarding Entry" (NHLFE) is used when forwarding a labeled packet. (§3.10)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -162,25 +158,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC3031-3.10-1, so no unit is bound to it.
 
-### [`RFC3031-3.24-1`](#rfc3031-3.24-1)
-
-TTL field MUST be decremented at each LSR (S3.24)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC3031-3.24-1, so no unit is bound to it.
-
-### [`RFC3031-3.24-2`](#rfc3031-3.24-2)
-
-If TTL reaches 0, packet MUST be discarded (S3.24)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC3031-3.24-2, so no unit is bound to it.
-
 ### [`RFC3031-3.10-2`](#rfc3031-3.10-2)
 
-Top label only determines forwarding; lower labels are opaque to transit LSRs (S3.10)
+The processing is always based on the top label, without regard for the possibility that some number of other labels may have been "above it" in the past, or that some number of other labels may be below it at present. (§3.9)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -188,7 +168,7 @@ No test carries RFC3031-3.10-2, so no unit is bound to it.
 
 ### [`RFC3031-x-1`](#rfc3031-x-1)
 
-Unknown label in lookup: discard packet (Validation)
+Therefore, when a labeled packet is received with an invalid incoming label, it MUST be discarded, UNLESS it is determined by some means (not within the scope of the current document) that forwarding it unlabeled cannot cause any harm. (§3.18)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -228,7 +208,7 @@ No test carries RFC3031-3.23-1, so no unit is bound to it.
 
 ### [`RFC3031-4.1.2.2-1`](#rfc3031-4.1.2.2-1)
 
-In order to use MPLS for the forwarding of packets according to the hop-by-hop route corresponding to any address prefix, each LSR MUST bind one or more labels to each address prefix that appears in its routing table, and for each such address prefix X use a label distribution protocol to distribute the binding of a label to X to each of its label distribution peers for X (S4.1.2.2)
+In order to use MPLS for the forwarding of packets according to the hop-by-hop route corresponding to any address prefix, each LSR MUST: 1. bind one or more labels to each address prefix that appears in its routing table; 2. for each such address prefix X, use a label distribution protocol to distribute the binding of a label to X to each of its label distribution peers for X. (S4.1.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -284,7 +264,7 @@ No test carries RFC3031-4.1.2.2-1, so no unit is bound to it.
 | `3.21` | not stated | 0 | walked | not stated |
 | `3.22` | not stated | 0 | walked | not stated |
 | `3.23` | not stated | 3 | walked | not stated |
-| `3.24` | Loop Control | 1 | walked | Loop Control. Its one site is the lower-case loop-detection sentence, excluded. RFC3031-3.24-1 (TTL decremented at each LSR) and RFC3031-3.24-2 (discard at TTL 0) were read from the indicative prose of section 3.23, "Whenever a packet passes through a router, its TTL gets decremented by 1; if the TTL reaches 0 before the packet has reached its destination, the packet gets discarded." Section 3.23 states the shim TTL "SHOULD be decremented at each LSR-hop"; this document states no MUST for either row, and section 3.24 does not mention TTL handling. |
+| `3.24` | Loop Control | 1 | walked | Loop Control. Its one site is the lower-case loop-detection sentence, excluded. Section 3.24 does not mention TTL handling. The two rows once listed here, RFC3031-3.24-1 and RFC3031-3.24-2, were retired 2026-09-26 (rfc/corrections/rfc3031.md): RFC 3032 section 2.4.2 states the label-stack TTL obligations. |
 | `3.25` | not stated | 0 | walked | not stated |
 | `3.25.1` | not stated | 0 | walked | not stated |
 | `3.25.2` | not stated | 2 | walked | not stated |

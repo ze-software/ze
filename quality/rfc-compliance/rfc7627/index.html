@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7627 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7627: Transport Layer Security (TLS) Session Hash and Extended Master Secret Extension. 17 gated MUST-level requirements, 0 declared gaps, 17 with no test." />
+        <meta name="description" content="RFC 7627: Transport Layer Security (TLS) Session Hash and Extended Master Secret Extension. 17 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 17 with no test." />
         <meta property="og:title" content="RFC 7627 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7627: Transport Layer Security (TLS) Session Hash and Extended Master Secret Extension. 17 gated MUST-level requirements, 0 declared gaps, 17 with no test." />
+        <meta property="og:description" content="RFC 7627: Transport Layer Security (TLS) Session Hash and Extended Master Secret Extension. 17 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 17 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7627 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7627: Transport Layer Security (TLS) Session Hash and Extended Master Secret Extension. 17 gated MUST-level requirements, 0 declared gaps, 17 with no test." />
+        <meta name="twitter:description" content="RFC 7627: Transport Layer Security (TLS) Session Hash and Extended Master Secret Extension. 17 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 17 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -214,6 +214,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>17</td>
 </tr>
@@ -291,7 +294,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.1-1">RFC7627-5.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;If the client and server agree on this extension and a full handshake takes place, both client and server MUST use the extended master secret derivation algorithm, as defined in Section 4&#34; (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.1-1">RFC7627-5.1-1</code></td><td colspan="3"><span class="rfc-subject">If the client and server agree on this extension and a full handshake takes place, both client and server MUST use the extended master secret derivation algorithm, as defined in Section 4. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -300,7 +303,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.2-1">RFC7627-5.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;In all handshakes, a client implementing this document MUST send the &#34;extended_master_secret&#34; extension in its ClientHello&#34; (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.2-1">RFC7627-5.2-1</code></td><td colspan="3"><span class="rfc-subject">In all handshakes, a client implementing this document MUST send the &#34;extended_master_secret&#34; extension in its ClientHello. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2</td>
@@ -309,7 +312,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.2-2">RFC7627-5.2-2</code></td><td colspan="3"><span class="rfc-subject">&#34;If a server implementing this document receives the &#34;extended_master_secret&#34; extension, it MUST include the extension in its ServerHello message&#34; (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.2-2">RFC7627-5.2-2</code></td><td colspan="3"><span class="rfc-subject">If a server implementing this document receives the &#34;extended_master_secret&#34; extension, it MUST include the extension in its ServerHello message. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2</td>
@@ -318,7 +321,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.2-4">RFC7627-5.2-4</code></td><td colspan="3"><span class="rfc-subject">A server that receives a ClientHello without the extension and chooses to continue the handshake &#34;MUST NOT include the extension in the ServerHello&#34; (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.2-4">RFC7627-5.2-4</code></td><td colspan="3"><span class="rfc-subject">If the server receives a ClientHello without the extension, it SHOULD abort the handshake if it does not wish to interoperate with legacy clients. If it chooses to continue the handshake, then it MUST NOT include the extension in the ServerHello. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.2</td>
@@ -327,7 +330,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.2-6">RFC7627-5.2-6</code></td><td colspan="3"><span class="rfc-subject">&#34;If the client and server choose to continue a full handshake without the extension, they MUST use the standard master secret derivation for the new session&#34; (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.2-6">RFC7627-5.2-6</code></td><td colspan="3"><span class="rfc-subject">If the client and server choose to continue a full handshake without the extension, they MUST use the standard master secret derivation for the new session. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2</td>
@@ -336,7 +339,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-3">RFC7627-5.3-3</code></td><td colspan="3"><span class="rfc-subject">&#34;When offering an abbreviated handshake, the client MUST send the &#34;extended_master_secret&#34; extension in its ClientHello&#34; (§5.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-3">RFC7627-5.3-3</code></td><td colspan="3"><span class="rfc-subject">When offering an abbreviated handshake, the client MUST send the &#34;extended_master_secret&#34; extension in its ClientHello. (§5.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.3</td>
@@ -345,7 +348,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-4">RFC7627-5.3-4</code></td><td colspan="3"><span class="rfc-subject">Where the original session did not use the extension but the new ClientHello contains it, &#34;the server MUST NOT perform the abbreviated handshake&#34; (§5.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-4">RFC7627-5.3-4</code></td><td colspan="3"><span class="rfc-subject">If the original session did not use the &#34;extended_master_secret&#34; extension but the new ClientHello contains the extension, then the server MUST NOT perform the abbreviated handshake. (§5.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.3</td>
@@ -354,7 +357,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-6">RFC7627-5.3-6</code></td><td colspan="3"><span class="rfc-subject">Where the original session used the extension but the new ClientHello does not contain it, &#34;the server MUST abort the abbreviated handshake&#34; (§5.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-6">RFC7627-5.3-6</code></td><td colspan="3"><span class="rfc-subject">If the original session used the &#34;extended_master_secret&#34; extension but the new ClientHello does not contain it, the server MUST abort the abbreviated handshake. (§5.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.3</td>
@@ -363,7 +366,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-8">RFC7627-5.3-8</code></td><td colspan="3"><span class="rfc-subject">Where the new ClientHello contains the extension and the server chooses to continue the handshake, &#34;the server MUST include the &#34;extended_master_secret&#34; extension in its ServerHello message&#34; (§5.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-8">RFC7627-5.3-8</code></td><td colspan="3"><span class="rfc-subject">If the new ClientHello contains the extension and the server chooses to continue the handshake, then the server MUST include the &#34;extended_master_secret&#34; extension in its ServerHello message. (§5.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.3</td>
@@ -372,7 +375,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-9">RFC7627-5.3-9</code></td><td colspan="3"><span class="rfc-subject">Where the original session did not use the extension but the new ServerHello contains it, &#34;the client MUST abort the handshake&#34; (§5.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-9">RFC7627-5.3-9</code></td><td colspan="3"><span class="rfc-subject">If the original session did not use the &#34;extended_master_secret&#34; extension but the new ServerHello contains the extension, the client MUST abort the handshake. (§5.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.3</td>
@@ -381,7 +384,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-10">RFC7627-5.3-10</code></td><td colspan="3"><span class="rfc-subject">Where the original session used the extension but the new ServerHello does not contain it, &#34;the client MUST abort the handshake&#34; (§5.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-10">RFC7627-5.3-10</code></td><td colspan="3"><span class="rfc-subject">If the original session used the extension but the new ServerHello does not contain the extension, the client MUST abort the handshake. (§5.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.3</td>
@@ -390,7 +393,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-1">RFC7627-5.4-1</code></td><td colspan="3"><span class="rfc-subject">After a full handshake continued without the extension, &#34;the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication&#34; (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-1">RFC7627-5.4-1</code></td><td colspan="3"><span class="rfc-subject">If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.4</td>
@@ -399,7 +402,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-2">RFC7627-5.4-2</code></td><td colspan="3"><span class="rfc-subject">After a full handshake continued without the extension, &#34;it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication&#34; (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-2">RFC7627-5.4-2</code></td><td colspan="3"><span class="rfc-subject">If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. In particular, it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication [COMPOUND-AUTH]. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4</td>
@@ -408,7 +411,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-3">RFC7627-5.4-3</code></td><td colspan="3"><span class="rfc-subject">After an abbreviated handshake resuming a session without the extended master secret, &#34;the client or server MUST NOT use the current handshake&#39;s &#34;verify_data&#34; for application-level authentication&#34; (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-3">RFC7627-5.4-3</code></td><td colspan="3"><span class="rfc-subject">If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake&#39;s &#34;verify_data&#34; for application-level authentication. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.4</td>
@@ -417,7 +420,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-4">RFC7627-5.4-4</code></td><td colspan="3"><span class="rfc-subject">After an abbreviated handshake resuming a session without the extended master secret, &#34;the client MUST disable renegotiation and any use of the &#34;tls-unique&#34; channel binding [RFC5929] on the current connection&#34; (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-4">RFC7627-5.4-4</code></td><td colspan="3"><span class="rfc-subject">If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake&#39;s &#34;verify_data&#34; for application-level authentication. In particular, the client MUST disable renegotiation and any use of the &#34;tls-unique&#34; channel binding [RFC5929] on the current connection. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4</td>
@@ -426,7 +429,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-6">RFC7627-5.4-6</code></td><td colspan="3"><span class="rfc-subject">Where the original session uses an extended master secret but a hello of the abbreviated handshake omits the extension, &#34;this document recommends that the client and server MUST abort such handshakes&#34; (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-6">RFC7627-5.4-6</code></td><td colspan="3"><span class="rfc-subject">If the original session uses an extended master secret but the ClientHello or ServerHello in the abbreviated handshake does not include the extension, it MAY be safe to continue the abbreviated handshake since it is protected by the extended master secret of the original session. This scenario may occur, for example, when a server that implements this extension establishes a session but the session is subsequently resumed at a different server that does not support the extension. Since such situations are unusual and likely to be the result of transient or inadvertent misconfigurations, this document recommends that the client and server MUST abort such handshakes. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4</td>
@@ -435,7 +438,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-6.4-2">RFC7627-6.4-2</code></td><td colspan="3"><span class="rfc-subject">&#34;If they choose to support SSL 3.0, the resulting sessions MUST use the legacy master secret computation&#34; (§6.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-6.4-2">RFC7627-6.4-2</code></td><td colspan="3"><span class="rfc-subject">Clients and servers implementing this document SHOULD refuse SSL 3.0 handshakes. If they choose to support SSL 3.0, the resulting sessions MUST use the legacy master secret computation (§6.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.4</td>
@@ -444,7 +447,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-4-1">RFC7627-4-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Clients and servers SHOULD NOT accept handshakes that do not use the extended master secret, especially if they rely on features like compound authentication that fall into the vulnerable cases described in Section 6.1&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-4-1">RFC7627-4-1</code></td><td colspan="3"><span class="rfc-subject">Clients and servers SHOULD NOT accept handshakes that do not use the extended master secret, especially if they rely on features like compound authentication that fall into the vulnerable cases described in Section 6.1. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4</td>
@@ -453,7 +456,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.2-3">RFC7627-5.2-3</code></td><td colspan="3"><span class="rfc-subject">&#34;If the server receives a ClientHello without the extension, it SHOULD abort the handshake if it does not wish to interoperate with legacy clients&#34; (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.2-3">RFC7627-5.2-3</code></td><td colspan="3"><span class="rfc-subject">If the server receives a ClientHello without the extension, it SHOULD abort the handshake if it does not wish to interoperate with legacy clients. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.2</td>
@@ -462,7 +465,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.2-5">RFC7627-5.2-5</code></td><td colspan="3"><span class="rfc-subject">&#34;If a client receives a ServerHello without the extension, it SHOULD abort the handshake if it does not wish to interoperate with legacy servers&#34; (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.2-5">RFC7627-5.2-5</code></td><td colspan="3"><span class="rfc-subject">If a client receives a ServerHello without the extension, it SHOULD abort the handshake if it does not wish to interoperate with legacy servers. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.2</td>
@@ -471,7 +474,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-1">RFC7627-5.3-1</code></td><td colspan="3"><span class="rfc-subject">&#34;The client SHOULD NOT offer an abbreviated handshake to resume a session that does not use an extended master secret&#34; (§5.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-1">RFC7627-5.3-1</code></td><td colspan="3"><span class="rfc-subject">The client SHOULD NOT offer an abbreviated handshake to resume a session that does not use an extended master secret. (§5.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>5.3</td>
@@ -480,7 +483,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-2">RFC7627-5.3-2</code></td><td colspan="3"><span class="rfc-subject">Instead of offering an abbreviated handshake for a session without an extended master secret, the client &#34;SHOULD offer a full handshake&#34; (§5.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-2">RFC7627-5.3-2</code></td><td colspan="3"><span class="rfc-subject">The client SHOULD NOT offer an abbreviated handshake to resume a session that does not use an extended master secret. Instead, it SHOULD offer a full handshake. (§5.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.3</td>
@@ -489,7 +492,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-5">RFC7627-5.3-5</code></td><td colspan="3"><span class="rfc-subject">Where the original session did not use the extension but the new ClientHello contains it, the server &#34;SHOULD continue with a full handshake (as described in Section 5.2) to negotiate a new session&#34; (§5.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-5">RFC7627-5.3-5</code></td><td colspan="3"><span class="rfc-subject">If the original session did not use the &#34;extended_master_secret&#34; extension but the new ClientHello contains the extension, then the server MUST NOT perform the abbreviated handshake. Instead, it SHOULD continue with a full handshake (as described in Section 5.2) to negotiate a new session. (§5.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.3</td>
@@ -498,7 +501,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-7">RFC7627-5.3-7</code></td><td colspan="3"><span class="rfc-subject">&#34;If neither the original session nor the new ClientHello uses the extension, the server SHOULD abort the handshake&#34; (§5.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.3-7">RFC7627-5.3-7</code></td><td colspan="3"><span class="rfc-subject">If neither the original session nor the new ClientHello uses the extension, the server SHOULD abort the handshake. (§5.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.3</td>
@@ -507,7 +510,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-6.4-1">RFC7627-6.4-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Clients and servers implementing this document SHOULD refuse SSL 3.0 handshakes&#34; (§6.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-6.4-1">RFC7627-6.4-1</code></td><td colspan="3"><span class="rfc-subject">Clients and servers implementing this document SHOULD refuse SSL 3.0 handshakes. (§6.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.4</td>
@@ -516,7 +519,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-6.2-1">RFC7627-6.2-1</code></td><td colspan="3"><span class="rfc-subject">For the session hash, &#34;hash functions such as MD5 or SHA1 are NOT RECOMMENDED&#34; (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-6.2-1">RFC7627-6.2-1</code></td><td colspan="3"><span class="rfc-subject">The session hashes of two different sessions need to be distinct; hence, the &#34;Hash&#34; function used to compute the &#34;session_hash&#34; needs to be collision resistant. As such, hash functions such as MD5 or SHA1 are NOT RECOMMENDED. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>NOT RECOMMENDED</td>
 <td>6.2</td>
@@ -525,7 +528,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-5">RFC7627-5.4-5</code></td><td colspan="3"><span class="rfc-subject">Where the original session uses an extended master secret but a hello of the abbreviated handshake omits the extension, &#34;it MAY be safe to continue the abbreviated handshake since it is protected by the extended master secret of the original session&#34; (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-5">RFC7627-5.4-5</code></td><td colspan="3"><span class="rfc-subject">If the original session uses an extended master secret but the ClientHello or ServerHello in the abbreviated handshake does not include the extension, it MAY be safe to continue the abbreviated handshake since it is protected by the extended master secret of the original session. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.4</td>
@@ -543,71 +546,71 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc7627-5.1-1"><code>RFC7627-5.1-1</code></a> &#34;If the client and server agree on this extension and a full handshake takes place, both client and server MUST use the extended master secret derivation algorithm, as defined in Section 4&#34; (§5.1)</td>
+<tr><td><a href="#rfc7627-5.1-1"><code>RFC7627-5.1-1</code></a> If the client and server agree on this extension and a full handshake takes place, both client and server MUST use the extended master secret derivation algorithm, as defined in Section 4. (§5.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.2-1"><code>RFC7627-5.2-1</code></a> &#34;In all handshakes, a client implementing this document MUST send the &#34;extended_master_secret&#34; extension in its ClientHello&#34; (§5.2)</td>
+<tr><td><a href="#rfc7627-5.2-1"><code>RFC7627-5.2-1</code></a> In all handshakes, a client implementing this document MUST send the &#34;extended_master_secret&#34; extension in its ClientHello. (§5.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.2-2"><code>RFC7627-5.2-2</code></a> &#34;If a server implementing this document receives the &#34;extended_master_secret&#34; extension, it MUST include the extension in its ServerHello message&#34; (§5.2)</td>
+<tr><td><a href="#rfc7627-5.2-2"><code>RFC7627-5.2-2</code></a> If a server implementing this document receives the &#34;extended_master_secret&#34; extension, it MUST include the extension in its ServerHello message. (§5.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.2-4"><code>RFC7627-5.2-4</code></a> A server that receives a ClientHello without the extension and chooses to continue the handshake &#34;MUST NOT include the extension in the ServerHello&#34; (§5.2)</td>
+<tr><td><a href="#rfc7627-5.2-4"><code>RFC7627-5.2-4</code></a> If the server receives a ClientHello without the extension, it SHOULD abort the handshake if it does not wish to interoperate with legacy clients. If it chooses to continue the handshake, then it MUST NOT include the extension in the ServerHello. (§5.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.2-6"><code>RFC7627-5.2-6</code></a> &#34;If the client and server choose to continue a full handshake without the extension, they MUST use the standard master secret derivation for the new session&#34; (§5.2)</td>
+<tr><td><a href="#rfc7627-5.2-6"><code>RFC7627-5.2-6</code></a> If the client and server choose to continue a full handshake without the extension, they MUST use the standard master secret derivation for the new session. (§5.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-3"><code>RFC7627-5.3-3</code></a> &#34;When offering an abbreviated handshake, the client MUST send the &#34;extended_master_secret&#34; extension in its ClientHello&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-3"><code>RFC7627-5.3-3</code></a> When offering an abbreviated handshake, the client MUST send the &#34;extended_master_secret&#34; extension in its ClientHello. (§5.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-4"><code>RFC7627-5.3-4</code></a> Where the original session did not use the extension but the new ClientHello contains it, &#34;the server MUST NOT perform the abbreviated handshake&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-4"><code>RFC7627-5.3-4</code></a> If the original session did not use the &#34;extended_master_secret&#34; extension but the new ClientHello contains the extension, then the server MUST NOT perform the abbreviated handshake. (§5.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-6"><code>RFC7627-5.3-6</code></a> Where the original session used the extension but the new ClientHello does not contain it, &#34;the server MUST abort the abbreviated handshake&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-6"><code>RFC7627-5.3-6</code></a> If the original session used the &#34;extended_master_secret&#34; extension but the new ClientHello does not contain it, the server MUST abort the abbreviated handshake. (§5.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-8"><code>RFC7627-5.3-8</code></a> Where the new ClientHello contains the extension and the server chooses to continue the handshake, &#34;the server MUST include the &#34;extended_master_secret&#34; extension in its ServerHello message&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-8"><code>RFC7627-5.3-8</code></a> If the new ClientHello contains the extension and the server chooses to continue the handshake, then the server MUST include the &#34;extended_master_secret&#34; extension in its ServerHello message. (§5.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-9"><code>RFC7627-5.3-9</code></a> Where the original session did not use the extension but the new ServerHello contains it, &#34;the client MUST abort the handshake&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-9"><code>RFC7627-5.3-9</code></a> If the original session did not use the &#34;extended_master_secret&#34; extension but the new ServerHello contains the extension, the client MUST abort the handshake. (§5.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-10"><code>RFC7627-5.3-10</code></a> Where the original session used the extension but the new ServerHello does not contain it, &#34;the client MUST abort the handshake&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-10"><code>RFC7627-5.3-10</code></a> If the original session used the extension but the new ServerHello does not contain the extension, the client MUST abort the handshake. (§5.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.4-1"><code>RFC7627-5.4-1</code></a> After a full handshake continued without the extension, &#34;the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication&#34; (§5.4)</td>
+<tr><td><a href="#rfc7627-5.4-1"><code>RFC7627-5.4-1</code></a> If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. (§5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.4-2"><code>RFC7627-5.4-2</code></a> After a full handshake continued without the extension, &#34;it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication&#34; (§5.4)</td>
+<tr><td><a href="#rfc7627-5.4-2"><code>RFC7627-5.4-2</code></a> If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. In particular, it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication [COMPOUND-AUTH]. (§5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.4-3"><code>RFC7627-5.4-3</code></a> After an abbreviated handshake resuming a session without the extended master secret, &#34;the client or server MUST NOT use the current handshake&#39;s &#34;verify_data&#34; for application-level authentication&#34; (§5.4)</td>
+<tr><td><a href="#rfc7627-5.4-3"><code>RFC7627-5.4-3</code></a> If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake&#39;s &#34;verify_data&#34; for application-level authentication. (§5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.4-4"><code>RFC7627-5.4-4</code></a> After an abbreviated handshake resuming a session without the extended master secret, &#34;the client MUST disable renegotiation and any use of the &#34;tls-unique&#34; channel binding [RFC5929] on the current connection&#34; (§5.4)</td>
+<tr><td><a href="#rfc7627-5.4-4"><code>RFC7627-5.4-4</code></a> If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake&#39;s &#34;verify_data&#34; for application-level authentication. In particular, the client MUST disable renegotiation and any use of the &#34;tls-unique&#34; channel binding [RFC5929] on the current connection. (§5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-5.4-6"><code>RFC7627-5.4-6</code></a> Where the original session uses an extended master secret but a hello of the abbreviated handshake omits the extension, &#34;this document recommends that the client and server MUST abort such handshakes&#34; (§5.4)</td>
+<tr><td><a href="#rfc7627-5.4-6"><code>RFC7627-5.4-6</code></a> If the original session uses an extended master secret but the ClientHello or ServerHello in the abbreviated handshake does not include the extension, it MAY be safe to continue the abbreviated handshake since it is protected by the extended master secret of the original session. This scenario may occur, for example, when a server that implements this extension establishes a session but the session is subsequently resumed at a different server that does not support the extension. Since such situations are unusual and likely to be the result of transient or inadvertent misconfigurations, this document recommends that the client and server MUST abort such handshakes. (§5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7627-6.4-2"><code>RFC7627-6.4-2</code></a> &#34;If they choose to support SSL 3.0, the resulting sessions MUST use the legacy master secret computation&#34; (§6.4)</td>
+<tr><td><a href="#rfc7627-6.4-2"><code>RFC7627-6.4-2</code></a> Clients and servers implementing this document SHOULD refuse SSL 3.0 handshakes. If they choose to support SSL 3.0, the resulting sessions MUST use the legacy master secret computation (§6.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
@@ -618,71 +621,71 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7627-5.1-1"><code>RFC7627-5.1-1</code></a></h3>
-<p>&#34;If the client and server agree on this extension and a full handshake takes place, both client and server MUST use the extended master secret derivation algorithm, as defined in Section 4&#34; (§5.1)</p>
+<p>If the client and server agree on this extension and a full handshake takes place, both client and server MUST use the extended master secret derivation algorithm, as defined in Section 4. (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.2-1"><code>RFC7627-5.2-1</code></a></h3>
-<p>&#34;In all handshakes, a client implementing this document MUST send the &#34;extended_master_secret&#34; extension in its ClientHello&#34; (§5.2)</p>
+<p>In all handshakes, a client implementing this document MUST send the &#34;extended_master_secret&#34; extension in its ClientHello. (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.2-2"><code>RFC7627-5.2-2</code></a></h3>
-<p>&#34;If a server implementing this document receives the &#34;extended_master_secret&#34; extension, it MUST include the extension in its ServerHello message&#34; (§5.2)</p>
+<p>If a server implementing this document receives the &#34;extended_master_secret&#34; extension, it MUST include the extension in its ServerHello message. (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.2-4"><code>RFC7627-5.2-4</code></a></h3>
-<p>A server that receives a ClientHello without the extension and chooses to continue the handshake &#34;MUST NOT include the extension in the ServerHello&#34; (§5.2)</p>
+<p>If the server receives a ClientHello without the extension, it SHOULD abort the handshake if it does not wish to interoperate with legacy clients. If it chooses to continue the handshake, then it MUST NOT include the extension in the ServerHello. (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.2-6"><code>RFC7627-5.2-6</code></a></h3>
-<p>&#34;If the client and server choose to continue a full handshake without the extension, they MUST use the standard master secret derivation for the new session&#34; (§5.2)</p>
+<p>If the client and server choose to continue a full handshake without the extension, they MUST use the standard master secret derivation for the new session. (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.2-6, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.3-3"><code>RFC7627-5.3-3</code></a></h3>
-<p>&#34;When offering an abbreviated handshake, the client MUST send the &#34;extended_master_secret&#34; extension in its ClientHello&#34; (§5.3)</p>
+<p>When offering an abbreviated handshake, the client MUST send the &#34;extended_master_secret&#34; extension in its ClientHello. (§5.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.3-4"><code>RFC7627-5.3-4</code></a></h3>
-<p>Where the original session did not use the extension but the new ClientHello contains it, &#34;the server MUST NOT perform the abbreviated handshake&#34; (§5.3)</p>
+<p>If the original session did not use the &#34;extended_master_secret&#34; extension but the new ClientHello contains the extension, then the server MUST NOT perform the abbreviated handshake. (§5.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.3-6"><code>RFC7627-5.3-6</code></a></h3>
-<p>Where the original session used the extension but the new ClientHello does not contain it, &#34;the server MUST abort the abbreviated handshake&#34; (§5.3)</p>
+<p>If the original session used the &#34;extended_master_secret&#34; extension but the new ClientHello does not contain it, the server MUST abort the abbreviated handshake. (§5.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.3-6, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.3-8"><code>RFC7627-5.3-8</code></a></h3>
-<p>Where the new ClientHello contains the extension and the server chooses to continue the handshake, &#34;the server MUST include the &#34;extended_master_secret&#34; extension in its ServerHello message&#34; (§5.3)</p>
+<p>If the new ClientHello contains the extension and the server chooses to continue the handshake, then the server MUST include the &#34;extended_master_secret&#34; extension in its ServerHello message. (§5.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.3-8, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.3-9"><code>RFC7627-5.3-9</code></a></h3>
-<p>Where the original session did not use the extension but the new ServerHello contains it, &#34;the client MUST abort the handshake&#34; (§5.3)</p>
+<p>If the original session did not use the &#34;extended_master_secret&#34; extension but the new ServerHello contains the extension, the client MUST abort the handshake. (§5.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.3-9, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.3-10"><code>RFC7627-5.3-10</code></a></h3>
-<p>Where the original session used the extension but the new ServerHello does not contain it, &#34;the client MUST abort the handshake&#34; (§5.3)</p>
+<p>If the original session used the extension but the new ServerHello does not contain the extension, the client MUST abort the handshake. (§5.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.3-10, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.4-1"><code>RFC7627-5.4-1</code></a></h3>
-<p>After a full handshake continued without the extension, &#34;the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication&#34; (§5.4)</p>
+<p>If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.4-2"><code>RFC7627-5.4-2</code></a></h3>
-<p>After a full handshake continued without the extension, &#34;it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication&#34; (§5.4)</p>
+<p>If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. In particular, it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication [COMPOUND-AUTH]. (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.4-3"><code>RFC7627-5.4-3</code></a></h3>
-<p>After an abbreviated handshake resuming a session without the extended master secret, &#34;the client or server MUST NOT use the current handshake&#39;s &#34;verify_data&#34; for application-level authentication&#34; (§5.4)</p>
+<p>If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake&#39;s &#34;verify_data&#34; for application-level authentication. (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.4-4"><code>RFC7627-5.4-4</code></a></h3>
-<p>After an abbreviated handshake resuming a session without the extended master secret, &#34;the client MUST disable renegotiation and any use of the &#34;tls-unique&#34; channel binding [RFC5929] on the current connection&#34; (§5.4)</p>
+<p>If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake&#39;s &#34;verify_data&#34; for application-level authentication. In particular, the client MUST disable renegotiation and any use of the &#34;tls-unique&#34; channel binding [RFC5929] on the current connection. (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.4-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-5.4-6"><code>RFC7627-5.4-6</code></a></h3>
-<p>Where the original session uses an extended master secret but a hello of the abbreviated handshake omits the extension, &#34;this document recommends that the client and server MUST abort such handshakes&#34; (§5.4)</p>
+<p>If the original session uses an extended master secret but the ClientHello or ServerHello in the abbreviated handshake does not include the extension, it MAY be safe to continue the abbreviated handshake since it is protected by the extended master secret of the original session. This scenario may occur, for example, when a server that implements this extension establishes a session but the session is subsequently resumed at a different server that does not support the extension. Since such situations are unusual and likely to be the result of transient or inadvertent misconfigurations, this document recommends that the client and server MUST abort such handshakes. (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-5.4-6, so no unit is bound to it.</p>
 <h3><a href="#rfc7627-6.4-2"><code>RFC7627-6.4-2</code></a></h3>
-<p>&#34;If they choose to support SSL 3.0, the resulting sessions MUST use the legacy master secret computation&#34; (§6.4)</p>
+<p>Clients and servers implementing this document SHOULD refuse SSL 3.0 handshakes. If they choose to support SSL 3.0, the resulting sessions MUST use the legacy master secret computation (§6.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7627-6.4-2, so no unit is bound to it.</p>
 </section>
@@ -695,137 +698,137 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Disposition</th><th>Now stated at</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc7627-5.1-1"><code>RFC7627-5.1-1</code></a> &#34;If the client and server agree on this extension and a full handshake takes place, both client and server MUST use the extended master secret derivation algorithm, as defined in Section 4&#34; (§5.1)</td>
+<tr><td><a href="#rfc7627-5.1-1"><code>RFC7627-5.1-1</code></a> If the client and server agree on this extension and a full handshake takes place, both client and server MUST use the extended master secret derivation algorithm, as defined in Section 4. (§5.1)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.2-1"><code>RFC7627-5.2-1</code></a> &#34;In all handshakes, a client implementing this document MUST send the &#34;extended_master_secret&#34; extension in its ClientHello&#34; (§5.2)</td>
+<tr><td><a href="#rfc7627-5.2-1"><code>RFC7627-5.2-1</code></a> In all handshakes, a client implementing this document MUST send the &#34;extended_master_secret&#34; extension in its ClientHello. (§5.2)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.2-2"><code>RFC7627-5.2-2</code></a> &#34;If a server implementing this document receives the &#34;extended_master_secret&#34; extension, it MUST include the extension in its ServerHello message&#34; (§5.2)</td>
+<tr><td><a href="#rfc7627-5.2-2"><code>RFC7627-5.2-2</code></a> If a server implementing this document receives the &#34;extended_master_secret&#34; extension, it MUST include the extension in its ServerHello message. (§5.2)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.2-4"><code>RFC7627-5.2-4</code></a> A server that receives a ClientHello without the extension and chooses to continue the handshake &#34;MUST NOT include the extension in the ServerHello&#34; (§5.2)</td>
+<tr><td><a href="#rfc7627-5.2-4"><code>RFC7627-5.2-4</code></a> If the server receives a ClientHello without the extension, it SHOULD abort the handshake if it does not wish to interoperate with legacy clients. If it chooses to continue the handshake, then it MUST NOT include the extension in the ServerHello. (§5.2)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.2-6"><code>RFC7627-5.2-6</code></a> &#34;If the client and server choose to continue a full handshake without the extension, they MUST use the standard master secret derivation for the new session&#34; (§5.2)</td>
+<tr><td><a href="#rfc7627-5.2-6"><code>RFC7627-5.2-6</code></a> If the client and server choose to continue a full handshake without the extension, they MUST use the standard master secret derivation for the new session. (§5.2)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-3"><code>RFC7627-5.3-3</code></a> &#34;When offering an abbreviated handshake, the client MUST send the &#34;extended_master_secret&#34; extension in its ClientHello&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-3"><code>RFC7627-5.3-3</code></a> When offering an abbreviated handshake, the client MUST send the &#34;extended_master_secret&#34; extension in its ClientHello. (§5.3)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-4"><code>RFC7627-5.3-4</code></a> Where the original session did not use the extension but the new ClientHello contains it, &#34;the server MUST NOT perform the abbreviated handshake&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-4"><code>RFC7627-5.3-4</code></a> If the original session did not use the &#34;extended_master_secret&#34; extension but the new ClientHello contains the extension, then the server MUST NOT perform the abbreviated handshake. (§5.3)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-6"><code>RFC7627-5.3-6</code></a> Where the original session used the extension but the new ClientHello does not contain it, &#34;the server MUST abort the abbreviated handshake&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-6"><code>RFC7627-5.3-6</code></a> If the original session used the &#34;extended_master_secret&#34; extension but the new ClientHello does not contain it, the server MUST abort the abbreviated handshake. (§5.3)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-8"><code>RFC7627-5.3-8</code></a> Where the new ClientHello contains the extension and the server chooses to continue the handshake, &#34;the server MUST include the &#34;extended_master_secret&#34; extension in its ServerHello message&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-8"><code>RFC7627-5.3-8</code></a> If the new ClientHello contains the extension and the server chooses to continue the handshake, then the server MUST include the &#34;extended_master_secret&#34; extension in its ServerHello message. (§5.3)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-9"><code>RFC7627-5.3-9</code></a> Where the original session did not use the extension but the new ServerHello contains it, &#34;the client MUST abort the handshake&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-9"><code>RFC7627-5.3-9</code></a> If the original session did not use the &#34;extended_master_secret&#34; extension but the new ServerHello contains the extension, the client MUST abort the handshake. (§5.3)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-10"><code>RFC7627-5.3-10</code></a> Where the original session used the extension but the new ServerHello does not contain it, &#34;the client MUST abort the handshake&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-10"><code>RFC7627-5.3-10</code></a> If the original session used the extension but the new ServerHello does not contain the extension, the client MUST abort the handshake. (§5.3)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.4-1"><code>RFC7627-5.4-1</code></a> After a full handshake continued without the extension, &#34;the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication&#34; (§5.4)</td>
+<tr><td><a href="#rfc7627-5.4-1"><code>RFC7627-5.4-1</code></a> If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. (§5.4)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.4-2"><code>RFC7627-5.4-2</code></a> After a full handshake continued without the extension, &#34;it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication&#34; (§5.4)</td>
+<tr><td><a href="#rfc7627-5.4-2"><code>RFC7627-5.4-2</code></a> If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. In particular, it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication [COMPOUND-AUTH]. (§5.4)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.4-3"><code>RFC7627-5.4-3</code></a> After an abbreviated handshake resuming a session without the extended master secret, &#34;the client or server MUST NOT use the current handshake&#39;s &#34;verify_data&#34; for application-level authentication&#34; (§5.4)</td>
+<tr><td><a href="#rfc7627-5.4-3"><code>RFC7627-5.4-3</code></a> If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake&#39;s &#34;verify_data&#34; for application-level authentication. (§5.4)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.4-4"><code>RFC7627-5.4-4</code></a> After an abbreviated handshake resuming a session without the extended master secret, &#34;the client MUST disable renegotiation and any use of the &#34;tls-unique&#34; channel binding [RFC5929] on the current connection&#34; (§5.4)</td>
+<tr><td><a href="#rfc7627-5.4-4"><code>RFC7627-5.4-4</code></a> If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake&#39;s &#34;verify_data&#34; for application-level authentication. In particular, the client MUST disable renegotiation and any use of the &#34;tls-unique&#34; channel binding [RFC5929] on the current connection. (§5.4)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.4-6"><code>RFC7627-5.4-6</code></a> Where the original session uses an extended master secret but a hello of the abbreviated handshake omits the extension, &#34;this document recommends that the client and server MUST abort such handshakes&#34; (§5.4)</td>
+<tr><td><a href="#rfc7627-5.4-6"><code>RFC7627-5.4-6</code></a> If the original session uses an extended master secret but the ClientHello or ServerHello in the abbreviated handshake does not include the extension, it MAY be safe to continue the abbreviated handshake since it is protected by the extended master secret of the original session. This scenario may occur, for example, when a server that implements this extension establishes a session but the session is subsequently resumed at a different server that does not support the extension. Since such situations are unusual and likely to be the result of transient or inadvertent misconfigurations, this document recommends that the client and server MUST abort such handshakes. (§5.4)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-6.4-2"><code>RFC7627-6.4-2</code></a> &#34;If they choose to support SSL 3.0, the resulting sessions MUST use the legacy master secret computation&#34; (§6.4)</td>
+<tr><td><a href="#rfc7627-6.4-2"><code>RFC7627-6.4-2</code></a> Clients and servers implementing this document SHOULD refuse SSL 3.0 handshakes. If they choose to support SSL 3.0, the resulting sessions MUST use the legacy master secret computation (§6.4)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-4-1"><code>RFC7627-4-1</code></a> &#34;Clients and servers SHOULD NOT accept handshakes that do not use the extended master secret, especially if they rely on features like compound authentication that fall into the vulnerable cases described in Section 6.1&#34; (§4)</td>
+<tr><td><a href="#rfc7627-4-1"><code>RFC7627-4-1</code></a> Clients and servers SHOULD NOT accept handshakes that do not use the extended master secret, especially if they rely on features like compound authentication that fall into the vulnerable cases described in Section 6.1. (§4)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.2-3"><code>RFC7627-5.2-3</code></a> &#34;If the server receives a ClientHello without the extension, it SHOULD abort the handshake if it does not wish to interoperate with legacy clients&#34; (§5.2)</td>
+<tr><td><a href="#rfc7627-5.2-3"><code>RFC7627-5.2-3</code></a> If the server receives a ClientHello without the extension, it SHOULD abort the handshake if it does not wish to interoperate with legacy clients. (§5.2)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.2-5"><code>RFC7627-5.2-5</code></a> &#34;If a client receives a ServerHello without the extension, it SHOULD abort the handshake if it does not wish to interoperate with legacy servers&#34; (§5.2)</td>
+<tr><td><a href="#rfc7627-5.2-5"><code>RFC7627-5.2-5</code></a> If a client receives a ServerHello without the extension, it SHOULD abort the handshake if it does not wish to interoperate with legacy servers. (§5.2)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-1"><code>RFC7627-5.3-1</code></a> &#34;The client SHOULD NOT offer an abbreviated handshake to resume a session that does not use an extended master secret&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-1"><code>RFC7627-5.3-1</code></a> The client SHOULD NOT offer an abbreviated handshake to resume a session that does not use an extended master secret. (§5.3)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-2"><code>RFC7627-5.3-2</code></a> Instead of offering an abbreviated handshake for a session without an extended master secret, the client &#34;SHOULD offer a full handshake&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-2"><code>RFC7627-5.3-2</code></a> The client SHOULD NOT offer an abbreviated handshake to resume a session that does not use an extended master secret. Instead, it SHOULD offer a full handshake. (§5.3)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-5"><code>RFC7627-5.3-5</code></a> Where the original session did not use the extension but the new ClientHello contains it, the server &#34;SHOULD continue with a full handshake (as described in Section 5.2) to negotiate a new session&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-5"><code>RFC7627-5.3-5</code></a> If the original session did not use the &#34;extended_master_secret&#34; extension but the new ClientHello contains the extension, then the server MUST NOT perform the abbreviated handshake. Instead, it SHOULD continue with a full handshake (as described in Section 5.2) to negotiate a new session. (§5.3)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.3-7"><code>RFC7627-5.3-7</code></a> &#34;If neither the original session nor the new ClientHello uses the extension, the server SHOULD abort the handshake&#34; (§5.3)</td>
+<tr><td><a href="#rfc7627-5.3-7"><code>RFC7627-5.3-7</code></a> If neither the original session nor the new ClientHello uses the extension, the server SHOULD abort the handshake. (§5.3)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-6.4-1"><code>RFC7627-6.4-1</code></a> &#34;Clients and servers implementing this document SHOULD refuse SSL 3.0 handshakes&#34; (§6.4)</td>
+<tr><td><a href="#rfc7627-6.4-1"><code>RFC7627-6.4-1</code></a> Clients and servers implementing this document SHOULD refuse SSL 3.0 handshakes. (§6.4)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-6.2-1"><code>RFC7627-6.2-1</code></a> For the session hash, &#34;hash functions such as MD5 or SHA1 are NOT RECOMMENDED&#34; (§6.2)</td>
+<tr><td><a href="#rfc7627-6.2-1"><code>RFC7627-6.2-1</code></a> The session hashes of two different sessions need to be distinct; hence, the &#34;Hash&#34; function used to compute the &#34;session_hash&#34; needs to be collision resistant. As such, hash functions such as MD5 or SHA1 are NOT RECOMMENDED. (§6.2)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
 </tr>
-<tr><td><a href="#rfc7627-5.4-5"><code>RFC7627-5.4-5</code></a> Where the original session uses an extended master secret but a hello of the abbreviated handshake omits the extension, &#34;it MAY be safe to continue the abbreviated handshake since it is protected by the extended master secret of the original session&#34; (§5.4)</td>
+<tr><td><a href="#rfc7627-5.4-5"><code>RFC7627-5.4-5</code></a> If the original session uses an extended master secret but the ClientHello or ServerHello in the abbreviated handshake does not include the extension, it MAY be safe to continue the abbreviated handshake since it is protected by the extended master secret of the original session. (§5.4)</td>
 <td>unresolved</td>
 <td>not stated</td>
 <td>RFC 9846 obsoletes this document and rfc/full/rfc9846.txt is not in this repository, so the successor requirement stating this obligation cannot be named or checked. The Meta note above records what is known about RFC 9846 without its text</td>
@@ -863,7 +866,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

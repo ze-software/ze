@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9384 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9384: A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD). 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 9384: A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD). 0 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9384 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9384: A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD). 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 9384: A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD). 0 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9384 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9384: A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD). 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 9384: A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD). 0 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -211,6 +211,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -270,7 +273,7 @@ The document allocates one registry value and states three SHOULD statements. It
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9384-4-1">RFC9384-4-1</code></td><td colspan="3"><span class="rfc-subject">When there is a total loss of connectivity and the Cease NOTIFICATION message could not be sent, BGP speakers SHOULD provide this reason as part of their operational state (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9384-4-1">RFC9384-4-1</code></td><td colspan="3"><span class="rfc-subject">When there is a total loss of connectivity between two BGP speakers, it may not have been possible for the Cease NOTIFICATION message to have been sent. Even so, BGP speakers SHOULD provide this reason as part of their operational state. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4 - Operational Considerations</td>
@@ -300,7 +303,7 @@ The document allocates one registry value and states three SHOULD statements. It
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc9384-4-1"><code>RFC9384-4-1</code></a></h3>
-<p>When there is a total loss of connectivity and the Cease NOTIFICATION message could not be sent, BGP speakers SHOULD provide this reason as part of their operational state (§4)</p>
+<p>When there is a total loss of connectivity between two BGP speakers, it may not have been possible for the Cease NOTIFICATION message to have been sent. Even so, BGP speakers SHOULD provide this reason as part of their operational state. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -482,7 +485,7 @@ The document allocates one registry value and states three SHOULD statements. It
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 38.9% | 7 of 18 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 9 | of 18 gated MUSTs judged | 6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 18 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 18 |
 | Not applicable, so out of scope | 2 |
 | Declared gaps | 7 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 18 |
 | Tagged units | 18 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 9 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc5303.md` |
 | Requirement shard | `rfc/requirements/rfc5303.md` |
@@ -109,39 +111,39 @@ Gaps gated in [`rfc/short/rfc5303.md`](https://github.com/ze-software/ze/blob/ma
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5303-3.1-1` | "Any system that supports this mechanism SHALL include this option in its Point-to-Point IIH packets"; the §3.2 sending clause repeats this as "the IS SHALL include the Point-to-Point Three-Way Adjacency option in the transmitted Point-to-Point IIH PDU" (§3.1) | SHALL | 3.1 | **positive:** `unit/verify` [`TestISISP2PIIHCarriesThreeWayOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L125). **negative:** `unit/verify` [`TestISISP2PIIHCarriesThreeWayOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L129) |
-| `RFC5303-3.1-2` | "Any system that does not understand this option SHALL ignore it" (§3.1) | SHALL | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this constrains a system that does NOT understand the option; Ze implements and processes it (packet/tlv_core.go DecodeP2PThreeWayTLV decodes it, circuit/runtime.go:143 consumes it), so the "does not understand" role never applies to Ze |
-| `RFC5303-3.1-3` | A system that does not understand this option "SHALL NOT include it in its own IIH packets" (§3.1) | SHALL NOT | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this constrains a non-supporting system's emission; Ze supports the mechanism and always emits TLV 240 in its point-to-point IIH (circuit/hello.go:158 threeWayTLV, circuit/hello.go:204 buildP2PHello), so the "does not understand" role never applies to Ze |
+| `RFC5303-3.1-1` | Any system that supports this mechanism SHALL include this option in its Point-to-Point IIH packets. (§3.1) | SHALL | 3.1 | **positive:** `unit/verify` [`TestISISP2PIIHCarriesThreeWayOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L125). **negative:** `unit/verify` [`TestISISP2PIIHCarriesThreeWayOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L129) |
+| `RFC5303-3.1-2` | Any system that does not understand this option SHALL ignore it (§3.1) | SHALL | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this constrains a system that does NOT understand the option; Ze implements and processes it (packet/tlv_core.go DecodeP2PThreeWayTLV decodes it, circuit/runtime.go:143 consumes it), so the "does not understand" role never applies to Ze |
+| `RFC5303-3.1-3` | Any system that does not understand this option SHALL ignore it, and (of course) SHALL NOT include it in its own IIH packets. (§3.1) | SHALL NOT | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this constrains a non-supporting system's emission; Ze supports the mechanism and always emits TLV 240 in its point-to-point IIH (circuit/hello.go:158 threeWayTLV, circuit/hello.go:204 buildP2PHello), so the "does not understand" role never applies to Ze |
 | `RFC5303-3.1-4` | Any system that supports this mechanism MUST include the Adjacency Three-Way State field in this option. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestISISP2PThreeWayStateFieldIncluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L16). **negative:** `unit/verify` [`TestISISP2PThreeWayStateFieldPresentWithoutNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L49) |
 | `RFC5303-3.1-6` | Any system that is able to process this option SHALL follow the procedures below. (§3.1) | SHALL | 3.1 | **positive:** `unit/verify` [`TestISISThreeWayProceduresEngagedByOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/fsm_test.go#L396). **negative:** `unit/verify` [`TestISISThreeWayProceduresEngagedByOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/fsm_test.go#L400) |
-| `RFC5303-3.2-1` | The current three-way state of the adjacency with its neighbor "SHALL be reported in the Adjacency Three-Way State field" of the transmitted Point-to-Point IIH (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayReportsCurrentState`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L146). **negative:** `unit/verify` [`TestISISThreeWayReportsCurrentState`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L149) |
-| `RFC5303-3.2-2` | "If no adjacency exists, the state SHALL be reported as Down" in the Adjacency Three-Way State field (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayDownWhenNoAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L175). **negative:** `unit/verify` [`TestISISThreeWayDownWhenNoAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L178) |
+| `RFC5303-3.2-1` | The current three-way state of the adjacency with its neighbor on the link (as defined in new section 8.2.4.1.1 introduced later in the document) SHALL be reported in the Adjacency Three-Way State field. (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayReportsCurrentState`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L146). **negative:** `unit/verify` [`TestISISThreeWayReportsCurrentState`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L149) |
+| `RFC5303-3.2-2` | If no adjacency exists, the state SHALL be reported as Down. (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayDownWhenNoAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L175). **negative:** `unit/verify` [`TestISISThreeWayDownWhenNoAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L178) |
 | `RFC5303-3.2-3` | The Extended Local Circuit ID field SHALL contain a value assigned by this IS when the circuit is created. (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayExtendedLocalCircuitID`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L203). **negative:** `unit/verify` [`TestISISThreeWayExtendedLocalCircuitID`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L206) |
-| `RFC5303-3.2-4` | The Extended Local Circuit ID "value SHALL be unique among all the circuits of this Intermediate System" (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the Extended Local Circuit ID is derived as uint8(ifindex) (circuits.go:317), truncating the interface index to 8 bits; two circuits whose ifindexes collide modulo 256 emit the same value, so uniqueness among all circuits is not guaranteed and the 4-octet field never exceeds 255 |
-| `RFC5303-3.2-5` | When the neighbor's system ID and Extended Local Circuit ID are known, in three-way state Initializing or Up, "the neighbor's system ID SHALL be reported in the Neighbor System ID field" (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayReportsNeighborSystemID`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L226). **negative:** `unit/verify` [`TestISISThreeWayReportsNeighborSystemID`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L229) |
-| `RFC5303-3.2-6` | When the neighbor is known, the neighbor's "Extended Local Circuit ID SHALL be reported in the Neighbor Extended Local Circuit ID field" (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not track the neighbor's Extended Local Circuit ID; threeWayTLV echoes a constant 0 in the Neighbor Extended Local Circuit ID field (circuit/hello.go:168) and updateThreeWay never stores the neighbor's value (adjacency/fsm.go:232), so the neighbor's actual extended circuit ID is never reported |
+| `RFC5303-3.2-4` | This value SHALL be unique among all the circuits of this Intermediate System. (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the Extended Local Circuit ID is derived as uint8(ifindex) (circuits.go:317), truncating the interface index to 8 bits; two circuits whose ifindexes collide modulo 256 emit the same value, so uniqueness among all circuits is not guaranteed and the 4-octet field never exceeds 255 |
+| `RFC5303-3.2-5` | If the system ID and Extended Local Circuit ID of the neighboring system are known (in adjacency three-way state Initializing or Up), the neighbor's system ID SHALL be reported in the Neighbor System ID field (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayReportsNeighborSystemID`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L226). **negative:** `unit/verify` [`TestISISThreeWayReportsNeighborSystemID`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L229) |
+| `RFC5303-3.2-6` | the neighbor's Extended Local Circuit ID SHALL be reported in the Neighbor Extended Local Circuit ID field. (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not track the neighbor's Extended Local Circuit ID; threeWayTLV echoes a constant 0 in the Neighbor Extended Local Circuit ID field (circuit/hello.go:168) and updateThreeWay never stores the neighbor's value (adjacency/fsm.go:232), so the neighbor's actual extended circuit ID is never reported |
 | `RFC5303-3.2-7` | If the option is present and contains invalid Adjacency Three-Way State, the PDU SHALL be discarded and no further action is taken. (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the decoder validates only the TLV length, not the state value (packet/tlv_core.go DecodeP2PThreeWayTLV); an out-of-range Adjacency Three-Way State is folded into the FSM (adjacency/fsm.go:237) and treated as not-bidirectional rather than discarding the PDU, so the "discard, no further action" path is absent |
-| `RFC5303-3.2-8` | If the option carries a valid Adjacency Three-Way State, "the Neighbor System ID and Neighbor Extended Local Circuit ID fields, if present, SHALL be examined" (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** updateThreeWay examines only the Neighbor System ID (adjacency/fsm.go:240) to set neighborSawUs; the Neighbor Extended Local Circuit ID is decoded (packet/tlv_core.go DecodeP2PThreeWayTLV, the p2pThreeWayLenFull branch) but the FSM never examines it, so the required examination of both fields is incomplete |
-| `RFC5303-3.2-9` | If the Neighbor System ID does not match the local system's ID, or the Neighbor Extended Local Circuit ID does not match the local extended circuit ID, "the PDU SHALL be discarded and no further action is taken" (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** on a Neighbor System ID that does not match ours Ze keeps the adjacency Initializing (adjacency/fsm.go:240) and still processes the PDU, arming the hold timer and recording the neighbor (adjacency/fsm.go:161); it neither discards the PDU nor checks the Neighbor Extended Local Circuit ID, so the loop-detection discard is absent |
-| `RFC5303-3.2-10` | When the "Up" action from ISO 10589 state tables 5, 6, 7, and 8 creates a new adjacency, "the three-way state of the adjacency SHALL be Down" (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayNewAdjacencyStateDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L247). **negative:** `unit/verify` [`TestISISThreeWayNewAdjacencyStateDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L251) |
-| `RFC5303-3.2-11` | If the action taken from ISO 10589 section 8.2.4.2 a or b is "Up" or "Accept", "the IS SHALL perform the action indicated by the new adjacency three-way state table" using the current and received Adjacency Three-Way State (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not maintain a distinct three-way state nor the four-cell section 3.2 state table; bidirectionality is derived from the ISO 10589 adjacency state plus the System ID echo (adjacency/fsm.go:207 bidirectional), so the table's "Accept" and restart "Down" cells are not modeled |
-| `RFC5303-3.2-12` | If the new action is "Down", "the adjacency SHALL be deleted" and an adjacencyStateChange event for Down is generated with reason "Neighbor restarted" (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the "Down"/"Neighbor restarted" action is absent; when our three-way state is Down and the neighbor reports Up Ze brings the adjacency Up (adjacency/fsm.go:189) rather than deleting it and emitting adjacencyStateChange(Down) |
-| `RFC5303-3.2-13` | If the new action is "Initialize", no event is generated and "the adjacency three-way state SHALL be set to Initializing" (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayInitializeAction`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/fsm_test.go#L426). **negative:** `unit/verify` [`TestISISThreeWayInitializeAction`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/fsm_test.go#L429) |
-| `RFC5303-3.1-5` | Besides the mandatory Adjacency Three-Way State field, "the other fields in this option SHOULD be included" (§3.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5303-3.2-8` | If the option with a valid Adjacency Three-Way State is present, the Neighbor System ID and Neighbor Extended Local Circuit ID fields, if present, SHALL be examined. (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** updateThreeWay examines only the Neighbor System ID (adjacency/fsm.go:240) to set neighborSawUs; the Neighbor Extended Local Circuit ID is decoded (packet/tlv_core.go DecodeP2PThreeWayTLV, the p2pThreeWayLenFull branch) but the FSM never examines it, so the required examination of both fields is incomplete |
+| `RFC5303-3.2-9` | If they are present, and the Neighbor System ID contained therein does not match the local system's ID, or the Neighbor Extended Local Circuit ID does not match the local system's extended circuit ID, the PDU SHALL be discarded and no further action is taken. (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** on a Neighbor System ID that does not match ours Ze keeps the adjacency Initializing (adjacency/fsm.go:240) and still processes the PDU, arming the hold timer and recording the neighbor (adjacency/fsm.go:161); it neither discards the PDU nor checks the Neighbor Extended Local Circuit ID, so the loop-detection discard is absent |
+| `RFC5303-3.2-10` | In section 8.2.4.2 a and b, the action "Up" from state tables 5, 6, 7, and 8 may create a new adjacency but the three-way state of the adjacency SHALL be Down. (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayNewAdjacencyStateDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L247). **negative:** `unit/verify` [`TestISISThreeWayNewAdjacencyStateDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L251) |
+| `RFC5303-3.2-11` | If the action taken from section 8.2.4.2 a or b is "Up" or "Accept", the IS SHALL perform the action indicated by the new adjacency three-way state table below, based on the current adjacency three-way state and the received Adjacency Three-Way State value from the option. (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not maintain a distinct three-way state nor the four-cell section 3.2 state table; bidirectionality is derived from the ISO 10589 adjacency state plus the System ID echo (adjacency/fsm.go:207 bidirectional), so the table's "Accept" and restart "Down" cells are not modeled |
+| `RFC5303-3.2-12` | If the new action is "Down", an adjacencyStateChange(Down) event is generated with the reason "Neighbor restarted" and the adjacency SHALL be deleted. (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the "Down"/"Neighbor restarted" action is absent; when our three-way state is Down and the neighbor reports Up Ze brings the adjacency Up (adjacency/fsm.go:189) rather than deleting it and emitting adjacencyStateChange(Down) |
+| `RFC5303-3.2-13` | If the new action is "Initialize", no event is generated and the adjacency three-way state SHALL be set to "Initializing". (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayInitializeAction`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/fsm_test.go#L426). **negative:** `unit/verify` [`TestISISThreeWayInitializeAction`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/fsm_test.go#L429) |
+| `RFC5303-3.1-5` | The other fields in this option SHOULD be included as explained below in section 3.2. (§3.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5303-3.1-2`](#rfc5303-3.1-2) "Any system that does not understand this option SHALL ignore it" (§3.1) | no test | no test carries this requirement id; annotated {not-applicable}: this constrains a system that does NOT understand the option; Ze implements and processes it (packet/tlv_core.go DecodeP2PThreeWayTLV decodes it, circuit/runtime.go:143 consumes it), so the "does not understand" role never applies to Ze |
-| [`RFC5303-3.1-3`](#rfc5303-3.1-3) A system that does not understand this option "SHALL NOT include it in its own IIH packets" (§3.1) | no test | no test carries this requirement id; annotated {not-applicable}: this constrains a non-supporting system's emission; Ze supports the mechanism and always emits TLV 240 in its point-to-point IIH (circuit/hello.go:158 threeWayTLV, circuit/hello.go:204 buildP2PHello), so the "does not understand" role never applies to Ze |
-| [`RFC5303-3.2-4`](#rfc5303-3.2-4) The Extended Local Circuit ID "value SHALL be unique among all the circuits of this Intermediate System" (§3.2) | {gap}, no test | the Extended Local Circuit ID is derived as uint8(ifindex) (circuits.go:317), truncating the interface index to 8 bits; two circuits whose ifindexes collide modulo 256 emit the same value, so uniqueness among all circuits is not guaranteed and the 4-octet field never exceeds 255 |
-| [`RFC5303-3.2-6`](#rfc5303-3.2-6) When the neighbor is known, the neighbor's "Extended Local Circuit ID SHALL be reported in the Neighbor Extended Local Circuit ID field" (§3.2) | {gap}, no test | Ze does not track the neighbor's Extended Local Circuit ID; threeWayTLV echoes a constant 0 in the Neighbor Extended Local Circuit ID field (circuit/hello.go:168) and updateThreeWay never stores the neighbor's value (adjacency/fsm.go:232), so the neighbor's actual extended circuit ID is never reported |
+| [`RFC5303-3.1-2`](#rfc5303-3.1-2) Any system that does not understand this option SHALL ignore it (§3.1) | no test | no test carries this requirement id; annotated {not-applicable}: this constrains a system that does NOT understand the option; Ze implements and processes it (packet/tlv_core.go DecodeP2PThreeWayTLV decodes it, circuit/runtime.go:143 consumes it), so the "does not understand" role never applies to Ze |
+| [`RFC5303-3.1-3`](#rfc5303-3.1-3) Any system that does not understand this option SHALL ignore it, and (of course) SHALL NOT include it in its own IIH packets. (§3.1) | no test | no test carries this requirement id; annotated {not-applicable}: this constrains a non-supporting system's emission; Ze supports the mechanism and always emits TLV 240 in its point-to-point IIH (circuit/hello.go:158 threeWayTLV, circuit/hello.go:204 buildP2PHello), so the "does not understand" role never applies to Ze |
+| [`RFC5303-3.2-4`](#rfc5303-3.2-4) This value SHALL be unique among all the circuits of this Intermediate System. (§3.2) | {gap}, no test | the Extended Local Circuit ID is derived as uint8(ifindex) (circuits.go:317), truncating the interface index to 8 bits; two circuits whose ifindexes collide modulo 256 emit the same value, so uniqueness among all circuits is not guaranteed and the 4-octet field never exceeds 255 |
+| [`RFC5303-3.2-6`](#rfc5303-3.2-6) the neighbor's Extended Local Circuit ID SHALL be reported in the Neighbor Extended Local Circuit ID field. (§3.2) | {gap}, no test | Ze does not track the neighbor's Extended Local Circuit ID; threeWayTLV echoes a constant 0 in the Neighbor Extended Local Circuit ID field (circuit/hello.go:168) and updateThreeWay never stores the neighbor's value (adjacency/fsm.go:232), so the neighbor's actual extended circuit ID is never reported |
 | [`RFC5303-3.2-7`](#rfc5303-3.2-7) If the option is present and contains invalid Adjacency Three-Way State, the PDU SHALL be discarded and no further action is taken. (§3.2) | {gap}, no test | the decoder validates only the TLV length, not the state value (packet/tlv_core.go DecodeP2PThreeWayTLV); an out-of-range Adjacency Three-Way State is folded into the FSM (adjacency/fsm.go:237) and treated as not-bidirectional rather than discarding the PDU, so the "discard, no further action" path is absent |
-| [`RFC5303-3.2-8`](#rfc5303-3.2-8) If the option carries a valid Adjacency Three-Way State, "the Neighbor System ID and Neighbor Extended Local Circuit ID fields, if present, SHALL be examined" (§3.2) | {gap}, no test | updateThreeWay examines only the Neighbor System ID (adjacency/fsm.go:240) to set neighborSawUs; the Neighbor Extended Local Circuit ID is decoded (packet/tlv_core.go DecodeP2PThreeWayTLV, the p2pThreeWayLenFull branch) but the FSM never examines it, so the required examination of both fields is incomplete |
-| [`RFC5303-3.2-9`](#rfc5303-3.2-9) If the Neighbor System ID does not match the local system's ID, or the Neighbor Extended Local Circuit ID does not match the local extended circuit ID, "the PDU SHALL be discarded and no further action is taken" (§3.2) | {gap}, no test | on a Neighbor System ID that does not match ours Ze keeps the adjacency Initializing (adjacency/fsm.go:240) and still processes the PDU, arming the hold timer and recording the neighbor (adjacency/fsm.go:161); it neither discards the PDU nor checks the Neighbor Extended Local Circuit ID, so the loop-detection discard is absent |
-| [`RFC5303-3.2-11`](#rfc5303-3.2-11) If the action taken from ISO 10589 section 8.2.4.2 a or b is "Up" or "Accept", "the IS SHALL perform the action indicated by the new adjacency three-way state table" using the current and received Adjacency Three-Way State (§3.2) | {gap}, no test | Ze does not maintain a distinct three-way state nor the four-cell section 3.2 state table; bidirectionality is derived from the ISO 10589 adjacency state plus the System ID echo (adjacency/fsm.go:207 bidirectional), so the table's "Accept" and restart "Down" cells are not modeled |
-| [`RFC5303-3.2-12`](#rfc5303-3.2-12) If the new action is "Down", "the adjacency SHALL be deleted" and an adjacencyStateChange event for Down is generated with reason "Neighbor restarted" (§3.2) | {gap}, no test | the "Down"/"Neighbor restarted" action is absent; when our three-way state is Down and the neighbor reports Up Ze brings the adjacency Up (adjacency/fsm.go:189) rather than deleting it and emitting adjacencyStateChange(Down) |
+| [`RFC5303-3.2-8`](#rfc5303-3.2-8) If the option with a valid Adjacency Three-Way State is present, the Neighbor System ID and Neighbor Extended Local Circuit ID fields, if present, SHALL be examined. (§3.2) | {gap}, no test | updateThreeWay examines only the Neighbor System ID (adjacency/fsm.go:240) to set neighborSawUs; the Neighbor Extended Local Circuit ID is decoded (packet/tlv_core.go DecodeP2PThreeWayTLV, the p2pThreeWayLenFull branch) but the FSM never examines it, so the required examination of both fields is incomplete |
+| [`RFC5303-3.2-9`](#rfc5303-3.2-9) If they are present, and the Neighbor System ID contained therein does not match the local system's ID, or the Neighbor Extended Local Circuit ID does not match the local system's extended circuit ID, the PDU SHALL be discarded and no further action is taken. (§3.2) | {gap}, no test | on a Neighbor System ID that does not match ours Ze keeps the adjacency Initializing (adjacency/fsm.go:240) and still processes the PDU, arming the hold timer and recording the neighbor (adjacency/fsm.go:161); it neither discards the PDU nor checks the Neighbor Extended Local Circuit ID, so the loop-detection discard is absent |
+| [`RFC5303-3.2-11`](#rfc5303-3.2-11) If the action taken from section 8.2.4.2 a or b is "Up" or "Accept", the IS SHALL perform the action indicated by the new adjacency three-way state table below, based on the current adjacency three-way state and the received Adjacency Three-Way State value from the option. (§3.2) | {gap}, no test | Ze does not maintain a distinct three-way state nor the four-cell section 3.2 state table; bidirectionality is derived from the ISO 10589 adjacency state plus the System ID echo (adjacency/fsm.go:207 bidirectional), so the table's "Accept" and restart "Down" cells are not modeled |
+| [`RFC5303-3.2-12`](#rfc5303-3.2-12) If the new action is "Down", an adjacencyStateChange(Down) event is generated with the reason "Neighbor restarted" and the adjacency SHALL be deleted. (§3.2) | {gap}, no test | the "Down"/"Neighbor restarted" action is absent; when our three-way state is Down and the neighbor reports Up Ze brings the adjacency Up (adjacency/fsm.go:189) rather than deleting it and emitting adjacencyStateChange(Down) |
 
 ## Proof state
 
@@ -149,9 +151,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC5303-3.1-1`](#rfc5303-3.1-1)
 
-"Any system that supports this mechanism SHALL include this option in its Point-to-Point IIH packets"; the §3.2 sending clause repeats this as "the IS SHALL include the Point-to-Point Three-Way Adjacency option in the transmitted Point-to-Point IIH PDU" (§3.1)
+Any system that supports this mechanism SHALL include this option in its Point-to-Point IIH packets. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Point-to-Point IIH without TLV 240. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption: the IIH buildP2PHello emits (the builder sendP2PHello always uses) must decode with TLV 240 (absent is Fatal); negative: a LAN IIH never carries it.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -160,7 +162,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5303-3.1-2`](#rfc5303-3.1-2)
 
-"Any system that does not understand this option SHALL ignore it" (§3.1)
+Any system that does not understand this option SHALL ignore it (§3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -168,7 +170,7 @@ No test carries RFC5303-3.1-2, so no unit is bound to it.
 
 ### [`RFC5303-3.1-3`](#rfc5303-3.1-3)
 
-A system that does not understand this option "SHALL NOT include it in its own IIH packets" (§3.1)
+Any system that does not understand this option SHALL ignore it, and (of course) SHALL NOT include it in its own IIH packets. (§3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -178,7 +180,7 @@ No test carries RFC5303-3.1-3, so no unit is bound to it.
 
 Any system that supports this mechanism MUST include the Adjacency Three-Way State field in this option. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a TLV 240 without the Adjacency Three-Way State field. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldIncluded: for Up, Initializing and Down the emitted value is non-empty and decodes to the same state (Fatalf otherwise); negative internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldPresentWithoutNeighbor: the minimal no-neighbor form still carries it.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -189,7 +191,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Any system that is able to process this option SHALL follow the procedures below. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The sentence binds Ze to every procedure of section 3.2. internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption proves one: with TLV 240 present an Up-without-echo neighbor stays Initializing, without it the legacy two-way reaches Up. The invalid-state discard (RFC5303-3.2-7), the Neighbor ID mismatch discard (3.2-9), the state table (3.2-11) and its Down action (3.2-12) are not followed; those rows carry {gap}.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -198,9 +200,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5303-3.2-1`](#rfc5303-3.2-1)
 
-The current three-way state of the adjacency with its neighbor "SHALL be reported in the Adjacency Three-Way State field" of the transmitted Point-to-Point IIH (§3.2)
+The current three-way state of the adjacency with its neighbor on the link (as defined in new section 8.2.4.1.1 introduced later in the document) SHALL be reported in the Adjacency Three-Way State field. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a transmitted IIH whose Adjacency Three-Way State is not the adjacency's current state. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsCurrentState asserts what p2pThreeWayState returns (Up, then Initializing), not the transmitted field: sendP2PHello (circuit/runtime.go) passes that state to buildP2PHello, and no tagged unit asserts the IIH it sends, so a send path that ignored the computed state stays green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -209,9 +211,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5303-3.2-2`](#rfc5303-3.2-2)
 
-"If no adjacency exists, the state SHALL be reported as Down" in the Adjacency Three-Way State field (§3.2)
+If no adjacency exists, the state SHALL be reported as Down. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a state other than Down reported with no adjacency. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayDownWhenNoAdjacency asserts p2pThreeWayState returns Down on an empty table (and not Down once Up), not the Adjacency Three-Way State field of a transmitted IIH; the sendP2PHello wiring is unasserted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -222,7 +224,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Extended Local Circuit ID field SHALL contain a value assigned by this IS when the circuit is created. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an Extended Local Circuit ID field that is not the circuit's assigned value (absent, a shared constant). internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayExtendedLocalCircuitID: the IIH buildP2PHello emits carries HasCircuitID and LocalCircuitID == 7 (Fatalf otherwise); negative: a circuit assigned 42 emits a different value. The uint8(ifindex) uniqueness defect is RFC5303-3.2-4's {gap}.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -231,7 +233,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5303-3.2-4`](#rfc5303-3.2-4)
 
-The Extended Local Circuit ID "value SHALL be unique among all the circuits of this Intermediate System" (§3.2)
+This value SHALL be unique among all the circuits of this Intermediate System. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -239,9 +241,9 @@ No test carries RFC5303-3.2-4, so no unit is bound to it.
 
 ### [`RFC5303-3.2-5`](#rfc5303-3.2-5)
 
-When the neighbor's system ID and Extended Local Circuit ID are known, in three-way state Initializing or Up, "the neighbor's system ID SHALL be reported in the Neighbor System ID field" (§3.2)
+If the system ID and Extended Local Circuit ID of the neighboring system are known (in adjacency three-way state Initializing or Up), the neighbor's system ID SHALL be reported in the Neighbor System ID field (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: omitting the neighbor's System ID when it is known in Initializing or Up. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsNeighborSystemID proves buildP2PHello echoes the ID it is handed and omits it when told none is known. No assertion shows that an Initializing or Up adjacency makes p2pThreeWayState return haveNeighbor with that ID (TestISISThreeWayReportsCurrentState discards those results), so the 'known (in Initializing or Up)' clause is unproven.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -250,7 +252,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5303-3.2-6`](#rfc5303-3.2-6)
 
-When the neighbor is known, the neighbor's "Extended Local Circuit ID SHALL be reported in the Neighbor Extended Local Circuit ID field" (§3.2)
+the neighbor's Extended Local Circuit ID SHALL be reported in the Neighbor Extended Local Circuit ID field. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -266,7 +268,7 @@ No test carries RFC5303-3.2-7, so no unit is bound to it.
 
 ### [`RFC5303-3.2-8`](#rfc5303-3.2-8)
 
-If the option carries a valid Adjacency Three-Way State, "the Neighbor System ID and Neighbor Extended Local Circuit ID fields, if present, SHALL be examined" (§3.2)
+If the option with a valid Adjacency Three-Way State is present, the Neighbor System ID and Neighbor Extended Local Circuit ID fields, if present, SHALL be examined. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -274,7 +276,7 @@ No test carries RFC5303-3.2-8, so no unit is bound to it.
 
 ### [`RFC5303-3.2-9`](#rfc5303-3.2-9)
 
-If the Neighbor System ID does not match the local system's ID, or the Neighbor Extended Local Circuit ID does not match the local extended circuit ID, "the PDU SHALL be discarded and no further action is taken" (§3.2)
+If they are present, and the Neighbor System ID contained therein does not match the local system's ID, or the Neighbor Extended Local Circuit ID does not match the local system's extended circuit ID, the PDU SHALL be discarded and no further action is taken. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -282,9 +284,9 @@ No test carries RFC5303-3.2-9, so no unit is bound to it.
 
 ### [`RFC5303-3.2-10`](#rfc5303-3.2-10)
 
-When the "Up" action from ISO 10589 state tables 5, 6, 7, and 8 creates a new adjacency, "the three-way state of the adjacency SHALL be Down" (§3.2)
+In section 8.2.4.2 a and b, the action "Up" from state tables 5, 6, 7, and 8 may create a new adjacency but the three-way state of the adjacency SHALL be Down. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The sentence: the ISO 10589 'Up' action may create a new adjacency but its three-way state SHALL be Down, the input to the section 3.2 state table. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown proves a neighbouring reporting rule: a table record already in StateDown makes p2pThreeWayState report Down. It never drives ReceiveHello (adjacency/fsm.go) through adjacency creation; there Ze moves a new adjacency straight to Initializing (TestISISThreeWayProceduresEngagedByOption), and the state table is not modelled (RFC5303-3.2-11 {gap}).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -293,7 +295,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5303-3.2-11`](#rfc5303-3.2-11)
 
-If the action taken from ISO 10589 section 8.2.4.2 a or b is "Up" or "Accept", "the IS SHALL perform the action indicated by the new adjacency three-way state table" using the current and received Adjacency Three-Way State (§3.2)
+If the action taken from section 8.2.4.2 a or b is "Up" or "Accept", the IS SHALL perform the action indicated by the new adjacency three-way state table below, based on the current adjacency three-way state and the received Adjacency Three-Way State value from the option. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -301,7 +303,7 @@ No test carries RFC5303-3.2-11, so no unit is bound to it.
 
 ### [`RFC5303-3.2-12`](#rfc5303-3.2-12)
 
-If the new action is "Down", "the adjacency SHALL be deleted" and an adjacencyStateChange event for Down is generated with reason "Neighbor restarted" (§3.2)
+If the new action is "Down", an adjacencyStateChange(Down) event is generated with the reason "Neighbor restarted" and the adjacency SHALL be deleted. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -309,9 +311,9 @@ No test carries RFC5303-3.2-12, so no unit is bound to it.
 
 ### [`RFC5303-3.2-13`](#rfc5303-3.2-13)
 
-If the new action is "Initialize", no event is generated and "the adjacency three-way state SHALL be set to Initializing" (§3.2)
+If the new action is "Initialize", no event is generated and the adjacency three-way state SHALL be set to "Initializing". (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: on an Initialize action, generating an event or not setting Initializing. internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction: from Down with received Down, tr.State != StateInitializing is Fatalf and SessionUp/SessionDown is Fatalf; negative: received Up with our echo goes Up with an event. The table yields Initialize in three cells (current Down, Initializing, Up with received Down); the Initializing and Up rows have no assertion.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

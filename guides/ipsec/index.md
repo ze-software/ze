@@ -217,7 +217,7 @@ The `remote-access` container is not wired yet. It parses, and no session reads
 it, so a `pool` assigns no address and an `eap-user` list authenticates nobody.
 `plan/immediate/spec-ipsec-remote-access.md` owns the work.
 
-<!-- source: internal/component/ike/engine/register.go -- runEngine discards the pool it builds from RemoteAccess -->
+<!-- source: internal/component/ike/engine/apply.go -- reloadPool stores the pool in ikeEngineState.pool, which nothing reads -->
 
 Every EAP mode and X.509 needs a `ca-certificate`. The daemon refuses a remote
 certificate it cannot chain to that anchor. A certificate with no trust anchor

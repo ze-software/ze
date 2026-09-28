@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 2 | of 4 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 4 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 8 |
 | Tagged units | 8 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 2 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc9003.md` |
 | Requirement shard | `rfc/requirements/rfc9003.md` |
@@ -106,13 +115,13 @@ Sender remains conservative at 128 bytes for interoperability.
 | `RFC9003-2-2` | UTF-8 "Shortest Form" encoding is REQUIRED (S2, S6) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L446). **negative:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L448) |
 | `RFC9003-2-3` | Subcode: The Error Subcode value MUST be one of the following values: 2 ("Administrative Shutdown") or 4 ("Administrative Reset"). (S2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L372). **negative:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L375) |
 | `RFC9003-2-4` | A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (S2) | MUST NOT | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L429). **negative:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L411) |
-| `RFC9003-2-5` | Reporting mechanisms SHOULD include methods such as syslog (S2) | SHOULD | 2 - Shutdown Communication | **positive:** no positive test. **negative:** no negative test |
-| `RFC9003-4-1` | If invalid UTF-8 sequence received, a message indicating this event SHOULD be logged (S4) | SHOULD | 4 - Error Handling | **positive:** no positive test. **negative:** no negative test |
-| `RFC9003-3-1` | If peer support unknown, Shutdown Communication SHOULD NOT be longer than 128 octets (S3) | SHOULD NOT | 3 - Operational Considerations | **positive:** no positive test. **negative:** no negative test |
-| `RFC9003-2-6` | Sender MAY include a UTF-8-encoded string in the Cease NOTIFICATION (S2) | MAY | 2 - Shutdown Communication | **positive:** no positive test. **negative:** no negative test |
-| `RFC9003-4-2` | Erroneous or malformed Shutdown Communication MAY be logged in hexdump format (S4) | MAY | 4 - Error Handling | **positive:** no positive test. **negative:** no negative test |
-| `RFC9003-3-2` | If peer known to support this spec, Shutdown Communication up to 255 octets MAY be sent (S3) | MAY | 3 - Operational Considerations | **positive:** no positive test. **negative:** no negative test |
-| `RFC9003-3-3` | If peer support unknown, a Shutdown Communication MAY be sent (S3) | MAY | 3 - Operational Considerations | **positive:** no positive test. **negative:** no negative test |
+| `RFC9003-2-5` | Mechanisms concerning the reporting of information contained in the Shutdown Communication are implementation specific but SHOULD include methods such as syslog [RFC5424]. (§2) | SHOULD | 2 - Shutdown Communication | **positive:** no positive test. **negative:** no negative test |
+| `RFC9003-4-1` | If a Shutdown Communication with an invalid UTF-8 sequence is received, a message indicating this event SHOULD be logged for the attention of the operator. (§4) | SHOULD | 4 - Error Handling | **positive:** no positive test. **negative:** no negative test |
+| `RFC9003-3-1` | Otherwise, a Shutdown Communication MAY be sent, but it SHOULD NOT be longer than 128 octets. (§3) | SHOULD NOT | 3 - Operational Considerations | **positive:** no positive test. **negative:** no negative test |
+| `RFC9003-2-6` | If a BGP speaker decides to terminate its session with a BGP neighbor, and it sends a NOTIFICATION message with the Error Code "Cease" and Error Subcode "Administrative Shutdown" or "Administrative Reset" [RFC4486], it MAY include a UTF-8-encoded string. (§2) | MAY | 2 - Shutdown Communication | **positive:** no positive test. **negative:** no negative test |
+| `RFC9003-4-2` | An erroneous or malformed Shutdown Communication itself MAY be logged in a hexdump format. (§4) | MAY | 4 - Error Handling | **positive:** no positive test. **negative:** no negative test |
+| `RFC9003-3-2` | If it is known that the peer BGP speaker supports this specification, then a Shutdown Communication that is not longer than 255 octets MAY be sent. (§3) | MAY | 3 - Operational Considerations | **positive:** no positive test. **negative:** no negative test |
+| `RFC9003-3-3` | Otherwise, a Shutdown Communication MAY be sent (§3) | MAY | 3 - Operational Considerations | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -148,7 +157,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Subcode: The Error Subcode value MUST be one of the following values: 2 ("Administrative Shutdown") or 4 ("Administrative Reset"). (S2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Re-read 2026-09-27. The sentence constrains the NOTIFICATION that carries a Shutdown Communication: its subcode is 2 or 4. Forbidden: ze sending a Shutdown Communication under another Cease subcode. TestRFC8203Subcode only proves the RECEIVE side (ShutdownMessage decodes for 2 and 4 and not for 3); no tagged unit asserts the subcode of a Cease NOTIFICATION ze builds with a shutdown message.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -159,7 +168,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (S2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Forbidden: a receiver interpreting an invalid UTF-8 Shutdown Communication. TestRFC8203UTF8Invalid fails unless ShutdownMessage errors and returns empty for 0xff 0xfe 0xfd; TestRFC8203UTF8Valid shows valid multibyte text is interpreted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

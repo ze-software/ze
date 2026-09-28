@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 19 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 19 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 18 | of 19 gated MUSTs judged | 8 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 19 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 19 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 38 |
 | Tagged units | 38 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 18 |
 | Discrimination records | 38 |
 | Summary | `rfc/short/rfc5282.md` |
 | Requirement shard | `rfc/requirements/rfc5282.md` |
@@ -103,32 +112,32 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 | `RFC5282-3-1` | There are no alignment requirements on the length of the Padding field; the recipient MUST accept any amount of Padding up to 255 octets. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC5282AEADReceiveAcceptsAnyPaddingTo255`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L255). **negative:** `unit/verify` [`TestRFC5282AEADReceiveRefusesATruncatedInnerPayload`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L291) |
 | `RFC5282-3.1-1` | The Initialization Vector (IV) MUST be eight octets. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC5282AEADSendIVIsEightOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L314). **negative:** `unit/verify` [`TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L358) |
 | `RFC5282-3.1-2` | The IV MUST be chosen by the encryptor in a manner that ensures that the same IV value is used only once for a given key. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC5282AEADSendIVIsUniquePerKey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L381). **negative:** `unit/verify` [`TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L413) |
-| `RFC5282-3.2-1` | AES GCM implementations MUST support a full-length 16 octet ICV (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC5282AEADSendICVIsSixteenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L440). **negative:** `unit/verify` [`TestRFC5282AEADReceiveRefusesADamagedICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L467) |
-| `RFC5282-3.2-2` | AES GCM implementations MUST NOT support ICV lengths other than 16, 8 and 12 octets (§3.2) | MUST NOT | 3.2 | **positive:** `unit/verify` [`TestRFC5282AEADRefusesAForbiddenICVLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L53). **negative:** `unit/verify` [`TestRFC5282AEADOpensTheFullLengthICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L81) |
+| `RFC5282-3.2-1` | The AES GCM ICV consists solely of the AES GCM Authentication Tag. Implementations MUST support a full-length 16 octet ICV (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC5282AEADSendICVIsSixteenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L440). **negative:** `unit/verify` [`TestRFC5282AEADReceiveRefusesADamagedICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L467) |
+| `RFC5282-3.2-2` | The AES GCM ICV consists solely of the AES GCM Authentication Tag. Implementations MUST support a full-length 16 octet ICV, MAY support 8 or 12 octet ICVs, and MUST NOT support other ICV lengths. (§3.2) | MUST NOT | 3.2 | **positive:** `unit/verify` [`TestRFC5282AEADRefusesAForbiddenICVLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L53). **negative:** `unit/verify` [`TestRFC5282AEADOpensTheFullLengthICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L81) |
 | `RFC5282-3.2-3` | Implementations MUST support ICV sizes of 8 octets and 16 octets. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC5282CCMSupportsTheEightAndSixteenOctetICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L195). **negative:** `unit/verify` [`TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L228) |
-| `RFC5282-3.2-4` | AES CCM implementations MUST NOT support ICV lengths other than 8, 16 and 12 octets (§3.2) | MUST NOT | 3.2 | **positive:** `unit/verify` [`TestRFC5282CCMRefusesEveryOtherICVLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_ccm_test.go#L25). **negative:** `unit/verify` [`TestRFC5282CCMSupportsTheThreePermittedICVLengths`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_ccm_test.go#L90) |
-| `RFC5282-4-1` | For AES GCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5282AEADNonceIsSaltThenIV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L496). **negative:** `unit/verify` [`TestRFC5282AEADRefusesAReversedNonce`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L519) |
-| `RFC5282-4-2` | For AES GCM a 12 octet nonce MUST be used (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5282AEADNonceIsTwelveOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L537). **negative:** `unit/verify` [`TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L564) |
-| `RFC5282-4-3` | For AES CCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5282CCMNonceIsSaltThenIV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L256). **negative:** `unit/verify` [`TestRFC5282CCMRefusesAReversedNonce`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L291) |
-| `RFC5282-4-4` | For AES CCM an 11 octet nonce MUST be used (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5282CCMNonceIsElevenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L312). **negative:** `unit/verify` [`TestRFC5282CCMRefusesANonceThatIsNotElevenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L339) |
+| `RFC5282-3.2-4` | AES CCM provides an encrypted ICV. Implementations MUST support ICV sizes of 8 octets and 16 octets. Implementations MAY also support 12 octet ICVs and MUST NOT support other ICV lengths. (§3.2) | MUST NOT | 3.2 | **positive:** `unit/verify` [`TestRFC5282CCMRefusesEveryOtherICVLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_ccm_test.go#L25). **negative:** `unit/verify` [`TestRFC5282CCMSupportsTheThreePermittedICVLengths`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_ccm_test.go#L90) |
+| `RFC5282-4-1` | When this default nonce format is used, both the encryptor and decryptor construct the nonce by concatenating the salt with the IV, in that order. For the use of AES GCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5282AEADNonceIsSaltThenIV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L496). **negative:** `unit/verify` [`TestRFC5282AEADRefusesAReversedNonce`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L519) |
+| `RFC5282-4-2` | For the use of AES GCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used and a 12 octet nonce MUST be used. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5282AEADNonceIsTwelveOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L537). **negative:** `unit/verify` [`TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L564) |
+| `RFC5282-4-3` | When this default nonce format is used, both the encryptor and decryptor construct the nonce by concatenating the salt with the IV, in that order. For the use of AES GCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used and a 12 octet nonce MUST be used. Note that this format matches the one specified in Section 4 of [RFC4106], providing compatibility between the use of AES GCM in IKEv2 and ESP. All of the requirements of Section 4 of [RFC4106] apply to the use of AES GCM with the IKEv2 Encrypted Payload. For the use of AES CCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5282CCMNonceIsSaltThenIV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L256). **negative:** `unit/verify` [`TestRFC5282CCMRefusesAReversedNonce`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L291) |
+| `RFC5282-4-4` | For the use of AES CCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used and an 11 octet nonce MUST be used. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5282CCMNonceIsElevenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L312). **negative:** `unit/verify` [`TestRFC5282CCMRefusesANonceThatIsNotElevenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L339) |
 | `RFC5282-5.1-1` | The associated data (A) MUST consist of the partial contents of the IKEv2 message, starting from the first octet of the Fixed IKE Header through the last octet of the Payload Header of the Encrypted Payload (i.e., the fourth octet of the Encrypted Payload), as shown in Figure 3. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC5282AEADAssociatedDataCoversAnInterveningPayload`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L585). **negative:** `unit/verify` [`TestRFC5282AEADRefusesAnAlteredInterveningPayload`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L617) |
 | `RFC5282-5.1-2` | The Initialization Vector and Ciphertext fields shown in Figure 1 (above) MUST NOT be included in the associated data. (§5.1) | MUST NOT | 5.1 | **positive:** `unit/verify` [`TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L641). **negative:** `unit/verify` [`TestRFC5282AEADRefusesAssociatedDataCoveringTheIV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L662) |
-| `RFC5282-7.1-1` | With an AEAD cipher the SK_ai and SK_ar integrity keys are unused, and each MUST be treated as having a size of zero octets (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestRFC5282AEADIntegrityKeysAreZeroOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L123). **negative:** `unit/verify` [`TestRFC5282NonAEADIntegrityKeysAreDerived`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L153) |
-| `RFC5282-7.1-2` | Each of SK_ei and SK_er MUST have the size and format of the KEYMAT for the AES key size in use, the cipher key followed by the salt (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestRFC5282AEADEncryptionKeysCarryTheirSalt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L169). **negative:** `unit/verify` [`TestRFC5282NonAEADEncryptionKeysCarryNoSalt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L230) |
+| `RFC5282-7.1-1` | When AES GCM or AES CCM is used with the IKEv2 Encrypted Payload, the SK_ai and SK_ar integrity protection keys are not used; each key MUST be treated as having a size of zero (0) octets. (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestRFC5282AEADIntegrityKeysAreZeroOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L123). **negative:** `unit/verify` [`TestRFC5282NonAEADIntegrityKeysAreDerived`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L153) |
+| `RFC5282-7.1-2` | The size of each of the SK_ei and SK_er encryption keys includes additional salt bytes. The size and format of each of the SK_ei and SK_er encryption keys MUST be: o For AES GCM, each encryption key has the size and format of the "KEYMAT requested" material specified in Section 8.1 of [RFC4106] for the AES key size being used. For example, if the AES key size is 128 bits, each encryption key is 20 octets, consisting of a 16-octet AES cipher key followed by 4 octets of salt. o For AES CCM, each key has the size and format of the "KEYMAT requested" material specified in Section 7.1 of [RFC4309] for the AES key size being used. For example, if the AES key size is 128 bits, each encryption key is 19 octets, consisting of a 16-octet AES cipher key followed by 3 octets of salt. (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestRFC5282AEADEncryptionKeysCarryTheirSalt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L169). **negative:** `unit/verify` [`TestRFC5282NonAEADEncryptionKeysCarryNoSalt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L230) |
 | `RFC5282-7.3-1` | Because the AES supports three key lengths, the Key Length attribute MUST be specified when any of the identifiers for AES GCM or AES CCM, specified in Section 7.2 of this document, is used. (§7.3) | MUST | 7.3 | **positive:** `unit/verify` [`TestRFC5282AEADProposalCarriesTheKeyLengthAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L677). **negative:** `unit/verify` [`TestRFC5282AEADOfferWithoutAKeyLengthIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L258) |
 | `RFC5282-7.3-2` | The Key Length attribute MUST have a value of 128, 192, or 256 (§7.3) | MUST | 7.3 | **positive:** `unit/verify` [`TestRFC5282AEADKeyLengthAcceptsTheThreeValues`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L277). **negative:** `unit/verify` [`TestRFC5282AEADKeyLengthRefusesEveryOtherValue`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L297) |
 | `RFC5282-8-1` | This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA. (§8) | MUST NOT | 8 | **positive:** `unit/verify` [`TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L739). **negative:** `unit/verify` [`TestRFC5282AEADOfferWithIntegrityIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L773) |
 | `RFC5282-8-2` | This document further updates [RFC4306] to require that if all of the encryption algorithms in any proposal are authenticated encryption algorithms, then the proposal MUST NOT propose any integrity transforms. (§8) | MUST NOT | 8 | **positive:** `unit/verify` [`TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_proposal_test.go#L37). **negative:** `unit/verify` [`TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_proposal_test.go#L74) |
-| `RFC5282-4-5` | Specific authenticated encryption algorithms SHOULD use the default nonce format (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5282-4-5` | Specific authenticated encryption algorithms MAY use different nonce formats, but they SHOULD use the default nonce format specified in this section. (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5282-7.2-1` | A 16-octet ICV size SHOULD be used with IKEv2 (§7.2) | SHOULD | 7.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5282-7.2-2` | The use of 12-octet ICVs, transform identifiers 15 and 19, is discouraged (§7.2) | NOT RECOMMENDED | 7.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5282-7.2-2` | In general, the use of 12-octet ICVs (values 15 and 19) is NOT RECOMMENDED in order to reduce the number of options for ICV size. (§7.2) | NOT RECOMMENDED | 7.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5282-7.2-3` | If an ICV size larger than 8 octets is appropriate, 16-octet ICVs SHOULD be used (§7.2) | SHOULD | 7.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5282-7.3-3` | The use of the Key Length value 192 is discouraged (§7.3) | NOT RECOMMENDED | 7.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5282-7.3-3` | The use of the value 192 is NOT RECOMMENDED. (§7.3) | NOT RECOMMENDED | 7.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5282-7.3-4` | If an AES key larger than 128 bits is appropriate, a 256-bit AES key SHOULD be used (§7.3) | SHOULD | 7.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5282-3-2` | Padding MAY contain any value chosen by the sender (§3) | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5282-3.1-3` | The encryptor MAY generate the IV in any manner that ensures uniqueness (§3.1) | MAY | 3.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5282-3.2-5` | AES GCM implementations MAY support 8 or 12 octet ICVs (§3.2) | MAY | 3.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5282-3.2-6` | AES CCM implementations MAY also support 12 octet ICVs (§3.2) | MAY | 3.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5282-3.2-5` | The AES GCM ICV consists solely of the AES GCM Authentication Tag. Implementations MUST support a full-length 16 octet ICV, MAY support 8 or 12 octet ICVs (§3.2) | MAY | 3.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5282-3.2-6` | AES CCM provides an encrypted ICV. Implementations MUST support ICV sizes of 8 octets and 16 octets. Implementations MAY also support 12 octet ICVs (§3.2) | MAY | 3.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5282-4-6` | Specific authenticated encryption algorithms MAY use different nonce formats (§4) | MAY | 4 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
@@ -143,7 +152,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 There are no alignment requirements on the length of the Padding field; the recipient MUST accept any amount of Padding up to 255 octets. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a receiver refusing a message for its Padding length (0..255). Red: TestRFC5282AEADReceiveAcceptsAnyPaddingTo255 fatals 'decryptAndParse = %v, want the message accepted' for every length 0..255. Negative TestRFC5282AEADReceiveRefusesATruncatedInnerPayload bounds it (expectRefused).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -154,7 +163,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Initialization Vector (IV) MUST be eight octets. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an IV other than eight octets. Sender: TestRFC5282AEADSendIVIsEightOctets opens ze's LastSentMsg with the first 8 octets as IV and asserts gotIVOctets == 8. Receiver: TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets expectRefused for 7 and 9. The IV length is the shared ikeIVOctets for GCM and CCM.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -165,7 +174,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The IV MUST be chosen by the encryptor in a manner that ensures that the same IV value is used only once for a given key. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an IV repeated under one key. Red: TestRFC5282AEADSendIVIsUniquePerKey fatals on any repeat over 512 builds under one SA; TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage fatals when two byte-identical builds share an IV.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -174,9 +183,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5282-3.2-1`](#rfc5282-3.2-1)
 
-AES GCM implementations MUST support a full-length 16 octet ICV (§3.2)
+The AES GCM ICV consists solely of the AES GCM Authentication Tag. Implementations MUST support a full-length 16 octet ICV (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: not supporting the 16 octet AES GCM ICV. Red: TestRFC5282AEADSendICVIsSixteenOctets asserts len(raw)==prefix+IV+plaintext+16 and expectOneDelete on the receiver; TestRFC5282AEADReceiveRefusesADamagedICV proves the 16 octets are verified (flipped and stripped ICV refused).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -185,9 +194,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5282-3.2-2`](#rfc5282-3.2-2)
 
-AES GCM implementations MUST NOT support ICV lengths other than 16, 8 and 12 octets (§3.2)
+The AES GCM ICV consists solely of the AES GCM Authentication Tag. Implementations MUST support a full-length 16 octet ICV, MAY support 8 or 12 octet ICVs, and MUST NOT support other ICV lengths. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: supporting an AES GCM ICV other than 16, 8, 12. Red: TestRFC5282AEADRefusesAForbiddenICVLength fatals if OpenIKEAEAD(ENCR_AES_GCM_16) accepts a real 13, 14 or 15 octet ICV sealing; TestRFC5282AEADOpensTheFullLengthICV keeps 16 open. Lengths below 12 are not constructed (stdlib limit); ze's only GCM transform (20) fixes the tag at 16, so no other length is reachable.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -198,7 +207,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Implementations MUST support ICV sizes of 8 octets and 16 octets. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: not supporting AES CCM ICVs of 8 and 16. Red: TestRFC5282CCMSupportsTheEightAndSixteenOctetICV establishes under CCM8 and CCM16, measures the ICV (t.Errorf on mismatch) and expectOneDelete; TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV refuses a flipped ICV bit and a flipped ciphertext bit at each size.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -207,9 +216,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5282-3.2-4`](#rfc5282-3.2-4)
 
-AES CCM implementations MUST NOT support ICV lengths other than 8, 16 and 12 octets (§3.2)
+AES CCM provides an encrypted ICV. Implementations MUST support ICV sizes of 8 octets and 16 octets. Implementations MAY also support 12 octet ICVs and MUST NOT support other ICV lengths. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an AES CCM ICV length other than 8, 16, 12. Red: TestRFC5282CCMRefusesEveryOtherICVLength sweeps Transform IDs 0..35, errors if AEADICVOctets answers a length outside {8,12,16} or answers for any id beyond 14,15,16,20, and requires SealIKEAEAD/OpenIKEAEAD to refuse the rest; TestRFC5282CCMSupportsTheThreePermittedICVLengths seals and opens 8, 12 and 16.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -218,9 +227,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5282-4-1`](#rfc5282-4-1)
 
-For AES GCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)
+When this default nonce format is used, both the encryptor and decryptor construct the nonce by concatenating the salt with the IV, in that order. For the use of AES GCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause 'both the encryptor and decryptor construct the nonce by concatenating the salt with the IV' for AES GCM. Decryptor: TestRFC5282AEADNonceIsSaltThenIV accepts salt||IV, TestRFC5282AEADRefusesAReversedNonce refuses IV||salt. Encryptor: no 4-1 tagged unit checks the nonce ze seals under; SealIKEAEAD calling ikeAEADNonce with its arguments swapped keeps the same length and turns no 4-1 unit red. TestRFC5282AEADSendIVIsEightOctets opens ze's own message under salt||IV but is tagged 3.1-1 only.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -229,9 +238,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5282-4-2`](#rfc5282-4-2)
 
-For AES GCM a 12 octet nonce MUST be used (§4)
+For the use of AES GCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used and a 12 octet nonce MUST be used. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an AES GCM nonce other than 12 octets. Red: TestRFC5282AEADNonceIsTwelveOctets asserts len(nonce)==12 and expectOneDelete; TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets refuses 11 and 13. Sender side: the nonce size is fixed once in newIKEAEAD (salt+ikeIVOctets, checked by newAESGCM) and shared by SealIKEAEAD and OpenIKEAEAD, and Go's AEAD panics on a wrong-length nonce, so a sender-only length change is not reachable without reddening the receive units.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -240,9 +249,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5282-4-3`](#rfc5282-4-3)
 
-For AES CCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)
+When this default nonce format is used, both the encryptor and decryptor construct the nonce by concatenating the salt with the IV, in that order. For the use of AES GCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used and a 12 octet nonce MUST be used. Note that this format matches the one specified in Section 4 of [RFC4106], providing compatibility between the use of AES GCM in IKEv2 and ESP. All of the requirements of Section 4 of [RFC4106] apply to the use of AES GCM with the IKEv2 Encrypted Payload. For the use of AES CCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an AES CCM nonce not built as salt||IV. Encryptor: TestRFC5282CCMNonceIsSaltThenIV opens ze's own sent message with an independent CCM under the 3 salt octets then the wire IV (fatal on failure). Decryptor: TestRFC5282CCMRefusesAReversedNonce refuses IV||salt.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -251,9 +260,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5282-4-4`](#rfc5282-4-4)
 
-For AES CCM an 11 octet nonce MUST be used (§4)
+For the use of AES CCM with the IKEv2 Encrypted Payload, this default nonce format MUST be used and an 11 octet nonce MUST be used. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an AES CCM nonce other than 11 octets. Red: TestRFC5282CCMNonceIsElevenOctets asserts len(nonce)==11 and expectOneDelete; TestRFC5282CCMRefusesANonceThatIsNotElevenOctets refuses 10 and 12. Sender length is fixed by the shared newIKEAEAD (ccm.New with salt+IV), so a sender-only change is not reachable without reddening these.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -264,7 +273,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The associated data (A) MUST consist of the partial contents of the IKEv2 message, starting from the first octet of the Fixed IKE Header through the last octet of the Payload Header of the Encrypted Payload (i.e., the fourth octet of the Encrypted Payload), as shown in Figure 3. (§5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The associated data MUST span the fixed header through the SK generic header, including intervening payloads. Receiver: TestRFC5282AEADAssociatedDataCoversAnInterveningPayload accepts a test-sealed message over that span, TestRFC5282AEADRefusesAnAlteredInterveningPayload refuses an altered Notify. Sender: the AAD ze seals under is cut in buildSKMessageAEADWithMsgID, a separate producer, and no 5.1-1 tagged unit checks it; a sender cutting the AAD at 32 octets or past the SK header turns no 5.1-1 unit red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -275,7 +284,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Initialization Vector and Ciphertext fields shown in Figure 1 (above) MUST NOT be included in the associated data. (§5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The IV and Ciphertext MUST NOT be in the associated data. Receiver: TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext accepts a span ending at the SK header, TestRFC5282AEADRefusesAssociatedDataCoveringTheIV refuses one covering the IV. Sender: no 5.1-2 tagged unit checks the AAD buildSKMessageAEADWithMsgID seals under; TestRFC5282AEADSendIVIsEightOctets opens ze's message under raw[:DataOffset] but is tagged 3.1-1 only.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -284,9 +293,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5282-7.1-1`](#rfc5282-7.1-1)
 
-With an AEAD cipher the SK_ai and SK_ar integrity keys are unused, and each MUST be treated as having a size of zero octets (§7.1)
+When AES GCM or AES CCM is used with the IKEv2 Encrypted Payload, the SK_ai and SK_ar integrity protection keys are not used; each key MUST be treated as having a size of zero (0) octets. (§7.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause 'When AES GCM or AES CCM is used ... each key MUST be treated as having a size of zero'. AES GCM: TestRFC5282AEADIntegrityKeysAreZeroOctets asserts zero-length SK_ai/SK_ar and the SK_ei offset; TestRFC5282NonAEADIntegrityKeysAreDerived is the negative. AES CCM: no tagged unit derives a CCM key hierarchy, so a CCM derivation reserving integrity key material turns nothing red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -295,9 +304,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5282-7.1-2`](#rfc5282-7.1-2)
 
-Each of SK_ei and SK_er MUST have the size and format of the KEYMAT for the AES key size in use, the cipher key followed by the salt (§7.1)
+The size of each of the SK_ei and SK_er encryption keys includes additional salt bytes. The size and format of each of the SK_ei and SK_er encryption keys MUST be: o For AES GCM, each encryption key has the size and format of the "KEYMAT requested" material specified in Section 8.1 of [RFC4106] for the AES key size being used. For example, if the AES key size is 128 bits, each encryption key is 20 octets, consisting of a 16-octet AES cipher key followed by 4 octets of salt. o For AES CCM, each key has the size and format of the "KEYMAT requested" material specified in Section 7.1 of [RFC4309] for the AES key size being used. For example, if the AES key size is 128 bits, each encryption key is 19 octets, consisting of a 16-octet AES cipher key followed by 3 octets of salt. (§7.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Both bullets are obligations. AES GCM: TestRFC5282AEADEncryptionKeysCarryTheirSalt asserts 20/36 octets and a key-then-salt round trip; TestRFC5282NonAEADEncryptionKeysCarryNoSalt is the negative. AES CCM bullet (19 octets at 128 bits, key then 3 octets of salt): no 7.1-2 tagged unit asserts it; encKeyMaterialLen's CCM branch could size the key wrong with no 7.1-2 unit red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -308,7 +317,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Because the AES supports three key lengths, the Key Length attribute MUST be specified when any of the identifiers for AES GCM or AES CCM, specified in Section 7.2 of this document, is used. (§7.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause 'any of the identifiers for AES GCM or AES CCM'. AES GCM: TestRFC5282AEADProposalCarriesTheKeyLengthAttribute asserts exactly one Key Length attribute on the IKE and ESP rails; TestRFC5282AEADOfferWithoutAKeyLengthIsRefused refuses a missing attribute. AES CCM (identifiers 14, 15, 16, offered on the IKE rail): no tagged unit asserts ze sends the attribute; assertKeyLength even fatals on any Transform ID other than 20.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -330,7 +339,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause 'for any SA (IKE or ESP)'. IKE SA: TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm asserts AUTH_NONE, zero key length and zero SK_ai/SK_ar; TestRFC5282AEADOfferWithIntegrityIsRefused refuses a peer's integrity transform beside AES GCM. ESP SA: no tagged unit asserts that ESP negotiation with an AEAD cipher selects no integrity algorithm.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -341,7 +350,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This document further updates [RFC4306] to require that if all of the encryption algorithms in any proposal are authenticated encryption algorithms, then the proposal MUST NOT propose any integrity transforms. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause 'any proposal'. IKE proposal: TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform asserts zero Transform Type 3 from buildWireIKEProposals; TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform is the negative. ESP proposal: espProposalToWire's omission for an AEAD ESP proposal is not asserted by any 8-2 tagged unit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

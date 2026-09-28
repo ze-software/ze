@@ -18,14 +18,14 @@
     "tests": "internal/le/test/health.Render, over the tree this build read"
   },
   "blog_articles": 6,
-  "changes": 41,
+  "changes": 42,
   "cli_commands": 471,
   "config_sections": 38,
   "dependencies": 50,
   "features": {
     "core_experimental": 52
   },
-  "generated_at": "2026-09-26",
+  "generated_at": "2026-09-28",
   "github_stars": 56,
   "interop": {
     "scenario_dirs_raw": 152,
@@ -34,7 +34,7 @@
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-09-26T06:00:25Z",
+  "published_at": "2026-09-28T01:06:59Z",
   "repo": {
     "design_comments": 5515,
     "design_comments_display": "5,500+",
@@ -46,32 +46,32 @@
   "rfc": {
     "enrolled": 174,
     "enrolled_display": "174",
-    "gated_implemented": 3898,
-    "gated_implemented_display": "3,898",
-    "gated_must": 4060,
-    "gated_must_display": "4,060",
-    "implemented": 150,
-    "implemented_display": "150",
-    "inspected": 171,
-    "inspected_display": "171",
-    "must": 4459,
-    "must_display": "4,459",
-    "proven": 2489,
-    "proven_display": "2,489",
+    "gated_implemented": 3896,
+    "gated_implemented_display": "3,896",
+    "gated_must": 4019,
+    "gated_must_display": "4,019",
+    "implemented": 151,
+    "implemented_display": "151",
+    "inspected": 170,
+    "inspected_display": "170",
+    "must": 4403,
+    "must_display": "4,403",
+    "proven": 2488,
+    "proven_display": "2,488",
     "proven_percent": "63.9",
-    "requirements": 6354,
-    "requirements_display": "6,354",
-    "summaries": 194,
-    "summaries_display": "194"
+    "requirements": 6282,
+    "requirements_display": "6,282",
+    "summaries": 193,
+    "summaries_display": "193"
   },
   "tests": {
-    "e2e": 2090,
-    "e2e_display": "2,000+",
-    "editor": 171,
+    "e2e": 2112,
+    "e2e_display": "2,100+",
+    "editor": 172,
     "editor_display": "170+",
     "fuzz": 88,
     "fuzz_display": "88",
-    "unit": 32255,
-    "unit_display": "32,200+"
+    "unit": 32504,
+    "unit_display": "32,500+"
   }
 }

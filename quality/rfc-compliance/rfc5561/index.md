@@ -63,11 +63,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 17 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 16 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 2 |
 | Tagged units | 2 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 1 |
 | Discrimination records | 2 |
 | Summary | `rfc/short/rfc5561.md` |
 | Requirement shard | `rfc/requirements/rfc5561.md` |
@@ -109,22 +110,22 @@ Every one of the 17 MUST-level rows is a `{gap}` scheduled by one of two specs. 
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5561-3-1` | The F-bit of a Capability Parameter TLV "MUST be 0 since a Capability Parameter TLV is sent only in Initialization and Capability messages, which are not forwarded" (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
-| `RFC5561-9-4` | "The Dynamic Capability Announcement Parameter MAY be included by an LDP speaker in an Initialization message to signal its peer that the speaker is capable of processing Capability messages" (§9) | MAY | 9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5561-3-1` | F-bit: Forward unknown TLV bit, as described in [RFC5036]. The value of this bit MUST be 0 since a Capability Parameter TLV is sent only in Initialization and Capability messages, which are not forwarded. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
+| `RFC5561-9-4` | The Dynamic Capability Announcement Parameter MAY be included by an LDP speaker in an Initialization message to signal its peer that the speaker is capable of processing Capability messages. (§9) | MAY | 9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5561-6-4` | If the U-bit is 1, then the speaker MUST silently ignore the Capability Parameter and allow the session to be established. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC5561UnknownCapabilityWithUBitSetIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/capability_rfc5561_test.go#L74). **negative:** `unit/verify` [`TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/capability_rfc5561_test.go#L112) |
-| `RFC5561-4-2` | "An LDP speaker MUST NOT send a Capability message to a peer unless its peer advertised the Dynamic Capability Announcement capability in its session Initialization message" (§4) | MUST NOT | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
+| `RFC5561-4-2` | An LDP speaker MUST NOT send a Capability message to a peer unless its peer advertised the Dynamic Capability Announcement capability in its session Initialization message. (§7) | MUST NOT | 7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 | `RFC5561-3-2` | An LDP speaker MUST NOT include more than one instance of a Capability Parameter (as identified by the same TLV code point) in an Initialization or Capability message. (§3) | MUST NOT | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
-| `RFC5561-3-5` | When more than one instance of the same Capability Parameter type is received in a message, "The Status Code in the Status TLV of the Notification message MUST be Malformed TLV value, and the message SHOULD contain the second Capability Parameter TLV of the same type (code point) that is received in the message" (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
+| `RFC5561-3-5` | If an LDP speaker receives more than one instance of the same Capability Parameter type in a message, it SHOULD send a Notification message to the peer before terminating the session with the peer. The Status Code in the Status TLV of the Notification message MUST be Malformed TLV value, and the message SHOULD contain the second Capability Parameter TLV of the same type (code point) that is received in the message. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
 | `RFC5561-4-1` | Note that Backward Compatibility TLVs (see Section 3.1) MUST NOT be included in Capability messages. (§4) | MUST NOT | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 | `RFC5561-6-1` | The S-bit of a Capability Parameter in an Initialization message MUST be 1 and SHOULD be ignored on receipt. (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
-| `RFC5561-6-2` | When a speaker terminates a session over a capability the peer did not advertise, or over an unsupported capability whose U-bit is 0, "The Status Code in the Status TLV of the Notification message MUST be Unsupported Capability, and the message SHOULD contain the unsupported capability" (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
+| `RFC5561-6-2` | The Status Code in the Status TLV of the Notification message MUST be Unsupported Capability, and the message SHOULD contain the unsupported capability (see Section 8 for more details). (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
 | `RFC5561-6-3` | An LDP speaker that supports capability advertisement and includes a Capability Parameter in its Initialization message MUST set the TLV U-bit to 0 or 1, as specified by Capability document. (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 | `RFC5561-8-1` | The E-bit of the Status TLV carried in a Notification message that includes this status code MUST be set to 0. (§8, Unsupported Capability) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
 | `RFC5561-8-2` | When the Notification message specifies the unsupported capabilities, it MUST include a Returned TLVs TLV. (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
 | `RFC5561-8-3` | The Returned TLVs TLV MUST include only the Capability Parameters for unsupported capabilities, and the Capability Parameter for each such capability SHOULD be encoded as received from the peer. (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
 | `RFC5561-8-4` | When the Notification message specifies the TLV that was unknown, it MUST include the unknown TLV in a Returned TLVs TLV. (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
 | `RFC5561-9-1` | (0x0506) \| Length (1) \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \|1\| Reserved \| +-+-+-+-+-+-+-+-+ The value of the U-bit for the Dynamic Capability Announcement Parameter TLV MUST be set to 1 so that a receiver MUST silently ignore this TLV if unknown to it, and continue processing the rest of the message. (§9) | MUST | 9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
-| `RFC5561-9-2` | There is no Capability Data associated with the Dynamic Capability Announcement TLV "and hence the TLV length MUST be set to 1" (§9) | MUST | 9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
+| `RFC5561-9-2` | There is no "Capability Data" associated with this TLV and hence the TLV length MUST be set to 1. (§9) | MUST | 9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 | `RFC5561-9-3` | An LDP speaker MUST NOT include the Dynamic Capability Announcement Parameter in Capability messages sent to its peers. (§9) | MUST NOT | 9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 | `RFC5561-10-1` | To ensure compatibility with an [RFC5036]-compliant peer, LDP implementations that support capability advertisement have label distribution for IPv4 enabled until it is explicitly disabled and MUST assume that their peers do as well. (§10) | MUST | 10 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 
@@ -132,20 +133,20 @@ Every one of the 17 MUST-level rows is a `{gap}` scheduled by one of two specs. 
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5561-3-1`](#rfc5561-3-1) The F-bit of a Capability Parameter TLV "MUST be 0 since a Capability Parameter TLV is sent only in Initialization and Capability messages, which are not forwarded" (§3) | {gap}, no test | ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
-| [`RFC5561-4-2`](#rfc5561-4-2) "An LDP speaker MUST NOT send a Capability message to a peer unless its peer advertised the Dynamic Capability Announcement capability in its session Initialization message" (§4) | {gap}, no test | ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
+| [`RFC5561-3-1`](#rfc5561-3-1) F-bit: Forward unknown TLV bit, as described in [RFC5036]. The value of this bit MUST be 0 since a Capability Parameter TLV is sent only in Initialization and Capability messages, which are not forwarded. (§3) | {gap}, no test | ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
+| [`RFC5561-4-2`](#rfc5561-4-2) An LDP speaker MUST NOT send a Capability message to a peer unless its peer advertised the Dynamic Capability Announcement capability in its session Initialization message. (§7) | {gap}, no test | ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 | [`RFC5561-3-2`](#rfc5561-3-2) An LDP speaker MUST NOT include more than one instance of a Capability Parameter (as identified by the same TLV code point) in an Initialization or Capability message. (§3) | {gap}, no test | ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
-| [`RFC5561-3-5`](#rfc5561-3-5) When more than one instance of the same Capability Parameter type is received in a message, "The Status Code in the Status TLV of the Notification message MUST be Malformed TLV value, and the message SHOULD contain the second Capability Parameter TLV of the same type (code point) that is received in the message" (§3) | {gap}, no test | ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
+| [`RFC5561-3-5`](#rfc5561-3-5) If an LDP speaker receives more than one instance of the same Capability Parameter type in a message, it SHOULD send a Notification message to the peer before terminating the session with the peer. The Status Code in the Status TLV of the Notification message MUST be Malformed TLV value, and the message SHOULD contain the second Capability Parameter TLV of the same type (code point) that is received in the message. (§3) | {gap}, no test | ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
 | [`RFC5561-4-1`](#rfc5561-4-1) Note that Backward Compatibility TLVs (see Section 3.1) MUST NOT be included in Capability messages. (§4) | {gap}, no test | ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 | [`RFC5561-6-1`](#rfc5561-6-1) The S-bit of a Capability Parameter in an Initialization message MUST be 1 and SHOULD be ignored on receipt. (§6) | {gap}, no test | ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
-| [`RFC5561-6-2`](#rfc5561-6-2) When a speaker terminates a session over a capability the peer did not advertise, or over an unsupported capability whose U-bit is 0, "The Status Code in the Status TLV of the Notification message MUST be Unsupported Capability, and the message SHOULD contain the unsupported capability" (§6) | {gap}, no test | ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
+| [`RFC5561-6-2`](#rfc5561-6-2) The Status Code in the Status TLV of the Notification message MUST be Unsupported Capability, and the message SHOULD contain the unsupported capability (see Section 8 for more details). (§6) | {gap}, no test | ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
 | [`RFC5561-6-3`](#rfc5561-6-3) An LDP speaker that supports capability advertisement and includes a Capability Parameter in its Initialization message MUST set the TLV U-bit to 0 or 1, as specified by Capability document. (§6) | {gap}, no test | ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 | [`RFC5561-8-1`](#rfc5561-8-1) The E-bit of the Status TLV carried in a Notification message that includes this status code MUST be set to 0. (§8, Unsupported Capability) | {gap}, no test | ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
 | [`RFC5561-8-2`](#rfc5561-8-2) When the Notification message specifies the unsupported capabilities, it MUST include a Returned TLVs TLV. (§8) | {gap}, no test | ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
 | [`RFC5561-8-3`](#rfc5561-8-3) The Returned TLVs TLV MUST include only the Capability Parameters for unsupported capabilities, and the Capability Parameter for each such capability SHOULD be encoded as received from the peer. (§8) | {gap}, no test | ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
 | [`RFC5561-8-4`](#rfc5561-8-4) When the Notification message specifies the TLV that was unknown, it MUST include the unknown TLV in a Returned TLVs TLV. (§8) | {gap}, no test | ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
 | [`RFC5561-9-1`](#rfc5561-9-1) (0x0506) \| Length (1) \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \|1\| Reserved \| +-+-+-+-+-+-+-+-+ The value of the U-bit for the Dynamic Capability Announcement Parameter TLV MUST be set to 1 so that a receiver MUST silently ignore this TLV if unknown to it, and continue processing the rest of the message. (§9) | {gap}, no test | ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
-| [`RFC5561-9-2`](#rfc5561-9-2) There is no Capability Data associated with the Dynamic Capability Announcement TLV "and hence the TLV length MUST be set to 1" (§9) | {gap}, no test | ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
+| [`RFC5561-9-2`](#rfc5561-9-2) There is no "Capability Data" associated with this TLV and hence the TLV length MUST be set to 1. (§9) | {gap}, no test | ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 | [`RFC5561-9-3`](#rfc5561-9-3) An LDP speaker MUST NOT include the Dynamic Capability Announcement Parameter in Capability messages sent to its peers. (§9) | {gap}, no test | ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 | [`RFC5561-10-1`](#rfc5561-10-1) To ensure compatibility with an [RFC5036]-compliant peer, LDP implementations that support capability advertisement have label distribution for IPv4 enabled until it is explicitly disabled and MUST assume that their peers do as well. (§10) | {gap}, no test | ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 
@@ -155,7 +156,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC5561-3-1`](#rfc5561-3-1)
 
-The F-bit of a Capability Parameter TLV "MUST be 0 since a Capability Parameter TLV is sent only in Initialization and Capability messages, which are not forwarded" (§3)
+F-bit: Forward unknown TLV bit, as described in [RFC5036]. The value of this bit MUST be 0 since a Capability Parameter TLV is sent only in Initialization and Capability messages, which are not forwarded. (§3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -165,7 +166,7 @@ No test carries RFC5561-3-1, so no unit is bound to it.
 
 If the U-bit is 1, then the speaker MUST silently ignore the Capability Parameter and allow the session to be established. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviours: (1) reacting to an unsupported U=1 Capability Parameter (e.g. sending a Notification) instead of silently ignoring it, (2) refusing the session because of it. (1): TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification fails on processMessages returning an error and on expectNoPDU seeing any PDU on the pipe. (2): TestRFC5561UnknownCapabilityWithUBitSetIsIgnored requires rx.State() == StateOperational and the peer's 30s keepalive negotiated, and that DecodeInit still reads the Common Session Parameters beside the parameter. Every capabilityCases code point runs both.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -174,7 +175,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5561-4-2`](#rfc5561-4-2)
 
-"An LDP speaker MUST NOT send a Capability message to a peer unless its peer advertised the Dynamic Capability Announcement capability in its session Initialization message" (§4)
+An LDP speaker MUST NOT send a Capability message to a peer unless its peer advertised the Dynamic Capability Announcement capability in its session Initialization message. (§7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -190,7 +191,7 @@ No test carries RFC5561-3-2, so no unit is bound to it.
 
 ### [`RFC5561-3-5`](#rfc5561-3-5)
 
-When more than one instance of the same Capability Parameter type is received in a message, "The Status Code in the Status TLV of the Notification message MUST be Malformed TLV value, and the message SHOULD contain the second Capability Parameter TLV of the same type (code point) that is received in the message" (§3)
+If an LDP speaker receives more than one instance of the same Capability Parameter type in a message, it SHOULD send a Notification message to the peer before terminating the session with the peer. The Status Code in the Status TLV of the Notification message MUST be Malformed TLV value, and the message SHOULD contain the second Capability Parameter TLV of the same type (code point) that is received in the message. (§3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -214,7 +215,7 @@ No test carries RFC5561-6-1, so no unit is bound to it.
 
 ### [`RFC5561-6-2`](#rfc5561-6-2)
 
-When a speaker terminates a session over a capability the peer did not advertise, or over an unsupported capability whose U-bit is 0, "The Status Code in the Status TLV of the Notification message MUST be Unsupported Capability, and the message SHOULD contain the unsupported capability" (§6)
+The Status Code in the Status TLV of the Notification message MUST be Unsupported Capability, and the message SHOULD contain the unsupported capability (see Section 8 for more details). (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -270,7 +271,7 @@ No test carries RFC5561-9-1, so no unit is bound to it.
 
 ### [`RFC5561-9-2`](#rfc5561-9-2)
 
-There is no Capability Data associated with the Dynamic Capability Announcement TLV "and hence the TLV length MUST be set to 1" (§9)
+There is no "Capability Data" associated with this TLV and hence the TLV length MUST be set to 1. (§9)
 
 Audit verdict: not audited: no reader has judged these tests
 

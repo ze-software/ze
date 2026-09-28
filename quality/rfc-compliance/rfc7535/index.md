@@ -56,6 +56,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 1 |
 | Not applicable, so out of scope | 1 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
@@ -101,12 +102,12 @@ No tracked gap in current source anchors.
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC7535-6-1` | DNAME support on AS112 nodes themselves is never required under this proposal. (§6) | MUST | 6 - DNAME Deployment Considerations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 7535 places the DNAME records in the redirecting zones, not on the AS112 node -- the node only answers authoritatively for EMPTY.AS112.ARPA. ze's AS112 node does exactly that (internal/plugins/as112/server.go announces the DNAME-redirection anycast addresses and internal/plugins/as112/integration_linux_test.go resolves foo.empty.as112.arpa) and implements no DNAME record processing, so this "DNAME is never required on the node" statement imposes no gated obligation on ze |
-| `RFC7535-3.1-1` | An AS112 node that implements this extension configures the 192.31.196.1 and 2001:4:112::1 nameserver addresses and announces covering BGP routes for them (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
-| `RFC7535-3.1-2` | An AS112 node that implements this extension hosts the EMPTY.AS112.ARPA zone (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
-| `RFC7535-3.1-3` | An IPv4-only AS112 node configures only the 192.31.196.1 address (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
-| `RFC7535-3.1-4` | An IPv6-only AS112 node configures only the 2001:4:112::1 address (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
-| `RFC7535-4-1` | Existing guidance to accept and answer queries at PRISONER.IANA.ORG, BLACKHOLE-1.IANA.ORG, and BLACKHOLE-2.IANA.ORG continues unchanged; no existing zone delegations are altered by this document (§4) | SHOULD | 4 - Continuity of AS112 Operations | **positive:** no positive test. **negative:** no negative test |
-| `RFC7535-3.2-1` | DNAME resource records installed by a redirecting zone administrator may be signed with DNSSEC (§3.2) | MAY | 3.2 - Redirection of Query Traffic to AS112 Servers | **positive:** no positive test. **negative:** no negative test |
+| `RFC7535-3.1-1` | Guidance to operators of AS112 nodes is extended to include configuration of the 192.31.196.1 and 2001:4:112::1 addresses, and the corresponding announcement of covering routes for those addresses (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
+| `RFC7535-3.1-2` | Guidance to operators of AS112 nodes is extended to include configuration of the 192.31.196.1 and 2001:4:112::1 addresses, and the corresponding announcement of covering routes for those addresses, and to host the EMPTY.AS112.ARPA zone. (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
+| `RFC7535-3.1-3` | IPv4-only AS112 nodes should only configure the 192.31.196.1 nameserver address (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
+| `RFC7535-3.1-4` | IPv6-only AS112 nodes should only configure the 2001:4:112::1 nameserver address. (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
+| `RFC7535-4-1` | Existing guidance to AS112 server operators to accept and respond to queries directed at the PRISONER.IANA.ORG, BLACKHOLE-1.IANA.ORG, and BLACKHOLE-2.IANA.ORG nameservers should continue to be followed, and no changes to the delegation of existing zones hosted on AS112 servers should occur. (§4) | SHOULD | 4 - Continuity of AS112 Operations | **positive:** no positive test. **negative:** no negative test |
+| `RFC7535-3.2-1` | DNAME resource records deployed for this purpose can be signed with DNSSEC [RFC4033], providing a secure means of authenticating the legitimacy of each redirection. (§3.2) | MAY | 3.2 - Redirection of Query Traffic to AS112 Servers | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 

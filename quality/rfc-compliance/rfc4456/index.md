@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 83.3% | 5 of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 16.7% | 1 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Tested both ways | 100.0% | 4 of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -22,13 +22,21 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 6 | of 9 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 6 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 4 | of 9 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 7 | of 4 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
+The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -53,14 +61,15 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Public status | Supported |
 | Enrolment | Enrolled |
 | Requirements | 9 |
-| Gated MUST-level | 6 |
+| Gated MUST-level | 4 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 20 |
 | Tagged units | 20 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 7 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc4456.md` |
 | Requirement shard | `rfc/requirements/rfc4456.md` |
@@ -68,7 +77,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: BGP Route Reflection: six MUST-level requirements over the reactor RS-fast-path route-reflection code (internal/component/bgp/reactor/forward_rs.go, filter_delta_handlers.go). Five have both polarities: RFC4456-8-1 (set ORIGINATOR_ID if absent) and RFC4456-8-4 (preserve if present) via originatorIDHandler; RFC4456-8-2 (prepend CLUSTER_ID) via clusterListHandler AttrModPrepend; RFC4456-8-3 (ORIGINATOR_ID not fabricated -- it is the originator's id, not the RR's, and a present one is not replaced); RFC4456-x-2 (a non-client route is not reflected to a non-client but is to a client). RFC4456-x-1 (must not modify NEXT_HOP/AS_PATH/LOCAL_PREF/MED) is {single-polarity: positive}: on reflection only ORIGINATOR_ID/CLUSTER_LIST ops are emitted, so those four ride through unchanged. Tests: forward_rr_test.go (TestReactorForwardRRInjects/PreservesOriginator/NonClientRule). The 8-5/8-6 SHOULDs are not gated.
+Enrolled: BGP Route Reflection: four MUST-level requirements over the reactor RS-fast-path route-reflection code (internal/component/bgp/reactor/forward_rs.go, filter_delta_handlers.go), each with both polarities: RFC4456-8-1 (ORIGINATOR_ID created on reflection) and RFC4456-8-4 (it carries the originator's identifier, kept when present) via originatorIDHandler; RFC4456-8-2 (prepend CLUSTER_ID, create the list if empty) via clusterListHandler AttrModPrepend; RFC4456-x-2 (a non-client route is reflected to clients, not to a non-client). RFC4456-8-3 (do not create an ORIGINATOR_ID when one exists) and RFC4456-x-1 (do not modify NEXT_HOP/AS_PATH/LOCAL_PREF/MED) are SHOULD NOT in the RFC (rfc/corrections/rfc4456.md) and still carry their tests. Tests: forward_rr_test.go (TestReactorForwardRRInjects/PreservesOriginator/NonClientRule). The 8-5/8-6/9-1 SHOULDs are not gated.
 
 ## What the public ledger says
 
@@ -86,31 +95,29 @@ No tracked gap in current source anchors.
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 5 | one part of the gated population |
-| Annotated instead of tested | 1 | one part of the gated population |
+| Positive and negative tests | 4 | one part of the gated population |
+| Annotated instead of tested | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **4** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (5):** [`RFC4456-8-1`](#rfc4456-8-1), [`RFC4456-8-2`](#rfc4456-8-2), [`RFC4456-8-3`](#rfc4456-8-3), [`RFC4456-8-4`](#rfc4456-8-4), [`RFC4456-x-2`](#rfc4456-x-2)
-
-**Annotated instead of tested (1):** [`RFC4456-x-1`](#rfc4456-x-1)
+**Positive and negative tests (4):** [`RFC4456-8-1`](#rfc4456-8-1), [`RFC4456-8-2`](#rfc4456-8-2), [`RFC4456-8-4`](#rfc4456-8-4), [`RFC4456-x-2`](#rfc4456-x-2)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC4456-x-1` | An RR MUST NOT modify the NEXT_HOP, AS_PATH, LOCAL_PREF, or MED attributes of a reflected route (Route Reflection Rules) | MUST | x | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L157). **negative:** no negative test. **{single-polarity}:** on reflection the RR forwarding path emits only ORIGINATOR_ID and CLUSTER_LIST modifications (internal/component/bgp/reactor/forward_rs.go:337-339) and never a NEXT_HOP/AS_PATH/LOCAL_PREF/MED op, so those four are always carried through in the verbatim wire; there is no RR scenario that modifies them to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRInjects |
-| `RFC4456-8-1` | When an RR reflects a route from a client to a non-client or to another client, it MUST set the ORIGINATOR_ID to the BGP Identifier of the originator if not already present (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L149). **negative:** `unit/verify` [`TestForwardReflectionLeavesAWithdrawalUntouched`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_build_withdraw_shape_test.go#L436). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L180). **positive:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L141). **negative:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L142) |
-| `RFC4456-8-2` | When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L151). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L184). **positive:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L143). **negative:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L144) |
-| `RFC4456-8-3` | ORIGINATOR_ID MUST NOT be created by a speaker that did not originate the route within the local AS (§8) | MUST NOT | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L153). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L182) |
-| `RFC4456-8-4` | ORIGINATOR_ID value MUST be preserved unchanged through the reflection chain (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L178). **negative:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L155) |
-| `RFC4456-x-2` | A non-client peer route MUST NOT be reflected to other non-client peers (Route Reflection Rules) | MUST | x | **positive:** `unit/verify` [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L211). **negative:** `unit/verify` [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L213) |
-| `RFC4456-8-5` | A router that recognizes ORIGINATOR_ID SHOULD ignore a route received with its own BGP Identifier as the ORIGINATOR_ID (§8) | SHOULD | 8 - Avoiding Routing Information Loops | **positive:** no positive test. **negative:** no negative test |
-| `RFC4456-8-6` | If the local CLUSTER_ID is found in the CLUSTER_LIST, the advertisement SHOULD be ignored (§8) | SHOULD | 8 - Avoiding Routing Information Loops | **positive:** no positive test. **negative:** no negative test |
-| `RFC4456-9-1` | A BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length; the length is zero when the route carries no CLUSTER_LIST attribute, and the rule is inserted between RFC 4271 Section 9.1.2.2 Steps f) and g) (§9) | SHOULD | 9 - Impact on Route Selection | **positive:** `unit/verify` [`TestBestPath_ClusterListLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1207). **positive:** `unit/verify` [`TestClusterListEntries`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1302). **negative:** `unit/verify` [`TestBestPath_ClusterListLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1213). **positive:** `interop/nightly` [`checkClusterListLengthTieBreak`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc4456.go#L47) |
+| `RFC4456-x-1` | In addition, when a RR reflects a route, it SHOULD NOT modify the following path attributes: NEXT_HOP, AS_PATH, LOCAL_PREF, and MED. (§10) | SHOULD NOT | 10 - Implementation Considerations | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L157). **negative:** no negative test. **{single-polarity}:** on reflection the RR forwarding path emits only ORIGINATOR_ID and CLUSTER_LIST modifications (internal/component/bgp/reactor/forward_rs.go:337-339) and never a NEXT_HOP/AS_PATH/LOCAL_PREF/MED op, so those four are always carried through in the verbatim wire; there is no RR scenario that modifies them to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRInjects |
+| `RFC4456-8-1` | This attribute is 4 bytes long and it will be created by an RR in reflecting a route. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L149). **negative:** `unit/verify` [`TestForwardReflectionLeavesAWithdrawalUntouched`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_build_withdraw_shape_test.go#L436). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L180). **positive:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L268). **negative:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L269) |
+| `RFC4456-8-2` | When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L151). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L184). **positive:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L270). **negative:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L271) |
+| `RFC4456-8-3` | A BGP speaker SHOULD NOT create an ORIGINATOR_ID attribute if one already exists. (§8) | SHOULD NOT | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L153). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L182) |
+| `RFC4456-8-4` | This attribute will carry the BGP Identifier of the originator of the route in the local AS. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L178). **negative:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L155) |
+| `RFC4456-x-2` | After the best path is selected, it must do the following depending on the type of peer it is receiving the best path from 1) A route from a Non-Client IBGP peer: Reflect to all the Clients. (§6) | MUST | 6 - Operation | **positive:** `unit/verify` [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L211). **negative:** `unit/verify` [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L213) |
+| `RFC4456-8-5` | A router that recognizes the ORIGINATOR_ID attribute SHOULD ignore a route received with its BGP Identifier as the ORIGINATOR_ID. (§8) | SHOULD | 8 - Avoiding Routing Information Loops | **positive:** no positive test. **negative:** no negative test |
+| `RFC4456-8-6` | If the local CLUSTER_ID is found in the CLUSTER_LIST, the advertisement received SHOULD be ignored. (§8) | SHOULD | 8 - Avoiding Routing Information Loops | **positive:** no positive test. **negative:** no negative test |
+| `RFC4456-9-1` | In addition, the following rule SHOULD be inserted between Steps f) and g): a BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length.  The CLUSTER_LIST length is zero if a route does not carry the CLUSTER_LIST attribute. (§9) | SHOULD | 9 - Impact on Route Selection | **positive:** `unit/verify` [`TestBestPath_ClusterListLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1207). **positive:** `unit/verify` [`TestClusterListEntries`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1302). **negative:** `unit/verify` [`TestBestPath_ClusterListLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1213). **positive:** `interop/nightly` [`checkClusterListLengthTieBreak`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc4456.go#L47) |
 
 ## Gaps and untested MUSTs
 
@@ -122,9 +129,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC4456-x-1`](#rfc4456-x-1)
 
-An RR MUST NOT modify the NEXT_HOP, AS_PATH, LOCAL_PREF, or MED attributes of a reflected route (Route Reflection Rules)
+In addition, when a RR reflects a route, it SHOULD NOT modify the following path attributes: NEXT_HOP, AS_PATH, LOCAL_PREF, and MED. (§10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestReactorForwardRRInjects pins AS_PATH, NEXT_HOP, MED and LOCAL_PREF byte-identical after reflection, so any modification fails it; single-polarity annotated
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -132,36 +139,36 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4456-8-1`](#rfc4456-8-1)
 
-When an RR reflects a route from a client to a non-client or to another client, it MUST set the ORIGINATOR_ID to the BGP Identifier of the originator if not already present (§8)
+This attribute is 4 bytes long and it will be created by an RR in reflecting a route. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. positive asserts ORIGINATOR_ID created with the exact value 10.0.0.1 on reflection; negatives assert it is not re-created when present and not injected into a reflected withdrawal or End-of-RIB
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestForwardReflectionLeavesAWithdrawalUntouched`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_build_withdraw_shape_test.go#L436) | unit/verify | unproven |
 | negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L180) | unit/verify | unproven |
-| negative | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L142) | interop/nightly | unproven |
+| negative | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L269) | interop/nightly | unproven |
 | positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L149) | unit/verify | unproven |
-| positive | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L141) | interop/nightly | unproven |
+| positive | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L268) | interop/nightly | unproven |
 
 ### [`RFC4456-8-2`](#rfc4456-8-2)
 
-When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST. (§8)
+When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. positive asserts the list is created as exactly [1.2.3.2] when absent; negative asserts exact bytes [1.2.3.2, 5.5.5.5], prepend before the existing entry, so both sentences of the quote are proven
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L184) | unit/verify | unproven |
-| negative | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L144) | interop/nightly | unproven |
+| negative | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L271) | interop/nightly | unproven |
 | positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L151) | unit/verify | unproven |
-| positive | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L143) | interop/nightly | unproven |
+| positive | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L270) | interop/nightly | unproven |
 
 ### [`RFC4456-8-3`](#rfc4456-8-3)
 
-ORIGINATOR_ID MUST NOT be created by a speaker that did not originate the route within the local AS (§8)
+A BGP speaker SHOULD NOT create an ORIGINATOR_ID attribute if one already exists. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. negative asserts an existing ORIGINATOR_ID 9.9.9.9 survives reflection unchanged, which is the SHOULD NOT itself; positive shows creation when none exists
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -170,9 +177,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4456-8-4`](#rfc4456-8-4)
 
-ORIGINATOR_ID value MUST be preserved unchanged through the reflection chain (§8)
+This attribute will carry the BGP Identifier of the originator of the route in the local AS. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Both units assert the exact ORIGINATOR_ID (10.0.0.1 created, 9.9.9.9 kept) and that it is not the RR's own id 1.2.3.2, but rrForward gives the source peer address 10.0.0.1 AND remote router id 0x0A000001 (10.0.0.1): a producer that filled ORIGINATOR_ID from the neighbour address instead of the BGP Identifier (reactor_api_forward.go remoteRouterID) produces the same bytes and stays green. The sentence's object, the originator's BGP Identifier, is not distinguished from the peer address. The negative tag's prose also describes the 8-1 creation clause.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -181,9 +188,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4456-x-2`](#rfc4456-x-2)
 
-A non-client peer route MUST NOT be reflected to other non-client peers (Route Reflection Rules)
+After the best path is selected, it must do the following depending on the type of peer it is receiving the best path from 1) A route from a Non-Client IBGP peer: Reflect to all the Clients. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. asserts nil output for non-client to non-client and non-nil for non-client to client; tag polarity labels are inverted against the new quote, whose conforming case is reflection to a client
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -192,9 +199,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4456-9-1`](#rfc4456-9-1)
 
-A BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length; the length is zero when the route carries no CLUSTER_LIST attribute, and the rule is inserted between RFC 4271 Section 9.1.2.2 Steps f) and g) (§9)
+In addition, the following rule SHOULD be inserted between Steps f) and g): a BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length.  The CLUSTER_LIST length is zero if a route does not carry the CLUSTER_LIST attribute. (§9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. SelectBest and SelectBestExplain asserted on shorter-list win, absent-as-zero win, step f precedence and fall-through to step g; clusterListEntries pins absent and empty as zero
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -207,8 +214,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Field | Value |
 |---|---|
-| Reviewer | ze-work agent, spec-rfcgate-6 phase 5, rfc4456 |
-| Signed off | 2026-08-31 |
+| Reviewer | claude |
+| Signed off | 2026-09-27 |
 | Register | prose |
 | Source | rfc/full/rfc4456.txt |
 | Source fingerprint | efe974c45b13bec4 |
@@ -238,7 +245,9 @@ Audit verdict: not audited: no reader has judged these tests
 | `13` | Acknowledgements | 0 | skipped (acknowledgements) | Acknowledgements. |
 | `14` | References | 0 | skipped (references) | References. The heading over the two reference lists below it. |
 | `14.1` | Normative References: RFC 4271 | 0 | skipped (references) | Normative References: RFC 4271. |
-| `14.2` | not stated | 1 | walked | Informative References (RFC 4223, RFC 3065, RFC 1966, RFC 2385, RFC 2796 and RFC 2119), and, because no numbered heading follows it, the whole tail of the document: Appendix A, Appendix B, Authors' Addresses, the Full Copyright Statement, the Intellectual Property notice and the RFC Editor funding acknowledgement. The section is recorded as walked rather than skipped because that span holds prose beyond a reference list. Appendix A and Appendix B are non-normative comparisons with RFC 2796 and RFC 1966 that record what changed, including that the CLUSTER_ID addition moved from 'append' to 'prepend' to match deployed code, which is stated as an obligation by section 8 and captured there. The one site is the Intellectual Property notice, excluded below. |
+| `14.2` | not stated | 0 | walked | Informative References (RFC 4223, RFC 3065, RFC 1966, RFC 2385, RFC 2796 and RFC 2119). A reference list with no site. Appendix A and Appendix B follow as their own sections: non-normative comparisons with RFC 2796 and RFC 1966 that record what changed, including that the CLUSTER_ID addition moved from 'append' to 'prepend' to match deployed code, which is stated as an obligation by section 8 and captured there. |
+| `A` | Appendix A | 0 | walked | Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `B` | not stated | 1 | walked | Appendix B, the comparison with RFC 1966, and, because no heading follows it, the tail of the document: Authors' Addresses, the Full Copyright Statement, the Intellectual Property notice and the RFC Editor funding acknowledgement. The section is recorded as walked because that span holds prose beyond a reference list. The one site is the Intellectual Property notice, excluded below. |
 
 ### Excluded sentences
 
@@ -253,7 +262,7 @@ Audit verdict: not audited: no reader has judged these tests
 | `5:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Terminology and Concepts. The role is the operator who designs the AS's iBGP topology. The sentence states which sessions have to exist, not what a speaker does with a message: non-clients stay fully meshed among themselves while clients need not be. A route reflector cannot create or police its non-clients' sessions with each other, and Ze reads client versus non-client from configuration. The corresponding wire behaviour, that a non-client's route is not reflected to another non-client, is section 6's rule and is mapped at site 6:1. The role is a person designing a topology, so no producer could act as it. Ze CONSUMES the topology the operator built: the route reflector plugin (`internal/component/bgp/plugins/rr/register.go`) reflects over the sessions it is configured with and designs none. | The Non-Client peer must be fully meshed but the Client peers need not be fully meshed. |
 | `6:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Operation, case 2. A parenthetical drawing the consequence of the rule above it: because a client's route is reflected to the other clients, the clients are not required to be fully meshed. The site scan sees it for the word 'required', and it states that a requirement does NOT apply rather than imposing one. | (Hence the Client peers are not required to be fully meshed.) |
 | `8:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Avoiding Routing Information Loops, CLUSTER_LIST. The second half of the same obligation: the sentence before it requires the prepend, and this one says what to do when there is nothing to prepend to. rfc/short/rfc4456.md carries both in one row, 'MUST prepend its local CLUSTER_ID to the CLUSTER_LIST (creating one if absent)', which site 8:1 maps. | If the CLUSTER_LIST is empty, it MUST create a new one. |
-| `14.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | The Intellectual Property notice from the RFC's closing boilerplate, which the section splitter attributes to 14.2 because no numbered heading follows the informative reference list. It invites interested parties to tell the IETF about patents and directs no protocol behaviour. It is boilerplate the extractor did not strip. | The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard. |
+| `B:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | The Intellectual Property notice from the RFC's closing boilerplate, which falls in Appendix B because no heading follows it. It invites interested parties to tell the IETF about patents and directs no protocol behaviour. It is boilerplate the extractor did not strip. | The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard. |
 
 ## Superseded
 

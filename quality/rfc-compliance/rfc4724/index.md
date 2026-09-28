@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 30.8% | 8 of 26 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 17 | of 26 gated MUSTs judged | 14 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 26 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 26 |
 | Not applicable, so out of scope | 1 |
 | Declared gaps | 8 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 45 |
 | Tagged units | 45 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 17 |
 | Discrimination records | 2 |
 | Summary | `rfc/short/rfc4724.md` |
 | Requirement shard | `rfc/requirements/rfc4724.md` |
@@ -113,18 +115,18 @@ Eight MUST gaps annotated in [`rfc/short/rfc4724.md`](https://github.com/ze-soft
 | `RFC4724-3-2` | The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestGracefulRestartEncodeReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L457). **negative:** `unit/verify` [`TestGracefulRestartEncodeReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L468) |
 | `RFC4724-3-3` | The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestGracefulRestartEncodeReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L463). **negative:** `unit/verify` [`TestGracefulRestartEncodeReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L477) |
 | `RFC4724-3-4` | If more than one instance of the Graceful Restart Capability is carried in the capability advertisement, the receiver of the advertisement MUST ignore all but the last instance of the Graceful Restart Capability. (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestNegotiateGracefulRestartLastInstance`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L62). **negative:** `unit/verify` [`TestNegotiateGracefulRestartLastInstance`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L70) |
-| `RFC4724-3-5` | When R bit is set, peer MUST NOT wait for End-of-RIB marker from the speaker before advertising routing information (Section 3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze advertises its Adj-RIB-Out and per-family End-of-RIB immediately on reaching Established (internal/component/bgp/reactor/peer_initial_sync.go:277,334) and has no receive-side mechanism that gates advertisement on a peer's End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and never defers advertisement, so there is no wait state for the R bit to override |
+| `RFC4724-3-5` | When set (value 1), this bit indicates that the BGP speaker has restarted, and its peer MUST NOT wait for the End-of-RIB marker from the speaker before advertising routing information to the speaker. (Section 3) | MUST NOT | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze advertises its Adj-RIB-Out and per-family End-of-RIB immediately on reaching Established (internal/component/bgp/reactor/peer_initial_sync.go:277,334) and has no receive-side mechanism that gates advertisement on a peer's End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and never defers advertisement, so there is no wait state for the R bit to override |
 | `RFC4724-4-1` | The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestBuildEOR_IPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L16). **positive:** `unit/verify` [`TestInitialSyncEORReachesTheSilentFamilyToo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L99). **positive:** `unit/verify` [`TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L678). **positive:** `unit/verify` [`TestInitialSyncMarkerWaitsForNoProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L711). **positive:** `unit/verify` [`TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L341). **positive:** `unit/verify` [`TestRoutePushingBindingsCountBothRails`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L419). **negative:** `unit/verify` [`TestIsEndOfRIBAnyFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L224). **positive:** `interop/nightly` [`checkNoFamilyEndOfRIB`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1194) |
 | `RFC4724-4-2` | It is noted that the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestGRStateManagerNotificationBypass`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L220). **negative:** `unit/verify` [`TestGRStateManagerRouteRetention`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L44) |
-| `RFC4724-4.1-1` | Restarting Speaker MUST retain, if possible, the forwarding state for BGP routes in Loc-RIB (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's Restarting Speaker path implements only GR signaling -- it writes a restart marker and sets the R bit (internal/component/bgp/grmarker/grmarker.go, internal/component/bgp/reactor/peer.go:574) -- and does not retain its own in-memory Loc-RIB forwarding state across a process restart within the bgp packages; the Loc-RIB is rebuilt from scratch on restart |
-| `RFC4724-4.1-2` | Restarting Speaker MUST mark retained forwarding state as stale (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** because ze does not retain its own Loc-RIB across a restart (see RFC4724-4.1-1), there is no retained own-forwarding state to mark stale; the stale-marking machinery (internal/component/bgp/plugins/rib/rib_commands.go:817 markStaleCommand) applies to routes received from a restarting peer, not to ze's own routes on ze's restart |
+| `RFC4724-4.1-1` | When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's Restarting Speaker path implements only GR signaling -- it writes a restart marker and sets the R bit (internal/component/bgp/grmarker/grmarker.go, internal/component/bgp/reactor/peer.go:574) -- and does not retain its own in-memory Loc-RIB forwarding state across a process restart within the bgp packages; the Loc-RIB is rebuilt from scratch on restart |
+| `RFC4724-4.1-2` | When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB and MUST mark them as stale. (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** because ze does not retain its own Loc-RIB across a restart (see RFC4724-4.1-1), there is no retained own-forwarding state to mark stale; the stale-marking machinery (internal/component/bgp/plugins/rib/rib_commands.go:817 markStaleCommand) applies to routes received from a restarting peer, not to ze's own routes on ze's restart |
 | `RFC4724-4.1-3` | It MUST NOT differentiate between stale and other information during forwarding. (Section 4.1) | MUST NOT | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** this governs forwarding over ze's own retained stale Loc-RIB, which ze does not build on restart (see RFC4724-4.1-1); the generic non-differentiation of level-1 stale in best-path selection (internal/component/bgp/plugins/rib/bestpath.go:308) is the Receiving Speaker path for peer routes, not ze's own routes as a Restarting Speaker |
 | `RFC4724-4.1-4` | To re-establish the session with its peer, the Restarting Speaker MUST set the "Restart State" bit in the Graceful Restart Capability of the OPEN message. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestSetRBitOnCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L262). **negative:** `unit/verify` [`TestSetRBitTimeGatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L497) |
-| `RFC4724-4.1-5` | Restarting Speaker MUST defer route selection per address family until End-of-RIB from all peers or Selection_Deferral_Timer expires (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze runs best-path selection as updates arrive and has no selection-deferral path keyed on End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and does not gate route selection |
+| `RFC4724-4.1-5` | However, it MUST defer route selection for an address family until it either (a) receives the End-of-RIB marker from all its peers (excluding the ones with the "Restart State" bit set in the received capability and excluding the ones that do not advertise the graceful restart capability) or (b) the Selection_Deferral_Timer referred to below has expired. (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze runs best-path selection as updates arrive and has no selection-deferral path keyed on End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and does not gate route selection |
 | `RFC4724-4.1-6` | After the BGP speaker performs route selection, the forwarding state of the speaker MUST be updated and any previously marked stale information MUST be removed. (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** this is the completion step of the deferred-selection cycle ze does not run (see RFC4724-4.1-5); with no own-Loc-RIB stale state (RFC4724-4.1-1) there is no post-selection stale removal on ze's own restart |
 | `RFC4724-4.1-7` | Once the initial update is complete for an address family (including the case that there is no routing update to send), the End-of-RIB marker MUST be sent. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestBuildEOR_IPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L20). **negative:** `unit/verify` [`TestIsEndOfRIBAnyFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L228) |
 | `RFC4724-4.1-8` | To put an upper bound on the amount of time a router defers its route selection, an implementation MUST support a (configurable) timer that imposes this upper bound. (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze exposes no Selection_Deferral_Timer configuration -- the GR YANG model (internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang) carries restart-time and long-lived-stale-time only, and no code defers selection (see RFC4724-4.1-5) |
-| `RFC4724-4.2-1` | Receiving Speaker MUST treat subsequent open connection from peer as termination of old TCP session when GR Capability was received (Section 4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze follows plain RFC 4271 Section 6.8 collision detection -- a new inbound connection while the session is Established is rejected with Cease/Connection Collision (internal/component/bgp/reactor/reactor_connection.go:134-136), with no GR-capability branch that treats the new OPEN as terminating the old session |
+| `RFC4724-4.2-1` | In case it does not detect the termination of the old TCP session and still considers the BGP session as being established, it MUST treat the subsequent open connection from the peer as an indication of the termination of the old TCP session and act accordingly (when the Graceful Restart Capability has been received from the peer). (Section 4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze follows plain RFC 4271 Section 6.8 collision detection -- a new inbound connection while the session is Established is rejected with Cease/Connection Collision (internal/component/bgp/reactor/reactor_connection.go:134-136), with no GR-capability branch that treats the new OPEN as terminating the old session |
 | `RFC4724-4.2-2` | "Acting accordingly" in this context means that the previous TCP session MUST be closed, and the new one retained. (Section 4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the same RFC 4271 collision path closes the NEW connection and keeps the existing Established session (internal/component/bgp/reactor/reactor_connection.go:134-136 rejectConnectionCollisionWithSettings), the opposite of the RFC 4724 Section 4.2 override that closes the previous session and retains the new one |
 | `RFC4724-4.2-3` | When the Receiving Speaker detects termination of the TCP session for a BGP session with a peer that has advertised the Graceful Restart Capability, it MUST retain the routes received from the peer for all the address families that were previously received in the Graceful Restart Capability and MUST mark them as stale routing information. (Section 4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestGRStateManagerRouteRetention`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L40). **positive:** `unit/verify` [`TestRFC4724RetentionCoversEveryAdvertisedFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L124). **positive:** `unit/verify` [`TestRFC4724SessionDownRetainsAndMarksRoutesStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L73). **negative:** `unit/verify` [`TestGRStateManagerNoGRCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L297). **negative:** `unit/verify` [`TestRFC4724SessionDownWithoutCapabilityRetainsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L96) |
 | `RFC4724-4.2-4` | To deal with possible consecutive restarts, a route (from the peer) previously marked as stale MUST be deleted. (Section 4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestGRConsecutiveRestartClearsPriorStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L272). **negative:** `unit/verify` [`TestGRConsecutiveRestartClearsPriorStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L286) |
@@ -135,24 +137,24 @@ Eight MUST gaps annotated in [`rfc/short/rfc4724.md`](https://github.com/ze-soft
 | `RFC4724-4.2-9` | The Receiving Speaker MUST send the End-of-RIB marker once it completes the initial update for an address family (including the case that it has no routes to send) to the peer. (Section 4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestBuildEOR_IPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L22). **positive:** `unit/verify` [`TestInitialSyncEORReachesTheSilentFamilyToo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L104). **negative:** `unit/verify` [`TestIsEndOfRIBAnyFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L229) |
 | `RFC4724-4.2-10` | The Receiving Speaker MUST replace the stale routes by the routing updates received from the peer. (Section 4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestFamilyRIB_InsertClearsStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/stale_test.go#L147). **negative:** `unit/verify` [`TestFamilyRIB_InsertNewDuringStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/stale_test.go#L179) |
 | `RFC4724-4.2-11` | Once the End-of-RIB marker for an address family is received from the peer, it MUST immediately remove any routes from the peer that are still marked as stale for that address family. (Section 4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestGRStateManagerEORPurge`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L185). **negative:** `unit/verify` [`TestGRStateManagerEORForNonGRPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L314) |
-| `RFC4724-2-1` | Sending End-of-RIB upon completion of initial update is recommended even without GR (Section 2) | RECOMMENDED | 2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4724-4-3` | Advertising Graceful Restart Capability even without forwarding preservation ability is recommended (Section 4) | RECOMMENDED | 4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4724-4-4` | A BGP speaker MAY advertise the Graceful Restart Capability for an address family if it can preserve forwarding state (Section 4) | MAY | 4 | **positive:** `unit/verify` [`TestRFC4724GRCapabilityListsTheFamiliesOfTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_capability_test.go#L96). **negative:** `unit/verify` [`TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_capability_test.go#L123) |
-| `RFC4724-4.2-12` | Receiving Speaker MAY delete all stale routes if peer's forwarding state is determined non-viable (e.g., via BFD) (Section 4.2) | MAY | 4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4724-4.2-13` | An implementation MAY support a configurable stale route retention timer (Section 4.2) | MAY | 4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4724-2-1` | Although the End-of-RIB marker is specified for the purpose of BGP graceful restart, it is noted that the generation of such a marker upon completion of the initial update would be useful for routing convergence in general, and thus the practice is recommended. (Section 2) | RECOMMENDED | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4724-4-3` | In addition, even if the speaker does not have the ability to preserve its forwarding state for any address family during BGP restart, it is still recommended that the speaker advertise the Graceful Restart Capability to its peer (Section 4) | RECOMMENDED | 4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4724-4-4` | A BGP speaker MAY advertise the Graceful Restart Capability for an address family to its peer if it has the ability to preserve its forwarding state for the address family when BGP restarts. (Section 4) | MAY | 4 | **positive:** `unit/verify` [`TestRFC4724GRCapabilityListsTheFamiliesOfTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_capability_test.go#L96). **negative:** `unit/verify` [`TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_capability_test.go#L123) |
+| `RFC4724-4.2-12` | In the event that it determines that its peer's forwarding state is not viable prior to the re-establishment of the session, the speaker MAY delete all the stale routes from the peer that it is retaining. (Section 4.2) | MAY | 4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4724-4.2-13` | To put an upper bound on the amount of time a router retains the stale routes, an implementation MAY support a (configurable) timer that imposes this upper bound. (Section 4.2) | MAY | 4.2 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC4724-3-5`](#rfc4724-3-5) When R bit is set, peer MUST NOT wait for End-of-RIB marker from the speaker before advertising routing information (Section 3) | no test | no test carries this requirement id; annotated {not-applicable}: ze advertises its Adj-RIB-Out and per-family End-of-RIB immediately on reaching Established (internal/component/bgp/reactor/peer_initial_sync.go:277,334) and has no receive-side mechanism that gates advertisement on a peer's End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and never defers advertisement, so there is no wait state for the R bit to override |
-| [`RFC4724-4.1-1`](#rfc4724-4.1-1) Restarting Speaker MUST retain, if possible, the forwarding state for BGP routes in Loc-RIB (Section 4.1) | {gap}, no test | ze's Restarting Speaker path implements only GR signaling -- it writes a restart marker and sets the R bit (internal/component/bgp/grmarker/grmarker.go, internal/component/bgp/reactor/peer.go:574) -- and does not retain its own in-memory Loc-RIB forwarding state across a process restart within the bgp packages; the Loc-RIB is rebuilt from scratch on restart |
-| [`RFC4724-4.1-2`](#rfc4724-4.1-2) Restarting Speaker MUST mark retained forwarding state as stale (Section 4.1) | {gap}, no test | because ze does not retain its own Loc-RIB across a restart (see RFC4724-4.1-1), there is no retained own-forwarding state to mark stale; the stale-marking machinery (internal/component/bgp/plugins/rib/rib_commands.go:817 markStaleCommand) applies to routes received from a restarting peer, not to ze's own routes on ze's restart |
+| [`RFC4724-3-5`](#rfc4724-3-5) When set (value 1), this bit indicates that the BGP speaker has restarted, and its peer MUST NOT wait for the End-of-RIB marker from the speaker before advertising routing information to the speaker. (Section 3) | no test | no test carries this requirement id; annotated {not-applicable}: ze advertises its Adj-RIB-Out and per-family End-of-RIB immediately on reaching Established (internal/component/bgp/reactor/peer_initial_sync.go:277,334) and has no receive-side mechanism that gates advertisement on a peer's End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and never defers advertisement, so there is no wait state for the R bit to override |
+| [`RFC4724-4.1-1`](#rfc4724-4.1-1) When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB (Section 4.1) | {gap}, no test | ze's Restarting Speaker path implements only GR signaling -- it writes a restart marker and sets the R bit (internal/component/bgp/grmarker/grmarker.go, internal/component/bgp/reactor/peer.go:574) -- and does not retain its own in-memory Loc-RIB forwarding state across a process restart within the bgp packages; the Loc-RIB is rebuilt from scratch on restart |
+| [`RFC4724-4.1-2`](#rfc4724-4.1-2) When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB and MUST mark them as stale. (Section 4.1) | {gap}, no test | because ze does not retain its own Loc-RIB across a restart (see RFC4724-4.1-1), there is no retained own-forwarding state to mark stale; the stale-marking machinery (internal/component/bgp/plugins/rib/rib_commands.go:817 markStaleCommand) applies to routes received from a restarting peer, not to ze's own routes on ze's restart |
 | [`RFC4724-4.1-3`](#rfc4724-4.1-3) It MUST NOT differentiate between stale and other information during forwarding. (Section 4.1) | {gap}, no test | this governs forwarding over ze's own retained stale Loc-RIB, which ze does not build on restart (see RFC4724-4.1-1); the generic non-differentiation of level-1 stale in best-path selection (internal/component/bgp/plugins/rib/bestpath.go:308) is the Receiving Speaker path for peer routes, not ze's own routes as a Restarting Speaker |
-| [`RFC4724-4.1-5`](#rfc4724-4.1-5) Restarting Speaker MUST defer route selection per address family until End-of-RIB from all peers or Selection_Deferral_Timer expires (Section 4.1) | {gap}, no test | ze runs best-path selection as updates arrive and has no selection-deferral path keyed on End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and does not gate route selection |
+| [`RFC4724-4.1-5`](#rfc4724-4.1-5) However, it MUST defer route selection for an address family until it either (a) receives the End-of-RIB marker from all its peers (excluding the ones with the "Restart State" bit set in the received capability and excluding the ones that do not advertise the graceful restart capability) or (b) the Selection_Deferral_Timer referred to below has expired. (Section 4.1) | {gap}, no test | ze runs best-path selection as updates arrive and has no selection-deferral path keyed on End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and does not gate route selection |
 | [`RFC4724-4.1-6`](#rfc4724-4.1-6) After the BGP speaker performs route selection, the forwarding state of the speaker MUST be updated and any previously marked stale information MUST be removed. (Section 4.1) | {gap}, no test | this is the completion step of the deferred-selection cycle ze does not run (see RFC4724-4.1-5); with no own-Loc-RIB stale state (RFC4724-4.1-1) there is no post-selection stale removal on ze's own restart |
 | [`RFC4724-4.1-8`](#rfc4724-4.1-8) To put an upper bound on the amount of time a router defers its route selection, an implementation MUST support a (configurable) timer that imposes this upper bound. (Section 4.1) | {gap}, no test | ze exposes no Selection_Deferral_Timer configuration -- the GR YANG model (internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang) carries restart-time and long-lived-stale-time only, and no code defers selection (see RFC4724-4.1-5) |
-| [`RFC4724-4.2-1`](#rfc4724-4.2-1) Receiving Speaker MUST treat subsequent open connection from peer as termination of old TCP session when GR Capability was received (Section 4.2) | {gap}, no test | ze follows plain RFC 4271 Section 6.8 collision detection -- a new inbound connection while the session is Established is rejected with Cease/Connection Collision (internal/component/bgp/reactor/reactor_connection.go:134-136), with no GR-capability branch that treats the new OPEN as terminating the old session |
+| [`RFC4724-4.2-1`](#rfc4724-4.2-1) In case it does not detect the termination of the old TCP session and still considers the BGP session as being established, it MUST treat the subsequent open connection from the peer as an indication of the termination of the old TCP session and act accordingly (when the Graceful Restart Capability has been received from the peer). (Section 4.2) | {gap}, no test | ze follows plain RFC 4271 Section 6.8 collision detection -- a new inbound connection while the session is Established is rejected with Cease/Connection Collision (internal/component/bgp/reactor/reactor_connection.go:134-136), with no GR-capability branch that treats the new OPEN as terminating the old session |
 | [`RFC4724-4.2-2`](#rfc4724-4.2-2) "Acting accordingly" in this context means that the previous TCP session MUST be closed, and the new one retained. (Section 4.2) | {gap}, no test | the same RFC 4271 collision path closes the NEW connection and keeps the existing Established session (internal/component/bgp/reactor/reactor_connection.go:134-136 rejectConnectionCollisionWithSettings), the opposite of the RFC 4724 Section 4.2 override that closes the previous session and retains the new one |
 
 ## Proof state
@@ -173,7 +175,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the sentence carries two obligations: zero on send and ignored on receive. TestGracefulRestartEncodeReservedBits proves only the sender half (WriteTo masks); no tagged unit parses a Restart Flags nibble with reserved bits set and asserts they are ignored (parseGracefulRestart does ignore them)
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -184,7 +186,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. same split as 3-2 for the Address Family Flags byte: sender zeroing is proven by TestGracefulRestartEncodeReservedBits, the receiver-ignore half is not tested by any tagged unit
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -195,7 +197,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If more than one instance of the Graceful Restart Capability is carried in the capability advertisement, the receiver of the advertisement MUST ignore all but the last instance of the Graceful Restart Capability. (Section 3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. two GR instances with distinct restart time and family; Negotiate must keep the second; fails on first-wins or merge. The negative tag is the complement of the positive's assertion on the same input (two hats), not an independent case
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -204,7 +206,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4724-3-5`](#rfc4724-3-5)
 
-When R bit is set, peer MUST NOT wait for End-of-RIB marker from the speaker before advertising routing information (Section 3)
+When set (value 1), this bit indicates that the BGP speaker has restarted, and its peer MUST NOT wait for the End-of-RIB marker from the speaker before advertising routing information to the speaker. (Section 3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -214,7 +216,7 @@ No test carries RFC4724-3-5, so no unit is bound to it.
 
 The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established. (Section 4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the positives are strong (sendInitialRoutes puts one marker per negotiated family on the wire, including a silent family and a no-MP session). The only negative (TestIsEndOfRIBAnyFamily) tests the EoR detector's format discrimination, a neighbouring rule, so no tagged unit violates this requirement; TestInitialSyncEORWaitsForPeerUpBarrier's no-marker-before-barrier assertion could carry it
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -231,7 +233,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 It is noted that the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message. (Section 4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the tagged units call grStateManager.onSessionDown with wasNotification injected as true/false. In production handleStructuredState/handleStateEvent (gr.go) derive wasNotification from reason == "notification", and the only session-down producer (peer_run.go via notifyPeerClosed) sends "session closed" or "connection lost", so the NOTIFICATION branch is unreachable and routes are retained after a NOTIFICATION teardown. The tests stay green against that defect
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -240,7 +242,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4724-4.1-1`](#rfc4724-4.1-1)
 
-Restarting Speaker MUST retain, if possible, the forwarding state for BGP routes in Loc-RIB (Section 4.1)
+When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB (Section 4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -248,7 +250,7 @@ No test carries RFC4724-4.1-1, so no unit is bound to it.
 
 ### [`RFC4724-4.1-2`](#rfc4724-4.1-2)
 
-Restarting Speaker MUST mark retained forwarding state as stale (Section 4.1)
+When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB and MUST mark them as stale. (Section 4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -266,7 +268,7 @@ No test carries RFC4724-4.1-3, so no unit is bound to it.
 
 To re-establish the session with its peer, the Restarting Speaker MUST set the "Restart State" bit in the Graceful Restart Capability of the OPEN message. (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestSetRBitOnCapability proves grmarker.SetRBit sets 0x80; nothing tagged proves the OPEN sent inside the restart window carries it (production gate is restartFlagsFor in reactor/peer_gr_flags.go, not peer.go:574 as the tag says). The negative, TestSetRBitTimeGatePattern, re-implements the window check inside the test and cannot fail if the production gate breaks
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -275,7 +277,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4724-4.1-5`](#rfc4724-4.1-5)
 
-Restarting Speaker MUST defer route selection per address family until End-of-RIB from all peers or Selection_Deferral_Timer expires (Section 4.1)
+However, it MUST defer route selection for an address family until it either (a) receives the End-of-RIB marker from all its peers (excluding the ones with the "Restart State" bit set in the received capability and excluding the ones that do not advertise the graceful restart capability) or (b) the Selection_Deferral_Timer referred to below has expired. (Section 4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -293,7 +295,7 @@ No test carries RFC4724-4.1-6, so no unit is bound to it.
 
 Once the initial update is complete for an address family (including the case that there is no routing update to send), the End-of-RIB marker MUST be sent. (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestBuildEOR_IPv4Unicast proves only the marker's encoding, not that it is sent once the initial update completes; the negative tests EoR detection, a neighbouring rule. No tagged unit drives the send
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -310,7 +312,7 @@ No test carries RFC4724-4.1-8, so no unit is bound to it.
 
 ### [`RFC4724-4.2-1`](#rfc4724-4.2-1)
 
-Receiving Speaker MUST treat subsequent open connection from peer as termination of old TCP session when GR Capability was received (Section 4.2)
+In case it does not detect the termination of the old TCP session and still considers the BGP session as being established, it MUST treat the subsequent open connection from the peer as an indication of the termination of the old TCP session and act accordingly (when the Graceful Restart Capability has been received from the peer). (Section 4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -328,7 +330,7 @@ No test carries RFC4724-4.2-2, so no unit is bound to it.
 
 When the Receiving Speaker detects termination of the TCP session for a BGP session with a peer that has advertised the Graceful Restart Capability, it MUST retain the routes received from the peer for all the address families that were previously received in the Graceful Restart Capability and MUST mark them as stale routing information. (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC4724SessionDownRetainsAndMarksRoutesStale asserts the production dispatch of retain-routes and mark-stale with the Restart Time; TestRFC4724RetentionCoversEveryAdvertisedFamily pins the family set to the capability's; the no-capability negative asserts nothing is dispatched
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -342,7 +344,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 To deal with possible consecutive restarts, a route (from the peer) previously marked as stale MUST be deleted. (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the tagged unit asserts grStateManager's staleFamilies set is replaced on a second down; the deletion of previously stale routes is the purge-stale dispatch in gr.go, asserted only in TestRFC4724SessionDownRetainsAndMarksRoutesStale, which is tagged 4.2-3 and runs a first restart, not a consecutive one
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -353,7 +355,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The router MUST NOT differentiate between stale and other routing information during forwarding. (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the positive (level-1 stale with higher LOCAL_PREF beats fresh) proves non-differentiation in selection. The negative is an LLGR level-2 route losing, which is RFC 9494 behaviour and does not violate this requirement, so no genuine negative exists
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -364,7 +366,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In re-establishing the session, the "Restart State" bit in the Graceful Restart Capability of the OPEN message sent by the Receiving Speaker MUST NOT be set unless the Receiving Speaker has restarted. (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the positive, TestSetRBitTimeGatePattern, re-implements the restart-window condition inside the test and never calls the production gate restartFlagsFor (reactor/peer_gr_flags.go), so it cannot fail if that gate sets R on a cold start. Tag prose cites peer.go:574, stale
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -375,7 +377,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the session does not get re-established within the "Restart Time" that the peer advertised previously, the Receiving Speaker MUST delete all the stale routes from the peer that it is retaining. (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestGRStateManagerTimerExpiry installs its own expiry callback and asserts it fires; it cannot see whether the production callback (gp.onTimerExpired) deletes the stale routes
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -386,7 +388,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Once the session is re-established, if the "Forwarding State" bit for a specific address family is not set in the newly received Graceful Restart Capability, or if a specific address family is not included in the newly received Graceful Restart Capability, or if the Graceful Restart Capability is not received in the re-established session at all, then the Receiving Speaker MUST immediately remove all the stale routes from the peer that it is retaining for that address family. (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestGRStateManagerReconnectFBitZero asserts onSessionReestablished returns the F-bit-clear family; the purge-stale dispatch in gr.go is not asserted. The other two triggers (family absent, no GR capability) have tests (ReconnectMissingFamily, ReconnectNoGR) that are not tagged
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -397,7 +399,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Receiving Speaker MUST send the End-of-RIB marker once it completes the initial update for an address family (including the case that it has no routes to send) to the peer. (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the positive TestInitialSyncEORReachesTheSilentFamilyToo proves the send; TestBuildEOR_IPv4Unicast proves encoding only; the negative tests EoR detection, a neighbouring rule
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -409,7 +411,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Receiving Speaker MUST replace the stale routes by the routing updates received from the peer. (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Insert of a stale prefix clears StaleLevel to fresh with the new attributes; the negative keeps an unrefreshed stale prefix stale while a new prefix is fresh
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -420,7 +422,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Once the End-of-RIB marker for an address family is received from the peer, it MUST immediately remove any routes from the peer that are still marked as stale for that address family. (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestGRStateManagerEORPurge asserts onEORReceived returns true per family; the removal is the purge-stale dispatch in handleEOREvent (gr.go), which no tagged unit asserts
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -429,9 +431,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4724-4-4`](#rfc4724-4-4)
 
-A BGP speaker MAY advertise the Graceful Restart Capability for an address family if it can preserve forwarding state (Section 4)
+A BGP speaker MAY advertise the Graceful Restart Capability for an address family to its peer if it has the ability to preserve its forwarding state for the address family when BGP restarts. (Section 4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the tests prove the configured families are listed with F clear on a cold start, but not the MAY's condition (the family is listed only when the speaker can preserve its forwarding state for it), so a tuple for a family ze cannot preserve would still pass
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

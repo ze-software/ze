@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 100.0% | 222 of 222 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 222 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 222 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 222 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 9.5% | 59 of 620 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 100.0% | 223 of 223 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 223 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 223 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 223 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 10.1% | 63 of 624 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,13 +22,21 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 222 | of 229 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 222 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 222 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 222 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 222 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 223 | of 229 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 223 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 223 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 223 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 223 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 222 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 87 | of 223 gated MUSTs judged | 37 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
+The 7 shares marked as a part above are the whole of the 223 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -53,15 +61,16 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Public status | Partial |
 | Enrolment | Enrolled |
 | Requirements | 229 |
-| Gated MUST-level | 222 |
+| Gated MUST-level | 223 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 623 |
-| Tagged units | 620 |
-| Recorded audit verdicts | 0 |
-| Discrimination records | 59 |
+| Test tags | 627 |
+| Tagged units | 624 |
+| Recorded audit verdicts | 87 |
+| Discrimination records | 63 |
 | Summary | `rfc/short/rfc7296.md` |
 | Requirement shard | `rfc/requirements/rfc7296.md` |
 | RFC text | `rfc/full/rfc7296.txt` |
@@ -95,30 +104,30 @@ No MUST gap remains gated in [`rfc/short/rfc7296.md`](https://github.com/ze-soft
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 222 | one part of the gated population |
+| Positive and negative tests | 223 | one part of the gated population |
 | Annotated instead of tested | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **222** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **223** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (222):** [`RFC7296-1.2-1`](#rfc7296-1.2-1), [`RFC7296-2.6-1`](#rfc7296-2.6-1), [`RFC7296-2.7-1`](#rfc7296-2.7-1), [`RFC7296-3.3-1`](#rfc7296-3.3-1), [`RFC7296-3.3-2`](#rfc7296-3.3-2), [`RFC7296-3.3.2-1`](#rfc7296-3.3.2-1), [`RFC7296-3.3.6-1`](#rfc7296-3.3.6-1), [`RFC7296-1.3.3-1`](#rfc7296-1.3.3-1), [`RFC7296-1.3.3-2`](#rfc7296-1.3.3-2), [`RFC7296-2.9-1`](#rfc7296-2.9-1), [`RFC7296-2.9-2`](#rfc7296-2.9-2), [`RFC7296-2.9.2-1`](#rfc7296-2.9.2-1), [`RFC7296-2.9.2-2`](#rfc7296-2.9.2-2), [`RFC7296-1.3.1-1`](#rfc7296-1.3.1-1), [`RFC7296-1.3.1-2`](#rfc7296-1.3.1-2), [`RFC7296-2.23.1-1`](#rfc7296-2.23.1-1), [`RFC7296-2.23.1-2`](#rfc7296-2.23.1-2), [`RFC7296-2.23.1-3`](#rfc7296-2.23.1-3), [`RFC7296-3.13.1-1`](#rfc7296-3.13.1-1), [`RFC7296-3.13.1-2`](#rfc7296-3.13.1-2), [`RFC7296-3.13.1-3`](#rfc7296-3.13.1-3), [`RFC7296-2.23-1`](#rfc7296-2.23-1), [`RFC7296-2.23-2`](#rfc7296-2.23-2), [`RFC7296-2.23-3`](#rfc7296-2.23-3), [`RFC7296-2.4-1`](#rfc7296-2.4-1), [`RFC7296-1.4-1`](#rfc7296-1.4-1), [`RFC7296-2.8-2`](#rfc7296-2.8-2), [`RFC7296-1-1`](#rfc7296-1-1), [`RFC7296-1.2-2`](#rfc7296-1.2-2), [`RFC7296-1.2-3`](#rfc7296-1.2-3), [`RFC7296-1.2-4`](#rfc7296-1.2-4), [`RFC7296-1.2-5`](#rfc7296-1.2-5), [`RFC7296-1.2-6`](#rfc7296-1.2-6), [`RFC7296-2.4-11`](#rfc7296-2.4-11), [`RFC7296-2.4-12`](#rfc7296-2.4-12), [`RFC7296-2.4-13`](#rfc7296-2.4-13), [`RFC7296-2.7-2`](#rfc7296-2.7-2), [`RFC7296-2.10-4`](#rfc7296-2.10-4), [`RFC7296-2.11-1`](#rfc7296-2.11-1), [`RFC7296-2.11-2`](#rfc7296-2.11-2), [`RFC7296-2.11-3`](#rfc7296-2.11-3), [`RFC7296-2.16-11`](#rfc7296-2.16-11), [`RFC7296-2.16-6`](#rfc7296-2.16-6), [`RFC7296-2.16-7`](#rfc7296-2.16-7), [`RFC7296-2.23-7`](#rfc7296-2.23-7), [`RFC7296-2.23-8`](#rfc7296-2.23-8), [`RFC7296-2.23-9`](#rfc7296-2.23-9), [`RFC7296-2.23-10`](#rfc7296-2.23-10), [`RFC7296-2.23-11`](#rfc7296-2.23-11), [`RFC7296-3.9-2`](#rfc7296-3.9-2), [`RFC7296-1.3-2`](#rfc7296-1.3-2), [`RFC7296-2.8.2-1`](#rfc7296-2.8.2-1), [`RFC7296-3.3.6-3`](#rfc7296-3.3.6-3), [`RFC7296-1.4-3`](#rfc7296-1.4-3), [`RFC7296-1.4-4`](#rfc7296-1.4-4), [`RFC7296-1.4-5`](#rfc7296-1.4-5), [`RFC7296-1.4.1-6`](#rfc7296-1.4.1-6), [`RFC7296-1.4.1-7`](#rfc7296-1.4.1-7), [`RFC7296-1.5-1`](#rfc7296-1.5-1), [`RFC7296-2.12-1`](#rfc7296-2.12-1), [`RFC7296-2.24-1`](#rfc7296-2.24-1), [`RFC7296-2.24-2`](#rfc7296-2.24-2), [`RFC7296-2.16-12`](#rfc7296-2.16-12), [`RFC7296-2.16-13`](#rfc7296-2.16-13), [`RFC7296-2.16-14`](#rfc7296-2.16-14), [`RFC7296-2.16-15`](#rfc7296-2.16-15), [`RFC7296-3.1-13`](#rfc7296-3.1-13), [`RFC7296-3.5-5`](#rfc7296-3.5-5), [`RFC7296-1.4.1-1`](#rfc7296-1.4.1-1), [`RFC7296-1.4.1-4`](#rfc7296-1.4.1-4), [`RFC7296-1.4.1-5`](#rfc7296-1.4.1-5), [`RFC7296-2.4-9`](#rfc7296-2.4-9), [`RFC7296-2.4-10`](#rfc7296-2.4-10), [`RFC7296-2.16-5`](#rfc7296-2.16-5), [`RFC7296-3.4-1`](#rfc7296-3.4-1), [`RFC7296-1.3-1`](#rfc7296-1.3-1), [`RFC7296-2.1-3`](#rfc7296-2.1-3), [`RFC7296-2.1-4`](#rfc7296-2.1-4), [`RFC7296-2.1-5`](#rfc7296-2.1-5), [`RFC7296-2.1-6`](#rfc7296-2.1-6), [`RFC7296-2.1-7`](#rfc7296-2.1-7), [`RFC7296-2.1-8`](#rfc7296-2.1-8), [`RFC7296-2.2-1`](#rfc7296-2.2-1), [`RFC7296-2.2-2`](#rfc7296-2.2-2), [`RFC7296-2.2-3`](#rfc7296-2.2-3), [`RFC7296-2.3-2`](#rfc7296-2.3-2), [`RFC7296-2.3-4`](#rfc7296-2.3-4), [`RFC7296-2.3-5`](#rfc7296-2.3-5), [`RFC7296-2.3-7`](#rfc7296-2.3-7), [`RFC7296-2.3-8`](#rfc7296-2.3-8), [`RFC7296-2.3-9`](#rfc7296-2.3-9), [`RFC7296-2.25-1`](#rfc7296-2.25-1), [`RFC7296-2.8-5`](#rfc7296-2.8-5), [`RFC7296-2.8-6`](#rfc7296-2.8-6), [`RFC7296-2.8-7`](#rfc7296-2.8-7), [`RFC7296-2.8.1-1`](#rfc7296-2.8.1-1), [`RFC7296-2.18-2`](#rfc7296-2.18-2), [`RFC7296-2.18-3`](#rfc7296-2.18-3), [`RFC7296-3.16-1`](#rfc7296-3.16-1), [`RFC7296-3.16-2`](#rfc7296-3.16-2), [`RFC7296-3.16-3`](#rfc7296-3.16-3), [`RFC7296-3.16-4`](#rfc7296-3.16-4), [`RFC7296-1.7-2`](#rfc7296-1.7-2), [`RFC7296-2-1`](#rfc7296-2-1), [`RFC7296-2.5-1`](#rfc7296-2.5-1), [`RFC7296-2.5-2`](#rfc7296-2.5-2), [`RFC7296-2.5-6`](#rfc7296-2.5-6), [`RFC7296-2.5-7`](#rfc7296-2.5-7), [`RFC7296-2.5-8`](#rfc7296-2.5-8), [`RFC7296-2.5-9`](#rfc7296-2.5-9), [`RFC7296-2.5-11`](#rfc7296-2.5-11), [`RFC7296-2.5-13`](#rfc7296-2.5-13), [`RFC7296-2.5-14`](#rfc7296-2.5-14), [`RFC7296-2.5-15`](#rfc7296-2.5-15), [`RFC7296-2.5-16`](#rfc7296-2.5-16), [`RFC7296-2.5-17`](#rfc7296-2.5-17), [`RFC7296-2.5-18`](#rfc7296-2.5-18), [`RFC7296-2.21.2-1`](#rfc7296-2.21.2-1), [`RFC7296-2.21.2-2`](#rfc7296-2.21.2-2), [`RFC7296-2.21.2-3`](#rfc7296-2.21.2-3), [`RFC7296-2.21.3-1`](#rfc7296-2.21.3-1), [`RFC7296-2.21.4-1`](#rfc7296-2.21.4-1), [`RFC7296-2.21.4-2`](#rfc7296-2.21.4-2), [`RFC7296-2.21.4-3`](#rfc7296-2.21.4-3), [`RFC7296-2.21.4-4`](#rfc7296-2.21.4-4), [`RFC7296-2.21.4-5`](#rfc7296-2.21.4-5), [`RFC7296-2.21.4-6`](#rfc7296-2.21.4-6), [`RFC7296-2.21.4-7`](#rfc7296-2.21.4-7), [`RFC7296-3.10.1-1`](#rfc7296-3.10.1-1), [`RFC7296-3.10.1-2`](#rfc7296-3.10.1-2), [`RFC7296-3.10.1-3`](#rfc7296-3.10.1-3), [`RFC7296-2.6-2`](#rfc7296-2.6-2), [`RFC7296-2.6-3`](#rfc7296-2.6-3), [`RFC7296-2.6-4`](#rfc7296-2.6-4), [`RFC7296-2.6-5`](#rfc7296-2.6-5), [`RFC7296-2.6.1-1`](#rfc7296-2.6.1-1), [`RFC7296-2.10-2`](#rfc7296-2.10-2), [`RFC7296-2.10-3`](#rfc7296-2.10-3), [`RFC7296-2.13-1`](#rfc7296-2.13-1), [`RFC7296-2.13-2`](#rfc7296-2.13-2), [`RFC7296-2.13-3`](#rfc7296-2.13-3), [`RFC7296-2.13-4`](#rfc7296-2.13-4), [`RFC7296-2.15-1`](#rfc7296-2.15-1), [`RFC7296-2.15-2`](#rfc7296-2.15-2), [`RFC7296-2.17-1`](#rfc7296-2.17-1), [`RFC7296-2.17-2`](#rfc7296-2.17-2), [`RFC7296-3.1-1`](#rfc7296-3.1-1), [`RFC7296-3.1-2`](#rfc7296-3.1-2), [`RFC7296-3.1-3`](#rfc7296-3.1-3), [`RFC7296-3.1-4`](#rfc7296-3.1-4), [`RFC7296-3.1-5`](#rfc7296-3.1-5), [`RFC7296-3.1-6`](#rfc7296-3.1-6), [`RFC7296-3.1-7`](#rfc7296-3.1-7), [`RFC7296-3.1-8`](#rfc7296-3.1-8), [`RFC7296-3.1-9`](#rfc7296-3.1-9), [`RFC7296-3.1-11`](#rfc7296-3.1-11), [`RFC7296-3.1-12`](#rfc7296-3.1-12), [`RFC7296-3.2-2`](#rfc7296-3.2-2), [`RFC7296-3.2-3`](#rfc7296-3.2-3), [`RFC7296-3.2-4`](#rfc7296-3.2-4), [`RFC7296-3.2-5`](#rfc7296-3.2-5), [`RFC7296-3.2-6`](#rfc7296-3.2-6), [`RFC7296-3.3-3`](#rfc7296-3.3-3), [`RFC7296-3.3-4`](#rfc7296-3.3-4), [`RFC7296-3.3-5`](#rfc7296-3.3-5), [`RFC7296-3.3-6`](#rfc7296-3.3-6), [`RFC7296-3.3-7`](#rfc7296-3.3-7), [`RFC7296-3.3.1-1`](#rfc7296-3.3.1-1), [`RFC7296-3.3.1-2`](#rfc7296-3.3.1-2), [`RFC7296-3.3.3-1`](#rfc7296-3.3.3-1), [`RFC7296-3.3.4-2`](#rfc7296-3.3.4-2), [`RFC7296-3.3.4-3`](#rfc7296-3.3.4-3), [`RFC7296-3.3.5-1`](#rfc7296-3.3.5-1), [`RFC7296-3.3.5-2`](#rfc7296-3.3.5-2), [`RFC7296-3.3.5-3`](#rfc7296-3.3.5-3), [`RFC7296-3.3.5-4`](#rfc7296-3.3.5-4), [`RFC7296-3.3.5-5`](#rfc7296-3.3.5-5), [`RFC7296-3.3.6-4`](#rfc7296-3.3.6-4), [`RFC7296-3.3.6-5`](#rfc7296-3.3.6-5), [`RFC7296-3.3.6-7`](#rfc7296-3.3.6-7), [`RFC7296-3.9-1`](#rfc7296-3.9-1), [`RFC7296-3.10-3`](#rfc7296-3.10-3), [`RFC7296-3.10-4`](#rfc7296-3.10-4), [`RFC7296-3.10-5`](#rfc7296-3.10-5), [`RFC7296-3.11-1`](#rfc7296-3.11-1), [`RFC7296-3.11-2`](#rfc7296-3.11-2), [`RFC7296-3.12-2`](#rfc7296-3.12-2), [`RFC7296-3.12-3`](#rfc7296-3.12-3), [`RFC7296-3.12-4`](#rfc7296-3.12-4), [`RFC7296-3.14-2`](#rfc7296-3.14-2), [`RFC7296-3.14-3`](#rfc7296-3.14-3), [`RFC7296-3.14-4`](#rfc7296-3.14-4), [`RFC7296-3.14-5`](#rfc7296-3.14-5), [`RFC7296-3.14-6`](#rfc7296-3.14-6), [`RFC7296-3.14-7`](#rfc7296-3.14-7), [`RFC7296-5-2`](#rfc7296-5-2), [`RFC7296-5-3`](#rfc7296-5-3), [`RFC7296-2.19-1`](#rfc7296-2.19-1), [`RFC7296-2.19-4`](#rfc7296-2.19-4), [`RFC7296-2.20-1`](#rfc7296-2.20-1), [`RFC7296-3.15.1-2`](#rfc7296-3.15.1-2), [`RFC7296-3.15.1-5`](#rfc7296-3.15.1-5), [`RFC7296-3.15.1-6`](#rfc7296-3.15.1-6), [`RFC7296-3.15.1-7`](#rfc7296-3.15.1-7), [`RFC7296-2.4-3`](#rfc7296-2.4-3), [`RFC7296-2.4-4`](#rfc7296-2.4-4), [`RFC7296-3.4-2`](#rfc7296-3.4-2), [`RFC7296-3.4-3`](#rfc7296-3.4-3), [`RFC7296-3.3.6-8`](#rfc7296-3.3.6-8), [`RFC7296-2.4-14`](#rfc7296-2.4-14), [`RFC7296-2.8-8`](#rfc7296-2.8-8), [`RFC7296-4-1`](#rfc7296-4-1), [`RFC7296-2.15-3`](#rfc7296-2.15-3), [`RFC7296-3.3.4-4`](#rfc7296-3.3.4-4), [`RFC7296-3.5-2`](#rfc7296-3.5-2), [`RFC7296-3.5-3`](#rfc7296-3.5-3), [`RFC7296-3.5-4`](#rfc7296-3.5-4), [`RFC7296-3.6-1`](#rfc7296-3.6-1), [`RFC7296-3.6-2`](#rfc7296-3.6-2), [`RFC7296-3.6-3`](#rfc7296-3.6-3), [`RFC7296-4-4`](#rfc7296-4-4), [`RFC7296-4-5`](#rfc7296-4-5)
+**Positive and negative tests (223):** [`RFC7296-1.2-1`](#rfc7296-1.2-1), [`RFC7296-2.6-1`](#rfc7296-2.6-1), [`RFC7296-2.7-1`](#rfc7296-2.7-1), [`RFC7296-3.3-1`](#rfc7296-3.3-1), [`RFC7296-3.3-2`](#rfc7296-3.3-2), [`RFC7296-3.3.2-1`](#rfc7296-3.3.2-1), [`RFC7296-3.3.6-1`](#rfc7296-3.3.6-1), [`RFC7296-1.3.3-1`](#rfc7296-1.3.3-1), [`RFC7296-1.3.3-2`](#rfc7296-1.3.3-2), [`RFC7296-2.9-1`](#rfc7296-2.9-1), [`RFC7296-2.9-2`](#rfc7296-2.9-2), [`RFC7296-2.9.2-1`](#rfc7296-2.9.2-1), [`RFC7296-2.9.2-2`](#rfc7296-2.9.2-2), [`RFC7296-1.3.1-1`](#rfc7296-1.3.1-1), [`RFC7296-1.3.1-2`](#rfc7296-1.3.1-2), [`RFC7296-2.23.1-1`](#rfc7296-2.23.1-1), [`RFC7296-2.23.1-2`](#rfc7296-2.23.1-2), [`RFC7296-2.23.1-3`](#rfc7296-2.23.1-3), [`RFC7296-3.13.1-1`](#rfc7296-3.13.1-1), [`RFC7296-3.13.1-2`](#rfc7296-3.13.1-2), [`RFC7296-3.13.1-3`](#rfc7296-3.13.1-3), [`RFC7296-2.23-1`](#rfc7296-2.23-1), [`RFC7296-2.23-2`](#rfc7296-2.23-2), [`RFC7296-2.23-3`](#rfc7296-2.23-3), [`RFC7296-2.4-1`](#rfc7296-2.4-1), [`RFC7296-1.4-1`](#rfc7296-1.4-1), [`RFC7296-2.8-2`](#rfc7296-2.8-2), [`RFC7296-1-1`](#rfc7296-1-1), [`RFC7296-1.2-2`](#rfc7296-1.2-2), [`RFC7296-1.2-3`](#rfc7296-1.2-3), [`RFC7296-1.2-4`](#rfc7296-1.2-4), [`RFC7296-1.2-5`](#rfc7296-1.2-5), [`RFC7296-1.2-6`](#rfc7296-1.2-6), [`RFC7296-2.4-11`](#rfc7296-2.4-11), [`RFC7296-2.4-12`](#rfc7296-2.4-12), [`RFC7296-2.4-13`](#rfc7296-2.4-13), [`RFC7296-2.7-2`](#rfc7296-2.7-2), [`RFC7296-2.10-4`](#rfc7296-2.10-4), [`RFC7296-2.11-1`](#rfc7296-2.11-1), [`RFC7296-2.11-2`](#rfc7296-2.11-2), [`RFC7296-2.11-3`](#rfc7296-2.11-3), [`RFC7296-2.16-11`](#rfc7296-2.16-11), [`RFC7296-2.16-6`](#rfc7296-2.16-6), [`RFC7296-2.16-7`](#rfc7296-2.16-7), [`RFC7296-2.23-7`](#rfc7296-2.23-7), [`RFC7296-2.23-8`](#rfc7296-2.23-8), [`RFC7296-2.23-9`](#rfc7296-2.23-9), [`RFC7296-2.23-10`](#rfc7296-2.23-10), [`RFC7296-2.23-11`](#rfc7296-2.23-11), [`RFC7296-2.23-12`](#rfc7296-2.23-12), [`RFC7296-3.9-2`](#rfc7296-3.9-2), [`RFC7296-1.3-2`](#rfc7296-1.3-2), [`RFC7296-2.8.2-1`](#rfc7296-2.8.2-1), [`RFC7296-3.3.6-3`](#rfc7296-3.3.6-3), [`RFC7296-1.4-3`](#rfc7296-1.4-3), [`RFC7296-1.4-4`](#rfc7296-1.4-4), [`RFC7296-1.4-5`](#rfc7296-1.4-5), [`RFC7296-1.4.1-6`](#rfc7296-1.4.1-6), [`RFC7296-1.4.1-7`](#rfc7296-1.4.1-7), [`RFC7296-1.5-1`](#rfc7296-1.5-1), [`RFC7296-2.12-1`](#rfc7296-2.12-1), [`RFC7296-2.24-1`](#rfc7296-2.24-1), [`RFC7296-2.24-2`](#rfc7296-2.24-2), [`RFC7296-2.16-12`](#rfc7296-2.16-12), [`RFC7296-2.16-13`](#rfc7296-2.16-13), [`RFC7296-2.16-14`](#rfc7296-2.16-14), [`RFC7296-2.16-15`](#rfc7296-2.16-15), [`RFC7296-3.1-13`](#rfc7296-3.1-13), [`RFC7296-3.5-5`](#rfc7296-3.5-5), [`RFC7296-1.4.1-1`](#rfc7296-1.4.1-1), [`RFC7296-1.4.1-4`](#rfc7296-1.4.1-4), [`RFC7296-1.4.1-5`](#rfc7296-1.4.1-5), [`RFC7296-2.4-9`](#rfc7296-2.4-9), [`RFC7296-2.4-10`](#rfc7296-2.4-10), [`RFC7296-2.16-5`](#rfc7296-2.16-5), [`RFC7296-3.4-1`](#rfc7296-3.4-1), [`RFC7296-1.3-1`](#rfc7296-1.3-1), [`RFC7296-2.1-3`](#rfc7296-2.1-3), [`RFC7296-2.1-4`](#rfc7296-2.1-4), [`RFC7296-2.1-5`](#rfc7296-2.1-5), [`RFC7296-2.1-6`](#rfc7296-2.1-6), [`RFC7296-2.1-7`](#rfc7296-2.1-7), [`RFC7296-2.1-8`](#rfc7296-2.1-8), [`RFC7296-2.2-1`](#rfc7296-2.2-1), [`RFC7296-2.2-2`](#rfc7296-2.2-2), [`RFC7296-2.2-3`](#rfc7296-2.2-3), [`RFC7296-2.3-2`](#rfc7296-2.3-2), [`RFC7296-2.3-4`](#rfc7296-2.3-4), [`RFC7296-2.3-5`](#rfc7296-2.3-5), [`RFC7296-2.3-7`](#rfc7296-2.3-7), [`RFC7296-2.3-8`](#rfc7296-2.3-8), [`RFC7296-2.3-9`](#rfc7296-2.3-9), [`RFC7296-2.25-1`](#rfc7296-2.25-1), [`RFC7296-2.8-5`](#rfc7296-2.8-5), [`RFC7296-2.8-6`](#rfc7296-2.8-6), [`RFC7296-2.8-7`](#rfc7296-2.8-7), [`RFC7296-2.8.1-1`](#rfc7296-2.8.1-1), [`RFC7296-2.18-2`](#rfc7296-2.18-2), [`RFC7296-2.18-3`](#rfc7296-2.18-3), [`RFC7296-3.16-1`](#rfc7296-3.16-1), [`RFC7296-3.16-2`](#rfc7296-3.16-2), [`RFC7296-3.16-3`](#rfc7296-3.16-3), [`RFC7296-3.16-4`](#rfc7296-3.16-4), [`RFC7296-1.7-2`](#rfc7296-1.7-2), [`RFC7296-2-1`](#rfc7296-2-1), [`RFC7296-2.5-1`](#rfc7296-2.5-1), [`RFC7296-2.5-2`](#rfc7296-2.5-2), [`RFC7296-2.5-6`](#rfc7296-2.5-6), [`RFC7296-2.5-7`](#rfc7296-2.5-7), [`RFC7296-2.5-8`](#rfc7296-2.5-8), [`RFC7296-2.5-9`](#rfc7296-2.5-9), [`RFC7296-2.5-11`](#rfc7296-2.5-11), [`RFC7296-2.5-13`](#rfc7296-2.5-13), [`RFC7296-2.5-14`](#rfc7296-2.5-14), [`RFC7296-2.5-15`](#rfc7296-2.5-15), [`RFC7296-2.5-16`](#rfc7296-2.5-16), [`RFC7296-2.5-17`](#rfc7296-2.5-17), [`RFC7296-2.5-18`](#rfc7296-2.5-18), [`RFC7296-2.21.2-1`](#rfc7296-2.21.2-1), [`RFC7296-2.21.2-2`](#rfc7296-2.21.2-2), [`RFC7296-2.21.2-3`](#rfc7296-2.21.2-3), [`RFC7296-2.21.3-1`](#rfc7296-2.21.3-1), [`RFC7296-2.21.4-1`](#rfc7296-2.21.4-1), [`RFC7296-2.21.4-2`](#rfc7296-2.21.4-2), [`RFC7296-2.21.4-3`](#rfc7296-2.21.4-3), [`RFC7296-2.21.4-4`](#rfc7296-2.21.4-4), [`RFC7296-2.21.4-5`](#rfc7296-2.21.4-5), [`RFC7296-2.21.4-6`](#rfc7296-2.21.4-6), [`RFC7296-2.21.4-7`](#rfc7296-2.21.4-7), [`RFC7296-3.10.1-1`](#rfc7296-3.10.1-1), [`RFC7296-3.10.1-2`](#rfc7296-3.10.1-2), [`RFC7296-3.10.1-3`](#rfc7296-3.10.1-3), [`RFC7296-2.6-2`](#rfc7296-2.6-2), [`RFC7296-2.6-3`](#rfc7296-2.6-3), [`RFC7296-2.6-4`](#rfc7296-2.6-4), [`RFC7296-2.6-5`](#rfc7296-2.6-5), [`RFC7296-2.6.1-1`](#rfc7296-2.6.1-1), [`RFC7296-2.10-2`](#rfc7296-2.10-2), [`RFC7296-2.10-3`](#rfc7296-2.10-3), [`RFC7296-2.13-1`](#rfc7296-2.13-1), [`RFC7296-2.13-2`](#rfc7296-2.13-2), [`RFC7296-2.13-3`](#rfc7296-2.13-3), [`RFC7296-2.13-4`](#rfc7296-2.13-4), [`RFC7296-2.15-1`](#rfc7296-2.15-1), [`RFC7296-2.15-2`](#rfc7296-2.15-2), [`RFC7296-2.17-1`](#rfc7296-2.17-1), [`RFC7296-2.17-2`](#rfc7296-2.17-2), [`RFC7296-3.1-1`](#rfc7296-3.1-1), [`RFC7296-3.1-2`](#rfc7296-3.1-2), [`RFC7296-3.1-3`](#rfc7296-3.1-3), [`RFC7296-3.1-4`](#rfc7296-3.1-4), [`RFC7296-3.1-5`](#rfc7296-3.1-5), [`RFC7296-3.1-6`](#rfc7296-3.1-6), [`RFC7296-3.1-7`](#rfc7296-3.1-7), [`RFC7296-3.1-8`](#rfc7296-3.1-8), [`RFC7296-3.1-9`](#rfc7296-3.1-9), [`RFC7296-3.1-11`](#rfc7296-3.1-11), [`RFC7296-3.1-12`](#rfc7296-3.1-12), [`RFC7296-3.2-2`](#rfc7296-3.2-2), [`RFC7296-3.2-3`](#rfc7296-3.2-3), [`RFC7296-3.2-4`](#rfc7296-3.2-4), [`RFC7296-3.2-5`](#rfc7296-3.2-5), [`RFC7296-3.2-6`](#rfc7296-3.2-6), [`RFC7296-3.3-3`](#rfc7296-3.3-3), [`RFC7296-3.3-4`](#rfc7296-3.3-4), [`RFC7296-3.3-5`](#rfc7296-3.3-5), [`RFC7296-3.3-6`](#rfc7296-3.3-6), [`RFC7296-3.3-7`](#rfc7296-3.3-7), [`RFC7296-3.3.1-1`](#rfc7296-3.3.1-1), [`RFC7296-3.3.1-2`](#rfc7296-3.3.1-2), [`RFC7296-3.3.3-1`](#rfc7296-3.3.3-1), [`RFC7296-3.3.4-2`](#rfc7296-3.3.4-2), [`RFC7296-3.3.4-3`](#rfc7296-3.3.4-3), [`RFC7296-3.3.5-1`](#rfc7296-3.3.5-1), [`RFC7296-3.3.5-2`](#rfc7296-3.3.5-2), [`RFC7296-3.3.5-3`](#rfc7296-3.3.5-3), [`RFC7296-3.3.5-4`](#rfc7296-3.3.5-4), [`RFC7296-3.3.5-5`](#rfc7296-3.3.5-5), [`RFC7296-3.3.6-4`](#rfc7296-3.3.6-4), [`RFC7296-3.3.6-5`](#rfc7296-3.3.6-5), [`RFC7296-3.3.6-7`](#rfc7296-3.3.6-7), [`RFC7296-3.9-1`](#rfc7296-3.9-1), [`RFC7296-3.10-3`](#rfc7296-3.10-3), [`RFC7296-3.10-4`](#rfc7296-3.10-4), [`RFC7296-3.10-5`](#rfc7296-3.10-5), [`RFC7296-3.11-1`](#rfc7296-3.11-1), [`RFC7296-3.11-2`](#rfc7296-3.11-2), [`RFC7296-3.12-2`](#rfc7296-3.12-2), [`RFC7296-3.12-3`](#rfc7296-3.12-3), [`RFC7296-3.12-4`](#rfc7296-3.12-4), [`RFC7296-3.14-2`](#rfc7296-3.14-2), [`RFC7296-3.14-3`](#rfc7296-3.14-3), [`RFC7296-3.14-4`](#rfc7296-3.14-4), [`RFC7296-3.14-5`](#rfc7296-3.14-5), [`RFC7296-3.14-6`](#rfc7296-3.14-6), [`RFC7296-3.14-7`](#rfc7296-3.14-7), [`RFC7296-5-2`](#rfc7296-5-2), [`RFC7296-5-3`](#rfc7296-5-3), [`RFC7296-2.19-1`](#rfc7296-2.19-1), [`RFC7296-2.19-4`](#rfc7296-2.19-4), [`RFC7296-2.20-1`](#rfc7296-2.20-1), [`RFC7296-3.15.1-2`](#rfc7296-3.15.1-2), [`RFC7296-3.15.1-5`](#rfc7296-3.15.1-5), [`RFC7296-3.15.1-6`](#rfc7296-3.15.1-6), [`RFC7296-3.15.1-7`](#rfc7296-3.15.1-7), [`RFC7296-2.4-3`](#rfc7296-2.4-3), [`RFC7296-2.4-4`](#rfc7296-2.4-4), [`RFC7296-3.4-2`](#rfc7296-3.4-2), [`RFC7296-3.4-3`](#rfc7296-3.4-3), [`RFC7296-3.3.6-8`](#rfc7296-3.3.6-8), [`RFC7296-2.4-14`](#rfc7296-2.4-14), [`RFC7296-2.8-8`](#rfc7296-2.8-8), [`RFC7296-4-1`](#rfc7296-4-1), [`RFC7296-2.15-3`](#rfc7296-2.15-3), [`RFC7296-3.3.4-4`](#rfc7296-3.3.4-4), [`RFC7296-3.5-2`](#rfc7296-3.5-2), [`RFC7296-3.5-3`](#rfc7296-3.5-3), [`RFC7296-3.5-4`](#rfc7296-3.5-4), [`RFC7296-3.6-1`](#rfc7296-3.6-1), [`RFC7296-3.6-2`](#rfc7296-3.6-2), [`RFC7296-3.6-3`](#rfc7296-3.6-3), [`RFC7296-4-4`](#rfc7296-4-4), [`RFC7296-4-5`](#rfc7296-4-5)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7296-1.2-1` | Initial exchange is exactly 4 messages (2 request/response pairs); first pair unencrypted, second pair encrypted (§1.2) | MUST | 1.2 - The initial exchanges | **positive:** `unit/verify` [`TestInitialExchangeEncryptionBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L32). **negative:** `unit/verify` [`TestInitialExchangeEncryptionBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L35) |
-| `RFC7296-2.6-1` | IKE SA identified by the pair (SPIi, SPIr), each 8 bytes, carried in every IKE header (§2.6) | MUST | 2.6 | **positive:** `unit/verify` [`TestHeaderRoundtrip`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/header_test.go#L9). **negative:** `unit/verify` [`TestDecodeTruncatedHeader`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/header_test.go#L75) |
-| `RFC7296-2.7-1` | Responder picks exactly one transform of each type from the proposal, or rejects all with NO_PROPOSAL_CHOSEN (§2.7) | MUST | 2.7 | **positive:** `unit/verify` [`TestEsnResponderAnswersOnlyAValueTheOfferCarried`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L95). **positive:** `unit/verify` [`TestProposalNegotiationFirstMatch`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/proposal_test.go#L8). **negative:** `unit/verify` [`TestEsnResponderAnswersOnlyAValueTheOfferCarried`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L87). **negative:** `unit/verify` [`TestProposalNegotiationNoMatch`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/proposal_test.go#L63). **positive:** `interop/nightly` [`checkESNBothOffered`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1050). **negative:** `interop/nightly` [`checkESNExtendedOnlyRefused`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1019) |
-| `RFC7296-3.3-1` | AEAD ciphers and non-AEAD ciphers cannot be in the same proposal; use separate proposals for each class (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestAeadAloneInItsOwnProposalIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_aead_mix_test.go#L60). **positive:** `unit/verify` [`TestESPProposalsNeverMixAEADClass`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L172). **negative:** `unit/verify` [`TestAeadMixInOneProposalIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_aead_mix_test.go#L32) |
-| `RFC7296-3.3-2` | When proposing AEAD for ESP, INTEG must be NONE (0) (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestESPWireProposalAEADIntegNone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L148). **negative:** `unit/verify` [`TestESPWireProposalAEADIntegNone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L151) |
-| `RFC7296-3.3.2-1` | IKE SA proposals include ENCR, PRF, INTEG, and DH transforms (§3.3.2) | MUST | 3.3.2 | **positive:** `unit/verify` [`TestIKEWireProposalHasAllTransforms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L195). **negative:** `unit/verify` [`TestIKEWireProposalHasAllTransforms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L198) |
-| `RFC7296-3.3.6-1` | DH group is mandatory for IKE SA negotiation: D-H is a mandatory Transform Type for IKE in the table of Section 3.3.3, whose text makes understanding every mandatory type a MUST for a compliant implementation (§3.3.6) | MUST | 3.3.6 | **positive:** `unit/verify` [`TestResponderRequiresKEForDH`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L226). **negative:** `unit/verify` [`TestResponderRequiresKEForDH`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L229) |
-| `RFC7296-1.3.3-1` | KE payload is mandatory when rekeying the IKE SA (§1.3.3) | MUST | 1.3.3 - Rekeying a Child SA | **positive:** `unit/verify` [`TestRespondIKERekey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/responder_test.go#L265). **negative:** `unit/verify` [`TestRespondIKERekeyRejectsMissingKE`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L123) |
+| `RFC7296-1.2-1` | The first pair of messages (IKE_SA_INIT) negotiate cryptographic algorithms, exchange nonces, and do a Diffie-Hellman exchange [DH]. The second pair of messages (IKE_AUTH) authenticate the previous messages, exchange identities and certificates, and establish the first Child SA. Parts of these messages are encrypted and integrity protected with keys established through the IKE_SA_INIT exchange, so the identities are hidden from eavesdroppers and all fields in all the messages are authenticated. (§1.2) | MUST | 1.2 - The initial exchanges | **positive:** `unit/verify` [`TestInitialExchangeEncryptionBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L32). **negative:** `unit/verify` [`TestInitialExchangeEncryptionBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L35) |
+| `RFC7296-2.6-1` | The initial two eight-octet fields in the header, called the "IKE SPIs", are used as a connection identifier at the beginning of IKE packets. (§2.6) | MUST | 2.6 | **positive:** `unit/verify` [`TestHeaderRoundtrip`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/header_test.go#L9). **negative:** `unit/verify` [`TestDecodeTruncatedHeader`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/header_test.go#L75) |
+| `RFC7296-2.7-1` | The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN. Each IPsec protocol proposal contains one or more transforms. Each transform contains a Transform Type. The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal. (§2.7) | MUST | 2.7 | **positive:** `unit/verify` [`TestEsnResponderAnswersOnlyAValueTheOfferCarried`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L95). **positive:** `unit/verify` [`TestProposalNegotiationFirstMatch`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/proposal_test.go#L8). **negative:** `unit/verify` [`TestEsnResponderAnswersOnlyAValueTheOfferCarried`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L87). **negative:** `unit/verify` [`TestProposalNegotiationNoMatch`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/proposal_test.go#L63). **positive:** `interop/nightly` [`checkESNBothOffered`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1050). **negative:** `interop/nightly` [`checkESNExtendedOnlyRefused`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1019) |
+| `RFC7296-3.3-1` | If an initiator wants to propose both combined- mode ciphers and normal ciphers, it must include two proposals: one will have all the combined-mode ciphers, and the other will have all the normal ciphers with the integrity algorithms. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestAeadAloneInItsOwnProposalIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_aead_mix_test.go#L60). **positive:** `unit/verify` [`TestESPProposalsNeverMixAEADClass`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L172). **negative:** `unit/verify` [`TestAeadMixInOneProposalIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_aead_mix_test.go#L32) |
+| `RFC7296-3.3-2` | Combined-mode ciphers include both integrity and encryption in a single encryption algorithm, and MUST either offer no integrity algorithm or a single integrity algorithm of "NONE" (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestESPWireProposalAEADIntegNone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L148). **negative:** `unit/verify` [`TestESPWireProposalAEADIntegNone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L151) |
+| `RFC7296-3.3.2-1` | An SA payload proposing the establishment of an SA has the following mandatory and optional Transform Types. A compliant implementation MUST understand all mandatory and optional types for each protocol it supports (though it need not accept proposals with unacceptable suites). A proposal MAY omit the optional types if the only value for them it will accept is NONE. Protocol Mandatory Types Optional Types --------------------------------------------------- IKE ENCR, PRF, INTEG*, D-H (§3.3.3) | MUST | 3.3.3 | **positive:** `unit/verify` [`TestIKEWireProposalHasAllTransforms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L195). **negative:** `unit/verify` [`TestIKEWireProposalHasAllTransforms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L198) |
+| `RFC7296-3.3.6-1` | A compliant implementation MUST understand all mandatory and optional types for each protocol it supports (though it need not accept proposals with unacceptable suites). A proposal MAY omit the optional types if the only value for them it will accept is NONE. Protocol Mandatory Types Optional Types --------------------------------------------------- IKE ENCR, PRF, INTEG*, D-H (§3.3.3) | MUST | 3.3.3 | **positive:** `unit/verify` [`TestResponderRequiresKEForDH`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L226). **negative:** `unit/verify` [`TestResponderRequiresKEForDH`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L229) |
+| `RFC7296-1.3.3-1` | The KEi payload MUST be included. (§1.3.2) | MUST | 1.3.2 - Rekeying the IKE SA | **positive:** `unit/verify` [`TestRespondIKERekey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/responder_test.go#L265). **negative:** `unit/verify` [`TestRespondIKERekeyRejectsMissingKE`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L123) |
 | `RFC7296-1.3.3-2` | The REKEY_SA notification MUST be included in a CREATE_CHILD_SA exchange if the purpose of the exchange is to replace an existing ESP or AH SA (§1.3.3) | MUST | 1.3.3 - Rekeying a Child SA | **positive:** `unit/verify` [`TestRksaChildRekeyCarriesTheRekeySANotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekeysa_test.go#L40). **negative:** `unit/verify` [`TestRksaChildRekeyCarriesTheRekeySANotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekeysa_test.go#L46) |
-| `RFC7296-2.9-1` | Responder may narrow traffic selectors but never widen; if narrowed result is empty, respond with TS_UNACCEPTABLE (§2.9) | MUST | 2.9 | **positive:** `unit/verify` [`TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L273). **positive:** `unit/verify` [`TestChildRekeyInitiatorInstallsTheAnsweredSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L105). **positive:** `unit/verify` [`TestRekeyWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey_test.go#L345). **positive:** `unit/verify` [`TestTSUnacceptableIsSentWhenNothingIsAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L60). **negative:** `unit/verify` [`TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L267). **negative:** `unit/verify` [`TestChildRekeyInitiatorInstallsTheAnsweredSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L112). **negative:** `unit/verify` [`TestRekeyWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey_test.go#L337). **negative:** `unit/verify` [`TestTSUnacceptableIsSentWhenNothingIsAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L76) |
+| `RFC7296-2.9-1` | When the responder chooses a subset of the traffic proposed by the initiator, it narrows the Traffic Selectors to some subset of the initiator's proposal (provided the set does not become the null set). (§2.9) | MUST | 2.9 | **positive:** `unit/verify` [`TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L273). **positive:** `unit/verify` [`TestChildRekeyInitiatorInstallsTheAnsweredSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L105). **positive:** `unit/verify` [`TestRekeyWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey_test.go#L345). **positive:** `unit/verify` [`TestTSUnacceptableIsSentWhenNothingIsAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L60). **negative:** `unit/verify` [`TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L267). **negative:** `unit/verify` [`TestChildRekeyInitiatorInstallsTheAnsweredSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L112). **negative:** `unit/verify` [`TestRekeyWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey_test.go#L337). **negative:** `unit/verify` [`TestTSUnacceptableIsSentWhenNothingIsAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L76) |
 | `RFC7296-2.9-2` | If the responder's policy allows it to accept the first selector of TSi and TSr, then the responder MUST narrow the Traffic Selectors to a subset that includes the initiator's first choices (§2.9) | MUST | 2.9 | **positive:** `unit/verify` [`TestAuthResponsePayloadsCarryTheNarrowedSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L371). **positive:** `unit/verify` [`TestNarrowingIncludesFirstChoice`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L99). **positive:** `unit/verify` [`TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_orientation_test.go#L133). **negative:** `unit/verify` [`TestNarrowingIncludesFirstChoice`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L143) |
 | `RFC7296-2.9.2-1` | Thus, the new SA MUST NOT have narrower selectors than the original (§2.9.2) | MUST NOT | 2.9.2 | **positive:** `unit/verify` [`TestChildRekeyAnswerBelowTheScopeInUseIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L183). **positive:** `unit/verify` [`TestRekeyAnswerMatchesTheInstalledSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_orientation_test.go#L322). **positive:** `unit/verify` [`TestRekeyFloorIsNotNarrowed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L222). **negative:** `unit/verify` [`TestChildRekeyAnswerBelowTheScopeInUseIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L194). **negative:** `unit/verify` [`TestRekeyFloorIsNotNarrowed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L233) |
 | `RFC7296-2.9.2-2` | The responder MUST NOT narrow down the Traffic Selectors narrower than the scope currently in use (§2.9.2) | MUST NOT | 2.9.2 | **positive:** `unit/verify` [`TestChildRekeyAnswerBelowTheScopeInUseIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L188). **positive:** `unit/verify` [`TestRekeyFloorIsNotNarrowed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L247). **positive:** `unit/verify` [`TestRekeyProposalBelowTheFloorIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_orientation_test.go#L378). **negative:** `unit/verify` [`TestChildRekeyAnswerBelowTheScopeInUseIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L198). **negative:** `unit/verify` [`TestRekeyFloorIsNotNarrowed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L261). **negative:** `unit/verify` [`TestRekeyProposalBelowTheFloorIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_orientation_test.go#L384) |
@@ -130,13 +139,13 @@ No MUST gap remains gated in [`rfc/short/rfc7296.md`](https://github.com/ze-soft
 | `RFC7296-3.13.1-1` | For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be zero. (§3.13.1) | MUST | 3.13.1 | **positive:** `unit/verify` [`TestPortEncodingFollowsSection3131`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L341). **negative:** `unit/verify` [`TestPortEncodingFollowsSection3131`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L350) |
 | `RFC7296-3.13.1-2` | For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be 65535. (§3.13.1) | MUST | 3.13.1 | **positive:** `unit/verify` [`TestPortEncodingFollowsSection3131`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L358). **negative:** `unit/verify` [`TestPortEncodingFollowsSection3131`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L364) |
 | `RFC7296-3.13.1-3` | Systems working with [IPSECARCH] that wish to indicate "OPAQUE" ports, but not "ANY" ports, MUST set the start port to 65535 and the end port to 0. (§3.13.1) | MUST | 3.13.1 | **positive:** `unit/verify` [`TestPortEncodingFollowsSection3131`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L372). **negative:** `unit/verify` [`TestPortEncodingFollowsSection3131`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L400) |
-| `RFC7296-2.23-1` | NAT detection via hash comparison is automatic in IKE_SA_INIT (§2.23) | MUST | 2.23 | **positive:** `unit/verify` [`TestNATDetectionPresent`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L43). **negative:** `unit/verify` [`TestNATDetectionAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L63) |
-| `RFC7296-2.23-2` | When NAT is present, all traffic (IKE + ESP) floats to UDP 4500 (§2.23) | MUST | 2.23 | **positive:** `unit/verify` [`TestChildSANATTEncapPorts`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L277). **negative:** `unit/verify` [`TestChildSANoNATNoEncap`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L276) |
-| `RFC7296-2.23-3` | IKE packets on port 4500 prefixed with 4 zero bytes (Non-ESP marker) (§2.23) | MUST | 2.23 | **positive:** `unit/verify` [`TestNonESPMarker`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L80). **negative:** `unit/verify` [`TestNonESPMarkerESPPacket`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L112) |
+| `RFC7296-2.23-1` | The IKE initiator MUST check the NAT_DETECTION_SOURCE_IP or NAT_DETECTION_DESTINATION_IP payloads if present (§2.23) | MUST | 2.23 | **positive:** `unit/verify` [`TestNATDetectionPresent`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L43). **negative:** `unit/verify` [`TestNATDetectionAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L63) |
+| `RFC7296-2.23-2` | An IPsec endpoint that discovers a NAT between it and its correspondent (as described below) MUST send all subsequent traffic from port 4500 (§2.23) | MUST | 2.23 | **positive:** `unit/verify` [`TestChildSANATTEncapPorts`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L277). **negative:** `unit/verify` [`TestChildSANoNATNoEncap`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L276) |
+| `RFC7296-2.23-3` | To tunnel IKE packets over UDP port 4500, the IKE header has four octets of zeros prepended and the result immediately follows the UDP header. (§2.23) | MUST | 2.23 | **positive:** `unit/verify` [`TestNonESPMarker`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L80). **negative:** `unit/verify` [`TestNonESPMarkerESPPacket`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L109) |
 | `RFC7296-2.8-1` | If redundant SAs are created through such a collision, the SA created with the lowest of the four nonces used in the two exchanges SHOULD be closed by the endpoint that created it (§2.8, §2.8.1) | SHOULD | 2.8 | **positive:** `unit/verify` [`TestRekeyCollision`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey_test.go#L23). **positive:** `unit/verify` [`TestRekeyCollisionIKEBranchLowestNonceAbandons`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey_test.go#L101). **positive:** `unit/verify` [`TestRekeyCollisionLowestNonceAbandons`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey_test.go#L46). **negative:** `unit/verify` [`TestRekeyCollision`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey_test.go#L27). **negative:** `unit/verify` [`TestRekeyCollisionIKEBranchLowestNonceAbandons`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey_test.go#L104). **negative:** `unit/verify` [`TestRekeyCollisionLowestNonceAbandons`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey_test.go#L50) |
-| `RFC7296-2.4-1` | Respond to empty INFORMATIONAL request with empty INFORMATIONAL response for DPD (§2.4) | MUST | 2.4 | **positive:** `unit/verify` [`TestDPDEmptyInformationalGetsEmptyResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L70). **negative:** `unit/verify` [`TestDPDEmptyInformationalGetsEmptyResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L73) |
-| `RFC7296-1.4-1` | Delete Child SA: respond to Delete payload with own Delete payload for matching SA (§1.4) | MUST | 1.4 - The INFORMATIONAL exchange | **positive:** `unit/verify` [`TestDelResponseCarriesThePairedDelete`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L111). **negative:** `unit/verify` [`TestDelIKEDeleteDrawsAnEmptyResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L132) |
-| `RFC7296-2.8-2` | Lifetimes are NOT negotiated; each peer enforces its own policy independently (§2.8) | MUST NOT | 2.8 | **positive:** `unit/verify` [`TestSALifetimeTime`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey_test.go#L151). **negative:** `unit/verify` [`TestLifetimesNotNegotiatedOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L300) |
+| `RFC7296-2.4-1` | To check whether the other side is alive, IKE specifies an empty INFORMATIONAL request that (like all IKE requests) requires an acknowledgement (§2.4) | MUST | 2.4 | **positive:** `unit/verify` [`TestDPDEmptyInformationalGetsEmptyResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L70). **negative:** `unit/verify` [`TestDPDEmptyInformationalGetsEmptyResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L73) |
+| `RFC7296-1.4-1` | Normally, the response in the INFORMATIONAL exchange will contain Delete payloads for the paired SAs going in the other direction. (§1.4.1) | MUST | 1.4.1 - Deleting an SA | **positive:** `unit/verify` [`TestDelResponseCarriesThePairedDelete`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L111). **negative:** `unit/verify` [`TestDelIKEDeleteDrawsAnEmptyResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L132) |
+| `RFC7296-2.8-2` | A difference between IKEv1 and IKEv2 is that in IKEv1 SA lifetimes were negotiated. In IKEv2, each end of the SA is responsible for enforcing its own lifetime policy on the SA and rekeying the SA when necessary. (§2.8) | MUST NOT | 2.8 | **positive:** `unit/verify` [`TestSALifetimeTime`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey_test.go#L151). **negative:** `unit/verify` [`TestLifetimesNotNegotiatedOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L300) |
 | `RFC7296-1-1` | In all cases, all IKE_SA_INIT exchanges MUST complete before any other exchange type, then all IKE_AUTH exchanges MUST complete, and following that, any number of CREATE_CHILD_SA and INFORMATIONAL exchanges may occur in any order (§1) | MUST | 1 | **positive:** `unit/verify` [`TestAutExchangesRunInRFCOrder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L168). **negative:** `unit/verify` [`TestAutExchangesRunInRFCOrder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L170) |
 | `RFC7296-1.2-2` | If any CERT payloads are included, the first certificate provided MUST contain the public key used to verify the AUTH field (§1.2, §3.6) | MUST | 1.2 - The initial exchanges | **positive:** `unit/verify` [`TestAutFirstCertificateCarriesTheAuthKey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L250). **positive:** `unit/verify` [`TestRccTwoLevelChainAuthenticates`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/remote_cert_chain_test.go#L210). **negative:** `unit/verify` [`TestAutFirstCertificateCarriesTheAuthKey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L252). **negative:** `unit/verify` [`TestRccTwoLevelChainAuthenticates`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/remote_cert_chain_test.go#L213) |
 | `RFC7296-1.2-3` | Both parties in the IKE_AUTH exchange MUST verify that all signatures and Message Authentication Codes (MACs) are computed correctly (§1.2) | MUST | 1.2 - The initial exchanges | **positive:** `unit/verify` [`TestAutIKEAuthVerifiesEveryMAC`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L301). **positive:** `unit/verify` [`TestAutIKEAuthVerifiesSignatures`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L366). **negative:** `unit/verify` [`TestAutIKEAuthVerifiesEveryMAC`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L303). **negative:** `unit/verify` [`TestAutIKEAuthVerifiesSignatures`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L368) |
@@ -149,9 +158,9 @@ No MUST gap remains gated in [`rfc/short/rfc7296.md`](https://github.com/ze-soft
 | `RFC7296-2.7-2` | Each proposal contains one protocol. If a proposal is accepted, the SA response MUST contain the same protocol (§2.7) | MUST | 2.7 | **positive:** `unit/verify` [`TestSesAcceptedProposalKeepsItsProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L396). **negative:** `unit/verify` [`TestSesAcceptedProposalKeepsItsProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L399) |
 | `RFC7296-2.10-4` | Nonces used in IKEv2 MUST be randomly chosen (§2.10) | MUST | 2.10 | **positive:** `unit/verify` [`TestSesNoncesAreRandomlyChosenAndNeverReused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L93). **negative:** `unit/verify` [`TestSesNoncesAreRandomlyChosenAndNeverReused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L95) |
 | `RFC7296-2.11-1` | An implementation MUST accept incoming requests even if the source port is not 500 or 4500 (§2.11, §2.23) | MUST | 2.11 | **positive:** `unit/verify` [`TestPrtAcceptsDatagramFromAnySourcePort`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc7296_port_test.go#L43). **positive:** `unit/verify` [`TestSesAcceptsRequestFromAnySourcePort`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L483). **negative:** `unit/verify` [`TestPrtAcceptsDatagramFromAnySourcePort`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc7296_port_test.go#L46). **negative:** `unit/verify` [`TestSesAcceptsRequestFromAnySourcePort`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L486) |
-| `RFC7296-2.11-2` | An implementation MUST respond to the address and port from which the request was received (§2.11, §2.23) | MUST | 2.11 | **positive:** `unit/verify` [`TestNattRepliesToTheObservedSourcePort`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L111). **negative:** `unit/verify` [`TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L173) |
+| `RFC7296-2.11-2` | MUST respond to the address and port from which the request was received (§2.11) | MUST | 2.11 | **positive:** `unit/verify` [`TestNattRepliesToTheObservedSourcePort`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L111). **negative:** `unit/verify` [`TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L173) |
 | `RFC7296-2.11-3` | It MUST specify the address and port at which the request was received as the source address and port in the response (§2.11) | MUST | 2.11 | **positive:** `unit/verify` [`TestNattReplyLeavesFromTheArrivalSocket`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L225). **negative:** `unit/verify` [`TestNattReplyRefusesWithoutADestination`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L330) |
-| `RFC7296-2.16-11` | These protocols are typically used to authenticate the initiator to the responder and MUST be used in conjunction with a public-key-signature-based authentication of the responder to the initiator (§2.16, §5) | MUST | 2.16 | **positive:** `unit/verify` [`TestEapAuthConfigAcceptsPreSharedKeyPeer`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L324). **positive:** `unit/verify` [`TestEapAuthNonEAPPreSharedKeyStillAuthenticates`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L240). **positive:** `unit/verify` [`TestEapAuthResponderSignsWithPublicKey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L82). **negative:** `unit/verify` [`TestEapAuthConfigRejectsEAPWithoutCertificate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L206). **negative:** `unit/verify` [`TestEapAuthInitiatorRefusesPreSharedKeyResponder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L267). **negative:** `unit/verify` [`TestEapAuthResponderRefusesWithoutCertificate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L153) |
+| `RFC7296-2.16-11` | these protocols are typically used to authenticate the initiator to the responder and MUST be used in conjunction with a public-key-signature-based authentication of the responder to the initiator. (§2.16) | MUST | 2.16 | **positive:** `unit/verify` [`TestEapAuthConfigAcceptsPreSharedKeyPeer`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L324). **positive:** `unit/verify` [`TestEapAuthNonEAPPreSharedKeyStillAuthenticates`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L240). **positive:** `unit/verify` [`TestEapAuthResponderSignsWithPublicKey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L82). **negative:** `unit/verify` [`TestEapAuthConfigRejectsEAPWithoutCertificate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L206). **negative:** `unit/verify` [`TestEapAuthInitiatorRefusesPreSharedKeyResponder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L267). **negative:** `unit/verify` [`TestEapAuthResponderRefusesWithoutCertificate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L153) |
 | `RFC7296-2.16-6` | Extensible authentication is implemented in IKE as additional IKE_AUTH exchanges that MUST be completed in order to initialize the IKE SA (§2.16) | MUST | 2.16 | **positive:** `unit/verify` [`TestAutEAPRunsAsExtraIKEAuthExchanges`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L562). **negative:** `unit/verify` [`TestAutEAPRunsAsExtraIKEAuthExchanges`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L564) |
 | `RFC7296-2.16-7` | This shared key generated during an IKE exchange MUST NOT be used for any other purpose (§2.16) | MUST NOT | 2.16 | **positive:** `unit/verify` [`TestAutEAPSharedKeyServesAuthAlone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L619). **negative:** `unit/verify` [`TestAutEAPSharedKeyServesAuthAlone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L621) |
 | `RFC7296-2.23-7` | Both the IKE initiator and responder MUST include in their IKE_SA_INIT packets Notify payloads of type NAT_DETECTION_SOURCE_IP and NAT_DETECTION_DESTINATION_IP (§2.23) | MUST | 2.23 | **positive:** `unit/verify` [`TestSesBothEndsSendNATDetectionNotifies`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L631). **negative:** `unit/verify` [`TestSesBothEndsSendNATDetectionNotifies`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L633) |
@@ -159,6 +168,7 @@ No MUST gap remains gated in [`rfc/short/rfc7296.md`](https://github.com/ze-soft
 | `RFC7296-2.23-9` | UDP encapsulation MUST NOT be done on port 500 (§2.23) | MUST NOT | 2.23 | **positive:** `unit/verify` [`TestEncapNeverRequestedOnPort500`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L481). **negative:** `unit/verify` [`TestEncapPortsAreExpressible`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L581) |
 | `RFC7296-2.23-10` | If Network Address Translation Traversal (NAT-T) is supported (that is, if NAT_DETECTION_*_IP payloads were exchanged during IKE_SA_INIT), all devices MUST be able to receive and process both UDP-encapsulated ESP and non-UDP-encapsulated ESP packets at any time. (§2.23) | MUST | 2.23 | **positive:** `unit/verify` [`TestBfmBothESPFormsAreReachable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L153). **negative:** `unit/verify` [`TestBfmBothESPFormsReceivedOnOneChildSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L209) |
 | `RFC7296-2.23-11` | Implementations MUST process received UDP-encapsulated ESP packets even when no NAT was detected (§2.23) | MUST | 2.23 | **positive:** `unit/verify` [`TestBfmEncapsulatedESPAcceptedWithoutNAT`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L63). **positive:** `unit/verify` [`TestBfmEncapsulatedESPSentWhenNATDetected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L112). **negative:** `unit/verify` [`TestBfmBareESPKeptForUnfloatedSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L136) |
+| `RFC7296-2.23-12` | To tunnel ESP packets over UDP port 4500, the ESP header immediately follows the UDP header. Since the first four octets of the ESP header contain the SPI, and the SPI cannot validly be zero, it is always possible to distinguish ESP and IKE messages. (§2.23) | MUST | 2.23 | **positive:** `unit/verify` [`TestNonESPMarker`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L83). **negative:** `unit/verify` [`TestNonESPMarkerESPPacket`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L112) |
 | `RFC7296-3.9-2` | Nonce values MUST NOT be reused (§3.9) | MUST NOT | 3.9 | **positive:** `unit/verify` [`TestSesNoncesAreRandomlyChosenAndNeverReused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L97). **positive:** `unit/verify` [`TestSesRekeyDrawsFreshNoncesOnBothSides`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L145). **negative:** `unit/verify` [`TestSesNoncesAreRandomlyChosenAndNeverReused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L99). **negative:** `unit/verify` [`TestSesRekeyDrawsFreshNoncesOnBothSides`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L147) |
 | `RFC7296-1.3-2` | If the responder selects a proposal using a different Diffie-Hellman group (other than NONE), the responder MUST reject the request and indicate its preferred Diffie-Hellman group in the INVALID_KE_PAYLOAD Notify payload (§1.3, §3.4) | MUST | 1.3 - The CREATE_CHILD_SA exchange | **positive:** `unit/verify` [`TestNegRekeyRejectsMismatchedKEGroup`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_negotiation_test.go#L276). **negative:** `unit/verify` [`TestNegRekeyRejectsMismatchedKEGroup`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_negotiation_test.go#L280) |
 | `RFC7296-2.8.2-1` | The new IKE SA containing the lowest nonce SHOULD be deleted by the node that created it, and the other surviving new IKE SA MUST inherit all the Child SAs (§2.8.2) | MUST | 2.8.2 | **positive:** `unit/verify` [`TestNegIKERekeyCollisionResolves`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_negotiation_test.go#L399). **positive:** `unit/verify` [`TestNegSurvivingSAInheritsChildren`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_negotiation_test.go#L476). **negative:** `unit/verify` [`TestNegIKERekeyCollisionResolves`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_negotiation_test.go#L403). **negative:** `unit/verify` [`TestNegSurvivingSAInheritsChildren`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_negotiation_test.go#L479) |
@@ -170,20 +180,21 @@ No MUST gap remains gated in [`rfc/short/rfc7296.md`](https://github.com/ze-soft
 | `RFC7296-1.4.1-7` | If a node receives a delete request for SAs for which it has already issued a delete request, it MUST delete the outgoing SAs while processing the request and the incoming SAs while processing the response (§1.4.1) | MUST | 1.4.1 - Deleting an SA | **positive:** `unit/verify` [`TestDelCrossingDeleteAnswersWithoutAPairedDelete`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L159). **negative:** `unit/verify` [`TestDelWithoutOwnDeleteTheSameRequestIsPaired`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L277) |
 | `RFC7296-1.5-1` | This message is not part of an INFORMATIONAL exchange, and the receiving node MUST NOT respond to it because doing so could cause a message loop (§1.5) | MUST NOT | 1.5 - Informational messages outside an IKE SA | **positive:** `unit/verify` [`TestWp2OutOfSAEmitterIsAFixedPoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L21). **negative:** `unit/verify` [`TestWp2OutOfSAAnswersARequest`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L44) |
 | `RFC7296-2.12-1` | Achieving perfect forward secrecy requires that when a connection is closed, each endpoint MUST forget not only the keys used by the connection but also any information that could be used to recompute those keys (§2.12) | MUST | 2.12 | **positive:** `unit/verify` [`TestRunEstablishedClearsPendingIKESwapOnExit`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/established_test.go#L492). **positive:** `unit/verify` [`TestWp2ForgetKeysErasesEverySecret`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L85). **negative:** `unit/verify` [`TestWp2OpenSAKeepsItsKeys`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L116) |
-| `RFC7296-2.24-1` | Tunnel encapsulators and decapsulators for all tunnel mode SAs created by IKEv2 MUST support the ECN full-functionality option for tunnels specified in [ECN] (§2.24) | MUST | 2.24 | **positive:** `unit/verify` [`TestEcnInstalledChildSAAsksForNoECNChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L70). **positive:** `unit/verify` [`TestEcnInstalledStateDisablesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L86). **positive:** `unit/verify` [`TestVPPInstallSACopiesECN`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/vpp_message_test.go#L937). **negative:** `unit/verify` [`TestEcnTheInstalledSAsAreRealAndDirectional`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L91). **negative:** `unit/verify` [`TestEcnTheScannedStateIsTheOneZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L109). **negative:** `unit/verify` [`TestVPPInstallSAECNIsOnTheSAZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/vpp_message_test.go#L961) |
-| `RFC7296-2.24-2` | Tunnel encapsulators and decapsulators MUST implement the tunnel encapsulation and decapsulation processing specified in [IPSECARCH] to prevent discarding of ECN congestion indications (§2.24) | MUST | 2.24 | **positive:** `unit/verify` [`TestEcnInstalledChildSAAsksForNoECNChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L74). **positive:** `unit/verify` [`TestEcnInstalledStateDisablesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L90). **positive:** `unit/verify` [`TestVPPInstallSACopiesECN`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/vpp_message_test.go#L941). **negative:** `unit/verify` [`TestEcnTheInstalledSAsAreRealAndDirectional`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L95). **negative:** `unit/verify` [`TestEcnTheScannedStateIsTheOneZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L113). **negative:** `unit/verify` [`TestVPPInstallSAECNIsOnTheSAZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/vpp_message_test.go#L965) |
+| `RFC7296-2.24-1` | tunnel encapsulators and decapsulators for all tunnel mode SAs created by IKEv2 MUST support the ECN full-functionality option for tunnels specified in [ECN] (§2.24) | MUST | 2.24 | **positive:** `unit/verify` [`TestEcnInstalledChildSAAsksForNoECNChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L70). **positive:** `unit/verify` [`TestEcnInstalledStateDisablesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L86). **positive:** `unit/verify` [`TestVPPInstallSACopiesECN`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/vpp_message_test.go#L937). **negative:** `unit/verify` [`TestEcnTheInstalledSAsAreRealAndDirectional`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L91). **negative:** `unit/verify` [`TestEcnTheScannedStateIsTheOneZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L109). **negative:** `unit/verify` [`TestVPPInstallSAECNIsOnTheSAZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/vpp_message_test.go#L961) |
+| `RFC7296-2.24-2` | MUST implement the tunnel encapsulation and decapsulation processing specified in [IPSECARCH] to prevent discarding of ECN congestion indications. (§2.24) | MUST | 2.24 | **positive:** `unit/verify` [`TestEcnInstalledChildSAAsksForNoECNChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L74). **positive:** `unit/verify` [`TestEcnInstalledStateDisablesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L90). **positive:** `unit/verify` [`TestVPPInstallSACopiesECN`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/vpp_message_test.go#L941). **negative:** `unit/verify` [`TestEcnTheInstalledSAsAreRealAndDirectional`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L95). **negative:** `unit/verify` [`TestEcnTheScannedStateIsTheOneZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L113). **negative:** `unit/verify` [`TestVPPInstallSAECNIsOnTheSAZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/vpp_message_test.go#L965) |
 | `RFC7296-2.16-12` | For EAP methods that create a shared key as a side effect of authentication, that shared key MUST be used by both the initiator and responder to generate AUTH payloads in messages 7 and 8 using the syntax for shared secrets specified in Section 2.15 (§2.16) | MUST | 2.16 | **positive:** `unit/verify` [`TestEapAuthProducerIsKeyedByTheNegotiatedMSK`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_producer_test.go#L43). **negative:** `unit/verify` [`TestEapAuthProducerOutputIsRefusedUnderAnotherKey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_producer_test.go#L82) |
 | `RFC7296-2.16-13` | Following such an extended exchange, the EAP AUTH payloads MUST be included in the two messages following the one containing the EAP Success message (§2.16) | MUST | 2.16 | **positive:** `unit/verify` [`TestEapAuthFollowsTheSuccessMessage`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_producer_test.go#L232). **negative:** `unit/verify` [`TestEapAuthFollowsTheSuccessMessage`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_producer_test.go#L235) |
 | `RFC7296-2.16-14` | Once the protocol exchange defined by the chosen EAP authentication method has successfully terminated, the responder MUST send an EAP payload containing the Success message (§2.16) | MUST | 2.16 | **positive:** `unit/verify` [`TestEapResultSuccessIsSent`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L55). **negative:** `unit/verify` [`TestEapResultFailureIsSent`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L81) |
 | `RFC7296-2.16-15` | Similarly, if the authentication method has failed, the responder MUST send an EAP payload containing the Failure message (§2.16) | MUST | 2.16 | **positive:** `unit/verify` [`TestEapResultFailureIsSent`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L78). **negative:** `unit/verify` [`TestEapResultSuccessIsNotFailure`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L101) |
 | `RFC7296-3.1-13` | * I (Initiator) - This bit MUST be set in messages sent by the original initiator of the IKE SA and MUST be cleared in messages sent by the original responder. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestWp2DPDProbeIBitFollowsRole`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L259). **negative:** `unit/verify` [`TestWp2DPDProbeIBitDiffersByRole`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L276) |
-| `RFC7296-3.5-5` | The ID_FQDN and ID_RFC822_ADDR strings MUST NOT contain any terminators (e.g., NULL, CR, etc.) (§3.5) | MUST NOT | 3.5 | **positive:** `unit/verify` [`TestWp2IDTerminatorRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L299). **negative:** `unit/verify` [`TestWp2IDWithoutTerminatorAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L339) |
+| `RFC7296-3.5-5` | The string MUST NOT contain any terminators (e.g., NULL, CR, etc.). All characters in the ID_FQDN are ASCII; for an "internationalized domain name", the syntax is as defined in [IDNA], for example "xn--tmonesimerkki-bfbb.example.net". ID_RFC822_ADDR 3 A fully-qualified RFC 822 email address string. An example of a ID_RFC822_ADDR is "jsmith@example.com". The string MUST NOT contain any terminators. (§3.5) | MUST NOT | 3.5 | **positive:** `unit/verify` [`TestWp2IDTerminatorRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L299). **negative:** `unit/verify` [`TestWp2IDWithoutTerminatorAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L339) |
 | `RFC7296-1.4.1-1` | When an SA is closed, both members of the pair MUST be closed (that is, deleted). Each endpoint MUST close its incoming SAs and allow the other endpoint to close the other SA in each pair (§1.4.1) | MUST | 1.4.1 - Deleting an SA | **positive:** `unit/verify` [`TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L232). **negative:** `unit/verify` [`TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L236) |
 | `RFC7296-1.4.1-4` | In that case, the responses MUST NOT include Delete payloads for the deleted SAs, since that would result in duplicate deletion and could in theory delete the wrong SA. (§1.4.1) | MUST NOT | 1.4.1 - Deleting an SA | **positive:** `unit/verify` [`TestLcyInformationalResponseCarriesNoDeletePayload`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L289). **negative:** `unit/verify` [`TestLcyInformationalResponseCarriesNoDeletePayload`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L294) |
 | `RFC7296-1.4.1-5` | A node MAY refuse to accept incoming data on half-closed connections but MUST NOT unilaterally close them and reuse the SPIs (§1.4.1) | MUST NOT | 1.4.1 - Deleting an SA | **positive:** `unit/verify` [`TestLcyRetiredSPIsAreNeverReused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L344). **negative:** `unit/verify` [`TestLcyRetiredSPIsAreNeverReused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L348) |
 | `RFC7296-2.4-9` | If a system creates Child SAs that can fail independently from one another without the associated IKE SA being able to send a delete message, then the system MUST negotiate such Child SAs using separate IKE SAs (§2.4) | MUST | 2.4 | **positive:** `unit/verify` [`TestLcyOneChildSALivesUnderOneIKESA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L417). **negative:** `unit/verify` [`TestLcyOneChildSALivesUnderOneIKESA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L422) |
 | `RFC7296-2.4-10` | If an IKE endpoint chooses to delete Child SAs, it MUST send Delete payloads to the other end notifying it of the deletion (§2.4) | MUST | 2.4 | **positive:** `unit/verify` [`TestLcyRetiringAChildSASendsADeletePayload`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L453). **negative:** `unit/verify` [`TestLcyRetiringAChildSASendsADeletePayload`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L456) |
 | `RFC7296-2.16-5` | If EAP methods that do not generate a shared key are used, the AUTH payloads in messages 7 and 8 MUST be generated using SK_pi and SK_pr, respectively (§2.16) | MUST | 2.16 | **positive:** `unit/verify` [`TestEAPAuthOfNonKeyDerivingMethodUsesSKpiAndSKpr`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_nonkeying_auth_test.go#L126). **negative:** `unit/verify` [`TestEAPAuthOfKeyDerivingMethodStillUsesTheMSK`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_nonkeying_auth_test.go#L174) |
+| `RFC7296-2.16-16` | EAP methods that do not establish a shared key SHOULD NOT be used, as they are subject to a number of man-in-the-middle attacks [EAPMITM] if these EAP methods are used in other protocols that do not use a server-authenticated tunnel. (§2.16) | SHOULD NOT | 2.16 | **positive:** `unit/verify` [`TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L120). **negative:** `unit/verify` [`TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L171) |
 | `RFC7296-3.4-1` | The length of the Diffie-Hellman public value for MODP groups MUST be equal to the length of the prime modulus over which the exponentiation was performed, prepending zero bits to the value if necessary (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestRFC7296MODPPublicValueMatchesModulusLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_dh_test.go#L30). **negative:** `unit/verify` [`TestRFC7296MODPShortPublicValueIsRefusedOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_dh_test.go#L91) |
 | `RFC7296-1.3-1` | If a CREATE_CHILD_SA exchange includes a KEi payload, at least one of the SA offers MUST include the Diffie-Hellman group of the KEi (§1.3) | MUST | 1.3 - The CREATE_CHILD_SA exchange | **positive:** `unit/verify` [`TestChildRekeyProposesDiffieHellmanWhenPFSIsEnabled`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_pfs_test.go#L62). **positive:** `unit/verify` [`TestRkyIKERekeyOffersTheKEiGroup`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L167). **negative:** `unit/verify` [`TestChildRekeyProposesDiffieHellmanWhenPFSIsEnabled`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_pfs_test.go#L66). **negative:** `unit/verify` [`TestChildRekeyProposesNoDiffieHellmanWhenPFSIsDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_pfs_test.go#L100). **negative:** `unit/verify` [`TestRkyIKERekeyOffersTheKEiGroup`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L171) |
 | `RFC7296-2.1-3` | The responder MUST never retransmit a response unless it receives a retransmission of the request (§2.1) | MUST | 2.1 - Retransmission timers | **positive:** `unit/verify` [`TestEapRtxResponderReplaysCachedResponseMidEAP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_retransmit_test.go#L96). **positive:** `unit/verify` [`TestRtxResponderReplaysCachedResponseOnlyForDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L206). **negative:** `unit/verify` [`TestEapRtxMidEAPReplayRefusesUnprotected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_retransmit_test.go#L150). **negative:** `unit/verify` [`TestRtxResponderReplaysCachedResponseOnlyForDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L209) |
@@ -194,7 +205,7 @@ No MUST gap remains gated in [`rfc/short/rfc7296.md`](https://github.com/ze-soft
 | `RFC7296-2.1-8` | A retransmission from the initiator MUST be bitwise identical to the original request (§2.1) | MUST | 2.1 - Retransmission timers | **positive:** `unit/verify` [`TestRtxRetransmissionIsBitwiseIdenticalAndReusesMessageID`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L446). **negative:** `unit/verify` [`TestRtxRetransmissionIsBitwiseIdenticalAndReusesMessageID`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L448) |
 | `RFC7296-2.2-1` | Retransmission of a message MUST use the same Message ID as the original message (§2.2) | MUST | 2.2 - Message ID sequence numbers | **positive:** `unit/verify` [`TestRtxRetransmissionIsBitwiseIdenticalAndReusesMessageID`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L450). **negative:** `unit/verify` [`TestRtxRetransmissionIsBitwiseIdenticalAndReusesMessageID`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L452) |
 | `RFC7296-2.2-2` | In the unlikely event that Message IDs grow too large to fit in 32 bits, the IKE SA MUST be closed or rekeyed (§2.2) | MUST | 2.2 - Message ID sequence numbers | **positive:** `unit/verify` [`TestMidInboundCounterFreezesAtTheCeiling`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L211). **positive:** `unit/verify` [`TestMidNearExhaustionRekeysTheIKESA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L112). **positive:** `unit/verify` [`TestMidOutboundCounterFreezesAtTheCeiling`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L42). **positive:** `unit/verify` [`TestMidResponderEstablishDoesNotWrapTheCounter`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L456). **negative:** `unit/verify` [`TestMidInboundCounterFreezesAtTheCeiling`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L217). **negative:** `unit/verify` [`TestMidNearExhaustionRekeysTheIKESA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L118). **negative:** `unit/verify` [`TestMidOutboundCounterFreezesAtTheCeiling`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L49). **negative:** `unit/verify` [`TestMidResponderEstablishDoesNotWrapTheCounter`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L461) |
-| `RFC7296-2.2-3` | Each endpoint maintains two independent "current" Message IDs, the next one to be used for a request it initiates and the next one it expects to see in a request from the other end, so each integer n may appear as the Message ID in four distinct messages (§2.2) | MUST | 2.2 - Message ID sequence numbers | **positive:** `unit/verify` [`TestResponderFirstRequestMatchesWhatTheInitiatorExpects`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_responder_request_test.go#L35). **negative:** `unit/verify` [`TestMidResponderEstablishDoesNotWrapTheCounter`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L466) |
+| `RFC7296-2.2-3` | Each endpoint in the IKE Security Association maintains two "current" Message IDs: the next one to be used for a request it initiates and the next one it expects to see in a request from the other end. (§2.2) | MUST | 2.2 - Message ID sequence numbers | **positive:** `unit/verify` [`TestResponderFirstRequestMatchesWhatTheInitiatorExpects`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_responder_request_test.go#L35). **negative:** `unit/verify` [`TestMidResponderEstablishDoesNotWrapTheCounter`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L466) |
 | `RFC7296-2.3-2` | An IKE endpoint MUST wait for a response to each of its messages before sending a subsequent message unless it has received a SET_WINDOW_SIZE Notify message from its peer (§2.3) | MUST | 2.3 - Window size for overlapping requests | **positive:** `unit/verify` [`TestWinOneRequestPerTick`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L84). **positive:** `unit/verify` [`TestWinTeardownDoesNotHang`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L531). **negative:** `unit/verify` [`TestDPDNoTransportTakesNoWindow`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/dpd_test.go#L106). **negative:** `unit/verify` [`TestWinOneRequestPerTick`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L89). **negative:** `unit/verify` [`TestWinTeardownDoesNotHang`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L537) |
 | `RFC7296-2.3-4` | An IKE endpoint MUST NOT exceed the peer's stated window size for transmitted IKE requests (§2.3) | MUST NOT | 2.3 - Window size for overlapping requests | **positive:** `unit/verify` [`TestWinResponseReleasesSlot`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L165). **negative:** `unit/verify` [`TestWinResponseReleasesSlot`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L171) |
 | `RFC7296-2.3-5` | This Notify message MUST NOT be sent in a response; the invalid request MUST NOT be acknowledged (§2.3) | MUST NOT | 2.3 - Window size for overlapping requests | **positive:** `unit/verify` [`TestImiNotificationCarriesTheFourOctetMessageID`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_invalidmsgid_test.go#L199). **positive:** `unit/verify` [`TestOsrOutOfWindowRequestIsNotAcknowledged`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_outstanding_test.go#L182). **negative:** `unit/verify` [`TestOsrOutOfWindowRequestIsNotAcknowledged`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_outstanding_test.go#L188) |
@@ -207,7 +218,7 @@ No MUST gap remains gated in [`rfc/short/rfc7296.md`](https://github.com/ze-soft
 | `RFC7296-2.8-7` | The responder to a CREATE_CHILD_SA MUST be prepared to accept messages on an SA before sending its response to the creation request, so there is no ambiguity for the initiator (§2.8) | MUST | 2.8 | **positive:** `unit/verify` [`TestRkyResponderInstallsTheNewChildBeforeItAnswers`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L412). **negative:** `unit/verify` [`TestRkyResponderInstallsTheNewChildBeforeItAnswers`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L415) |
 | `RFC7296-2.8.1-1` | When there are two SAs eligible to receive packets, a node MUST accept incoming packets through either SA (§2.8.1) | MUST | 2.8.1 | **positive:** `unit/verify` [`TestRkyOldAndNewChildBothReceiveUntilThePeerDeletes`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L525). **negative:** `unit/verify` [`TestRkyOldAndNewChildBothReceiveUntilThePeerDeletes`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L528) |
 | `RFC7296-2.18-2` | The new IKE SA MUST reset its message counters to 0 (§2.18) | MUST | 2.18 | **positive:** `unit/verify` [`TestRtxRekeyedIKESAResetsMessageCounters`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L506). **negative:** `unit/verify` [`TestRtxRekeyedIKESAResetsMessageCounters`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L509) |
-| `RFC7296-2.18-3` | Implementations MUST perform a new Diffie-Hellman exchange when rekeying the IKE SA. In other words, an initiator MUST NOT propose the value NONE for the Diffie-Hellman transform, and a responder MUST NOT accept such a proposal (§2.18) | MUST NOT | 2.18 | **positive:** `unit/verify` [`TestPropDHNoneRefusedForIKESA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L313). **negative:** `unit/verify` [`TestPropDHNoneRefusedForIKESA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L309) |
+| `RFC7296-2.18-3` | implementations MUST perform a new Diffie-Hellman exchange when rekeying the IKE SA. In other words, an initiator MUST NOT propose the value "NONE" for the Diffie-Hellman transform, and a responder MUST NOT accept such a proposal. (§2.18) | MUST NOT | 2.18 | **positive:** `unit/verify` [`TestPropDHNoneRefusedForIKESA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L313). **negative:** `unit/verify` [`TestPropDHNoneRefusedForIKESA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L309) |
 | `RFC7296-3.16-1` | In a response message, this octet MUST be set to match the identifier in the corresponding request. (§3.16) | MUST | 3.16 - The EAP payload and the EAP message format | **positive:** `unit/verify` [`TestEapfmtResponseIdentifierMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L20). **negative:** `unit/verify` [`TestEapfmtResponseIdentifierMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L25) |
 | `RFC7296-3.16-2` | MUST be four less than the Payload Length of the encapsulating payload. (§3.16) | MUST | 3.16 - The EAP payload and the EAP message format | **positive:** `unit/verify` [`TestEapfmtEAPLengthIsFourLessThanPayloadLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_eap_test.go#L47). **negative:** `unit/verify` [`TestEapfmtEAPLengthIsFourLessThanPayloadLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_eap_test.go#L52) |
 | `RFC7296-3.16-3` | For other codes, the EAP message length MUST be four octets and the Type and Type_Data fields MUST NOT be present. (§3.16) | MUST | 3.16 - The EAP payload and the EAP message format | **positive:** `unit/verify` [`TestEapfmtSuccessAndFailureCarryNoTypeField`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L84). **negative:** `unit/verify` [`TestEapfmtSuccessAndFailureCarryNoTypeField`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L88) |
@@ -217,28 +228,28 @@ No MUST gap remains gated in [`rfc/short/rfc7296.md`](https://github.com/ze-soft
 | `RFC7296-2.5-1` | The minor version number indicates new capabilities, and MUST be ignored by a node with a smaller minor version number, but used for informational purposes by the node with the larger minor version number (§2.5, §3.1) | MUST | 2.5 | **positive:** `unit/verify` [`TestMinorVersionIgnoredMajorIsNot`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L100). **negative:** `unit/verify` [`TestMinorVersionIgnoredMajorIsNot`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L104) |
 | `RFC7296-2.5-2` | If an endpoint receives a message with a higher major version number, it MUST drop the message (§2.5, §3.1) | MUST | 2.5 | **positive:** `unit/verify` [`TestHigherMajorVersionDropped`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L116). **negative:** `unit/verify` [`TestHigherMajorVersionDropped`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L119) |
 | `RFC7296-2.5-6` | Also, for forward compatibility, all fields marked RESERVED MUST be set to zero by an implementation running version 2.0 (§2.5, §3.2, §3.3.1, §3.3.2, §3.5, §3.8, §3.13, §3.15, §3.15.1) | MUST | 2.5 | **positive:** `unit/verify` [`TestConfigAttributeReservedBitSentAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_cp_test.go#L125). **positive:** `unit/verify` [`TestReservedFieldsSentAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L145). **negative:** `unit/verify` [`TestConfigAttributeReservedBitSentAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_cp_test.go#L130). **negative:** `unit/verify` [`TestReservedFieldsSentAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L151) |
-| `RFC7296-2.5-7` | The content of all fields marked RESERVED MUST be ignored by an implementation running version 2.0 (§2.5, §3.2, §3.3.1, §3.3.2, §3.5, §3.8, §3.13, §3.15, §3.15.1) | MUST | 2.5 | **positive:** `unit/verify` [`TestConfigAttributeReservedBitIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_cp_test.go#L38). **positive:** `unit/verify` [`TestReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L209). **negative:** `unit/verify` [`TestConfigAttributeReservedBitIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_cp_test.go#L48). **negative:** `unit/verify` [`TestReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L213) |
-| `RFC7296-2.5-8` | Payload types that are not defined are reserved for future use; implementations of a version where they are undefined MUST skip over those payloads and ignore their contents (§2.5, §4) | MUST | 2.5 | **positive:** `unit/verify` [`TestInnerChainSkipsUndefinedType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_innerchain_test.go#L141). **positive:** `unit/verify` [`TestUndefinedPayloadTypeSkipped`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L261). **negative:** `unit/verify` [`TestInnerChainSkipsUndefinedType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_innerchain_test.go#L144). **negative:** `unit/verify` [`TestUndefinedPayloadTypeSkipped`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L265) |
+| `RFC7296-2.5-7` | their content MUST be ignored by an implementation running version 2.0 (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestConfigAttributeReservedBitIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_cp_test.go#L38). **positive:** `unit/verify` [`TestReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L209). **negative:** `unit/verify` [`TestConfigAttributeReservedBitIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_cp_test.go#L48). **negative:** `unit/verify` [`TestReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L213) |
+| `RFC7296-2.5-8` | Similarly, payload types that are not defined are reserved for future use; implementations of a version where they are undefined MUST skip over those payloads and ignore their contents. (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestInnerChainSkipsUndefinedType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_innerchain_test.go#L141). **positive:** `unit/verify` [`TestUndefinedPayloadTypeSkipped`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L261). **negative:** `unit/verify` [`TestInnerChainSkipsUndefinedType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_innerchain_test.go#L144). **negative:** `unit/verify` [`TestUndefinedPayloadTypeSkipped`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L265) |
 | `RFC7296-2.5-9` | If the critical flag is set and the payload type is unrecognized, the message MUST be rejected (§2.5, §4) | MUST | 2.5 | **positive:** `unit/verify` [`TestCriticalUnrecognizedPayloadRejected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L305). **positive:** `unit/verify` [`TestInnerChainRejectsCriticalUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_innerchain_test.go#L65). **negative:** `unit/verify` [`TestCriticalUnrecognizedPayloadRejected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L308). **negative:** `unit/verify` [`TestInnerChainRejectsCriticalUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_innerchain_test.go#L69) |
 | `RFC7296-2.5-11` | If the critical flag is not set and the payload type is unsupported, that payload MUST be ignored (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestInnerChainIgnoresNonCriticalUnsupported`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_innerchain_test.go#L95). **positive:** `unit/verify` [`TestNonCriticalUnsupportedPayloadIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L332). **negative:** `unit/verify` [`TestInnerChainIgnoresNonCriticalUnsupported`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_innerchain_test.go#L98). **negative:** `unit/verify` [`TestNonCriticalUnsupportedPayloadIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L335) |
-| `RFC7296-2.5-13` | Implementations MUST NOT reject as invalid a message with those payloads in any other order (§2.5, §1.7) | MUST NOT | 2.5 | **positive:** `unit/verify` [`TestPayloadOrderNotRejected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L369). **positive:** `unit/verify` [`TestPodAuthResponseAcceptsAuthBeforeIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_payload_order_test.go#L97). **negative:** `unit/verify` [`TestPayloadOrderNotRejected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L372). **negative:** `unit/verify` [`TestPodAuthResponseAcceptsAuthBeforeIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_payload_order_test.go#L99) |
+| `RFC7296-2.5-13` | implementations MUST NOT reject as invalid a message with those payloads in any other order. (§2.5) | MUST NOT | 2.5 | **positive:** `unit/verify` [`TestPayloadOrderNotRejected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L369). **positive:** `unit/verify` [`TestPodAuthResponseAcceptsAuthBeforeIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_payload_order_test.go#L97). **negative:** `unit/verify` [`TestPayloadOrderNotRejected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L372). **negative:** `unit/verify` [`TestPodAuthResponseAcceptsAuthBeforeIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_payload_order_test.go#L99) |
 | `RFC7296-2.5-14` | If an endpoint supports major version n, and major version m, it MUST support all versions between n and m (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestSupportedMajorVersionSetIsSingleton`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_version_test.go#L213). **negative:** `unit/verify` [`TestNATTDispatchAppliesTheSameVersionGate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_version_test.go#L245) |
 | `RFC7296-2.5-15` | If it receives a message with a major version that it supports, it MUST respond with that version number (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestResponderEchoesTheSupportedMajorVersion`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_version_test.go#L256). **negative:** `unit/verify` [`TestResponderEchoesTheSupportedMajorVersion`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_version_test.go#L262) |
 | `RFC7296-2.5-16` | If they mistakenly (perhaps through an active attacker sending error messages) negotiate to version n, then both will notice that the other side can support a higher version number, and they MUST break the connection and reconnect using version n+1 (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestSupportedMajorVersionSetIsSingleton`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_version_test.go#L218). **negative:** `unit/verify` [`TestNATTDispatchAppliesTheSameVersionGate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_version_test.go#L249) |
 | `RFC7296-2.5-17` | Payloads sent in IKE response messages MUST NOT have the critical flag set (§2.5) | MUST NOT | 2.5 | **positive:** `unit/verify` [`TestResponsePayloadsAreNeverCritical`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_critical_bit_test.go#L183). **negative:** `unit/verify` [`TestResponsePayloadsAreNeverCritical`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_critical_bit_test.go#L189) |
-| `RFC7296-2.5-18` | The response to the IKE request containing an unrecognized critical payload MUST include a Notify payload UNSUPPORTED_CRITICAL_PAYLOAD, and in that Notify payload the Notification Data contains the one-octet payload type (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestCritUnknownCriticalPayloadNamesItsType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_critpayload_test.go#L201). **negative:** `unit/verify` [`TestCritUnknownCriticalPayloadNamesItsType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_critpayload_test.go#L206) |
+| `RFC7296-2.5-18` | the response to the IKE request containing that payload MUST include a Notify payload UNSUPPORTED_CRITICAL_PAYLOAD, indicating an unsupported critical payload was included. In that Notify payload, the Notification Data contains the one-octet payload type. (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestCritUnknownCriticalPayloadNamesItsType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_critpayload_test.go#L201). **negative:** `unit/verify` [`TestCritUnknownCriticalPayloadNamesItsType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_critpayload_test.go#L206) |
 | `RFC7296-2.21.2-1` | Note, however, that request messages that contain an unsupported critical payload, or where the whole message is malformed (rather than just bad payload contents), MUST be rejected in their entirety, and MUST only lead to an UNSUPPORTED_CRITICAL_PAYLOAD or INVALID_SYNTAX Notification sent as a response. (§2.21.2) | MUST | 2.21.2 | **positive:** `unit/verify` [`TestCritChainReportsTruncationButNotBadContents`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_critpayload_test.go#L278). **positive:** `unit/verify` [`TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L160). **negative:** `unit/verify` [`TestCritChainReportsTruncationButNotBadContents`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_critpayload_test.go#L284) |
 | `RFC7296-2.21.2-2` | Specifically, a responder may include all the payloads associated with authentication (IDr, CERT, and AUTH) while sending error notifications for the piggybacked exchanges (FAILED_CP_REQUIRED, NO_PROPOSAL_CHOSEN, and so on), and the initiator MUST NOT fail the authentication because of this. (§2.21.2) | MUST NOT | 2.21.2 | **positive:** `unit/verify` [`TestErrInitiatorSurvivesPiggybackedErrorNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L396). **negative:** `unit/verify` [`TestErrInitiatorSurvivesPiggybackedErrorNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L406) |
 | `RFC7296-2.21.2-3` | Extension documents may define new error notifications with these semantics, but MUST NOT use them unless the peer has been shown to understand them, such as by using the Vendor ID payload (§2.21.2) | MUST NOT | 2.21.2 | **positive:** `unit/verify` [`TestMobikeAuthExtensionErrorsRequirePeerUnderstanding`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L139). **negative:** `unit/verify` [`TestMobikeAuthExtensionErrorsRequirePeerUnderstanding`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L141) |
 | `RFC7296-2.21.3-1` | After the IKE SA is authenticated, all requests having errors MUST result in a response notifying the other end of the error (§2.21.3) | MUST | 2.21.3 | **positive:** `unit/verify` [`TestDelMalformedSPISizeDrawsInvalidSyntax`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L220). **positive:** `unit/verify` [`TestErrNewChildRequestIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L120). **positive:** `unit/verify` [`TestErrRefusedChildRekeyIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L23). **positive:** `unit/verify` [`TestErrRefusedIKERekeyIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L586). **negative:** `unit/verify` [`TestErrNewChildRequestIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L124). **negative:** `unit/verify` [`TestErrRefusedChildRekeyIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L30). **negative:** `unit/verify` [`TestErrRefusedIKERekeyIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L591) |
 | `RFC7296-2.21.4-1` | If the message is marked as a response, the node can audit the suspicious event but MUST NOT respond (§2.21.4) | MUST NOT | 2.21.4 | **positive:** `unit/verify` [`TestNtfOutOfSAIgnoresResponses`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L162). **positive:** `unit/verify` [`TestNtfOutOfSASkipsSAInitAndRateLimits`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L180). **negative:** `unit/verify` [`TestNtfOutOfSAIgnoresResponses`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L165). **negative:** `unit/verify` [`TestNtfOutOfSASkipsSAInitAndRateLimits`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L184). **positive:** `functional/verify` [`ipsec-error-notify-no-loop.ci`](https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-error-notify-no-loop.ci#L21). **negative:** `functional/verify` [`ipsec-error-notify-no-loop.ci`](https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-error-notify-no-loop.ci#L24) |
-| `RFC7296-2.21.4-2` | If a response is sent, the response MUST be sent to the IP address and port from where it came with the same IKE SPIs and the Message ID copied, and the Exchange Type is copied from the request with the Response flag set to 1 (§2.21.4, §1.5) | MUST | 2.21.4 | **positive:** `unit/verify` [`TestNtfOutOfSAAnswerCarriesTheSocketFraming`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L309). **positive:** `unit/verify` [`TestNtfOutOfSAAnswersWithInvalidIKESPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L75). **negative:** `unit/verify` [`TestNtfOutOfSAAnswerCarriesTheSocketFraming`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L313). **negative:** `unit/verify` [`TestNtfOutOfSAAnswersWithInvalidIKESPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L79). **positive:** `functional/verify` [`ipsec-error-notify-no-loop.ci`](https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-error-notify-no-loop.ci#L26). **negative:** `functional/verify` [`ipsec-error-notify-no-loop.ci`](https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-error-notify-no-loop.ci#L28) |
+| `RFC7296-2.21.4-2` | If a response is sent, the response MUST be sent to the IP address and port from where it came with the same IKE SPIs and the Message ID copied. (§2.21.4) | MUST | 2.21.4 | **positive:** `unit/verify` [`TestNtfOutOfSAAnswerCarriesTheSocketFraming`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L309). **positive:** `unit/verify` [`TestNtfOutOfSAAnswersWithInvalidIKESPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L75). **negative:** `unit/verify` [`TestNtfOutOfSAAnswerCarriesTheSocketFraming`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L313). **negative:** `unit/verify` [`TestNtfOutOfSAAnswersWithInvalidIKESPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L79). **positive:** `functional/verify` [`ipsec-error-notify-no-loop.ci`](https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-error-notify-no-loop.ci#L26). **negative:** `functional/verify` [`ipsec-error-notify-no-loop.ci`](https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-error-notify-no-loop.ci#L28) |
 | `RFC7296-2.21.4-3` | The response MUST NOT be cryptographically protected (§2.21.4) | MUST NOT | 2.21.4 | **positive:** `unit/verify` [`TestNtfOutOfSAAnswerIsUnprotected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L232). **negative:** `unit/verify` [`TestNtfOutOfSAAnswerIsUnprotected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L238) |
-| `RFC7296-2.21.4-4` | The response MUST contain an INVALID_IKE_SPI Notify payload (§2.21.4) | MUST | 2.21.4 | **positive:** `unit/verify` [`TestNtfOutOfSAAnswersWithInvalidIKESPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L82). **negative:** `unit/verify` [`TestNtfOutOfSAAnswersWithInvalidIKESPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L84). **positive:** `functional/verify` [`ipsec-error-notify-no-loop.ci`](https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-error-notify-no-loop.ci#L30). **negative:** `functional/verify` [`ipsec-error-notify-no-loop.ci`](https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-error-notify-no-loop.ci#L32) |
+| `RFC7296-2.21.4-4` | MUST contain an INVALID_IKE_SPI Notify payload. (§2.21.4) | MUST | 2.21.4 | **positive:** `unit/verify` [`TestNtfOutOfSAAnswersWithInvalidIKESPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L82). **negative:** `unit/verify` [`TestNtfOutOfSAAnswersWithInvalidIKESPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L84). **positive:** `functional/verify` [`ipsec-error-notify-no-loop.ci`](https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-error-notify-no-loop.ci#L30). **negative:** `functional/verify` [`ipsec-error-notify-no-loop.ci`](https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-error-notify-no-loop.ci#L32) |
 | `RFC7296-2.21.4-5` | A peer receiving such an unprotected Notify payload MUST NOT respond (§2.21.4) | MUST NOT | 2.21.4 | **positive:** `unit/verify` [`TestNtfEmitterIsAFixedPoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L282). **negative:** `unit/verify` [`TestNtfEmitterIsAFixedPoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/notify_error_test.go#L287). **positive:** `functional/verify` [`ipsec-error-notify-no-loop.ci`](https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-error-notify-no-loop.ci#L34). **negative:** `functional/verify` [`ipsec-error-notify-no-loop.ci`](https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-error-notify-no-loop.ci#L37) |
-| `RFC7296-2.21.4-6` | A peer receiving such an unprotected Notify payload MUST NOT change the state of any existing SAs (§2.21.4) | MUST NOT | 2.21.4 | **positive:** `unit/verify` [`TestErrUnprotectedNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L285). **negative:** `unit/verify` [`TestErrUnprotectedNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L291) |
-| `RFC7296-2.21.4-7` | A node receiving a suspicious message from an IP address with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA; the recipient of that protected notify MUST NOT change the state of any SAs as a result, but may wish to audit the event to aid in diagnosing malfunctions (§2.21.4) | MUST NOT | 2.21.4 | **positive:** `unit/verify` [`TestErrProtectedInformationalNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L341). **negative:** `unit/verify` [`TestErrProtectedInformationalNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L348) |
-| `RFC7296-3.10.1-1` | An implementation receiving a Notify payload with a type in the range 0 to 16383 that it does not recognize in a response MUST assume that the corresponding request has failed entirely (§3.10.1) | MUST | 3.10.1 | **positive:** `unit/verify` [`TestErrUnrecognizedNotifyHandling`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L435). **negative:** `unit/verify` [`TestErrUnrecognizedNotifyHandling`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L439) |
+| `RFC7296-2.21.4-6` | MUST NOT change the state of any existing SAs. (§2.21.4) | MUST NOT | 2.21.4 | **positive:** `unit/verify` [`TestErrUnprotectedNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L285). **negative:** `unit/verify` [`TestErrUnprotectedNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L291) |
+| `RFC7296-2.21.4-7` | A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA. The recipient MUST NOT change the state of any SAs as a result, but may wish to audit the event to aid in diagnosing malfunctions. (§2.21.4) | MUST NOT | 2.21.4 | **positive:** `unit/verify` [`TestErrProtectedInformationalNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L341). **negative:** `unit/verify` [`TestErrProtectedInformationalNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L348) |
+| `RFC7296-3.10.1-1` | Types in the range 0 - 16383 are intended for reporting errors. An implementation receiving a Notify payload with one of these types that it does not recognize in a response MUST assume that the corresponding request has failed entirely. (§3.10.1) | MUST | 3.10.1 | **positive:** `unit/verify` [`TestErrUnrecognizedNotifyHandling`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L435). **negative:** `unit/verify` [`TestErrUnrecognizedNotifyHandling`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L439) |
 | `RFC7296-3.10.1-2` | Unrecognized error types in a request and status types in a request or response MUST be ignored, and they should be logged (§3.10.1) | MUST | 3.10.1 | **positive:** `unit/verify` [`TestCritNotifyTypeClassification`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_critpayload_test.go#L379). **positive:** `unit/verify` [`TestErrUnrecognizedNotifyHandling`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L442). **negative:** `unit/verify` [`TestCritNotifyTypeClassification`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_critpayload_test.go#L383). **negative:** `unit/verify` [`TestErrUnrecognizedNotifyHandling`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L446) |
 | `RFC7296-3.10.1-3` | To avoid leaking information to someone probing a node, this status MUST be sent in response to any error not covered by one of the other status types. (§3.10.1) | MUST | 3.10.1 | **positive:** `unit/verify` [`TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L163). **negative:** `unit/verify` [`TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L166) |
 | `RFC7296-3.10.1-4` | Notify payloads with status types MAY be added to any message and MUST be ignored if not recognized (§3.10.1) | MAY | 3.10.1 | **positive:** no positive test. **negative:** no negative test |
@@ -247,29 +258,29 @@ No MUST gap remains gated in [`rfc/short/rfc7296.md`](https://github.com/ze-soft
 | `RFC7296-2.6-4` | If the IKE_SA_INIT response includes the COOKIE notification, the initiator MUST then retry the IKE_SA_INIT request, and include the COOKIE notification containing the received data as the first payload, and all other payloads unchanged (§2.6) | MUST | 2.6 | **positive:** `unit/verify` [`TestCkeRetryCarriesCookieFirstAndNothingElseChanged`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cookie_test.go#L140). **negative:** `unit/verify` [`TestCkeCookieIsAbsentWithoutAChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cookie_test.go#L204) |
 | `RFC7296-2.6-5` | When one party receives an IKE_SA_INIT request containing a cookie whose contents do not match the value expected, that party MUST ignore the cookie and process the message as if no cookie had been included; usually this means sending a response containing a new cookie (§2.6) | MUST | 2.6 | **positive:** `unit/verify` [`TestCkeMismatchedCookieIsIgnoredNotRejected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cookie_test.go#L223). **negative:** `unit/verify` [`TestCkeValidCookieReachesTheHandshake`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cookie_test.go#L258) |
 | `RFC7296-2.6.1-1` | Implementations SHOULD support this shorter exchange, but MUST NOT fail if other implementations do not support this shorter exchange (§2.6.1) | MUST NOT | 2.6.1 | **positive:** `unit/verify` [`TestCkeSecondCookieReplacesTheFirstWithoutFailing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cookie_test.go#L304). **negative:** `unit/verify` [`TestCkeCookieAndInvalidKECombineWithoutFailing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cookie_test.go#L350) |
-| `RFC7296-2.10-2` | Nonces used in IKEv2 MUST be at least 128 bits in size (§2.10) | MUST | 2.10 | **positive:** `unit/verify` [`TestNonceLengthBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L609). **negative:** `unit/verify` [`TestNonceLengthBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L611) |
-| `RFC7296-2.10-3` | Nonces used in IKEv2 MUST be at least half the key size of the negotiated pseudorandom function (PRF) (§2.10) | MUST | 2.10 | **positive:** `unit/verify` [`TestNonceMeetsHalfPRFKeySize`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L421). **negative:** `unit/verify` [`TestNonceMeetsHalfPRFKeySize`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L426) |
+| `RFC7296-2.10-2` | MUST be at least 128 bits in size (§2.10) | MUST | 2.10 | **positive:** `unit/verify` [`TestNonceLengthBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L609). **negative:** `unit/verify` [`TestNonceLengthBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L611) |
+| `RFC7296-2.10-3` | MUST be at least half the key size of the negotiated pseudorandom function (PRF) (§2.10) | MUST | 2.10 | **positive:** `unit/verify` [`TestNonceMeetsHalfPRFKeySize`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L421). **negative:** `unit/verify` [`TestNonceMeetsHalfPRFKeySize`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L426) |
 | `RFC7296-2.13-1` | For algorithms that accept a variable-length key, a fixed key size MUST be specified as part of the cryptographic transform negotiated (§2.13) | MUST | 2.13 | **positive:** `unit/verify` [`TestTransformRegistryStatesKeySizes`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L60). **negative:** `unit/verify` [`TestTransformRegistryStatesKeySizes`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L64) |
 | `RFC7296-2.13-2` | For algorithms for which not all values are valid keys (such as DES or 3DES with key parity), the algorithm by which keys are derived from arbitrary values MUST be specified by the cryptographic transform. (§2.13) | MUST | 2.13 | **positive:** `unit/verify` [`TestSKKeyLengthsComeFromTransforms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L113). **negative:** `unit/verify` [`TestSKKeyLengthsComeFromTransforms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L117) |
 | `RFC7296-2.13-3` | The preferred key size MUST be used as the length of SK_d, SK_pi, and SK_pr (§2.13, §2.14) | MUST | 2.13 | **positive:** `unit/verify` [`TestSKKeyLengthsComeFromTransforms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L120). **negative:** `unit/verify` [`TestSKKeyLengthsComeFromTransforms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L123) |
 | `RFC7296-2.13-4` | Other types of PRFs MUST specify their preferred key size (§2.13) | MUST | 2.13 | **positive:** `unit/verify` [`TestTransformRegistryStatesKeySizes`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L67). **negative:** `unit/verify` [`TestTransformRegistryStatesKeySizes`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L70) |
 | `RFC7296-2.15-1` | The management interface by which the shared secret is provided MUST accept ASCII strings of at least 64 octets (§2.15) | MUST | 2.15 | **positive:** `unit/verify` [`TestPSKAcceptsAtLeast64ASCIIOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L34). **negative:** `unit/verify` [`TestPSKAcceptsAtLeast64ASCIIOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L39) |
-| `RFC7296-2.15-2` | The management interface MUST NOT add a null terminator before using them as shared secrets (§2.15) | MUST NOT | 2.15 | **positive:** `unit/verify` [`TestPSKHasNoNullTerminatorAdded`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L81). **negative:** `unit/verify` [`TestPSKHasNoNullTerminatorAdded`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L86) |
-| `RFC7296-2.17-1` | Keying material for each Child SA MUST be taken from the expanded KEYMAT using the following rules: all keys for SAs carrying data from the initiator to the responder are taken before SAs going from the responder to the initiator (§2.17) | MUST | 2.17 | **positive:** `unit/verify` [`TestChildSAKeymatOrder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L226). **negative:** `unit/verify` [`TestChildSAKeymatOrder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L234) |
+| `RFC7296-2.15-2` | MUST NOT add a null terminator before using them as shared secrets (§2.15) | MUST NOT | 2.15 | **positive:** `unit/verify` [`TestPSKHasNoNullTerminatorAdded`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L81). **negative:** `unit/verify` [`TestPSKHasNoNullTerminatorAdded`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L86) |
+| `RFC7296-2.17-1` | keying material for each Child SA MUST be taken from the expanded KEYMAT using the following rules: o All keys for SAs carrying data from the initiator to the responder are taken before SAs going from the responder to the initiator. (§2.17) | MUST | 2.17 | **positive:** `unit/verify` [`TestChildSAKeymatOrder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L226). **negative:** `unit/verify` [`TestChildSAKeymatOrder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L234) |
 | `RFC7296-2.17-2` | For ESP and AH, [IPSECARCH] defines the order, namely: the encryption key (if any) MUST be taken from the first bits and the integrity key (if any) MUST be taken from the remaining bits. (§2.17) | MUST | 2.17 | **positive:** `unit/verify` [`TestChildSAKeymatOrder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L230). **negative:** `unit/verify` [`TestChildSAKeymatOrder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L238) |
 | `RFC7296-3.1-1` | An Encrypted payload MUST be the last payload in a packet (§3.1, §3.14) | MUST | 3.1 | **positive:** `unit/verify` [`TestSKIsLastAndNeverNested`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L87). **negative:** `unit/verify` [`TestSKIsLastAndNeverNested`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L95) |
-| `RFC7296-3.1-2` | An Encrypted payload MUST NOT contain another Encrypted payload (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestSKIsLastAndNeverNested`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L91). **negative:** `unit/verify` [`TestSKIsLastAndNeverNested`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L98) |
-| `RFC7296-3.1-3` | Initiator's SPI is a value chosen by the initiator to identify a unique IKE Security Association. This value MUST NOT be zero (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestSPIZeroRules`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L201). **negative:** `unit/verify` [`TestSPIZeroRules`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L209) |
-| `RFC7296-3.1-4` | Responder's SPI is a value chosen by the responder to identify a unique IKE Security Association. This value MUST be zero in the first message of an IKE initial exchange (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestSPIZeroRules`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L204). **negative:** `unit/verify` [`TestSPIZeroRules`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L212) |
+| `RFC7296-3.1-2` | an Encrypted payload MUST NOT contain another Encrypted payload (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestSKIsLastAndNeverNested`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L91). **negative:** `unit/verify` [`TestSKIsLastAndNeverNested`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L98) |
+| `RFC7296-3.1-3` | Initiator's SPI (8 octets) - A value chosen by the initiator to identify a unique IKE Security Association. This value MUST NOT be zero. (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestSPIZeroRules`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L201). **negative:** `unit/verify` [`TestSPIZeroRules`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L209) |
+| `RFC7296-3.1-4` | Responder's SPI (8 octets) - A value chosen by the responder to identify a unique IKE Security Association. This value MUST be zero in the first message of an IKE initial exchange (including repeats of that message including a cookie). (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestSPIZeroRules`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L204). **negative:** `unit/verify` [`TestSPIZeroRules`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L212) |
 | `RFC7296-3.1-5` | Implementations based on this version of IKE MUST set the major version to 2 (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestBuiltMessagesCarryVersion2Point0`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L79). **negative:** `unit/verify` [`TestBuiltMessagesCarryVersion2Point0`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L87) |
 | `RFC7296-3.1-6` | Implementations based on this version of IKE MUST set the minor version to 0 (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestBuiltMessagesCarryVersion2Point0`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L84). **negative:** `unit/verify` [`TestBuiltMessagesCarryVersion2Point0`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L90) |
-| `RFC7296-3.1-7` | X bits MUST be cleared when sending (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestBuiltMessagesClearXAndVBits`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L328). **negative:** `unit/verify` [`TestBuiltMessagesClearXAndVBits`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L335) |
-| `RFC7296-3.1-8` | X bits MUST be ignored on receipt (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestXBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L420). **negative:** `unit/verify` [`TestXBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L428) |
+| `RFC7296-3.1-7` | 'X' bits MUST be cleared when sending (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestBuiltMessagesClearXAndVBits`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L328). **negative:** `unit/verify` [`TestBuiltMessagesClearXAndVBits`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L335) |
+| `RFC7296-3.1-8` | MUST be ignored on receipt (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestXBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L420). **negative:** `unit/verify` [`TestXBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L428) |
 | `RFC7296-3.1-9` | This bit MUST be cleared in all request messages and MUST be set in all responses. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestResponseBitMatchesDirection`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L373). **negative:** `unit/verify` [`TestResponseBitMatchesDirection`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L377) |
 | `RFC7296-3.1-11` | Implementations of IKEv2 MUST clear this bit when sending and MUST ignore it in incoming messages. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestBuiltMessagesClearXAndVBits`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L332). **negative:** `unit/verify` [`TestBuiltMessagesClearXAndVBits`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L337). **negative:** `unit/verify` [`TestXBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L424) |
 | `RFC7296-3.1-12` | An IKE endpoint MUST NOT generate a response to a message that is marked as being a response (with one exception; see Section 2.21.2) (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestNrsInformationalHandlerRefusesAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L252). **positive:** `unit/verify` [`TestNrsResponseNeverDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L46). **negative:** `unit/verify` [`TestNrsInformationalHandlerRefusesAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L257). **negative:** `unit/verify` [`TestNrsResponseNeverDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L56) |
 | `RFC7296-3.2-2` | MUST be ignored by the recipient if the recipient understands the payload type code. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestCriticalBitIgnoredForKnownType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L414). **positive:** `unit/verify` [`TestInnerChainIgnoresCriticalOnKnownType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_innerchain_test.go#L174). **negative:** `unit/verify` [`TestCriticalBitIgnoredForKnownType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L417). **negative:** `unit/verify` [`TestInnerChainIgnoresCriticalOnKnownType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_innerchain_test.go#L177) |
-| `RFC7296-3.2-3` | All implementations MUST understand all payload types defined in this document (§3.2, §4) | MUST | 3.2 | **positive:** `unit/verify` [`TestAllDefinedPayloadTypesUnderstood`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L454). **negative:** `unit/verify` [`TestAllDefinedPayloadTypesUnderstood`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L458) |
+| `RFC7296-3.2-3` | all implementations MUST understand all payload types defined in this document (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestAllDefinedPayloadTypesUnderstood`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L454). **negative:** `unit/verify` [`TestAllDefinedPayloadTypesUnderstood`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L458) |
 | `RFC7296-3.2-4` | MUST be set to zero for payload types defined in this document. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestDefinedPayloadTypesAreSentUncritical`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_critical_bit_test.go#L112). **positive:** `unit/verify` [`TestEngineSourceNeverSetsTheCriticalField`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_critical_bit_test.go#L385). **negative:** `unit/verify` [`TestDefinedPayloadTypesAreSentUncritical`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_critical_bit_test.go#L119) |
 | `RFC7296-3.2-5` | o Critical (1 bit) - MUST be set to zero if the sender wants the recipient to skip this payload if it does not understand the payload type code in the Next Payload field of the previous payload. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestCritSenderZeroBitRequestsSkip`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_critpayload_test.go#L101). **negative:** `unit/verify` [`TestCritSenderZeroBitRequestsSkip`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_critpayload_test.go#L106) |
 | `RFC7296-3.2-6` | MUST be set to one if the sender wants the recipient to reject this entire message if it does not understand the payload type. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestCritSenderOneBitRequestsWholeMessageRejection`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_critpayload_test.go#L155). **negative:** `unit/verify` [`TestCritSenderOneBitRequestsWholeMessageRejection`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_critpayload_test.go#L159) |
@@ -280,12 +291,12 @@ No MUST gap remains gated in [`rfc/short/rfc7296.md`](https://github.com/ze-soft
 | `RFC7296-3.3-7` | To propose alternate values for an attribute (for example, multiple key sizes for the AES encryption algorithm), an implementation MUST include multiple transforms with the same Transform Type each with a single Attribute. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestPropAlternateKeyLengthsUseSeparateTransforms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L98). **negative:** `unit/verify` [`TestPropAlternateKeyLengthsUseSeparateTransforms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L102) |
 | `RFC7296-3.3.1-1` | When a proposal is accepted, the proposal number in the SA payload MUST match the number on the proposal sent that was accepted (§3.3.1) | MUST | 3.3.1 | **positive:** `unit/verify` [`TestPropAcceptedProposalNumberMatchesOffer`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L43). **negative:** `unit/verify` [`TestPropAcceptedProposalNumberMatchesOffer`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L47) |
 | `RFC7296-3.3.1-2` | o SPI Size (1 octet) - For an initial IKE SA negotiation, this field MUST be zero; the SPI is obtained from the outer header. (§3.3.1) | MUST | 3.3.1 | **positive:** `unit/verify` [`TestPropSPISizeMatchesProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L250). **positive:** `unit/verify` [`TestSpzInitialIKESANegotiationNeedsZeroSPISize`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_spisize_test.go#L49). **negative:** `unit/verify` [`TestPropSPISizeMatchesProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L254). **negative:** `unit/verify` [`TestSpzInitialIKESANegotiationNeedsZeroSPISize`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_spisize_test.go#L45) |
-| `RFC7296-3.3.3-1` | A compliant implementation MUST understand all mandatory and optional Transform Types for each protocol it supports (§3.3.3) | MUST | 3.3.3 | **positive:** `unit/verify` [`TestPropTransformTypesUnderstoodPerProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L70). **positive:** `unit/verify` [`TestTftUnknownTransformTypeMakesProposalUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transformtype_test.go#L40). **negative:** `unit/verify` [`TestPropTransformTypesUnderstoodPerProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L76). **negative:** `unit/verify` [`TestTftUnknownTransformTypeMakesProposalUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transformtype_test.go#L37) |
+| `RFC7296-3.3.3-1` | A compliant implementation MUST understand all mandatory and optional types for each protocol it supports (§3.3.3) | MUST | 3.3.3 | **positive:** `unit/verify` [`TestPropTransformTypesUnderstoodPerProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L70). **positive:** `unit/verify` [`TestTftUnknownTransformTypeMakesProposalUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transformtype_test.go#L40). **negative:** `unit/verify` [`TestPropTransformTypesUnderstoodPerProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L76). **negative:** `unit/verify` [`TestTftUnknownTransformTypeMakesProposalUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transformtype_test.go#L37) |
 | `RFC7296-3.3.4-2` | Upon receipt of a payload with a set of Transform IDs, the implementation MUST compare the transmitted Transform IDs against those locally configured via the management controls, to verify that the proposed suite is acceptable based on local policy (§3.3.4) | MUST | 3.3.4 | **positive:** `unit/verify` [`TestPropTransformIDsComparedAgainstLocalPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L119). **negative:** `unit/verify` [`TestPropTransformIDsComparedAgainstLocalPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L125) |
 | `RFC7296-3.3.4-3` | The implementation MUST reject SA proposals that are not authorized by these IKE suite controls (§3.3.4) | MUST | 3.3.4 | **positive:** `unit/verify` [`TestPropUnauthorizedProposalRejected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L157). **negative:** `unit/verify` [`TestPropUnauthorizedProposalRejected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L161) |
 | `RFC7296-3.3.5-1` | Attributes described as fixed length MUST NOT be encoded using the variable-length encoding unless that length exceeds two bytes (§3.3.5) | MUST NOT | 3.3.5 | **positive:** `unit/verify` [`TestPropFixedLengthAttributeRejectsTLVEncoding`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L136). **negative:** `unit/verify` [`TestPropFixedLengthAttributeRejectsTLVEncoding`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L132) |
 | `RFC7296-3.3.5-2` | Variable-length attributes MUST NOT be encoded as fixed-length even if their value can fit into two octets (§3.3.5) | MUST NOT | 3.3.5 | **positive:** `unit/verify` [`TestPropVariableLengthAttributeRejectsTVEncoding`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L161). **negative:** `unit/verify` [`TestPropVariableLengthAttributeRejectsTVEncoding`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L156) |
-| `RFC7296-3.3.5-3` | The Key Length attribute specifies the key length in bits and MUST use network byte order (§3.3.5) | MUST | 3.3.5 | **positive:** `unit/verify` [`TestPropKeyLengthUsesNetworkByteOrder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L184). **negative:** `unit/verify` [`TestPropKeyLengthUsesNetworkByteOrder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L187) |
+| `RFC7296-3.3.5-3` | The Key Length attribute specifies the key length in bits (MUST use network byte order) (§3.3.5) | MUST | 3.3.5 | **positive:** `unit/verify` [`TestPropKeyLengthUsesNetworkByteOrder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L184). **negative:** `unit/verify` [`TestPropKeyLengthUsesNetworkByteOrder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L187) |
 | `RFC7296-3.3.5-4` | The Key Length attribute MUST NOT be used with transforms that use a fixed-length key (§3.3.5) | MUST NOT | 3.3.5 | **positive:** `unit/verify` [`TestPropKeyLengthRejectedOnFixedKeyTransform`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L223). **negative:** `unit/verify` [`TestPropKeyLengthRejectedOnFixedKeyTransform`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L219) |
 | `RFC7296-3.3.5-5` | o Some transforms specify that the Key Length attribute MUST be always included (omitting the attribute is not allowed, and proposals not containing it MUST be rejected). (§3.3.5) | MUST | 3.3.5 | **positive:** `unit/verify` [`TestPropKeyLengthRequiredTransformRejectedWithoutIt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L193). **negative:** `unit/verify` [`TestPropKeyLengthRequiredTransformRejectedWithoutIt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L188) |
 | `RFC7296-3.3.6-4` | If the responder receives a proposal that contains a Transform Type it does not understand, or a proposal that is missing a mandatory Transform Type, it MUST consider this proposal unacceptable; however, other proposals in the same SA payload are processed as usual (§3.3.6) | MUST | 3.3.6 | **positive:** `unit/verify` [`TestPropProposalMissingMandatoryTransformTypeUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L253). **positive:** `unit/verify` [`TestTftForeignTransformTypeRefusedInESPOffer`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transformtype_test.go#L80). **positive:** `unit/verify` [`TestTftUnknownTransformTypeMakesProposalUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transformtype_test.go#L34). **negative:** `unit/verify` [`TestPropProposalMissingMandatoryTransformTypeUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L247). **negative:** `unit/verify` [`TestTftForeignTransformTypeRefusedInESPOffer`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transformtype_test.go#L77). **negative:** `unit/verify` [`TestTftUnknownTransformTypeMakesProposalUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transformtype_test.go#L29) |
@@ -295,33 +306,31 @@ No MUST gap remains gated in [`rfc/short/rfc7296.md`](https://github.com/ze-soft
 | `RFC7296-3.10-3` | For a notification concerning the IKE SA, the SPI Size MUST be zero and the field must be empty. (§3.10) | MUST | 3.10 | **positive:** `unit/verify` [`TestNotifyIKESAHasEmptySPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L633). **negative:** `unit/verify` [`TestNotifyIKESAHasEmptySPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L639) |
 | `RFC7296-3.10-4` | For notifications concerning Child SAs, this field MUST contain either (2) to indicate AH or (3) to indicate ESP. (§3.10) | MUST | 3.10 | **positive:** `unit/verify` [`TestNtfyChildSAProtocolIDIsAHOrESP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_notify_test.go#L9). **negative:** `unit/verify` [`TestNtfyChildSAProtocolIDIsAHOrESP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_notify_test.go#L14) |
 | `RFC7296-3.10-5` | If the SPI field is empty, this field MUST be sent as zero and MUST be ignored on receipt. (§3.10) | MUST | 3.10 | **positive:** `unit/verify` [`TestNtfyEmptySPIProtocolIDIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_notify_test.go#L113). **positive:** `unit/verify` [`TestNtfyEmptySPISendsProtocolIDZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_notify_test.go#L60). **negative:** `unit/verify` [`TestNtfyEmptySPIProtocolIDIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_notify_test.go#L117). **negative:** `unit/verify` [`TestNtfyEmptySPISendsProtocolIDZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_notify_test.go#L65) |
-| `RFC7296-3.11-1` | Each SPI MUST be for the same protocol. Mixing of protocol identifiers MUST NOT be performed in the Delete payload (§3.11) | MUST NOT | 3.11 | **positive:** `unit/verify` [`TestDeletePayloadSingleProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L680). **negative:** `unit/verify` [`TestDeletePayloadSingleProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L684) |
-| `RFC7296-3.11-2` | It MUST be zero for IKE (SPI is in message header) or four for AH and ESP. o Num of SPIs (2 octets, unsigned integer) - The number of SPIs contained in the Delete payload. (§3.11) | MUST | 3.11 | **positive:** `unit/verify` [`TestDelWellFormedSPISizeIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L257). **positive:** `unit/verify` [`TestDeleteSPISizeByProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L729). **negative:** `unit/verify` [`TestDelMalformedSPISizeDrawsInvalidSyntax`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L217). **negative:** `unit/verify` [`TestDeleteSPISizeByProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L733) |
+| `RFC7296-3.11-1` | each SPI MUST be for the same protocol. Mixing of protocol identifiers MUST NOT be performed in the Delete payload. (§3.11) | MUST NOT | 3.11 | **positive:** `unit/verify` [`TestDeletePayloadSingleProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L680). **negative:** `unit/verify` [`TestDeletePayloadSingleProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L684) |
+| `RFC7296-3.11-2` | It MUST be zero for IKE (SPI is in message header) or four for AH and ESP. (§3.11) | MUST | 3.11 | **positive:** `unit/verify` [`TestDelWellFormedSPISizeIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L257). **positive:** `unit/verify` [`TestDeleteSPISizeByProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L729). **negative:** `unit/verify` [`TestDelMalformedSPISizeDrawsInvalidSyntax`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L217). **negative:** `unit/verify` [`TestDeleteSPISizeByProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L733) |
 | `RFC7296-3.12-2` | Unfamiliar Vendor IDs MUST be ignored (§3.12) | MUST | 3.12 | **positive:** `unit/verify` [`TestVendorIDIgnoredButPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L766). **negative:** `unit/verify` [`TestVendorIDIgnoredButPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L774) |
 | `RFC7296-3.12-3` | Writers of documents who wish to extend this protocol MUST define a Vendor ID payload to announce the ability to implement the extension in the document (§3.12) | MUST | 3.12 | **positive:** `unit/verify` [`TestVendorIDIgnoredButPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L770). **negative:** `unit/verify` [`TestVendorIDIgnoredButPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L776) |
 | `RFC7296-3.12-4` | A Vendor ID payload MUST NOT change the interpretation of any information defined in this specification (i.e., the critical bit MUST be set to 0) (§3.12) | MUST NOT | 3.12 | **positive:** `unit/verify` [`TestVendorIDDoesNotChangeInterpretation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_critical_bit_test.go#L256). **negative:** `unit/verify` [`TestVendorIDDoesNotChangeInterpretation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_critical_bit_test.go#L265) |
 | `RFC7296-3.14-2` | Senders MUST select a new unpredictable IV for every message (§3.14) | MUST | 3.14 | **positive:** `unit/verify` [`TestSKSelectsFreshIVPerMessage`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L149). **negative:** `unit/verify` [`TestSKSelectsFreshIVPerMessage`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L153) |
-| `RFC7296-3.14-3` | Initialization Vector -- recipients MUST accept any value (§3.14) | MUST | 3.14 | **positive:** `unit/verify` [`TestSKAcceptsAnyIVOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L194). **negative:** `unit/verify` [`TestSKAcceptsAnyIVOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L197) |
+| `RFC7296-3.14-3` | recipients MUST accept any value (§3.14) | MUST | 3.14 | **positive:** `unit/verify` [`TestSKAcceptsAnyIVOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L194). **negative:** `unit/verify` [`TestSKAcceptsAnyIVOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L197) |
 | `RFC7296-3.14-4` | Padding MAY contain any value chosen by the sender, and MUST have a length that makes the combination of the payloads, the Padding, and the Pad Length to be a multiple of the encryption block size (§3.14) | MUST | 3.14 | **positive:** `unit/verify` [`TestSKPaddingAlignsAndChecksumCoversCiphertext`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L250). **negative:** `unit/verify` [`TestSKPaddingAlignsAndChecksumCoversCiphertext`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L259) |
-| `RFC7296-3.14-5` | Pad Length -- the recipient MUST accept any length that results in proper alignment (§3.14) | MUST | 3.14 | **positive:** `unit/verify` [`TestSKAcceptsAnyAligningPadLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L333). **negative:** `unit/verify` [`TestSKAcceptsAnyAligningPadLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L337) |
+| `RFC7296-3.14-5` | the recipient MUST accept any length that results in proper alignment (§3.14) | MUST | 3.14 | **positive:** `unit/verify` [`TestSKAcceptsAnyAligningPadLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L333). **negative:** `unit/verify` [`TestSKAcceptsAnyAligningPadLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L337) |
 | `RFC7296-3.14-6` | The checksum MUST be computed over the encrypted message (§3.14) | MUST | 3.14 | **positive:** `unit/verify` [`TestSKPaddingAlignsAndChecksumCoversCiphertext`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L254). **negative:** `unit/verify` [`TestSKPaddingAlignsAndChecksumCoversCiphertext`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L262) |
 | `RFC7296-3.14-7` | Peers MUST NOT negotiate transforms for which no such specification exists (§3.14) | MUST NOT | 3.14 | **positive:** `unit/verify` [`TestPropUnspecifiedTransformRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L336). **negative:** `unit/verify` [`TestPropUnspecifiedTransformRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L332) |
 | `RFC7296-5-2` | Though the security of negotiated Child SAs does not depend on the strength of the encryption and integrity protection negotiated in the IKE SA, implementations MUST NOT negotiate NONE as the IKE integrity protection algorithm or ENCR_NULL as the IKE encryption algorithm. (§5) | MUST NOT | 5 - Security considerations | **positive:** `unit/verify` [`TestIKENeverNegotiatesNullAlgorithms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L307). **negative:** `unit/verify` [`TestIKENeverNegotiatesNullAlgorithms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L311) |
 | `RFC7296-5-3` | For this reason, a PRF whose output is less than 128 bits (e.g., 3DES-CBC) MUST NOT be used with this protocol. (§5) | MUST NOT | 5 - Security considerations | **positive:** `unit/verify` [`TestPrfFloorRefusesOutputBelow128Bits`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_prffloor_test.go#L18). **positive:** `unit/verify` [`TestPropPRFOutputBelow128BitsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L366). **negative:** `unit/verify` [`TestPrfFloorRefusesOutputBelow128Bits`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_prffloor_test.go#L14). **negative:** `unit/verify` [`TestPropPRFOutputBelow128BitsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L361) |
 | `RFC7296-2.19-1` | Since the IKE_AUTH exchange creates an IKE SA and a Child SA, the IRAC MUST request the IRAS-controlled address (and optionally other information concerning the protected network) in the IKE_AUTH exchange (§2.19, §4) | MUST | 2.19 | **positive:** `unit/verify` [`TestZeSendsNoConfigurationRequest`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L64). **negative:** `unit/verify` [`TestZeSendsNoConfigurationRequest`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L75) |
 | `RFC7296-2.19-4` | CP(CFG_REQUEST) MUST contain at least an INTERNAL_ADDRESS attribute (either IPv4 or IPv6) but MAY contain any number of additional attributes the initiator wants returned in the response (§2.19) | MUST | 2.19 | **positive:** `unit/verify` [`TestZeSendsNoConfigurationRequest`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L80). **negative:** `unit/verify` [`TestZeSendsNoConfigurationRequest`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L89) |
-| `RFC7296-2.20-1` | An IKE implementation MAY decline to give out version information prior to authentication or even after authentication in case some implementation is known to have some security weakness; in that case, it MUST either return an empty string or no CP payload if CP is not supported (§2.20) | MUST | 2.20 | **positive:** `unit/verify` [`TestZeDeclinesApplicationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L127). **negative:** `unit/verify` [`TestZeDeclinesApplicationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L134) |
-| `RFC7296-3.15.1-2` | Non-empty values for the INTERNAL_IP4_NETMASK attribute in a CFG_REQUEST do not make sense and thus MUST NOT be included (§3.15.1) | MUST NOT | 3.15.1 | **positive:** `unit/verify` [`TestZeSendsNoConfigRequestNetmask`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L171). **negative:** `unit/verify` [`TestZeSendsNoConfigRequestNetmask`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L177) |
+| `RFC7296-2.20-1` | An IKE implementation MAY decline to give out version information prior to authentication or even after authentication in case some implementation is known to have some security weakness. In that case, it MUST either return an empty string or no CP payload if CP is not supported. (§2.20) | MUST | 2.20 | **positive:** `unit/verify` [`TestZeDeclinesApplicationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L127). **negative:** `unit/verify` [`TestZeDeclinesApplicationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L134) |
+| `RFC7296-3.15.1-2` | An empty INTERNAL_IP4_NETMASK attribute can be included in a CFG_REQUEST to request this information (although the gateway can send the information even when not requested). Non-empty values for this attribute in a CFG_REQUEST do not make sense and thus MUST NOT be included. (§3.15.1) | MUST NOT | 3.15.1 | **positive:** `unit/verify` [`TestZeSendsNoConfigRequestNetmask`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L171). **negative:** `unit/verify` [`TestZeSendsNoConfigRequestNetmask`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L177) |
 | `RFC7296-3.15.1-5` | The responder MUST return a Configuration payload if it accepted any of the configuration data, and the Configuration payload MUST contain the attributes that the responder accepted with zero-length data (§3.15.1) | MUST | 3.15.1 | **positive:** `unit/verify` [`TestCFGSetIsIgnoredAndDrawsNoCFGACK`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L259). **negative:** `unit/verify` [`TestCFGSetIsIgnoredAndDrawsNoCFGACK`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L267) |
 | `RFC7296-3.15.1-6` | Those attributes that it did not accept MUST NOT be in the CFG_ACK Configuration payload (§3.15.1) | MUST NOT | 3.15.1 | **positive:** `unit/verify` [`TestCFGSetIsIgnoredAndDrawsNoCFGACK`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L272). **negative:** `unit/verify` [`TestCFGSetIsIgnoredAndDrawsNoCFGACK`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L276) |
 | `RFC7296-3.15.1-7` | If no attributes were accepted, the responder MUST return either an empty CFG_ACK payload or a response message without a CFG_ACK payload (§3.15.1) | MUST | 3.15.1 | **positive:** `unit/verify` [`TestCFGSetIsIgnoredAndDrawsNoCFGACK`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L280). **negative:** `unit/verify` [`TestCFGSetIsIgnoredAndDrawsNoCFGACK`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L284) |
-| `RFC7296-2.1-1` | Messages too large for path MTU should use IKEv2 fragmentation (RFC 7383) (§2.1) | SHOULD | 2.1 - Retransmission timers | **positive:** no positive test. **negative:** no negative test |
-| `RFC7296-2.1-2` | Implementations should handle messages up to 3000 bytes (§2.1) | SHOULD | 2.1 - Retransmission timers | **positive:** no positive test. **negative:** no negative test |
-| `RFC7296-2.4-2` | Liveness checks are demand-driven, not periodic; only check when traffic to send and no recent inbound proof (§2.4) | SHOULD | 2.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7296-2.4-3` | Conclude the peer failed from an unauthenticated message; accept a re-initiated IKE_SA_INIT in parallel and never delete the established SA on it (supersede only on authenticated IKE_AUTH) (§2.4) | MUST NOT | 2.4 | **positive:** `unit/verify` [`TestResponderAcceptsReinitAfterStaleSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/responder_test.go#L680). **positive:** `unit/verify` [`TestRteUnownedEstablishedSATrustsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_routing_test.go#L53). **negative:** `unit/verify` [`TestResponderKeepsOldSAOnUnauthenticatedInit`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/responder_test.go#L731). **negative:** `unit/verify` [`TestRteUnownedEstablishedSATrustsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_routing_test.go#L47) |
-| `RFC7296-2.4-4` | INITIAL_CONTACT, if sent, is in the first IKE_AUTH request or response, not a later exchange (§2.4) | MUST | 2.4 | **positive:** `unit/verify` [`TestInitiatorEmitsInitialContact`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/responder_test.go#L829). **negative:** `unit/verify` [`TestInitialContactAbsentFromRekey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L330) |
-| `RFC7296-2.8-3` | Add random jitter to rekey time to avoid synchronized rekeying storms (§2.8) | SHOULD | 2.8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7296-3.8-1` | Use RFC 7427 Digital Signature (method 14) as the modern replacement for legacy AUTH methods 1, 3, 9-11 (§3.8) | SHOULD | 3.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7296-2.1-2` | they SHOULD be able to send, receive, and process messages that are up to 3000 octets long. (§2) | SHOULD | 2 - IKE protocol details and variations | **positive:** no positive test. **negative:** no negative test |
+| `RFC7296-2.4-2` | If there has only been outgoing traffic on all of the SAs associated with an IKE SA, it is essential to confirm liveness of the other endpoint to avoid black holes.  If no cryptographically protected messages have been received on an IKE SA or any of its Child SAs recently, the system needs to perform a liveness check in order to prevent sending messages to a dead peer. (§2.4) | SHOULD | 2.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7296-2.4-3` | Since IKE is designed to operate in spite of DoS attacks from the network, an endpoint MUST NOT conclude that the other endpoint has failed based on any routing information (e.g., ICMP messages) or IKE messages that arrive without cryptographic protection (e.g., Notify messages complaining about unknown SPIs). (§2.4) | MUST NOT | 2.4 | **positive:** `unit/verify` [`TestResponderAcceptsReinitAfterStaleSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/responder_test.go#L680). **positive:** `unit/verify` [`TestRteUnownedEstablishedSATrustsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_routing_test.go#L53). **negative:** `unit/verify` [`TestResponderKeepsOldSAOnUnauthenticatedInit`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/responder_test.go#L731). **negative:** `unit/verify` [`TestRteUnownedEstablishedSATrustsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_routing_test.go#L47) |
+| `RFC7296-2.4-4` | The INITIAL_CONTACT notification, if sent, MUST be in the first IKE_AUTH request or response, not as a separate exchange afterwards (§2.4) | MUST | 2.4 | **positive:** `unit/verify` [`TestInitiatorEmitsInitialContact`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/responder_test.go#L829). **negative:** `unit/verify` [`TestInitialContactAbsentFromRekey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L330) |
+| `RFC7296-2.8-3` | To reduce the probability of this happening, the timing of rekeying requests SHOULD be jittered (delayed by a random amount of time after the need for rekeying is noticed). (§2.8.1) | SHOULD | 2.8.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7296-3.4-2` | This Diffie-Hellman Group Num MUST match a Diffie-Hellman group specified in a proposal in the SA payload that is sent in the same message (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestKesaKEGroupOfferedIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_kesa_test.go#L38). **negative:** `unit/verify` [`TestKesaKEGroupNotOfferedIsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_kesa_test.go#L70). **negative:** `unit/verify` [`TestResInitiatorRejectsKEGroupOutsideTheAcceptedOffer`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_residual_test.go#L332) |
 | `RFC7296-3.4-3` | If none of the proposals in that SA payload specifies a Diffie-Hellman group, the KE payload MUST NOT be present (§3.4) | MUST NOT | 3.4 | **positive:** `unit/verify` [`TestKesaAbsentKEIsAlwaysAllowed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_kesa_test.go#L127). **negative:** `unit/verify` [`TestKesaKEWithoutDHProposalIsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_kesa_test.go#L100) |
 | `RFC7296-3.3.6-8` | If one of the proposals offered is for the Diffie-Hellman group of NONE, and the responder selects that Diffie-Hellman group, then it MUST ignore the initiator's KE payload and omit the KE payload from the response (§3.3.6) | MUST | 3.3.6 | **positive:** `unit/verify` [`TestResSelectedDHGroupNoneOmitsKEFromTheResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_residual_test.go#L405). **negative:** `unit/verify` [`TestResIKESANeverSelectsDHGroupNone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_residual_test.go#L364) |
@@ -331,12 +340,12 @@ No MUST gap remains gated in [`rfc/short/rfc7296.md`](https://github.com/ze-soft
 | `RFC7296-2.15-3` | It MUST also accept a hex encoding of the shared secret (§2.15) | MUST | 2.15 | **positive:** `unit/verify` [`TestPSKAcceptsHexEncoding`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L283). **negative:** `unit/verify` [`TestHexEncodingIsExplicitAndNeverGuessed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L328) |
 | `RFC7296-3.3.4-4` | All implementations of IKEv2 MUST include a management facility that enables a user or system administrator to specify the suites that are acceptable for use with IKE (§3.3.4) | MUST | 3.3.4 | **positive:** `unit/verify` [`TestIKESuitePolicyIsOperatorSpecified`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L126). **negative:** `unit/verify` [`TestIKESuitePolicyRejectsAnUnhonourableSuite`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L198) |
 | `RFC7296-3.5-2` | To assure maximum interoperability, implementations MUST be configurable to send at least one of ID_IPV4_ADDR, ID_FQDN, ID_RFC822_ADDR, or ID_KEY_ID (§3.5) | MUST | 3.5 | **positive:** `unit/verify` [`TestLocalIDTypeFollowsConfiguredIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_identity_test.go#L40). **negative:** `unit/verify` [`TestLocalIDIsOperatorControlledNotDerived`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_identity_test.go#L93) |
-| `RFC7296-3.5-3` | Implementations MUST be configurable to accept all of these four types (§3.5) | MUST | 3.5 | **positive:** `unit/verify` [`TestRemoteIDAcceptsEveryMandatoryType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_identity_test.go#L133). **negative:** `unit/verify` [`TestRemoteIDRefusesTypesItCannotCompare`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_identity_test.go#L188) |
+| `RFC7296-3.5-3` | MUST be configurable to accept all of these four types. (§3.5) | MUST | 3.5 | **positive:** `unit/verify` [`TestRemoteIDAcceptsEveryMandatoryType`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_identity_test.go#L133). **negative:** `unit/verify` [`TestRemoteIDRefusesTypesItCannotCompare`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_identity_test.go#L188) |
 | `RFC7296-3.5-4` | IPv6-capable implementations MUST additionally be configurable to accept ID_IPV6_ADDR (§3.5) | MUST | 3.5 | **positive:** `unit/verify` [`TestRemoteIDAcceptsIPv6Identity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_identity_test.go#L217). **negative:** `unit/verify` [`TestIPv6IdentityLengthIsEnforced`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_identity_test.go#L256) |
 | `RFC7296-3.6-1` | Implementations MUST be capable of being configured to send and accept up to four X.509 certificates in support of authentication (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestCcnCertificateCountReachesFourInBothDirections`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L230). **negative:** `unit/verify` [`TestCcnCertificateCountIsBoundedAndConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L293). **negative:** `unit/verify` [`TestCcnCertificateCountReachesFourInBothDirections`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L232). **negative:** `unit/verify` [`TestCcnOverlongChainKillsTheSAOnBothRoles`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L794). **negative:** `functional/verify` [`ipsec-certificate-count-range.ci`](https://github.com/ze-software/ze/blob/main/test/parse/ipsec-certificate-count-range.ci#L9) |
-| `RFC7296-3.6-2` | Implementations MUST be capable of being configured to send and accept the two Hash and URL formats (with HTTP URLs) (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestChuBothHashAndURLFormatsAreConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L348). **negative:** `unit/verify` [`TestChuBothHashAndURLFormatsAreConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L350). **negative:** `unit/verify` [`TestChuHashAndURLIsOffByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L439). **positive:** `functional/verify` [`ipsec-hash-and-url-accepted.ci`](https://github.com/ze-software/ze/blob/main/test/parse/ipsec-hash-and-url-accepted.ci#L25) |
+| `RFC7296-3.6-2` | and also MUST be capable of being configured to send and accept the two Hash and URL formats (with HTTP URLs). (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestChuBothHashAndURLFormatsAreConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L348). **negative:** `unit/verify` [`TestChuBothHashAndURLFormatsAreConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L350). **negative:** `unit/verify` [`TestChuHashAndURLIsOffByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L439). **positive:** `functional/verify` [`ipsec-hash-and-url-accepted.ci`](https://github.com/ze-software/ze/blob/main/test/parse/ipsec-hash-and-url-accepted.ci#L25) |
 | `RFC7296-3.6-3` | Implementations MUST support the "http:" scheme for hash-and-URL lookup (§3.6, §1.7) | MUST | 3.6 | **positive:** `unit/verify` [`TestChuHashURLLookupCacheIsContentAddressed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L717). **positive:** `unit/verify` [`TestChuHashURLLookupUsesHTTPAndVerifiesTheHash`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L548). **negative:** `unit/verify` [`TestChuHashURLLookupRefusesEverythingOutsideTheBound`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L609). **negative:** `unit/verify` [`TestChuHashURLLookupUsesHTTPAndVerifiesTheHash`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cert_chain_test.go#L550) |
-| `RFC7296-4-4` | For an implementation to be called conforming to this specification, it MUST be possible to configure it to accept PKIX certificates containing and signed by RSA keys of size 1024 or 2048 bits, where the ID passed is any of ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR, or ID_DER_ASN1_DN, and shared key authentication where the ID passed is any of ID_KEY_ID, ID_FQDN, or ID_RFC822_ADDR (§4) | MUST | 4 - Conformance requirements | **positive:** `unit/verify` [`TestCfmConformanceConfigurationSetIsAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_conformance_test.go#L132). **negative:** `unit/verify` [`TestCfmConformanceConfigurationSetIsAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_conformance_test.go#L134). **negative:** `unit/verify` [`TestCfmConformanceSetDoesNotAcceptWhatItMustNot`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_conformance_test.go#L226). **positive:** `functional/verify` [`ipsec-hash-and-url-accepted.ci`](https://github.com/ze-software/ze/blob/main/test/parse/ipsec-hash-and-url-accepted.ci#L28). **negative:** `functional/verify` [`ipsec-remote-id-type-enum.ci`](https://github.com/ze-software/ze/blob/main/test/parse/ipsec-remote-id-type-enum.ci#L14) |
+| `RFC7296-4-4` | For an implementation to be called conforming to this specification, it MUST be possible to configure it to accept the following: o  Public Key Infrastructure using X.509 (PKIX) Certificates containing and signed by RSA keys of size 1024 or 2048 bits, where the ID passed is any of ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR, or ID_DER_ASN1_DN. o  Shared key authentication where the ID passed is any of ID_KEY_ID, ID_FQDN, or ID_RFC822_ADDR. (§4) | MUST | 4 - Conformance requirements | **positive:** `unit/verify` [`TestCfmConformanceConfigurationSetIsAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_conformance_test.go#L132). **negative:** `unit/verify` [`TestCfmConformanceConfigurationSetIsAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_conformance_test.go#L134). **negative:** `unit/verify` [`TestCfmConformanceSetDoesNotAcceptWhatItMustNot`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_conformance_test.go#L226). **positive:** `functional/verify` [`ipsec-hash-and-url-accepted.ci`](https://github.com/ze-software/ze/blob/main/test/parse/ipsec-hash-and-url-accepted.ci#L28). **negative:** `functional/verify` [`ipsec-remote-id-type-enum.ci`](https://github.com/ze-software/ze/blob/main/test/parse/ipsec-remote-id-type-enum.ci#L14) |
 | `RFC7296-4-5` | Every implementation MUST be capable of doing four-message IKE_SA_INIT and IKE_AUTH exchanges establishing two SAs (one for IKE, one for ESP or AH) (§4) | MUST | 4 - Conformance requirements | **positive:** `unit/verify` [`TestResponderHandshakePSKEndToEnd`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/responder_test.go#L345). **negative:** `unit/verify` [`TestFourmFirstPairEstablishesNeitherSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_fourmessage_test.go#L26) |
 
 ## Gaps and untested MUSTs
@@ -349,9 +358,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC7296-1.2-1`](#rfc7296-1.2-1)
 
-Initial exchange is exactly 4 messages (2 request/response pairs); first pair unencrypted, second pair encrypted (§1.2)
+The first pair of messages (IKE_SA_INIT) negotiate cryptographic algorithms, exchange nonces, and do a Diffie-Hellman exchange [DH]. The second pair of messages (IKE_AUTH) authenticate the previous messages, exchange identities and certificates, and establish the first Child SA. Parts of these messages are encrypted and integrity protected with keys established through the IKE_SA_INIT exchange, so the identities are hidden from eavesdroppers and all fields in all the messages are authenticated. (§1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clauses of the quoted span: IKE_SA_INIT negotiates algorithms, exchanges nonces and does a Diffie-Hellman exchange; IKE_AUTH authenticates the previous messages, exchanges identities and certificates and establishes the first Child SA. TestInitialExchangeEncryptionBoundary asserts only the encryption boundary (IKE_SA_INIT carries no SK and decryptAndParse refuses it; IKE_AUTH carries SK and decrypts). No assertion in the tagged unit covers the negotiation, nonce, DH, authentication, identity or Child SA clauses.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -360,9 +369,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.6-1`](#rfc7296-2.6-1)
 
-IKE SA identified by the pair (SPIi, SPIr), each 8 bytes, carried in every IKE header (§2.6)
+The initial two eight-octet fields in the header, called the "IKE SPIs", are used as a connection identifier at the beginning of IKE packets. (§2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestHeaderRoundtrip only round-trips the two 8-octet SPI fields and TestDecodeTruncatedHeader refuses a short header; neither asserts the SPI pair is used to identify/map the IKE SA, which is what the quote states
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -371,9 +380,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.7-1`](#rfc7296-2.7-1)
 
-Responder picks exactly one transform of each type from the proposal, or rejects all with NO_PROPOSAL_CHOSEN (§2.7)
+The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN. Each IPsec protocol proposal contains one or more transforms. Each transform contains a Transform Type. The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal. (§2.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. NegotiateIKE picks one proposal or returns ErrNoProposalChosen; TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one transform of the type and maps refusal to NO_PROPOSAL_CHOSEN
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -386,9 +395,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.3-1`](#rfc7296-3.3-1)
 
-AEAD ciphers and non-AEAD ciphers cannot be in the same proposal; use separate proposals for each class (§3.3)
+If an initiator wants to propose both combined- mode ciphers and normal ciphers, it must include two proposals: one will have all the combined-mode ciphers, and the other will have all the normal ciphers with the integrity algorithms. (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. send side emits AEAD and non-AEAD in separate proposals (TestESPProposalsNeverMixAEADClass); receive side refuses a mixed proposal and accepts AEAD alone (rfc7296_aead_mix_test.go)
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -398,9 +407,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.3-2`](#rfc7296-3.3-2)
 
-When proposing AEAD for ESP, INTEG must be NONE (0) (§3.3)
+Combined-mode ciphers include both integrity and encryption in a single encryption algorithm, and MUST either offer no integrity algorithm or a single integrity algorithm of "NONE" (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. AEAD ESP proposal built with no INTEG transform, non-AEAD keeps it (TestESPWireProposalAEADIntegNone)
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -409,9 +418,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.3.2-1`](#rfc7296-3.3.2-1)
 
-IKE SA proposals include ENCR, PRF, INTEG, and DH transforms (§3.3.2)
+An SA payload proposing the establishment of an SA has the following mandatory and optional Transform Types. A compliant implementation MUST understand all mandatory and optional types for each protocol it supports (though it need not accept proposals with unacceptable suites). A proposal MAY omit the optional types if the only value for them it will accept is NONE. Protocol Mandatory Types Optional Types --------------------------------------------------- IKE ENCR, PRF, INTEG*, D-H (§3.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The row now quotes the Section 3.3.3 span through the IKE line of the table (IKE mandatory: ENCR, PRF, INTEG*, D-H) and the sentence that a compliant implementation MUST understand all mandatory and optional types for each protocol it supports. Asserted: Ze's IKE proposal carries exactly one ENCR, PRF, INTEG and DH (countTransform != 1 fails), and a peer IKE proposal without PRF draws ErrNoProposalChosen. Not asserted: a peer proposal missing ENCR, INTEG or D-H, and the understand-every-type clause (tagged under RFC7296-3.3.3-1 only).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -420,9 +429,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.3.6-1`](#rfc7296-3.3.6-1)
 
-DH group is mandatory for IKE SA negotiation: D-H is a mandatory Transform Type for IKE in the table of Section 3.3.3, whose text makes understanding every mandatory type a MUST for a compliant implementation (§3.3.6)
+A compliant implementation MUST understand all mandatory and optional types for each protocol it supports (though it need not accept proposals with unacceptable suites). A proposal MAY omit the optional types if the only value for them it will accept is NONE. Protocol Mandatory Types Optional Types --------------------------------------------------- IKE ENCR, PRF, INTEG*, D-H (§3.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The row now quotes the Section 3.3.3 span that makes D-H a mandatory Transform Type for IKE and understanding every mandatory type a MUST. TestResponderRequiresKEForDH's negative removes the KE PAYLOAD from an IKE_SA_INIT whose SA proposals still carry the D-H transform (buildWireIKEProposals), and asserts the SA goes dead: that is the KE-payload rule (Sections 1.2, 3.4), a neighbouring obligation. No tagged unit offers an IKE proposal missing the D-H transform, so the tags attribute the neighbouring rule's evidence to this row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -431,9 +440,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-1.3.3-1`](#rfc7296-1.3.3-1)
 
-KE payload is mandatory when rekeying the IKE SA (§1.3.3)
+The KEi payload MUST be included. (§1.3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. initiateIKERekey emits KEi (TestRespondIKERekey) and respondIKERekey refuses a rekey without KE naming KEi; test comment still cites Section 1.3.3 where the sentence is 1.3.2
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -453,9 +462,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.9-1`](#rfc7296-2.9-1)
 
-Responder may narrow traffic selectors but never widen; if narrowed result is empty, respond with TS_UNACCEPTABLE (§2.9)
+When the responder chooses a subset of the traffic proposed by the initiator, it narrows the Traffic Selectors to some subset of the initiator's proposal (provided the set does not become the null set). (§2.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. narrowChildSelectors answers a disjoint proposal with TS_UNACCEPTABLE and accepts an overlapping one; initiator refuses a widened answer (errTSWidened). Two further tagged units (TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused, TestRekeyWithoutTrafficSelectorsIsRefused) test TS payload presence in rekey, a neighbouring obligation
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -575,7 +584,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be zero. (§3.13.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. selectorsToWire encodes protocol-0 all-ports Start Port 0; single-port selector proves the encoder can emit non-zero
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -586,7 +595,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be 65535. (§3.13.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. all-ports End Port 65535; single-port 443 discriminator
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -597,7 +606,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Systems working with [IPSECARCH] that wish to indicate "OPAQUE" ports, but not "ANY" ports, MUST set the start port to 65535 and the end port to 0. (§3.13.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. PortOpaque encodes 65535/0 and ANY is not emitted in that form
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -606,9 +615,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.23-1`](#rfc7296-2.23-1)
 
-NAT detection via hash comparison is automatic in IKE_SA_INIT (§2.23)
+The IKE initiator MUST check the NAT_DETECTION_SOURCE_IP or NAT_DETECTION_DESTINATION_IP payloads if present (§2.23)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestNATDetectionPresent/Absent call DetectNAT on hand-built hashes; no tagged unit shows the initiator checks the received NAT_DETECTION payloads during IKE_SA_INIT, so the tests stay green if the engine stopped calling DetectNAT
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -617,9 +626,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.23-2`](#rfc7296-2.23-2)
 
-When NAT is present, all traffic (IKE + ESP) floats to UDP 4500 (§2.23)
+An IPsec endpoint that discovers a NAT between it and its correspondent (as described below) MUST send all subsequent traffic from port 4500 (§2.23)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestChildSANATTEncapPorts asserts ESP UDP encap on 4500 when NAT is detected; the quote says ALL subsequent traffic moves to 4500, and no tagged unit asserts IKE traffic floats to 4500
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -628,13 +637,13 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.23-3`](#rfc7296-2.23-3)
 
-IKE packets on port 4500 prefixed with 4 zero bytes (Non-ESP marker) (§2.23)
+To tunnel IKE packets over UDP port 4500, the IKE header has four octets of zeros prepended and the result immediately follows the UDP header. (§2.23)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Re-read 2026-09-27 after the RFC3948-2.2-1 tags were deleted and the RFC3948-2.1-3 tags moved to RFC7296-2.23-12 in these units (comment lines only; bodies unchanged). Forbidden behaviour: an IKE message sent on UDP port 4500 without the four zero octets prepended, or not immediately after the UDP header. TestNonESPMarker exercises AddNonESPMarker/StripNonESPMarker in isolation and TestNonESPMarkerESPPacket shows a non-zero SPI is not stripped; no tagged unit shows an IKE message Ze sends on port 4500 carries the four zero octets
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestNonESPMarkerESPPacket`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L112) | unit/verify | unproven |
+| negative | [`TestNonESPMarkerESPPacket`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L109) | unit/verify | unproven |
 | positive | [`TestNonESPMarker`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L80) | unit/verify | unproven |
 
 ### [`RFC7296-2.8-1`](#rfc7296-2.8-1)
@@ -654,9 +663,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.4-1`](#rfc7296-2.4-1)
 
-Respond to empty INFORMATIONAL request with empty INFORMATIONAL response for DPD (§2.4)
+To check whether the other side is alive, IKE specifies an empty INFORMATIONAL request that (like all IKE requests) requires an acknowledgement (§2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. empty INFORMATIONAL request answered by an encrypted INFORMATIONAL response with zero inner payloads echoing the message ID; a response is not answered
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -665,9 +674,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-1.4-1`](#rfc7296-1.4-1)
 
-Delete Child SA: respond to Delete payload with own Delete payload for matching SA (§1.4)
+Normally, the response in the INFORMATIONAL exchange will contain Delete payloads for the paired SAs going in the other direction. (§1.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Child SA Delete response carries a Delete naming the paired inbound SPI; IKE SA Delete draws an empty response
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -676,9 +685,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.8-2`](#rfc7296-2.8-2)
 
-Lifetimes are NOT negotiated; each peer enforces its own policy independently (§2.8)
+A difference between IKEv1 and IKEv2 is that in IKEv1 SA lifetimes were negotiated. In IKEv2, each end of the SA is responsible for enforcing its own lifetime policy on the SA and rekeying the SA when necessary. (§2.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. no lifetime transform or attribute reaches the wire (TestLifetimesNotNegotiatedOnWire); lifetime state derives from the local value (TestSALifetimeTime)
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -833,9 +842,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.11-2`](#rfc7296-2.11-2)
 
-An implementation MUST respond to the address and port from which the request was received (§2.11, §2.23)
+MUST respond to the address and port from which the request was received (§2.11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestNattRepliesToTheObservedSourcePort asserts the stored peerEndpoint/remoteUDPAddr port, never reads the reply datagram on the odd-port listener it opens; the negative (forged packet does not move the endpoint) is the 2.23 dynamic-update bound, not a violation of this row
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -855,9 +864,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.16-11`](#rfc7296-2.16-11)
 
-These protocols are typically used to authenticate the initiator to the responder and MUST be used in conjunction with a public-key-signature-based authentication of the responder to the initiator (§2.16, §5)
+these protocols are typically used to authenticate the initiator to the responder and MUST be used in conjunction with a public-key-signature-based authentication of the responder to the initiator. (§2.16)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. EAP responder AUTH is an RFC 7427 signature verified under the cert key; no-cert EAP refused at setup and config; initiator refuses PSK AUTH from EAP responder; PSK peers unaffected
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -929,7 +938,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If Network Address Translation Traversal (NAT-T) is supported (that is, if NAT_DETECTION_*_IP payloads were exchanged during IKE_SA_INIT), all devices MUST be able to receive and process both UDP-encapsulated ESP and non-UDP-encapsulated ESP packets at any time. (§2.23)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. every Child SA accepts both ESP forms inbound (AcceptBothESPForms) and both forms are programmable; kernel behavior measured by the cited QEMU tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -947,6 +956,17 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestBfmBareESPKeptForUnfloatedSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L136) | unit/verify | unproven |
 | positive | [`TestBfmEncapsulatedESPAcceptedWithoutNAT`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L63) | unit/verify | unproven |
 | positive | [`TestBfmEncapsulatedESPSentWhenNATDetected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L112) | unit/verify | unproven |
+
+### [`RFC7296-2.23-12`](#rfc7296-2.23-12)
+
+To tunnel ESP packets over UDP port 4500, the ESP header immediately follows the UDP header. Since the first four octets of the ESP header contain the SPI, and the SPI cannot validly be zero, it is always possible to distinguish ESP and IKE messages. (§2.23)
+
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Second sentence enforced: TestNonESPMarker fails ('StripNonESPMarker returned false for valid IKE packet') when a zero-marked packet is not recognised as IKE, and TestNonESPMarkerESPPacket fails ('ESP packet should not be recognized as IKE') when a non-zero SPI is taken for IKE. First sentence unproven: no tagged unit asserts that a UDP-encapsulated ESP packet Ze sends carries the ESP header immediately after the UDP header (the kernel XFRM encapsulation Ze configures).
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestNonESPMarkerESPPacket`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L112) | unit/verify | revert, verified |
+| positive | [`TestNonESPMarker`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L83) | unit/verify | revert, verified |
 
 ### [`RFC7296-3.9-2`](#rfc7296-3.9-2)
 
@@ -1084,9 +1104,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.24-1`](#rfc7296-2.24-1)
 
-Tunnel encapsulators and decapsulators for all tunnel mode SAs created by IKEv2 MUST support the ECN full-functionality option for tunnels specified in [ECN] (§2.24)
+tunnel encapsulators and decapsulators for all tunnel mode SAs created by IKEv2 MUST support the ECN full-functionality option for tunnels specified in [ECN] (§2.24)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. installed Child SAs are tunnel mode with no ECN-disabling field (engine and XFRM scans); VPP InstallSA sets ENCAP/DECAP_COPY_ECN. Negatives are non-vacuity checks rather than violating inputs
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1099,9 +1119,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.24-2`](#rfc7296-2.24-2)
 
-Tunnel encapsulators and decapsulators MUST implement the tunnel encapsulation and decapsulation processing specified in [IPSECARCH] to prevent discarding of ECN congestion indications (§2.24)
+MUST implement the tunnel encapsulation and decapsulation processing specified in [IPSECARCH] to prevent discarding of ECN congestion indications. (§2.24)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. same units: XFRM state carries no NOECN path, VPP sets DECAP_COPY_ECN; transport mode refused by VPP backend
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1160,7 +1180,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 * I (Initiator) - This bit MUST be set in messages sent by the original initiator of the IKE SA and MUST be cleared in messages sent by the original responder. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. only the DPD probe is asserted (TestWp2DPDProbeIBitFollowsRole/DiffersByRole); flags are passed per call site (buildEncryptedMessageEx flags argument), so one message kind does not prove every message the original initiator/responder sends
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1169,9 +1189,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.5-5`](#rfc7296-3.5-5)
 
-The ID_FQDN and ID_RFC822_ADDR strings MUST NOT contain any terminators (e.g., NULL, CR, etc.) (§3.5)
+The string MUST NOT contain any terminators (e.g., NULL, CR, etc.). All characters in the ID_FQDN are ASCII; for an "internationalized domain name", the syntax is as defined in [IDNA], for example "xn--tmonesimerkki-bfbb.example.net". ID_RFC822_ADDR 3 A fully-qualified RFC 822 email address string. An example of a ID_RFC822_ADDR is "jsmith@example.com". The string MUST NOT contain any terminators. (§3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: the ID_FQDN string MUST NOT contain terminators; all characters are ASCII, with IDNA syntax for internationalized names. The terminator clause is asserted (refuseIDTerminators refuses NUL/CR/LF in ID_FQDN and ID_RFC822_ADDR, ValidateIdentities refuses them in config; clean ids accepted). The ASCII/IDNA clause has no assertion: a non-ASCII FQDN is neither sent nor refused in any tagged unit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1193,7 +1213,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In that case, the responses MUST NOT include Delete payloads for the deleted SAs, since that would result in duplicate deletion and could in theory delete the wrong SA. (§1.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestLcyInformationalResponseCarriesNoDeletePayload never sets up crossed deletes (the exception the MUST NOT governs); its premise that ze attaches no Delete to any response is now false (TestDelResponseCarriesThePairedDelete), so the comment is stale and the unit asserts an unknown-SPI Delete draws none
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1243,6 +1263,17 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`TestEAPAuthOfKeyDerivingMethodStillUsesTheMSK`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_nonkeying_auth_test.go#L174) | unit/verify | revert, verified |
 | positive | [`TestEAPAuthOfNonKeyDerivingMethodUsesSKpiAndSKpr`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_nonkeying_auth_test.go#L126) | unit/verify | revert, verified |
+
+### [`RFC7296-2.16-16`](#rfc7296-2.16-16)
+
+EAP methods that do not establish a shared key SHOULD NOT be used, as they are subject to a number of man-in-the-middle attacks [EAPMITM] if these EAP methods are used in other protocols that do not use a server-authenticated tunnel. (§2.16)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Non-compliant behaviour: an IKEv2 exchange selecting an EAP method that establishes no key when the operator did not name one. Positive: TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod fails ('auth mode %s selected an EAP method that derives no key') for any EAP mode other than AuthEAPMD5 whose newEAPSession session answers false to DerivesKey. Negative: TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod sweeps every AuthMode value through newEAPSession and startEAPExchange, and assertKeylessModeIsNamedAndAnnounced goes red when a keyless method is reached by an unnamed value or without the adoption warning. The SHOULD NOT is met as a deviation the operator must name, which the warning makes visible.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L171) | unit/verify | revert, verified |
+| positive | [`TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L120) | unit/verify | revert, verified |
 
 ### [`RFC7296-3.4-1`](#rfc7296-3.4-1)
 
@@ -1375,9 +1406,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.2-3`](#rfc7296-2.2-3)
 
-Each endpoint maintains two independent "current" Message IDs, the next one to be used for a request it initiates and the next one it expects to see in a request from the other end, so each integer n may appear as the Message ID in four distinct messages (§2.2)
+Each endpoint in the IKE Security Association maintains two "current" Message IDs: the next one to be used for a request it initiates and the next one it expects to see in a request from the other end. (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. finishResponderEstablish advances only the inbound counter; responder's first request id 0 is classified as new by the initiator
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1533,9 +1564,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.18-3`](#rfc7296-2.18-3)
 
-Implementations MUST perform a new Diffie-Hellman exchange when rekeying the IKE SA. In other words, an initiator MUST NOT propose the value NONE for the Diffie-Hellman transform, and a responder MUST NOT accept such a proposal (§2.18)
+implementations MUST perform a new Diffie-Hellman exchange when rekeying the IKE SA. In other words, an initiator MUST NOT propose the value "NONE" for the Diffie-Hellman transform, and a responder MUST NOT accept such a proposal. (§2.18)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestPropDHNoneRefusedForIKESA covers the responder refusing DH NONE in NegotiateIKE; the initiator half (MUST NOT propose NONE when rekeying) and the rekey context are not asserted
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1546,7 +1577,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In a response message, this octet MUST be set to match the identifier in the corresponding request. (§3.16)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. EAP peer copies request Identifier into each response over three rounds with unrelated ids
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1557,7 +1588,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 MUST be four less than the Payload Length of the encapsulating payload. (§3.16)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. PayloadEAP EAP Length equals Payload Length minus four across five body sizes
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1568,7 +1599,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 For other codes, the EAP message length MUST be four octets and the Type and Type_Data fields MUST NOT be present. (§3.16)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Success/Failure encode to four octets with no Type; Request keeps Type
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1590,7 +1621,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This document adds the restriction in Section 2.13 that all pseudorandom functions (PRFs) used with IKEv2 MUST take variable- sized keys. (§1.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. HMAC PRFs accept 1..200-octet keys and consume the key
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1645,9 +1676,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.5-7`](#rfc7296-2.5-7)
 
-The content of all fields marked RESERVED MUST be ignored by an implementation running version 2.0 (§2.5, §3.2, §3.3.1, §3.3.2, §3.5, §3.8, §3.13, §3.15, §3.15.1)
+their content MUST be ignored by an implementation running version 2.0 (§2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. reserved-bit ignore is asserted for the generic payload header flags and the CP reserved bit only; the quote covers every RESERVED field (header, proposal, transform, ID, AUTH, TS, etc.)
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1658,9 +1689,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.5-8`](#rfc7296-2.5-8)
 
-Payload types that are not defined are reserved for future use; implementations of a version where they are undefined MUST skip over those payloads and ignore their contents (§2.5, §4)
+Similarly, payload types that are not defined are reserved for future use; implementations of a version where they are undefined MUST skip over those payloads and ignore their contents. (§2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. undefined payload type decoded as payloadRaw and the chain continues, outer and inner chain; defined type not demoted
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1697,9 +1728,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.5-13`](#rfc7296-2.5-13)
 
-Implementations MUST NOT reject as invalid a message with those payloads in any other order (§2.5, §1.7)
+implementations MUST NOT reject as invalid a message with those payloads in any other order. (§2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Nonce/KE/SA order parses with all three; engine handleAuthResponse accepts unconventional order
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1754,9 +1785,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.5-18`](#rfc7296-2.5-18)
 
-The response to the IKE request containing an unrecognized critical payload MUST include a Notify payload UNSUPPORTED_CRITICAL_PAYLOAD, and in that Notify payload the Notification Data contains the one-octet payload type (§2.5)
+the response to the IKE request containing that payload MUST include a Notify payload UNSUPPORTED_CRITICAL_PAYLOAD, indicating an unsupported critical payload was included. In that Notify payload, the Notification Data contains the one-octet payload type. (§2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestCritUnknownCriticalPayloadNamesItsType asserts the parse error carries the payload type; no tagged unit asserts the RESPONSE carries an UNSUPPORTED_CRITICAL_PAYLOAD Notify whose data is that one-octet type (producer inbound.go:289 untested)
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1767,7 +1798,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Note, however, that request messages that contain an unsupported critical payload, or where the whole message is malformed (rather than just bad payload contents), MUST be rejected in their entirety, and MUST only lead to an UNSUPPORTED_CRITICAL_PAYLOAD or INVALID_SYNTAX Notification sent as a response. (§2.21.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: a request with an unsupported critical payload, or a wholly malformed request, is rejected in its entirety and draws only UNSUPPORTED_CRITICAL_PAYLOAD or INVALID_SYNTAX. The malformed half is asserted (truncated inner chain answered with INVALID_SYNTAX only; bad payload contents not treated as malformed). The unsupported-critical-payload half has no assertion in the tagged units: no request carrying one is shown to draw exactly an UNSUPPORTED_CRITICAL_PAYLOAD response (see RFC7296-2.5-18, weak).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1779,7 +1810,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Specifically, a responder may include all the payloads associated with authentication (IDr, CERT, and AUTH) while sending error notifications for the piggybacked exchanges (FAILED_CP_REQUIRED, NO_PROPOSAL_CHOSEN, and so on), and the initiator MUST NOT fail the authentication because of this. (§2.21.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. initiator establishes despite piggybacked error notify; AUTHENTICATION_FAILED still kills the SA
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1830,9 +1861,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.21.4-2`](#rfc7296-2.21.4-2)
 
-If a response is sent, the response MUST be sent to the IP address and port from where it came with the same IKE SPIs and the Message ID copied, and the Exchange Type is copied from the request with the Response flag set to 1 (§2.21.4, §1.5)
+If a response is sent, the response MUST be sent to the IP address and port from where it came with the same IKE SPIs and the Message ID copied. (§2.21.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. INVALID_IKE_SPI answer copies SPIs, Message ID and exchange type with Response flag, per request; answered over the arrival socket framing; .ci covers arrival socket
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1856,9 +1887,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.21.4-4`](#rfc7296-2.21.4-4)
 
-The response MUST contain an INVALID_IKE_SPI Notify payload (§2.21.4)
+MUST contain an INVALID_IKE_SPI Notify payload. (§2.21.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. answer holds exactly one INVALID_IKE_SPI Notify with empty SPI and data
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1882,9 +1913,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.21.4-6`](#rfc7296-2.21.4-6)
 
-A peer receiving such an unprotected Notify payload MUST NOT change the state of any existing SAs (§2.21.4)
+MUST NOT change the state of any existing SAs. (§2.21.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. unprotected notify leaves state, counters, child SA and DPD timer untouched; same notify protected reaches handlers
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1893,9 +1924,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.21.4-7`](#rfc7296-2.21.4-7)
 
-A node receiving a suspicious message from an IP address with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA; the recipient of that protected notify MUST NOT change the state of any SAs as a result, but may wish to audit the event to aid in diagnosing malfunctions (§2.21.4)
+A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA. The recipient MUST NOT change the state of any SAs as a result, but may wish to audit the event to aid in diagnosing malfunctions. (§2.21.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: a node receiving a suspicious message from an address with which it has an IKE SA SHOULD send a Notify in an INFORMATIONAL exchange over that SA; the recipient MUST NOT change the state of any SAs. The MUST NOT is asserted (a protected INFORMATIONAL notify is answered and changes no SA state; a protected Delete does change state, the control). The SHOULD-send clause has no assertion: no unit feeds Ze a suspicious message and checks a Notify goes out over the existing SA.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1904,9 +1935,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.10.1-1`](#rfc7296-3.10.1-1)
 
-An implementation receiving a Notify payload with a type in the range 0 to 16383 that it does not recognize in a response MUST assume that the corresponding request has failed entirely (§3.10.1)
+Types in the range 0 - 16383 are intended for reporting errors. An implementation receiving a Notify payload with one of these types that it does not recognize in a response MUST assume that the corresponding request has failed entirely. (§3.10.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. unrecognized error-range notify in an IKE_AUTH response ends the exchange; unrecognized status type ignored and SA establishes
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1930,7 +1961,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 To avoid leaking information to someone probing a node, this status MUST be sent in response to any error not covered by one of the other status types. (§3.10.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause: INVALID_SYNTAX MUST be sent in response to ANY error not covered by another status type. One uncovered error class is asserted (a truncated inner chain in an authenticated request draws INVALID_SYNTAX); the negative covers the encrypted-and-verified precondition. Other uncovered errors (a bad payload length, an invalid field value in a protected request) have no case, so a responder answering them with another type or nothing stays green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1994,9 +2025,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.10-2`](#rfc7296-2.10-2)
 
-Nonces used in IKEv2 MUST be at least 128 bits in size (§2.10)
+MUST be at least 128 bits in size (§2.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause: nonces used in IKEv2 are at least 128 bits. The obligation binds the nonce Ze sends. TestNonceLengthBounds asserts only the receive floor (ReadFrom refuses 15 octets, accepts 16/32/256, refuses 257) and the NonceMinLen constant; the nonce Ze generates (nonceLen in newInitiatorSA/newResponderSA/rekey) is not asserted in the tagged unit, so a sender emitting an 8-octet nonce stays green here.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2005,9 +2036,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.10-3`](#rfc7296-2.10-3)
 
-Nonces used in IKEv2 MUST be at least half the key size of the negotiated pseudorandom function (PRF) (§2.10)
+MUST be at least half the key size of the negotiated pseudorandom function (PRF) (§2.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. positive tag claims every rekey nonce uses nonceLen (rekey.go) but only newInitiatorSA/newResponderSA nonces are asserted; PRF list is hand-written in the test, not read from prfRegistry; negative is a tightness guard, not a violating input
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2029,7 +2060,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 For algorithms for which not all values are valid keys (such as DES or 3DES with key parity), the algorithm by which keys are derived from arbitrary values MUST be specified by the cryptographic transform. (§2.13)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. the tags assert SK_* key sizing, which is RFC7296-2.13-3; no supported cipher has invalid key values (AES only), so nothing tests this row's rule. no supported transform has invalid key values (encryptionRegistry is AES CBC/GCM/CCM only, no DES/3DES); the tags assert SK_* key sizing, which is RFC7296-2.13-3
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2071,9 +2102,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.15-2`](#rfc7296-2.15-2)
 
-The management interface MUST NOT add a null terminator before using them as shared secrets (§2.15)
+MUST NOT add a null terminator before using them as shared secrets (§2.15)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. asserts parseAuthConfig keeps the PSK length and adds no NUL; the claimed use path computePSKAuth (engine/auth.go) is not exercised, so a NUL appended at use would stay green
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2082,9 +2113,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.17-1`](#rfc7296-2.17-1)
 
-Keying material for each Child SA MUST be taken from the expanded KEYMAT using the following rules: all keys for SAs carrying data from the initiator to the responder are taken before SAs going from the responder to the initiator (§2.17)
+keying material for each Child SA MUST be taken from the expanded KEYMAT using the following rules: o All keys for SAs carrying data from the initiator to the responder are taken before SAs going from the responder to the initiator. (§2.17)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. DeriveChildSAKeys slices recomputed prf+ KEYMAT with both initiator keys before responder keys
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2095,7 +2126,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 For ESP and AH, [IPSECARCH] defines the order, namely: the encryption key (if any) MUST be taken from the first bits and the integrity key (if any) MUST be taken from the remaining bits. (§2.17)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. encryption key then integrity key per direction, positional, asserted against recomputed KEYMAT
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2115,9 +2146,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.1-2`](#rfc7296-3.1-2)
 
-An Encrypted payload MUST NOT contain another Encrypted payload (§3.1)
+an Encrypted payload MUST NOT contain another Encrypted payload (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. IKE_AUTH request and response inner chains hold no SK payload; negative is a vacuity guard
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2126,9 +2157,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.1-3`](#rfc7296-3.1-3)
 
-Initiator's SPI is a value chosen by the initiator to identify a unique IKE Security Association. This value MUST NOT be zero (§3.1)
+Initiator's SPI (8 octets) - A value chosen by the initiator to identify a unique IKE Security Association. This value MUST NOT be zero. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. GenerateSPI and new SAs asserted non-zero; the negative tag claims dispatchInbound drops a zero initiator SPI on receipt (register.go) but the body never exercises dispatchInbound
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2137,9 +2168,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.1-4`](#rfc7296-3.1-4)
 
-Responder's SPI is a value chosen by the responder to identify a unique IKE Security Association. This value MUST be zero in the first message of an IKE initial exchange (§3.1)
+Responder's SPI (8 octets) - A value chosen by the responder to identify a unique IKE Security Association. This value MUST be zero in the first message of an IKE initial exchange (including repeats of that message including a cookie). (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: Responder's SPI is zero in the first message of an initial exchange, including repeats of that message including a cookie. TestSPIZeroRules asserts octets 8..15 are zero in Ze's IKE_SA_INIT request and non-zero in the response. The cookie-repeat clause of the quote has no case: a retried IKE_SA_INIT carrying a COOKIE is never checked for a zero Responder's SPI.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2170,9 +2201,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.1-7`](#rfc7296-3.1-7)
 
-X bits MUST be cleared when sending (§3.1)
+'X' bits MUST be cleared when sending (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. every engine-built message has X bits clear; I and R observed so the mask is not vacuous
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2181,9 +2212,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.1-8`](#rfc7296-3.1-8)
 
-X bits MUST be ignored on receipt (§3.1)
+MUST be ignored on receipt (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. IKE_SA_INIT with all X bits set is processed as the clean one; R bit set changes treatment
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2194,7 +2225,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This bit MUST be cleared in all request messages and MUST be set in all responses. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: R cleared in all requests; set in all responses. The positive asserts both on engine-built messages. The negative tag (the responder refuses a request whose R bit is set) exercises the receive-side rule of RFC7296-3.1-12, a neighbouring one, and is not a discriminator of the sender assertion; the row carries no {single-polarity} marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2205,7 +2236,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Implementations of IKEv2 MUST clear this bit when sending and MUST ignore it in incoming messages. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. V bit clear on every built message; set V bit on receipt changes nothing
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2230,7 +2261,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 MUST be ignored by the recipient if the recipient understands the payload type code. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. critical Nonce parsed like uncritical at outer and inner chain; critical unknown type refused
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2241,9 +2272,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.2-3`](#rfc7296-3.2-3)
 
-All implementations MUST understand all payload types defined in this document (§3.2, §4)
+all implementations MUST understand all payload types defined in this document (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. decodePayload yields a concrete type for all sixteen types 33-48; type 204 is ErrUnknownPayload
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2254,7 +2285,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 MUST be set to zero for payload types defined in this document. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. sweep of engine-built outer and inner chains plus a source walk refusing any Critical write in engine
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2266,7 +2297,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 o Critical (1 bit) - MUST be set to zero if the sender wants the recipient to skip this payload if it does not understand the payload type code in the Next Payload field of the previous payload. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. zero bit on the wire from the encoded bytes; recipient skips as PayloadRaw; set bit refused
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2277,7 +2308,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 MUST be set to one if the sender wants the recipient to reject this entire message if it does not understand the payload type. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. one bit on the wire; recipient rejects the whole message with ErrUnsupportedCrit
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2332,7 +2363,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 To propose alternate values for an attribute (for example, multiple key sizes for the AES encryption algorithm), an implementation MUST include multiple transforms with the same Transform Type each with a single Attribute. (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the obligation binds the proposer; the unit only proves PayloadSA.ReadFrom parses two ENCR transforms and refuses one transform with two key lengths; no Ze-built proposal offering alternate key lengths is asserted
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2354,7 +2385,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 o SPI Size (1 octet) - For an initial IKE SA negotiation, this field MUST be zero; the SPI is obtained from the outer header. (§3.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Ze's IKE_SA_INIT proposals carry SPI Size 0; responder kills an initial request with SPI Size 8 and answers nothing
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2365,9 +2396,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.3.3-1`](#rfc7296-3.3.3-1)
 
-A compliant implementation MUST understand all mandatory and optional Transform Types for each protocol it supports (§3.3.3)
+A compliant implementation MUST understand all mandatory and optional types for each protocol it supports (§3.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. transformTypeUnderstood per protocol matches the Section 3.3.3 table; engine refuses ESN in an IKE proposal
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2422,9 +2453,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.3.5-3`](#rfc7296-3.3.5-3)
 
-The Key Length attribute specifies the key length in bits and MUST use network byte order (§3.3.5)
+The Key Length attribute specifies the key length in bits (MUST use network byte order) (§3.3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. 256 encodes 01 00; swapped octets read as 1
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2446,7 +2477,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 o Some transforms specify that the Key Length attribute MUST be always included (omitting the attribute is not allowed, and proposals not containing it MUST be rejected). (§3.3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: for such transforms the Key Length attribute MUST always be included (sender); proposals not containing it MUST be rejected (receiver). The receiver clause is asserted (AES-CBC and AES-CTR offers without Key Length refused with ErrKeyLengthMissing, accepted with it). The sender clause has no assertion: no Ze-built proposal is checked for a Key Length attribute on AES-CBC/CTR.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2472,7 +2503,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Similarly, if the responder receives a transform that it does not understand, or one that contains a Transform Attribute it does not understand, it MUST consider this transform unacceptable; other transforms with the same Transform Type are processed as usual. (§3.3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the engine positive uses D-H NONE, a transform Ze understands and refuses, not one it does not understand; the crypto unit's positive proves another PROPOSAL is accepted (3.3.6-4), not a sibling transform; the Transform Attribute not-understood clause is not exercised
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2507,7 +2538,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 For a notification concerning the IKE SA, the SPI Size MUST be zero and the field must be empty. (§3.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. PayloadNotify codec round-trips a test-built struct with SPISize 0; no Ze producer of an IKE-SA notification (INITIAL_CONTACT, error notifies) is asserted to send SPI Size 0
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2518,7 +2549,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 For notifications concerning Child SAs, this field MUST contain either (2) to indicate AH or (3) to indicate ESP. (§3.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. SPI-bearing notify with AH/ESP round-trips; Protocol ID 0,1,4,255 beside an SPI refused with ErrNotifyProtocolID
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2529,7 +2560,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the SPI field is empty, this field MUST be sent as zero and MUST be ignored on receipt. (§3.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. WriteTo zeroes Protocol ID for an empty SPI; ReadFrom discards it; kept when an SPI is present
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2540,9 +2571,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.11-1`](#rfc7296-3.11-1)
 
-Each SPI MUST be for the same protocol. Mixing of protocol identifiers MUST NOT be performed in the Delete payload (§3.11)
+each SPI MUST be for the same protocol. Mixing of protocol identifiers MUST NOT be performed in the Delete payload. (§3.11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. PayloadDelete holds one ProtocolID by construction; two protocols need two payloads
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2551,9 +2582,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.11-2`](#rfc7296-3.11-2)
 
-It MUST be zero for IKE (SPI is in message header) or four for AH and ESP. o Num of SPIs (2 octets, unsigned integer) - The number of SPIs contained in the Delete payload. (§3.11)
+It MUST be zero for IKE (SPI is in message header) or four for AH and ESP. (§3.11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the engine refuses an ESP Delete with SPI Size 3 (INVALID_SYNTAX) and accepts 4; the wire positive round-trips test-chosen sizes and the wire negative is truncation, a neighbouring rule; IKE Delete with non-zero SPI Size and AH with a wrong size are not exercised on receipt
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2608,9 +2639,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.14-3`](#rfc7296-3.14-3)
 
-Initialization Vector -- recipients MUST accept any value (§3.14)
+recipients MUST accept any value (§3.14)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause: recipients MUST accept any IV. The positive asserts all-zero, all-ones and ascending IVs decrypt. The negative tag exercises checksum corruption, a neighbouring integrity rule, not a violation of IV acceptance, and the row carries no {single-polarity} marker, so there is no pair.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2630,9 +2661,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.14-5`](#rfc7296-3.14-5)
 
-Pad Length -- the recipient MUST accept any length that results in proper alignment (§3.14)
+the recipient MUST accept any length that results in proper alignment (§3.14)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. minimum pad and +16/+32 accepted; over-long Pad Length refused with a valid MAC
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2665,7 +2696,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Though the security of negotiated Child SAs does not depend on the strength of the encryption and integrity protection negotiated in the IKE SA, implementations MUST NOT negotiate NONE as the IKE integrity protection algorithm or ENCR_NULL as the IKE encryption algorithm. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. asserts LookupIntegrity/LookupEncryption refuse none/null names and no registry entry maps AUTH_NONE; NegotiateIKE is never given a peer offer carrying ENCR_NULL or AUTH_NONE beside a non-AEAD cipher, and specifiedIntegrity (proposal.go) admits AUTH_NONE
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2676,7 +2707,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 For this reason, a PRF whose output is less than 128 bits (e.g., 3DES-CBC) MUST NOT be used with this protocol. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. NegotiateIKE refuses a registered 64-bit PRF; prfOutputAcceptable floor at 128; every specified PRF at or above it
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2709,9 +2740,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.20-1`](#rfc7296-2.20-1)
 
-An IKE implementation MAY decline to give out version information prior to authentication or even after authentication in case some implementation is known to have some security weakness; in that case, it MUST either return an empty string or no CP payload if CP is not supported (§2.20)
+An IKE implementation MAY decline to give out version information prior to authentication or even after authentication in case some implementation is known to have some security weakness. In that case, it MUST either return an empty string or no CP payload if CP is not supported. (§2.20)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. sweep over engineBuiltChains finds no APPLICATION_VERSION; no unit sends Ze a CP(CFG_REQUEST) carrying APPLICATION_VERSION and asserts the reply carries no CP or an empty string
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2720,9 +2751,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.15.1-2`](#rfc7296-3.15.1-2)
 
-Non-empty values for the INTERNAL_IP4_NETMASK attribute in a CFG_REQUEST do not make sense and thus MUST NOT be included (§3.15.1)
+An empty INTERNAL_IP4_NETMASK attribute can be included in a CFG_REQUEST to request this information (although the gateway can send the information even when not requested). Non-empty values for this attribute in a CFG_REQUEST do not make sense and thus MUST NOT be included. (§3.15.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause: a CFG_REQUEST MUST NOT include a non-empty INTERNAL_IP4_NETMASK. The positive asserts no engine-built message carries CP(CFG_REQUEST). The negative tag asserts the receive side tolerates a peer's non-empty netmask, a neighbouring rule (Section 2.5 no-rejection), not a discriminator of this one; no {single-polarity} marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2762,11 +2793,19 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestCFGSetIsIgnoredAndDrawsNoCFGACK`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L284) | unit/verify | unproven |
 | positive | [`TestCFGSetIsIgnoredAndDrawsNoCFGACK`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L280) | unit/verify | unproven |
 
+### [`RFC7296-2.4-2`](#rfc7296-2.4-2)
+
+If there has only been outgoing traffic on all of the SAs associated with an IKE SA, it is essential to confirm liveness of the other endpoint to avoid black holes.  If no cryptographically protected messages have been received on an IKE SA or any of its Child SAs recently, the system needs to perform a liveness check in order to prevent sending messages to a dead peer. (§2.4)
+
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. No test carries an RFC requirement: RFC7296-2.4-2 tag; the only mentions are prose in plan/immediate/spec-ike-dpd-demand-driven.md, so nothing can go red on non-compliance and the row is unproven. The behaviour exists: newDPDState (internal/component/ike/engine/dpd.go) arms a periodic empty-INFORMATIONAL probe for every peer, the YANG dead-peer-detection interval defaulting to 30 seconds with range 1..3600, so an IKE SA that has received nothing protected recently is still checked. Owed: a tagged unit in both polarities (probe sent when no protected message arrived within the interval; none while a probe is outstanding), which the demand-driven DPD spec already plans.
+
+No test carries RFC7296-2.4-2, so no unit is bound to it.
+
 ### [`RFC7296-2.4-3`](#rfc7296-2.4-3)
 
-Conclude the peer failed from an unauthenticated message; accept a re-initiated IKE_SA_INIT in parallel and never delete the established SA on it (supersede only on authenticated IKE_AUTH) (§2.4)
+Since IKE is designed to operate in spite of DoS attacks from the network, an endpoint MUST NOT conclude that the other endpoint has failed based on any routing information (e.g., ICMP messages) or IKE messages that arrive without cryptographic protection (e.g., Notify messages complaining about unknown SPIs). (§2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Re-read 2026-09-27; the quote was trimmed to the MUST NOT sentence (the MUST-conclude-only sentence is RFC7296-2.4-11). Two cases. Unprotected IKE messages: TestRteUnownedEstablishedSATrustsNothing fails if a cleartext Delete or CREATE_CHILD_SA moves the SA off Established; TestResponderAcceptsReinitAfterStaleSA and TestResponderKeepsOldSAOnUnauthenticatedInit fail if an unauthenticated IKE_SA_INIT disturbs the established SA. Routing information (e.g., ICMP): no tagged unit injects an ICMP error or unreachable and asserts the SA survives, so that clause has no assertion.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2777,9 +2816,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-2.4-4`](#rfc7296-2.4-4)
 
-INITIAL_CONTACT, if sent, is in the first IKE_AUTH request or response, not a later exchange (§2.4)
+The INITIAL_CONTACT notification, if sent, MUST be in the first IKE_AUTH request or response, not as a separate exchange afterwards (§2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Forbidden: INITIAL_CONTACT sent outside the first IKE_AUTH. TestInitiatorEmitsInitialContact fails if the responder did not parse it from the first IKE_AUTH; TestInitialContactAbsentFromRekey fails if an IKE rekey CREATE_CHILD_SA carries it. buildAuthRequest (auth.go) is the only producer of NotifyInitialContact, so no other exchange can carry it.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2889,9 +2928,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.5-3`](#rfc7296-3.5-3)
 
-Implementations MUST be configurable to accept all of these four types (§3.5)
+MUST be configurable to accept all of these four types. (§3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Forbidden: refusing ID_IPV4_ADDR, ID_FQDN, ID_RFC822_ADDR or ID_KEY_ID under configuration. TestRemoteIDAcceptsEveryMandatoryType fails if checkRemoteIdentity refuses any of the four with a matching remote-id, and (anti-vacuity) if it accepts a wrong one. TestRemoteIDRefusesTypesItCannotCompare shows acceptance is per-type; its comment names ID_DER_ASN1_DN as refused but the body tests only ID_DER_ASN1_GN (stale comment).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2925,9 +2964,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-3.6-2`](#rfc7296-3.6-2)
 
-Implementations MUST be capable of being configured to send and accept the two Hash and URL formats (with HTTP URLs) (§3.6)
+and also MUST be capable of being configured to send and accept the two Hash and URL formats (with HTTP URLs). (§3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Re-read 2026-09-27. Two clauses: send and accept both Hash and URL formats. Send: TestChuBothHashAndURLFormatsAreConfigurable fails unless buildCertPayloads emits encoding 12 and 13 with the SHA-1 and URL. Accept: the tagged units prove only the OFF default (TestChuHashAndURLIsOffByDefault drops a received encoding 12); no 3.6-2-tagged unit asserts that a received encoding 12 or 13 is resolved and accepted when configured. The .ci proves only that the leaves commit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2951,9 +2990,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7296-4-4`](#rfc7296-4-4)
 
-For an implementation to be called conforming to this specification, it MUST be possible to configure it to accept PKIX certificates containing and signed by RSA keys of size 1024 or 2048 bits, where the ID passed is any of ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR, or ID_DER_ASN1_DN, and shared key authentication where the ID passed is any of ID_KEY_ID, ID_FQDN, or ID_RFC822_ADDR (§4)
+For an implementation to be called conforming to this specification, it MUST be possible to configure it to accept the following: o  Public Key Infrastructure using X.509 (PKIX) Certificates containing and signed by RSA keys of size 1024 or 2048 bits, where the ID passed is any of ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR, or ID_DER_ASN1_DN. o  Shared key authentication where the ID passed is any of ID_KEY_ID, ID_FQDN, or ID_RFC822_ADDR. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Forbidden: a configuration that cannot accept RSA-1024/2048 PKIX under ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR, ID_DER_ASN1_DN, or PSK under ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR. TestCfmConformanceConfigurationSetIsAcceptable fails if verifyRemoteAuth refuses RSA-1024+FQDN, RSA-2048+RFC822, RSA-2048+DN, RSA-2048+KEY_ID or PSK with each of the three; TestCfmConformanceSetDoesNotAcceptWhatItMustNot shows a mismatched identity is refused; the .ci tests show the DN remote-id commits and remote-id-type is a closed set. Every key size and every ID type is covered, not the full cross product.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -3044,7 +3083,7 @@ Audit verdict: not audited: no reader has judged these tests
 | `2.21.3` | not stated | 1 | walked | The section's one MUST requires a response for every errored request once the IKE SA is authenticated. The rest is SHOULD NOT guidance against starting new exchanges to report errors. |
 | `2.21.4` | not stated | 5 | walked | Five sites carry the out-of-SA rules for a message on port 500 or 4500 with no known IKE SA. Two of those sentences state two obligations each, so RFC7296-2.21.4-4 and -6 have no site of their own and are recorded unsourced. |
 | `2.22` | not stated | 2 | walked | Both MUST-level sentences are IPComp obligations: where an IPCOMP_SUPPORTED notification can appear, and what an implementation accepts and compresses with. The 2026-07-31 owner ruling moved the four §2.22 rows to plan/spec-ipsec-ipcomp.md, so no id exists in rfc/short/rfc7296.md and both sites stay unclassified. |
-| `2.23` | not stated | 10 | walked | Nine of the ten sites map to a summary row and one is the section's own applicability statement. RFC7296-2.23-3, the four zero octets prepended to a tunnelled IKE header, is stated in indicative prose with no MUST-level keyword, so it is recorded unsourced. |
+| `2.23` | not stated | 10 | walked | Nine of the ten sites map to a summary row and one is the section's own applicability statement. RFC7296-2.23-3, the four zero octets prepended to a tunnelled IKE header, and RFC7296-2.23-12, the SPI rule that lets a receiver tell ESP from IKE on port 4500, are stated in indicative prose with no MUST-level keyword, so they are recorded unsourced. |
 | `2.23.1` | not stated | 3 | walked | Read the transport mode NAT traversal scenario and the client and responder rule lists. Three MUST sites, all mapped; every other rule in the section is SHOULD or MAY. |
 | `2.24` | not stated | 1 | walked | Read the ECN section. Its one normative sentence carries two MUSTs and yields one site, so RFC7296-2.24-2 (the [IPSECARCH] encapsulation and decapsulation processing) has no site of its own. |
 | `2.25` | not stated | 1 | walked | Read the exchange collision section. The TEMPORARY_FAILURE retry ban is its only MUST; the TEMPORARY_FAILURE and CHILD_SA_NOT_FOUND sending rules are SHOULD. |

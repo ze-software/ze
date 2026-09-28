@@ -103,7 +103,7 @@ The container holds the plugin switch, the reusable profiles, and the sessions a
     - **key-id** `uint8`: Auth Key ID (RFC 5880 Section 6.7.1).
       Ze writes the value into the authentication section of every Control packet it sends. Ze discards a received packet that carries another value, which RFC 5880 Section 6.7.2 requires for Simple Password. Both ends must name the same key-id and the same secret. The range is 0 to 255.
     - **secret** `string`: Shared secret, redacted from `ze config show` output.
-      Shared secret. Redacted from `ze config show` output. MD5 variants use the first 16 bytes of the secret, SHA1 variants the first 20, and both pad a shorter secret with zeros. The simple-password type carries the secret itself on the wire, so it must be 1 to 16 bytes, and a longer one is refused at parse time (RFC 5880 Section 6.7.2).
+      Shared secret. Redacted from `ze config show` output. The MD5 variants take a secret of up to 16 bytes (RFC 5880 Section 6.7.3) and the SHA1 variants one of up to 20 bytes (Section 6.7.4). Both pad a shorter secret with zeros, and a longer one is refused at parse time. The simple-password type carries the secret itself on the wire, so it must be 1 to 16 bytes, and a longer one is refused at parse time too (RFC 5880 Section 6.7.2).
     - **type** `enumeration`: Authentication type, which the operator must name.
       Authentication type. There is no default. The operator names the type, and simple-password is never selected on their behalf. simple-password is RFC 5880 Section 6.7.2 Simple Password. The password travels in clear in every Control packet and the section never changes, so it protects against a misconfigured peer and against nothing else. It does not protect against a listener on the path, who reads the password from one packet, and it carries no Sequence Number, so a captured packet can be replayed. Choose a keyed type wherever the path is not already trusted.
       - `keyed-md5`: RFC 5880 Section 6.7.3 Keyed MD5.
@@ -116,11 +116,11 @@ The container holds the plugin switch, the reusable profiles, and the sessions a
   - **detect-multiplier** `uint8`: Consecutive missed Control packets that trigger a Down transition.
     Number of consecutive missed Control packets that trigger a Down transition. RFC 5880 Section 6.8.4.
   - **echo** `container`: BFD Echo mode (RFC 5880 Section 6.4, RFC 5881 Section 5).
-    RFC 5880 Section 6.4 / RFC 5881 Section 5 Echo mode. Echo mode is single-hop only, because RFC 5883 Section 4 explicitly prohibits multi-hop echo, and the parser rejects echo on a multi-hop session. When echo is active, the engine sends echo packets on UDP port 3785 at the peer's advertised RequiredMinEchoRxInterval. The engine then slows its async Control TX to the peer's RequiredMinRxInterval.
+    RFC 5880 Section 6.4 / RFC 5881 Section 5 Echo mode. Echo mode is single-hop only, because RFC 5883 Section 3 prohibits multi-hop echo: a multi-hop session or BGP peer that uses an echo profile is refused. When echo is active, the engine sends echo packets on UDP port 3785 at the peer's advertised RequiredMinEchoRxInterval. The engine then slows its async Control TX to the peer's RequiredMinRxInterval.
     - **desired-min-echo-tx-us** `uint32`: Local target echo transmit rate in microseconds.
       Local target echo transmit rate in microseconds. The effective echo rate is max(local desired, peer RequiredMinEchoRx).
   - **passive** `boolean`: Wait for a peer Control packet before this session transmits.
-    Active, which is the default, transmits from session creation. Passive transmits nothing until a Control packet arrives from the peer. RFC 5883 Section 4.3.
+    Active, which is the default, transmits from session creation. Passive transmits nothing until a Control packet arrives from the peer. RFC 5883 Section 4.3. A single-hop session, BGP peer or static next-hop that uses a passive profile is refused: RFC 5881 Section 3 requires the Active role on a single hop.
   - **required-min-rx-us** `uint32`: Minimum inter-packet gap the local end can handle, in microseconds.
     Ze advertises the value as Required Min RX Interval, and a peer that obeys it does not transmit faster. The detection time is the peer's Detect Multiplier times the larger of this value and the peer's Desired Min TX Interval. While echo mode runs, Ze raises the advertised value to 1000000 microseconds and starts a Poll sequence, because the echo packets already prove the path.
 - **single-hop-session <peer vrf interface>** `list`: Per-link BFD session on port 3784 with TTL 255 (RFC 5881).
@@ -308,7 +308,7 @@ A peer inherits from its group defaults. A group inherits from this global level
         - `multi-hop`: RFC 5883 multi-hop BFD on UDP 4784 with min-TTL.
         - `single-hop`: RFC 5881 single-hop BFD on UDP 3784 with GTSM.
       - **profile** `string`: Name of a profile defined under the top-level bfd { profile ... } block.
-        The referenced profile supplies detect-multiplier, desired-min-tx-us, and required-min-rx-us. An empty value selects the BFD plugin defaults.
+        The referenced profile supplies the session's detect-multiplier, desired-min-tx-us, required-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer would otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not defined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a multi-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value selects the BFD plugin defaults.
       - **strict** `boolean`: BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).
         Ze advertises BGP capability 74 in its OPEN and does not let the BGP session go past OpenSent until the BFD session is Up. Both speakers must advertise the capability: against a peer that does not, Ze establishes the session on the normal path and BFD stays a failure detector. Ze opens the BFD session before it starts the BGP FSM, and keeps it open while the BGP session is down.
     - **local** `container`: Local endpoint for the TCP session.
@@ -455,7 +455,7 @@ A peer inherits from its group defaults. A group inherits from this global level
           - `multi-hop`: RFC 5883 multi-hop BFD on UDP 4784 with min-TTL.
           - `single-hop`: RFC 5881 single-hop BFD on UDP 3784 with GTSM.
         - **profile** `string`: Name of a profile defined under the top-level bfd { profile ... } block.
-          The referenced profile supplies detect-multiplier, desired-min-tx-us, and required-min-rx-us. An empty value selects the BFD plugin defaults.
+          The referenced profile supplies the session's detect-multiplier, desired-min-tx-us, required-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer would otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not defined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a multi-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value selects the BFD plugin defaults.
         - **strict** `boolean`: BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).
           Ze advertises BGP capability 74 in its OPEN and does not let the BGP session go past OpenSent until the BFD session is Up. Both speakers must advertise the capability: against a peer that does not, Ze establishes the session on the normal path and BFD stays a failure detector. Ze opens the BFD session before it starts the BGP FSM, and keeps it open while the BGP session is down.
       - **local** `container`: Local endpoint for the TCP session.
@@ -692,7 +692,11 @@ A peer inherits from its group defaults. A group inherits from this global level
         - **route-refresh** `container`: Route Refresh capability (RFC 2918).
           The capability lets the peer request a full re-advertisement of the routes, without a session teardown.
         - **software-version** `container`: Software Version capability (code 75).
-          The container carries presence, so writing it makes Ze send the capability of draft-abraitis-bgp-version-capability to this peer. The value is the fixed string Ze/0.1.0, and no leaf changes it. A container on the peer replaces the container on the group rather than adding to it.
+          The container carries presence, so writing it makes Ze send the capability of draft-abraitis-bgp-version-capability to this peer. The version is the fixed string Ze/0.1.0, and the encoding leaf chooses how it is framed. A container on the peer replaces the container on the group rather than adding to it.
+          - **encoding** `enumeration`: Capability Value framing: draft, or legacy for FRR and ExaBGP.
+            How Ze frames the version in the Capability Value it sends. draft, the default, sends the string alone, as draft-abraitis-bgp-version-capability Section 3 defines. legacy puts one length octet before the string, which is what FRR and ExaBGP send and expect. A peer running FRR or ExaBGP needs legacy: FRR 10.3.1 reads the first octet of the value as a length, and for the draft form that length exceeds the octets that follow, so FRR sends a NOTIFICATION and closes the session. legacy is a deviation from the draft, kept for those peers. Ze reads either form it receives, whatever this leaf says.
+            - `draft`: The version string alone, as the draft defines it.
+            - `legacy`: A length octet, then the version string, as FRR and ExaBGP send it.
           - **mode** `capability-mode`: Capability negotiation mode.
             enable is the default, and Ze sends the capability. disable sends none. Ze treats require as enable and refuse as disable: the plugin decides only whether to send code 75, and it holds the peer to nothing. So a peer that sends no Software Version stays up under require, and a peer that sends one stays up under refuse. Set the leaf on the peer to override the group value.
             - `disable`: Do not advertise the capability; no enforcement
@@ -1001,7 +1005,11 @@ A peer inherits from its group defaults. A group inherits from this global level
       - **route-refresh** `container`: Route Refresh capability (RFC 2918).
         The capability lets the peer request a full re-advertisement of the routes, without a session teardown.
       - **software-version** `container`: Software Version capability (code 75).
-        The container carries presence, so writing it makes Ze send the capability of draft-abraitis-bgp-version-capability to this peer. The value is the fixed string Ze/0.1.0, and no leaf changes it. A container on the peer replaces the container on the group rather than adding to it.
+        The container carries presence, so writing it makes Ze send the capability of draft-abraitis-bgp-version-capability to this peer. The version is the fixed string Ze/0.1.0, and the encoding leaf chooses how it is framed. A container on the peer replaces the container on the group rather than adding to it.
+        - **encoding** `enumeration`: Capability Value framing: draft, or legacy for FRR and ExaBGP.
+          How Ze frames the version in the Capability Value it sends. draft, the default, sends the string alone, as draft-abraitis-bgp-version-capability Section 3 defines. legacy puts one length octet before the string, which is what FRR and ExaBGP send and expect. A peer running FRR or ExaBGP needs legacy: FRR 10.3.1 reads the first octet of the value as a length, and for the draft form that length exceeds the octets that follow, so FRR sends a NOTIFICATION and closes the session. legacy is a deviation from the draft, kept for those peers. Ze reads either form it receives, whatever this leaf says.
+          - `draft`: The version string alone, as the draft defines it.
+          - `legacy`: A length octet, then the version string, as FRR and ExaBGP send it.
         - **mode** `capability-mode`: Capability negotiation mode.
           enable is the default, and Ze sends the capability. disable sends none. Ze treats require as enable and refuse as disable: the plugin decides only whether to send code 75, and it holds the peer to nothing. So a peer that sends no Software Version stays up under require, and a peer that sends one stays up under refuse. Set the leaf on the peer to override the group value.
           - `disable`: Do not advertise the capability; no enforcement
@@ -1272,7 +1280,7 @@ A peer inherits from its group defaults. A group inherits from this global level
         - `multi-hop`: RFC 5883 multi-hop BFD on UDP 4784 with min-TTL.
         - `single-hop`: RFC 5881 single-hop BFD on UDP 3784 with GTSM.
       - **profile** `string`: Name of a profile defined under the top-level bfd { profile ... } block.
-        The referenced profile supplies detect-multiplier, desired-min-tx-us, and required-min-rx-us. An empty value selects the BFD plugin defaults.
+        The referenced profile supplies the session's detect-multiplier, desired-min-tx-us, required-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer would otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not defined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a multi-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value selects the BFD plugin defaults.
       - **strict** `boolean`: BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).
         Ze advertises BGP capability 74 in its OPEN and does not let the BGP session go past OpenSent until the BFD session is Up. Both speakers must advertise the capability: against a peer that does not, Ze establishes the session on the normal path and BFD stays a failure detector. Ze opens the BFD session before it starts the BGP FSM, and keeps it open while the BGP session is down.
     - **local** `container`: Local endpoint for the TCP session.
@@ -1509,7 +1517,11 @@ A peer inherits from its group defaults. A group inherits from this global level
       - **route-refresh** `container`: Route Refresh capability (RFC 2918).
         The capability lets the peer request a full re-advertisement of the routes, without a session teardown.
       - **software-version** `container`: Software Version capability (code 75).
-        The container carries presence, so writing it makes Ze send the capability of draft-abraitis-bgp-version-capability to this peer. The value is the fixed string Ze/0.1.0, and no leaf changes it. A container on the peer replaces the container on the group rather than adding to it.
+        The container carries presence, so writing it makes Ze send the capability of draft-abraitis-bgp-version-capability to this peer. The version is the fixed string Ze/0.1.0, and the encoding leaf chooses how it is framed. A container on the peer replaces the container on the group rather than adding to it.
+        - **encoding** `enumeration`: Capability Value framing: draft, or legacy for FRR and ExaBGP.
+          How Ze frames the version in the Capability Value it sends. draft, the default, sends the string alone, as draft-abraitis-bgp-version-capability Section 3 defines. legacy puts one length octet before the string, which is what FRR and ExaBGP send and expect. A peer running FRR or ExaBGP needs legacy: FRR 10.3.1 reads the first octet of the value as a length, and for the draft form that length exceeds the octets that follow, so FRR sends a NOTIFICATION and closes the session. legacy is a deviation from the draft, kept for those peers. Ze reads either form it receives, whatever this leaf says.
+          - `draft`: The version string alone, as the draft defines it.
+          - `legacy`: A length octet, then the version string, as FRR and ExaBGP send it.
         - **mode** `capability-mode`: Capability negotiation mode.
           enable is the default, and Ze sends the capability. disable sends none. Ze treats require as enable and refuse as disable: the plugin decides only whether to send code 75, and it holds the peer to nothing. So a peer that sends no Software Version stays up under require, and a peer that sends one stays up under refuse. Set the leaf on the peer to override the group value.
           - `disable`: Do not advertise the capability; no enforcement
@@ -6302,7 +6314,7 @@ Ze programs each route into the kernel through netlink, or into the VPP dataplan
           - **hop <address>** `list`: Forward via gateway. Multiple entries produce ECMP with traffic distributed by weight.
             The gateway address is the key, so one route holds one entry for each gateway. Ze shares the traffic between the entries in proportion to their weights. An entry can name its own BFD profile, and a next hop whose BFD session goes down leaves the group.
             - **bfd-profile** `string`: BFD profile name for this next-hop, from the bfd/profile list.
-              BFD profile name (from bfd/profile list). When the BFD session to this next-hop goes down, Ze removes the next-hop from the ECMP group. Ze then reprograms the route with the remaining active next-hops.
+              BFD profile name (from bfd/profile list). When the BFD session to this next-hop goes down, Ze removes the next-hop from the ECMP group. Ze then reprograms the route with the remaining active next-hops. The session is single-hop, so a commit is refused when the profile is not defined or sets passive (RFC 5881 Section 3).
             - **interface** `string`: Outgoing interface. Required when the next-hop is a link-local IPv6 address.
               Ze resolves the name to a kernel interface index and sets it on the route. A link-local IPv6 gateway needs it, because the same address can exist on every link. A name that resolves to no interface skips this one route, which show static routes then reports with its reason.
             - **weight** `uint16`: ECMP weight of this next-hop, 1 by default.

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2205 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2205: Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification. 70 gated MUST-level requirements, 48 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 2205: Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification. 71 gated MUST-level requirements, 48 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2205 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2205: Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification. 70 gated MUST-level requirements, 48 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 2205: Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification. 71 gated MUST-level requirements, 48 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2205 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2205: Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification. 70 gated MUST-level requirements, 48 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 2205: Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification. 71 gated MUST-level requirements, 48 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,26 +116,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>21.4%</strong><b>15 of 70 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.6%</strong><b>6 of 70 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 70 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>68.9%</strong><b>31 of 45 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>22.5%</strong><b>16 of 71 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.5%</strong><b>6 of 71 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 71 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>70.2%</strong><b>33 of 47 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>70</strong><b>of 75 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 70 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 70 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>1.4%</strong><b>1 of 70 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 70 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>71</strong><b>of 76 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 71 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 71 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>1.4%</strong><b>1 of 71 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 71 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>68.6%</strong><b>48 of 70 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>67.6%</strong><b>48 of 71 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>16</strong><b>of 71 gated MUSTs judged</b><p>11 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 70 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 71 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -203,16 +204,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>75</td>
+<td>76</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>70</td>
+<td>71</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>48</td>
+</tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
@@ -221,16 +225,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>49</td>
+<td>51</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>45</td>
+<td>47</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>16</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>31</td>
+<td>33</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2205.md</code></td>
@@ -266,7 +270,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>15</strong></td>
+<td><strong>16</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -289,11 +293,11 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>70</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>71</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (15):</strong> <a href="#rfc2205-3.1-1"><code>RFC2205-3.1-1</code></a>, <a href="#rfc2205-3.1.2-1"><code>RFC2205-3.1.2-1</code></a>, <a href="#rfc2205-3.1.3-1"><code>RFC2205-3.1.3-1</code></a>, <a href="#rfc2205-x-1"><code>RFC2205-x-1</code></a>, <a href="#rfc2205-3.10-1"><code>RFC2205-3.10-1</code></a>, <a href="#rfc2205-2-1"><code>RFC2205-2-1</code></a>, <a href="#rfc2205-2-2"><code>RFC2205-2-2</code></a>, <a href="#rfc2205-2-3"><code>RFC2205-2-3</code></a>, <a href="#rfc2205-2-4"><code>RFC2205-2-4</code></a>, <a href="#rfc2205-2-7"><code>RFC2205-2-7</code></a>, <a href="#rfc2205-3-1"><code>RFC2205-3-1</code></a>, <a href="#rfc2205-3-2"><code>RFC2205-3-2</code></a>, <a href="#rfc2205-3-12"><code>RFC2205-3-12</code></a>, <a href="#rfc2205-3-14"><code>RFC2205-3-14</code></a>, <a href="#rfc2205-4-4"><code>RFC2205-4-4</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (16):</strong> <a href="#rfc2205-3.1-1"><code>RFC2205-3.1-1</code></a>, <a href="#rfc2205-3.1.2-1"><code>RFC2205-3.1.2-1</code></a>, <a href="#rfc2205-3.1.3-1"><code>RFC2205-3.1.3-1</code></a>, <a href="#rfc2205-x-1"><code>RFC2205-x-1</code></a>, <a href="#rfc2205-3.10-1"><code>RFC2205-3.10-1</code></a>, <a href="#rfc2205-2-1"><code>RFC2205-2-1</code></a>, <a href="#rfc2205-2-2"><code>RFC2205-2-2</code></a>, <a href="#rfc2205-2-3"><code>RFC2205-2-3</code></a>, <a href="#rfc2205-2-4"><code>RFC2205-2-4</code></a>, <a href="#rfc2205-2.3-1"><code>RFC2205-2.3-1</code></a>, <a href="#rfc2205-2-7"><code>RFC2205-2-7</code></a>, <a href="#rfc2205-3-1"><code>RFC2205-3-1</code></a>, <a href="#rfc2205-3-2"><code>RFC2205-3-2</code></a>, <a href="#rfc2205-3-12"><code>RFC2205-3-12</code></a>, <a href="#rfc2205-3-14"><code>RFC2205-3-14</code></a>, <a href="#rfc2205-4-4"><code>RFC2205-4-4</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (55):</strong> <a href="#rfc2205-3.1-2"><code>RFC2205-3.1-2</code></a>, <a href="#rfc2205-3.1-3"><code>RFC2205-3.1-3</code></a>, <a href="#rfc2205-1-1"><code>RFC2205-1-1</code></a>, <a href="#rfc2205-1-2"><code>RFC2205-1-2</code></a>, <a href="#rfc2205-1-3"><code>RFC2205-1-3</code></a>, <a href="#rfc2205-1-4"><code>RFC2205-1-4</code></a>, <a href="#rfc2205-2-5"><code>RFC2205-2-5</code></a>, <a href="#rfc2205-2-6"><code>RFC2205-2-6</code></a>, <a href="#rfc2205-2-8"><code>RFC2205-2-8</code></a>, <a href="#rfc2205-2-9"><code>RFC2205-2-9</code></a>, <a href="#rfc2205-2-10"><code>RFC2205-2-10</code></a>, <a href="#rfc2205-2-11"><code>RFC2205-2-11</code></a>, <a href="#rfc2205-2-12"><code>RFC2205-2-12</code></a>, <a href="#rfc2205-3-3"><code>RFC2205-3-3</code></a>, <a href="#rfc2205-3-4"><code>RFC2205-3-4</code></a>, <a href="#rfc2205-3-5"><code>RFC2205-3-5</code></a>, <a href="#rfc2205-3-6"><code>RFC2205-3-6</code></a>, <a href="#rfc2205-3-7"><code>RFC2205-3-7</code></a>, <a href="#rfc2205-3-8"><code>RFC2205-3-8</code></a>, <a href="#rfc2205-3-9"><code>RFC2205-3-9</code></a>, <a href="#rfc2205-3-10"><code>RFC2205-3-10</code></a>, <a href="#rfc2205-3-11"><code>RFC2205-3-11</code></a>, <a href="#rfc2205-3-13"><code>RFC2205-3-13</code></a>, <a href="#rfc2205-3-16"><code>RFC2205-3-16</code></a>, <a href="#rfc2205-3-17"><code>RFC2205-3-17</code></a>, <a href="#rfc2205-3-18"><code>RFC2205-3-18</code></a>, <a href="#rfc2205-3-19"><code>RFC2205-3-19</code></a>, <a href="#rfc2205-3-20"><code>RFC2205-3-20</code></a>, <a href="#rfc2205-3-21"><code>RFC2205-3-21</code></a>, <a href="#rfc2205-3-22"><code>RFC2205-3-22</code></a>, <a href="#rfc2205-3-23"><code>RFC2205-3-23</code></a>, <a href="#rfc2205-3-24"><code>RFC2205-3-24</code></a>, <a href="#rfc2205-3-25"><code>RFC2205-3-25</code></a>, <a href="#rfc2205-3-26"><code>RFC2205-3-26</code></a>, <a href="#rfc2205-3-27"><code>RFC2205-3-27</code></a>, <a href="#rfc2205-3-28"><code>RFC2205-3-28</code></a>, <a href="#rfc2205-3-29"><code>RFC2205-3-29</code></a>, <a href="#rfc2205-3-30"><code>RFC2205-3-30</code></a>, <a href="#rfc2205-3-31"><code>RFC2205-3-31</code></a>, <a href="#rfc2205-3-32"><code>RFC2205-3-32</code></a>, <a href="#rfc2205-3-33"><code>RFC2205-3-33</code></a>, <a href="#rfc2205-3-34"><code>RFC2205-3-34</code></a>, <a href="#rfc2205-3-35"><code>RFC2205-3-35</code></a>, <a href="#rfc2205-3-36"><code>RFC2205-3-36</code></a>, <a href="#rfc2205-3-37"><code>RFC2205-3-37</code></a>, <a href="#rfc2205-3-38"><code>RFC2205-3-38</code></a>, <a href="#rfc2205-3-39"><code>RFC2205-3-39</code></a>, <a href="#rfc2205-3-40"><code>RFC2205-3-40</code></a>, <a href="#rfc2205-3-41"><code>RFC2205-3-41</code></a>, <a href="#rfc2205-3-42"><code>RFC2205-3-42</code></a>, <a href="#rfc2205-3-43"><code>RFC2205-3-43</code></a>, <a href="#rfc2205-4-1"><code>RFC2205-4-1</code></a>, <a href="#rfc2205-4-2"><code>RFC2205-4-2</code></a>, <a href="#rfc2205-4-3"><code>RFC2205-4-3</code></a>, <a href="#rfc2205-4-5"><code>RFC2205-4-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
@@ -301,37 +305,37 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.1-1">RFC2205-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Version field MUST be 1 (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.1-1">RFC2205-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Protocol version number.  This is version 1. (§3.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1</td>
+<td>3.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L409" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPHeaderRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L443" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPDecodeHeaderBadVersion</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.1-2">RFC2205-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Reserved field in common header MUST be zero (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.1-2">RFC2205-3.1-2</code></td><td colspan="3"><span class="rfc-subject">All unused fields should be sent as zero and ignored on receipt. (§A)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1</td>
+<td>A - Appendix A</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L585" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPReservedByteZeroOnSend</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze sets the reserved byte to 0 on send (internal/plugins/rsvpte/wire.go:177) and the RFC does not require receivers to reject a nonzero reserved field, so no negative case exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.1.2-1">RFC2205-3.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Object lengths MUST be a multiple of 4 (§3.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.1.2-1">RFC2205-3.1.2-1</code></td><td colspan="3"><span class="rfc-subject">A 16-bit field containing the total object length in bytes.  Must always be a multiple of 4 (§3.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3.1.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L606" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPObjectLengthMultipleOfFour</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L49" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L48" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.1.3-1">RFC2205-3.1.3-1</code></td><td colspan="3"><span class="rfc-subject">A received message MUST carry every object its Section 3.1 BNF writes unbracketed -- SESSION, RSVP_HOP and TIME_VALUES in a Path, those three plus STYLE in a Resv, SESSION and RSVP_HOP in a PathTear, SESSION and ERROR_SPEC in a PathErr, and SESSION, ERROR_SPEC, RESV_CONFIRM and STYLE in a ResvConf: each node is required to verify the correct construction of each message it receives, and a malformed message is logged locally rather than reported in an ERROR_SPEC (Appendix B) (§3.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.1.3-1">RFC2205-3.1.3-1</code></td><td colspan="3"><span class="rfc-subject">Similarly, each node is required to verify the correct construction of each RSVP message it receives.  Should a programming error allow an RSVP to create a malformed message, the error is not generally reported to end systems in an ERROR_SPEC object; instead, the error is simply logged locally, and perhaps reported through network management mechanisms. (§B)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1.3</td>
+<td>B - Appendix B</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3.1.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L90" title="internal/plugins/rsvpte/mandatory_test.go" target="_blank" rel="noopener"><code>TestDecodeMandatoryObjects</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L139" title="internal/plugins/rsvpte/mandatory_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithTimeValuesAccepted</code></a></span></div>
@@ -339,35 +343,35 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L120" title="internal/plugins/rsvpte/mandatory_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithoutTimeValuesDropped</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.1-3">RFC2205-3.1-3</code></td><td colspan="3"><span class="rfc-subject">A nonzero checksum MUST be verified on receipt; drop messages with bad checksum (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.1-3">RFC2205-3.1-3</code></td><td colspan="3"><span class="rfc-subject">The choice of message formatting errors that an RSVP may detect and log locally is implementation-specific, but it will typically include the following: o Wrong-length message: RSVP Length field does not match message length. o Unknown or unsupported RSVP version. o Bad RSVP checksum (§B)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1</td>
+<td>B - Appendix B</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> DecodeMessage in internal/plugins/rsvpte/wire.go verifies the declared message when its checksum is nonzero and handlePacket drops decode errors. Section 3.1.1 permits zero to mean no checksum was transmitted. Complete requirement-level proof remains open.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-x-1">RFC2205-x-1</code></td><td colspan="3"><span class="rfc-subject">IP Router Alert option MUST be set in PATH messages (Transport)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-x-1">RFC2205-x-1</code></td><td colspan="3"><span class="rfc-subject">RSVP must be able to cause Path, PathTear, and ResvConf message to be sent with the Router Alert IP option. (§3.11.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>x</td>
+<td>3.11.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-x-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L390" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L14" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.10-1">RFC2205-3.10-1</code></td><td colspan="3"><span class="rfc-subject">Unknown Class-Num of the form 0bbbbbbb: reject the entire message and return an &#34;Unknown Object Class&#34; error (§3.10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.10-1">RFC2205-3.10-1</code></td><td colspan="3"><span class="rfc-subject">Class-Num = 0bbbbbbb The entire message should be rejected and an &#34;Unknown Object Class&#34; error returned. (§3.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3.10-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L724" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestDecodeUnknownObjectClass</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L731" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestDecodeUnknownObjectClass</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L954" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithIgnorableObjectAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L949" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithIgnorableObjectAccepted</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.7-1">RFC2205-3.7-1</code></td><td colspan="3"><span class="rfc-subject">Refresh period SHOULD be jittered by +/- 50% of R to prevent synchronization (§3.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.7-1">RFC2205-3.7-1</code></td><td colspan="3"><span class="rfc-subject">For this reason, the refresh timer should be randomly set to a value in the range [0.5R, 1.5R]. (§3.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.7</td>
@@ -376,16 +380,16 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-x-2">RFC2205-x-2</code></td><td colspan="3"><span class="rfc-subject">Jitter: SHOULD randomize refresh timing (Soft-State Model)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-x-2">RFC2205-x-2</code></td><td colspan="3"><span class="rfc-subject">For this reason, the refresh timer should be randomly set to a value in the range [0.5R, 1.5R]. (§3.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>3.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-x-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.10-2">RFC2205-3.10-2</code></td><td colspan="3"><span class="rfc-subject">Unknown Class-Num of the form 10bbbbbb: ignore the object, neither forwarding it nor sending an error message (§3.10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.10-2">RFC2205-3.10-2</code></td><td colspan="3"><span class="rfc-subject">Class-Num = 10bbbbbb The node should ignore the object, neither forwarding it nor sending an error message. (§3.10)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.10</td>
@@ -394,7 +398,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.10-3">RFC2205-3.10-3</code></td><td colspan="3"><span class="rfc-subject">Unknown Class-Num of the form 11bbbbbb: ignore the object but forward it unexamined and unmodified in every message resulting from this one (§3.10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.10-3">RFC2205-3.10-3</code></td><td colspan="3"><span class="rfc-subject">Class-Num = 11bbbbbb The node should ignore the object but forward it, unexamined and unmodified, in all messages resulting from this message. (§3.10)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.10</td>
@@ -485,6 +489,15 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> handlePathTransit and acceptReservation relay supported state immediately; forwarding is not confined to refresh ticks. Proof covering every required state-update case remains open.</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-2.3-1">RFC2205-2.3-1</code></td><td colspan="3"><span class="rfc-subject">RSVP soft state is created and periodically refreshed by Path and Resv messages. The state is deleted if no matching refresh messages arrive before the expiration of a &#34;cleanup timeout&#34; interval. (§2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/softstate_test.go#L56" title="internal/plugins/rsvpte/softstate_test.go" target="_blank" rel="noopener"><code>TestRefreshResendsPathAndResv</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/softstate_test.go#L21" title="internal/plugins/rsvpte/softstate_test.go" target="_blank" rel="noopener"><code>TestRefreshDoesNotStampEgressPSB</code></a></span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-2-6">RFC2205-2-6</code></td><td colspan="3"><span class="rfc-subject">Conversely, state that is forwarded out interface I* must be computed using only state that arrived on interfaces different from I*. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
@@ -503,7 +516,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L181" title="internal/plugins/rsvpte/engine_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearWithoutStateNotRelayed</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-2-8">RFC2205-2-8</code></td><td colspan="3"><span class="rfc-subject">A reservation error must be reported to all of the responsible receivers (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-2-8">RFC2205-2-8</code></td><td colspan="3"><span class="rfc-subject">Since a request that fails may be the result of merging a number of requests, a reservation error must be reported to all of the responsible receivers. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -512,7 +525,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> reservation.go and reservation_build.go now produce and relay ResvErr for supported tunnel reservations. Complete receiver coverage and requirement-level proof remain open.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-2-9">RFC2205-2-9</code></td><td colspan="3"><span class="rfc-subject">Blockade state must not deny service to a smaller reservation that would succeed, and must not remove the state or prevent its immediate refresh (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-2-9">RFC2205-2-9</code></td><td colspan="3"><span class="rfc-subject">The blockade state in each downstream router must not remove the state or prevent its immediate refresh. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2</td>
@@ -548,10 +561,10 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ResvConf is relayed toward its receiver, but other nonlocal message types lack this forwarding path; plan/pre-release/spec-rsvp-routing-and-interface-integration.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-1">RFC2205-3-1</code></td><td colspan="3"><span class="rfc-subject">An RSVP implementation must recognize the object classes Section 3 lists (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-1">RFC2205-3-1</code></td><td colspan="3"><span class="rfc-subject">An RSVP implementation must recognize the following classes: (§3.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3</td>
+<td>3.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc2205_test.go#L64" title="internal/plugins/rsvpte/wire_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205KnownClassesRecognized</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L94" title="internal/plugins/rsvpte/repairs_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205NullObjectRecognized</code></a></span></div>
@@ -564,8 +577,8 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L94" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathIPAddressesAreSenderAndSession</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L107" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathIPAddressesNeverHopAddresses</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L93" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathIPAddressesAreSenderAndSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L106" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathIPAddressesNeverHopAddresses</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-3">RFC2205-3-3</code></td><td colspan="3"><span class="rfc-subject">If the INTEGRITY object is present, it must immediately follow the common header. (§3)</span></td></tr>
@@ -577,10 +590,10 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> checkObjectPlacement in internal/plugins/rsvpte/message_validation.go enforces this position. Complete requirement-level proof remains open.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-4">RFC2205-3-4</code></td><td colspan="3"><span class="rfc-subject">Path messages and filter spec matching must satisfy the SrcPort and DstPort consistency rules: the DstPort values for one DestAddress and ProtocolId are all zero or all non-zero, a zero DstPort forces zero SrcPort, and a sender host must not send path state both with and without a zero SrcPort (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-4">RFC2205-3-4</code></td><td colspan="3"><span class="rfc-subject">Path state and reservation state for the same DestAddress and ProtocolId must each have DstPort values that are all zero or all non-zero.  Violation of this condition in a node is a &#34;Conflicting Dest Ports&#34; error.  2.   Destination ports rule.  If DstPort in a session definition is zero, all SrcPort fields used for that session must also be zero.  The assumption here is that the protocol does not have UDP/TCP- like ports.   Violation of this condition in a node is a &#34;Bad Src Ports&#34; error.  3.   Source Ports must be consistent.  A sender host must not send path state both with and without a zero SrcPort. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3</td>
+<td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -654,32 +667,32 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-12">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L119" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearRoutedLikePath</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L133" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearNotAddressedHopByHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L118" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearRoutedLikePath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L132" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearNotAddressedHopByHop</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-13">RFC2205-3-13</code></td><td colspan="3"><span class="rfc-subject">A SENDER_TSPEC or ADSPEC object in a PathTear, and a SCOPE object in a ResvTear, must be ignored (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-13">RFC2205-3-13</code></td><td colspan="3"><span class="rfc-subject">A PathTear message may include a SENDER_TSPEC or ADSPEC object in its sender descriptor, but these must be ignored. (§3.1.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3</td>
+<td>3.1.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-13">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> DecodeMessage now skips PathTear TSPEC/ADSPEC bodies and ResvTear handling exists. Complete proof of the stated ignored-object cases remains open.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-14">RFC2205-3-14</code></td><td colspan="3"><span class="rfc-subject">Deletion of path state by PathTear or timeout must also adjust related reservation state to maintain consistency in the local node (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-14">RFC2205-3-14</code></td><td colspan="3"><span class="rfc-subject">Deletion of path state as the result of a PathTear message or a timeout must also adjust related reservation state as required to maintain consistency in the local node. (§3.1.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3</td>
+<td>3.1.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-14">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L206" title="internal/plugins/rsvpte/engine_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearReleasesReservation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L217" title="internal/plugins/rsvpte/engine_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearForOtherLSPLeavesReservation</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-15">RFC2205-3-15</code></td><td colspan="3"><span class="rfc-subject">The reservation changes a PathTear causes should not trigger an immediate Resv refresh message (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-15">RFC2205-3-15</code></td><td colspan="3"><span class="rfc-subject">These reservation changes should not trigger an immediate Resv refresh message, since the PathTear message has already made the required changes upstream. (§3.1.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
-<td>3</td>
+<td>3.1.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-15">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -757,10 +770,10 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> RRO and hop-limit handling do not supply the missing routing-derived incoming-interface checks; plan/pre-release/spec-rsvp-routing-and-interface-integration.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-24">RFC2205-3-24</code></td><td colspan="3"><span class="rfc-subject">Where reservation state from a NHOP carries no SCOPE object, a substitute sender list must be created and included in the union (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-24">RFC2205-3-24</code></td><td colspan="3"><span class="rfc-subject">If reservation state from some NHOP does not contain a SCOPE object, a substitute sender list must be created and included in the union. (§3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3</td>
+<td>3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-24">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -775,10 +788,10 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-26">RFC2205-3-26</code></td><td colspan="3"><span class="rfc-subject">RSVP must avoid refresh message synchronization and ensure that any synchronization that occurs is not stable (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-26">RFC2205-3-26</code></td><td colspan="3"><span class="rfc-subject">Since RSVP sends periodic refresh messages, it must avoid message synchronization and ensure that any synchronization that may occur is not stable. (§3.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3</td>
+<td>3.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-26">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -856,10 +869,10 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-35">RFC2205-3-35</code></td><td colspan="3"><span class="rfc-subject">A forwarded message carrying objects of unknown class must obey the general object order requirements for its message type (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3-35">RFC2205-3-35</code></td><td colspan="3"><span class="rfc-subject">The original order of such unknown-class objects need not be retained; however, the message that is forwarded must obey the general order requirements for its message type. (§3.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3</td>
+<td>3.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-35">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -879,8 +892,8 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-37">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L479" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L392" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L478" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L391" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a capability obligation (&#34;must be able to&#34;): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration tests show the RSVP process resolving native routes for PATH and PathTear</p></td>
 </tr>
@@ -898,7 +911,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-39">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L480" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L479" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the integration test shows a nonlocal PATH diverted to the RSVP receiver. The &#34;without being forwarded&#34; half is Linux behavior: a packet delivered to an IP_ROUTER_ALERT raw socket (internal/plugins/rsvpte/transport_linux.go openSockets) is consumed by the kernel router-alert chain before ip_forward, and no value at Ze&#39;s boundary decides it, so a negative case at that boundary would assert the kernel, not Ze</p></td>
 </tr>
@@ -907,7 +920,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-40">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L393" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L392" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a capability obligation (&#34;must be able to&#34;): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows the receiver observing the arrival interface, IP source and IP TTL of a diverted message</p></td>
 </tr>
@@ -916,7 +929,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-41">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L394" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L393" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a capability obligation (&#34;must be able to&#34;): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows SendPath pinning the explicit hop link through IP_PKTINFO against the ordinary route</p></td>
 </tr>
@@ -925,7 +938,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-42">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L395" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L394" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a capability obligation (&#34;must be able to&#34;): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows the requested source and Send_TTL in the captured IPv4 header</p></td>
 </tr>
@@ -938,37 +951,37 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-4-1">RFC2205-4-1</code></td><td colspan="3"><span class="rfc-subject">This field must be non-zero. (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-4-1">RFC2205-4-1</code></td><td colspan="3"><span class="rfc-subject">This field must be non-zero. (§A)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>4</td>
+<td>A - Appendix A</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> decodeSessionIPv4 in internal/plugins/rsvpte/wire.go rejects an unspecified tunnel endpoint. Complete requirement-level proof remains open.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-4-2">RFC2205-4-2</code></td><td colspan="3"><span class="rfc-subject">This field must be non-zero. (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-4-2">RFC2205-4-2</code></td><td colspan="3"><span class="rfc-subject">This field must be non-zero. (§A)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>4</td>
+<td>A - Appendix A</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-4-3">RFC2205-4-3</code></td><td colspan="3"><span class="rfc-subject">The addresses must be listed in ascending numerical order. (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-4-3">RFC2205-4-3</code></td><td colspan="3"><span class="rfc-subject">The addresses must be listed in ascending numerical order. (§A)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>4</td>
+<td>A - Appendix A</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-4-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-4-4">RFC2205-4-4</code></td><td colspan="3"><span class="rfc-subject">Similarly, each node is required to verify the correct construction of each RSVP message it receives. (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-4-4">RFC2205-4-4</code></td><td colspan="3"><span class="rfc-subject">Similarly, each node is required to verify the correct construction of each RSVP message it receives. (§B)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>4</td>
+<td>B - Appendix B</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-4-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc2205_test.go#L133" title="internal/plugins/rsvpte/wire_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205WellFormedMessageVerified</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L249" title="internal/plugins/rsvpte/wire_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209ObjectsAcceptedInAnyOrder</code></a></span></div>
@@ -976,10 +989,10 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L280" title="internal/plugins/rsvpte/wire_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209ObjectsAcceptedInAnyOrder</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-4-5">RFC2205-4-5</code></td><td colspan="3"><span class="rfc-subject">A host that cannot do raw network I/O must encapsulate RSVP messages in UDP, using a scheme that allows RSVP interoperation among an arbitrary topology of hosts and routers (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-4-5">RFC2205-4-5</code></td><td colspan="3"><span class="rfc-subject">However, some important classes of host systems may not support raw network I/O.  To use RSVP, such hosts must encapsulate RSVP messages in UDP.  The basic UDP encapsulation scheme makes two assumptions:  1.   All hosts are capable of sending and receiving multicast packets if multicast destinations are to be supported.  2.   The first/last-hop routers are RSVP-capable.  A method of relaxing the second assumption is given later.  Let Hu be a &#34;UDP-only&#34; host that requires UDP encapsulation, and Hr a host that can do raw network I/O.  The UDP encapsulation scheme must allow RSVP interoperation among an arbitrary topology of Hr hosts, Hu hosts, and routers. (§C)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>4</td>
+<td>C - Appendix C</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-4-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -994,7 +1007,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc2205-3.1-3"><code>RFC2205-3.1-3</code></a> A nonzero checksum MUST be verified on receipt; drop messages with bad checksum (§3.1)</td>
+<tr><td><a href="#rfc2205-3.1-3"><code>RFC2205-3.1-3</code></a> The choice of message formatting errors that an RSVP may detect and log locally is implementation-specific, but it will typically include the following: o Wrong-length message: RSVP Length field does not match message length. o Unknown or unsupported RSVP version. o Bad RSVP checksum (§B)</td>
 <td>{gap}, no test</td>
 <td>DecodeMessage in internal/plugins/rsvpte/wire.go verifies the declared message when its checksum is nonzero and handlePacket drops decode errors. Section 3.1.1 permits zero to mean no checksum was transmitted. Complete requirement-level proof remains open.</td>
 </tr>
@@ -1022,11 +1035,11 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>{gap}, no test</td>
 <td>Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md</td>
 </tr>
-<tr><td><a href="#rfc2205-2-8"><code>RFC2205-2-8</code></a> A reservation error must be reported to all of the responsible receivers (§2)</td>
+<tr><td><a href="#rfc2205-2-8"><code>RFC2205-2-8</code></a> Since a request that fails may be the result of merging a number of requests, a reservation error must be reported to all of the responsible receivers. (§2)</td>
 <td>{gap}, no test</td>
 <td>reservation.go and reservation_build.go now produce and relay ResvErr for supported tunnel reservations. Complete receiver coverage and requirement-level proof remain open.</td>
 </tr>
-<tr><td><a href="#rfc2205-2-9"><code>RFC2205-2-9</code></a> Blockade state must not deny service to a smaller reservation that would succeed, and must not remove the state or prevent its immediate refresh (§2)</td>
+<tr><td><a href="#rfc2205-2-9"><code>RFC2205-2-9</code></a> The blockade state in each downstream router must not remove the state or prevent its immediate refresh. (§2)</td>
 <td>{gap}, no test</td>
 <td>Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md</td>
 </tr>
@@ -1046,7 +1059,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>{gap}, no test</td>
 <td>checkObjectPlacement in internal/plugins/rsvpte/message_validation.go enforces this position. Complete requirement-level proof remains open.</td>
 </tr>
-<tr><td><a href="#rfc2205-3-4"><code>RFC2205-3-4</code></a> Path messages and filter spec matching must satisfy the SrcPort and DstPort consistency rules: the DstPort values for one DestAddress and ProtocolId are all zero or all non-zero, a zero DstPort forces zero SrcPort, and a sender host must not send path state both with and without a zero SrcPort (§3)</td>
+<tr><td><a href="#rfc2205-3-4"><code>RFC2205-3-4</code></a> Path state and reservation state for the same DestAddress and ProtocolId must each have DstPort values that are all zero or all non-zero.  Violation of this condition in a node is a &#34;Conflicting Dest Ports&#34; error.  2.   Destination ports rule.  If DstPort in a session definition is zero, all SrcPort fields used for that session must also be zero.  The assumption here is that the protocol does not have UDP/TCP- like ports.   Violation of this condition in a node is a &#34;Bad Src Ports&#34; error.  3.   Source Ports must be consistent.  A sender host must not send path state both with and without a zero SrcPort. (§3.2)</td>
 <td>{gap}, no test</td>
 <td>Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md</td>
 </tr>
@@ -1078,7 +1091,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>{gap}, no test</td>
 <td>handlePathTear now rejects a different stored hop for ordinary and merged tunnel state. Complete requirement-level proof remains open.</td>
 </tr>
-<tr><td><a href="#rfc2205-3-13"><code>RFC2205-3-13</code></a> A SENDER_TSPEC or ADSPEC object in a PathTear, and a SCOPE object in a ResvTear, must be ignored (§3)</td>
+<tr><td><a href="#rfc2205-3-13"><code>RFC2205-3-13</code></a> A PathTear message may include a SENDER_TSPEC or ADSPEC object in its sender descriptor, but these must be ignored. (§3.1.5)</td>
 <td>{gap}, no test</td>
 <td>DecodeMessage now skips PathTear TSPEC/ADSPEC bodies and ResvTear handling exists. Complete proof of the stated ignored-object cases remains open.</td>
 </tr>
@@ -1114,7 +1127,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>{gap}, no test</td>
 <td>RRO and hop-limit handling do not supply the missing routing-derived incoming-interface checks; plan/pre-release/spec-rsvp-routing-and-interface-integration.md</td>
 </tr>
-<tr><td><a href="#rfc2205-3-24"><code>RFC2205-3-24</code></a> Where reservation state from a NHOP carries no SCOPE object, a substitute sender list must be created and included in the union (§3)</td>
+<tr><td><a href="#rfc2205-3-24"><code>RFC2205-3-24</code></a> If reservation state from some NHOP does not contain a SCOPE object, a substitute sender list must be created and included in the union. (§3.4)</td>
 <td>{gap}, no test</td>
 <td>Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md</td>
 </tr>
@@ -1122,7 +1135,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>{gap}, no test</td>
 <td>Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md</td>
 </tr>
-<tr><td><a href="#rfc2205-3-26"><code>RFC2205-3-26</code></a> RSVP must avoid refresh message synchronization and ensure that any synchronization that occurs is not stable (§3)</td>
+<tr><td><a href="#rfc2205-3-26"><code>RFC2205-3-26</code></a> Since RSVP sends periodic refresh messages, it must avoid message synchronization and ensure that any synchronization that may occur is not stable. (§3.7)</td>
 <td>{gap}, no test</td>
 <td>runRefreshLoop in internal/plugins/rsvpte/register.go uses a fixed ticker without synchronization avoidance; plan/pre-release/spec-rsvp-refresh-timing.md</td>
 </tr>
@@ -1158,7 +1171,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>{gap}, no test</td>
 <td>Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md</td>
 </tr>
-<tr><td><a href="#rfc2205-3-35"><code>RFC2205-3-35</code></a> A forwarded message carrying objects of unknown class must obey the general object order requirements for its message type (§3)</td>
+<tr><td><a href="#rfc2205-3-35"><code>RFC2205-3-35</code></a> The original order of such unknown-class objects need not be retained; however, the message that is forwarded must obey the general order requirements for its message type. (§3.10)</td>
 <td>{gap}, no test</td>
 <td>receive-side placement checks now exist in message_validation.go; full proof of forwarded unknown-object placement remains open.</td>
 </tr>
@@ -1174,19 +1187,19 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>{gap}, no test</td>
 <td>Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md</td>
 </tr>
-<tr><td><a href="#rfc2205-4-1"><code>RFC2205-4-1</code></a> This field must be non-zero. (§4)</td>
+<tr><td><a href="#rfc2205-4-1"><code>RFC2205-4-1</code></a> This field must be non-zero. (§A)</td>
 <td>{gap}, no test</td>
 <td>decodeSessionIPv4 in internal/plugins/rsvpte/wire.go rejects an unspecified tunnel endpoint. Complete requirement-level proof remains open.</td>
 </tr>
-<tr><td><a href="#rfc2205-4-2"><code>RFC2205-4-2</code></a> This field must be non-zero. (§4)</td>
+<tr><td><a href="#rfc2205-4-2"><code>RFC2205-4-2</code></a> This field must be non-zero. (§A)</td>
 <td>{gap}, no test</td>
 <td>Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md</td>
 </tr>
-<tr><td><a href="#rfc2205-4-3"><code>RFC2205-4-3</code></a> The addresses must be listed in ascending numerical order. (§4)</td>
+<tr><td><a href="#rfc2205-4-3"><code>RFC2205-4-3</code></a> The addresses must be listed in ascending numerical order. (§A)</td>
 <td>{gap}, no test</td>
 <td>Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md</td>
 </tr>
-<tr><td><a href="#rfc2205-4-5"><code>RFC2205-4-5</code></a> A host that cannot do raw network I/O must encapsulate RSVP messages in UDP, using a scheme that allows RSVP interoperation among an arbitrary topology of hosts and routers (§4)</td>
+<tr><td><a href="#rfc2205-4-5"><code>RFC2205-4-5</code></a> However, some important classes of host systems may not support raw network I/O.  To use RSVP, such hosts must encapsulate RSVP messages in UDP.  The basic UDP encapsulation scheme makes two assumptions:  1.   All hosts are capable of sending and receiving multicast packets if multicast destinations are to be supported.  2.   The first/last-hop routers are RSVP-capable.  A method of relaxing the second assumption is given later.  Let Hu be a &#34;UDP-only&#34; host that requires UDP encapsulation, and Hr a host that can do raw network I/O.  The UDP encapsulation scheme must allow RSVP interoperation among an arbitrary topology of Hr hosts, Hu hosts, and routers. (§C)</td>
 <td>{gap}, no test</td>
 <td>Ze fills no host-without-raw-I/O role; plan/spec-rsvp-udp-encapsulation.md</td>
 </tr>
@@ -1197,8 +1210,8 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2205-3.1-1"><code>RFC2205-3.1-1</code></a></h3>
-<p>Version field MUST be 1 (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Protocol version number.  This is version 1. (§3.1.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Forbidden: a header sent or accepted with Vers other than 1. Receive: TestRSVPDecodeHeaderBadVersion rejects Vers 2 only (DecodeHeader compares to rsvpVersion). Send: TestRSVPHeaderRoundTrip asserts decoded.Version == hdr.Version where hdr.Version is rsvpVersion itself, never the literal 1; with rsvpVersion changed to 3 the round trip stays green and the Vers-2 negative still rejects, so a node sending version 3 turns nothing red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1217,8 +1230,8 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </table>
 </div>
 <h3><a href="#rfc2205-3.1-2"><code>RFC2205-3.1-2</code></a></h3>
-<p>Reserved field in common header MUST be zero (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>All unused fields should be sent as zero and ignored on receipt. (§A)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Quote: unused fields sent as zero and ignored on receipt. Send clause: TestRSVPReservedByteZeroOnSend asserts raw[5] == 0 on a built PATH. Receive clause (&#39;ignored on receipt&#39;): no tagged unit feeds a nonzero reserved octet and asserts the message is still accepted, so a decoder that rejected it would stay green. Re-judged 2026-09-27 by QF-2 after the row&#39;s citation moved to the appendix the sentence is in; the text is unchanged and the tagged units were re-read. Weak stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1232,14 +1245,14 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </table>
 </div>
 <h3><a href="#rfc2205-3.1.2-1"><code>RFC2205-3.1.2-1</code></a></h3>
-<p>Object lengths MUST be a multiple of 4 (§3.1.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>A 16-bit field containing the total object length in bytes.  Must always be a multiple of 4 (§3.1.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an object Length not a multiple of 4, sent or accepted. Send: TestRSVPObjectLengthMultipleOfFour errors on objLen%4 != 0 over every object of a built PATH, RESV and PathErr. Receive: TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected requires errBadObjLen for a Length-6 object. The positive tag&#39;s prose (&#39;Decode does not enforce %4&#39;) is stale.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L49" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L48" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1252,8 +1265,8 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </table>
 </div>
 <h3><a href="#rfc2205-3.1.3-1"><code>RFC2205-3.1.3-1</code></a></h3>
-<p>A received message MUST carry every object its Section 3.1 BNF writes unbracketed -- SESSION, RSVP_HOP and TIME_VALUES in a Path, those three plus STYLE in a Resv, SESSION and RSVP_HOP in a PathTear, SESSION and ERROR_SPEC in a PathErr, and SESSION, ERROR_SPEC, RESV_CONFIRM and STYLE in a ResvConf: each node is required to verify the correct construction of each message it receives, and a malformed message is logged locally rather than reported in an ERROR_SPEC (Appendix B) (§3.1.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Similarly, each node is required to verify the correct construction of each RSVP message it receives.  Should a programming error allow an RSVP to create a malformed message, the error is not generally reported to end systems in an ERROR_SPEC object; instead, the error is simply logged locally, and perhaps reported through network management mechanisms. (§B)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Verify clause: TestDecodeMandatoryObjects requires DecodeMessage to fail for each message type missing a required object, and TestEnginePathWithoutTimeValuesDropped asserts no state. Not-reported-in-ERROR_SPEC clause: the same test asserts no PathErr and no RESV. &#39;Logged locally&#39; clause: no tagged unit asserts a log record for the malformed message, so a silent drop stays green. Re-judged 2026-09-27 by QF-2 after the row&#39;s citation moved to the appendix the sentence is in; the text is unchanged and the tagged units were re-read. Weak stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1282,12 +1295,12 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </table>
 </div>
 <h3><a href="#rfc2205-3.1-3"><code>RFC2205-3.1-3</code></a></h3>
-<p>A nonzero checksum MUST be verified on receipt; drop messages with bad checksum (§3.1)</p>
+<p>The choice of message formatting errors that an RSVP may detect and log locally is implementation-specific, but it will typically include the following: o Wrong-length message: RSVP Length field does not match message length. o Unknown or unsupported RSVP version. o Bad RSVP checksum (§B)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-3.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-x-1"><code>RFC2205-x-1</code></a></h3>
-<p>IP Router Alert option MUST be set in PATH messages (Transport)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>RSVP must be able to cause Path, PathTear, and ResvConf message to be sent with the Router Alert IP option. (§3.11.5)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak (agrees with blind reader). Forbidden: Path, PathTear or ResvConf leaving without Router Alert. TestIntegrationRSVPPathCarriage proves only that Transport.SendPath writes option 94040000 for a hand-built ResvConf the test passes it. The engine&#39;s own ResvConf emission (confirmation.go originate and handleResvConf relay, both e.transport.SendPath) is in no tagged unit: TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier&#39;s scenario emits no ResvConf and never asserts seen[MsgTypeResvConf], so its ResvConf switch arm is vacuous and switching ResvConf to Send stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1306,14 +1319,14 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </table>
 </div>
 <h3><a href="#rfc2205-3.10-1"><code>RFC2205-3.10-1</code></a></h3>
-<p>Unknown Class-Num of the form 0bbbbbbb: reject the entire message and return an &#34;Unknown Object Class&#34; error (§3.10)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Class-Num = 0bbbbbbb The entire message should be rejected and an &#34;Unknown Object Class&#34; error returned. (§3.10)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Reject clause: TestDecodeUnknownObjectClass asserts only that DecodeMessage flags HasUnknownObject for 0bbbbbbb classes; no tagged unit asserts the engine discards the message. Error clause: no tagged unit asserts an &#39;Unknown Object Class&#39; (code 13) error is returned; the untagged assertion at frr_test.go:909 does, under another tag.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L954" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithIgnorableObjectAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L949" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithIgnorableObjectAccepted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1348,7 +1361,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <p>No test carries RFC2205-1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-2-1"><code>RFC2205-2-1</code></a></h3>
 <p>These messages must follow exactly the reverse of the path(s) the data packets will use, upstream to all the sender hosts included in the sender selection. (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Reverse-path clause: TestRFC2205ResvSentToPreviousHop asserts the egress RESV goes to the PATH&#39;s previous hop, one hop only. &#39;Upstream to all the sender hosts included in the sender selection&#39;: no tagged unit follows the RESV hop by hop to the sender or covers a sender selection with more than one sender. The negative (no relay without path state) proves a neighbouring rule.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1435,6 +1448,26 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <p>If this update results in modification of state to be forwarded in refresh messages, these refresh messages must be generated and forwarded immediately, so that state changes can be propagated end-to-end without delay. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-2-5, so no unit is bound to it.</p>
+<h3><a href="#rfc2205-2.3-1"><code>RFC2205-2.3-1</code></a></h3>
+<p>RSVP soft state is created and periodically refreshed by Path and Resv messages. The state is deleted if no matching refresh messages arrive before the expiration of a &#34;cleanup timeout&#34; interval. (§2.3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Positive: TestRefreshResendsPathAndResv proves one refreshPaths tick re-sends a PATH for an ingress LSP and a RESV for an egress or transit LSP, not that refresh recurs periodically. Negative: TestRefreshDoesNotStampEgressPSB proves an unrefreshed PSB becomes eligible in expiredPSBs, not that the state is deleted at cleanup timeout, and nothing asserts Resv state expiry.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/softstate_test.go#L21" title="internal/plugins/rsvpte/softstate_test.go" target="_blank" rel="noopener"><code>TestRefreshDoesNotStampEgressPSB</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/softstate_test.go#L56" title="internal/plugins/rsvpte/softstate_test.go" target="_blank" rel="noopener"><code>TestRefreshResendsPathAndResv</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc2205-2-6"><code>RFC2205-2-6</code></a></h3>
 <p>Conversely, state that is forwarded out interface I* must be computed using only state that arrived on interfaces different from I*. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1460,11 +1493,11 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </table>
 </div>
 <h3><a href="#rfc2205-2-8"><code>RFC2205-2-8</code></a></h3>
-<p>A reservation error must be reported to all of the responsible receivers (§2)</p>
+<p>Since a request that fails may be the result of merging a number of requests, a reservation error must be reported to all of the responsible receivers. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-2-8, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-2-9"><code>RFC2205-2-9</code></a></h3>
-<p>Blockade state must not deny service to a smaller reservation that would succeed, and must not remove the state or prevent its immediate refresh (§2)</p>
+<p>The blockade state in each downstream router must not remove the state or prevent its immediate refresh. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-2-9, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-2-10"><code>RFC2205-2-10</code></a></h3>
@@ -1480,8 +1513,8 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-2-12, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-3-1"><code>RFC2205-3-1</code></a></h3>
-<p>An RSVP implementation must recognize the object classes Section 3 lists (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>An RSVP implementation must recognize the following classes: (§3.1.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Quote: must recognize the following classes (NULL, SESSION, RSVP_HOP, TIME_VALUES, STYLE, FLOWSPEC, FILTER_SPEC, SENDER_TEMPLATE, SENDER_TSPEC, ADSPEC, ERROR_SPEC, POLICY_DATA, INTEGRITY, SCOPE, RESV_CONFIRM). Tagged units assert recognition of NULL, INTEGRITY, POLICY_DATA, ADSPEC, SCOPE, RESV_CONFIRM and the PATH/RESV mandatory set; ERROR_SPEC is in no 3-1 tagged unit, so classifying it unknown stays green here.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1511,18 +1544,18 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </div>
 <h3><a href="#rfc2205-3-2"><code>RFC2205-3-2</code></a></h3>
 <p>The IP source address of a Path message must be an address of the sender it describes, while the destination address must be the DestAddress for the session. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a PATH whose IP source is not the sender, or whose IP destination is not the session DestAddress. TestRFC2205PathIPAddressesAreSenderAndSession requires Source == sender and Destination == tunnel endpoint for an originated and a relayed PATH; TestRFC2205PathIPAddressesNeverHopAddresses requires neither to be a hop address.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L107" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathIPAddressesNeverHopAddresses</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L106" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathIPAddressesNeverHopAddresses</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L94" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathIPAddressesAreSenderAndSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L93" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathIPAddressesAreSenderAndSession</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1534,7 +1567,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-3-4"><code>RFC2205-3-4</code></a></h3>
-<p>Path messages and filter spec matching must satisfy the SrcPort and DstPort consistency rules: the DstPort values for one DestAddress and ProtocolId are all zero or all non-zero, a zero DstPort forces zero SrcPort, and a sender host must not send path state both with and without a zero SrcPort (§3)</p>
+<p>Path state and reservation state for the same DestAddress and ProtocolId must each have DstPort values that are all zero or all non-zero.  Violation of this condition in a node is a &#34;Conflicting Dest Ports&#34; error.  2.   Destination ports rule.  If DstPort in a session definition is zero, all SrcPort fields used for that session must also be zero.  The assumption here is that the protocol does not have UDP/TCP- like ports.   Violation of this condition in a node is a &#34;Bad Src Ports&#34; error.  3.   Source Ports must be consistent.  A sender host must not send path state both with and without a zero SrcPort. (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-3-5"><code>RFC2205-3-5</code></a></h3>
@@ -1567,18 +1600,18 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <p>No test carries RFC2205-3-11, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-3-12"><code>RFC2205-3-12</code></a></h3>
 <p>A PathTear message must be routed exactly like the corresponding Path message. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Forbidden: a PathTear routed differently from its PATH. TestRFC2205PathTearRoutedLikePath compares only Source, Destination and NextHop of the relayed PathTear&#39;s PathRoute with the PATH&#39;s; PathRoute also carries TableID, IfIndex and Lookup (transport.go), so a PathTear handed a different table, interface or loose-hop lookup than its PATH stays green. Only a transit relay is exercised: a PathTear the ingress originates at teardown is in no tagged unit. The negative (not via Send, source not the transit) proves a neighbouring addressing rule.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L133" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearNotAddressedHopByHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L132" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearNotAddressedHopByHop</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L119" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearRoutedLikePath</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L118" title="internal/plugins/rsvpte/carrier_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearRoutedLikePath</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1586,12 +1619,12 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </table>
 </div>
 <h3><a href="#rfc2205-3-13"><code>RFC2205-3-13</code></a></h3>
-<p>A SENDER_TSPEC or ADSPEC object in a PathTear, and a SCOPE object in a ResvTear, must be ignored (§3)</p>
+<p>A PathTear message may include a SENDER_TSPEC or ADSPEC object in its sender descriptor, but these must be ignored. (§3.1.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-3-13, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-3-14"><code>RFC2205-3-14</code></a></h3>
-<p>Deletion of path state by PathTear or timeout must also adjust related reservation state to maintain consistency in the local node (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Deletion of path state as the result of a PathTear message or a timeout must also adjust related reservation state as required to maintain consistency in the local node. (§3.1.5)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. PathTear clause: TestRFC2205PathTearReleasesReservation asserts the reservation bandwidth is released and TestRFC2205PathTearForOtherLSPLeavesReservation that an unmatched tear leaves it. Timeout clause: no tagged unit expires path state by timeout and asserts the reservation is adjusted.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1642,7 +1675,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-3-23, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-3-24"><code>RFC2205-3-24</code></a></h3>
-<p>Where reservation state from a NHOP carries no SCOPE object, a substitute sender list must be created and included in the union (§3)</p>
+<p>If reservation state from some NHOP does not contain a SCOPE object, a substitute sender list must be created and included in the union. (§3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-3-24, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-3-25"><code>RFC2205-3-25</code></a></h3>
@@ -1650,7 +1683,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-3-25, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-3-26"><code>RFC2205-3-26</code></a></h3>
-<p>RSVP must avoid refresh message synchronization and ensure that any synchronization that occurs is not stable (§3)</p>
+<p>Since RSVP sends periodic refresh messages, it must avoid message synchronization and ensure that any synchronization that may occur is not stable. (§3.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-3-26, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-3-27"><code>RFC2205-3-27</code></a></h3>
@@ -1686,7 +1719,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-3-34, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-3-35"><code>RFC2205-3-35</code></a></h3>
-<p>A forwarded message carrying objects of unknown class must obey the general object order requirements for its message type (§3)</p>
+<p>The original order of such unknown-class objects need not be retained; however, the message that is forwarded must obey the general order requirements for its message type. (§3.10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-3-35, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-3-36"><code>RFC2205-3-36</code></a></h3>
@@ -1695,18 +1728,18 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <p>No test carries RFC2205-3-36, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-3-37"><code>RFC2205-3-37</code></a></h3>
 <p>To forward Path and PathTear messages, an RSVP process must be able to query the routing process(s) for routes. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity capability. Forbidden: forwarding PATH or PathTear without a routing query. TestIntegrationRSVPPathCarriage sends PATH and PathTear through SendPath, which calls RouteGetWithOptions, and fails unless the frame&#39;s L2 destination is the explicit hop; TestIntegrationRSVPPathAvoidsDataFEC resolves through ResolveRoute and asserts the PATH reaches the selected hop.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L479" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L478" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L392" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L391" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1725,7 +1758,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L480" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L479" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1734,13 +1767,13 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </div>
 <h3><a href="#rfc2205-3-40"><code>RFC2205-3-40</code></a></h3>
 <p>On a router or multi-homed host, the identity of the interface (real or virtual) on which a diverted message is received, as well as the IP source address and IP TTL with which it arrived, must also be available to the RSVP process. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity capability. Forbidden: the RSVP process not seeing arrival interface, IP source or IP TTL of a diverted message. TestIntegrationRSVPPathCarriage fails unless packet.Src, Dst, TTL and IfIndex match the sent route, TTL and receiving link, for a destination not local to the receiver.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L393" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L392" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1749,13 +1782,13 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </div>
 <h3><a href="#rfc2205-3-41"><code>RFC2205-3-41</code></a></h3>
 <p>RSVP must be able to force a (multicast) datagram to be sent on a specific outgoing real or virtual link, bypassing the normal routing mechanism. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity capability. Forbidden: a PATH following the ordinary route instead of the forced link. TestIntegrationRSVPPathCarriage fails unless the frame&#39;s L2 destination is link 0&#39;s peer while the endpoint&#39;s ordinary route uses link 1, as the Send control on link 1 shows.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L394" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L393" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1770,7 +1803,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L395" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L394" title="internal/plugins/rsvpte/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1782,20 +1815,20 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-3-43, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-4-1"><code>RFC2205-4-1</code></a></h3>
-<p>This field must be non-zero. (§4)</p>
+<p>This field must be non-zero. (§A)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-4-2"><code>RFC2205-4-2</code></a></h3>
-<p>This field must be non-zero. (§4)</p>
+<p>This field must be non-zero. (§A)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-4-3"><code>RFC2205-4-3</code></a></h3>
-<p>The addresses must be listed in ascending numerical order. (§4)</p>
+<p>The addresses must be listed in ascending numerical order. (§A)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-4-4"><code>RFC2205-4-4</code></a></h3>
-<p>Similarly, each node is required to verify the correct construction of each RSVP message it receives. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Similarly, each node is required to verify the correct construction of each RSVP message it receives. (§B)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Quote obliges verifying the construction of EACH RSVP message received. Tagged negatives cover a PATH without SESSION (errObjectAbsent) and RESV object-order violations (wire_rfc3209_test.go); no tagged unit feeds a malformed PathTear, ResvTear, PathErr, ResvErr or ResvConf, so dropping construction checks for those types stays green. Re-judged 2026-09-27 by QF-2 after the row&#39;s citation moved to the appendix the sentence is in; the text is unchanged and the tagged units were re-read. Weak stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1824,7 +1857,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </table>
 </div>
 <h3><a href="#rfc2205-4-5"><code>RFC2205-4-5</code></a></h3>
-<p>A host that cannot do raw network I/O must encapsulate RSVP messages in UDP, using a scheme that allows RSVP interoperation among an arbitrary topology of hosts and routers (§4)</p>
+<p>However, some important classes of host systems may not support raw network I/O.  To use RSVP, such hosts must encapsulate RSVP messages in UDP.  The basic UDP encapsulation scheme makes two assumptions:  1.   All hosts are capable of sending and receiving multicast packets if multicast destinations are to be supported.  2.   The first/last-hop routers are RSVP-capable.  A method of relaxing the second assumption is given later.  Let Hu be a &#34;UDP-only&#34; host that requires UDP encapsulation, and Hr a host that can do raw network I/O.  The UDP encapsulation scheme must allow RSVP interoperation among an arbitrary topology of Hr hosts, Hu hosts, and routers. (§C)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2205-4-5, so no unit is bound to it.</p>
 </section>
@@ -1837,7 +1870,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-09-27</td>
 </tr>
 <tr><td>Register</td>
 <td>prose</td>
@@ -1897,9 +1930,33 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </tr>
 <tr><td><code>4</code></td>
 <td>not stated</td>
-<td>14</td>
+<td>0</td>
 <td>walked</td>
 <td>not stated</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>Appendix A</td>
+<td>4</td>
+<td>walked</td>
+<td>Appendix A. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of section 4, where its 4 site(s) were walked; every decision is carried forward by its verbatim quote.</td>
+</tr>
+<tr><td><code>B</code></td>
+<td>Appendix B</td>
+<td>5</td>
+<td>walked</td>
+<td>Appendix B. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of section 4, where its 5 site(s) were walked; every decision is carried forward by its verbatim quote.</td>
+</tr>
+<tr><td><code>C</code></td>
+<td>Appendix C</td>
+<td>4</td>
+<td>walked</td>
+<td>Appendix C. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of section 4, where its 4 site(s) were walked; every decision is carried forward by its verbatim quote.</td>
+</tr>
+<tr><td><code>D</code></td>
+<td>Appendix D</td>
+<td>1</td>
+<td>walked</td>
+<td>Appendix D. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of section 4, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote.</td>
 </tr>
 </tbody>
 </table>
@@ -2144,47 +2201,47 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>the interface requirement behind the Router Alert obligation the row already carries</td>
 <td>RSVP must be able to cause Path, PathTear, and ResvConf message to be sent with the Router Alert IP option. 3.11.6 Service-Dependent Manipulations</td>
 </tr>
-<tr><td><code>4:4</code></td>
+<tr><td><code>A:4</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>the bare &#39;Must be non-zero.&#39; of a later object field description in the same appendix, repeating the non-zero field constraint</td>
 <td>Must be non-zero.</td>
 </tr>
-<tr><td><code>4:5</code></td>
+<tr><td><code>B:1</code></td>
 <td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
 <td>the description of an error code value: what Error Code 2 means, with credentials named as an example</td>
 <td>Reservation or path message has been rejected for administrative reasons, for example, required credentials not submitted, insufficient quota or balance, or administrative preemption.</td>
 </tr>
-<tr><td><code>4:6</code></td>
+<tr><td><code>B:2</code></td>
 <td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
 <td>the description of an error code value carrying an API error, not an obligation on the protocol</td>
 <td>Error Value field contains an API error code, for an API error that was detected asynchronously and must be reported via an upcall. o Error Code = 21: Traffic Control Error</td>
 </tr>
-<tr><td><code>4:8</code></td>
+<tr><td><code>B:4</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>one bullet of the list of construction faults the verification at site 4:7 detects</td>
 <td>o Required object class (specify) missing</td>
 </tr>
-<tr><td><code>4:9</code></td>
+<tr><td><code>B:5</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>two more bullets of the same list of construction faults</td>
 <td>o Violation of required object order o Flow descriptor count wrong for style or message type</td>
 </tr>
-<tr><td><code>4:11</code></td>
+<tr><td><code>C:2</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>the interoperation property of the same UDP encapsulation scheme</td>
 <td>The UDP encapsulation scheme must allow RSVP interoperation among an arbitrary topology of Hr hosts, Hu hosts, and routers.</td>
 </tr>
-<tr><td><code>4:12</code></td>
+<tr><td><code>C:3</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>a TTL detail of the same UDP encapsulation scheme</td>
 <td>Here Ta must be the TTL to exactly reach R.</td>
 </tr>
-<tr><td><code>4:13</code></td>
+<tr><td><code>C:4</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>the configuration detail of the same UDP encapsulation scheme</td>
 <td>The host Hu must be explicitly configured with Ra and Ta.</td>
 </tr>
-<tr><td><code>4:14</code></td>
+<tr><td><code>D:1</code></td>
 <td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
 <td>the definition of an RSVP session: one simplex unicast or multicast data flow</td>
 <td>An RSVP session defines one simplex unicast or multicast data flow for which reservations are required.</td>
@@ -2225,7 +2282,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

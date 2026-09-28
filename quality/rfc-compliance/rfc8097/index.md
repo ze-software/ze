@@ -56,6 +56,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 5 |
 | Not applicable, so out of scope | 5 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
@@ -92,23 +93,23 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8097-2-1` | Reserved field (bytes 2-6) must be set to 0 on transmission (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not implement the RFC 8097 BGP Prefix Origin Validation State Extended Community. It performs local RFC 6811 origin validation (internal/component/bgp/plugins/rpki/validate.go) but has no encoder for the origin-validation-state extended community (type 0x43); its extended-community codec is a generic opaque 8-octet carrier (internal/core/bgp/attribute/community.go:231 ExtendedCommunity [8]byte), so Ze never originates this community and has no Reserved field to zero. |
-| `RFC8097-2-2` | Reserved field must be ignored upon receipt (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not decode the origin-validation-state extended community; ParseExtendedCommunities (internal/core/bgp/attribute/community.go:275) retains every extended community as an opaque 8-octet value and never interprets bytes 2-6 as a reserved field, so there is no RFC 8097 Reserved field for Ze to ignore. |
+| `RFC8097-2-1` | The Reserved field MUST be set to 0 (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not implement the RFC 8097 BGP Prefix Origin Validation State Extended Community. It performs local RFC 6811 origin validation (internal/component/bgp/plugins/rpki/validate.go) but has no encoder for the origin-validation-state extended community (type 0x43); its extended-community codec is a generic opaque 8-octet carrier (internal/core/bgp/attribute/community.go:231 ExtendedCommunity [8]byte), so Ze never originates this community and has no Reserved field to zero. |
+| `RFC8097-2-2` | The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not decode the origin-validation-state extended community; ParseExtendedCommunities (internal/core/bgp/attribute/community.go:275) retains every extended community as an opaque 8-octet value and never interprets bytes 2-6 as a reserved field, so there is no RFC 8097 Reserved field for Ze to ignore. |
 | `RFC8097-2-3` | However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not process the origin-validation-state extended community (no type-0x43 decoder; community.go:275 keeps ext-communities opaque), so there is no validation-state value to compare across instances and no greatest-state selection code path. |
 | `RFC8097-2-4` | By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not recognize or process the origin-validation-state extended community (no type-0x43 handling; community.go:275), so it applies no RFC 8097 semantics -- there is no origin-validation-state community for Ze to drop-vs-process based on the eBGP/iBGP peer type. |
 | `RFC8097-2-5` | If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not decode the origin-validation-state extended community's validation-state octet (community.go:275 keeps the 8-octet value opaque and never reads it as a validation state), so it has no code path that could observe a state value > 2 to apply the RFC 7606 discard against. |
-| `RFC8097-2-6` | Attach the origin validation state extended community to BGP UPDATE messages sent to iBGP peers when configured to support this extension (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8097-2-7` | Derive validation state from the extended community in absence of locally-computed validation state (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8097-2-8` | Send more than one instance of the origin validation state extended community (§2) | SHOULD NOT | 2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8097-2-9` | Send the community to EBGP peers by default (§2) | SHOULD NOT | 2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8097-2-10` | Be configurable to send or accept the community to/from EBGP peers when warranted (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8097-2-6` | If the router is configured to support the extensions defined in this document, it SHOULD attach the origin validation state extended community to BGP UPDATE messages sent to IBGP peers by mapping the computed validation state in the last octet of the extended community. (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8097-2-7` | Similarly, a receiving BGP speaker, in the absence of validation state set based on local data, SHOULD derive a validation state from the last octet of the extended community, if present. (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8097-2-8` | An implementation SHOULD NOT send more than one instance of the origin validation state extended community. (§2) | SHOULD NOT | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8097-2-9` | Similarly, by default, an implementation SHOULD NOT send the community to EBGP peers. (§2) | SHOULD NOT | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8097-2-10` | However, it SHOULD be possible to configure an implementation to send or accept the community when warranted. (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC8097-2-1`](#rfc8097-2-1) Reserved field (bytes 2-6) must be set to 0 on transmission (§2) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 8097 BGP Prefix Origin Validation State Extended Community. It performs local RFC 6811 origin validation (internal/component/bgp/plugins/rpki/validate.go) but has no encoder for the origin-validation-state extended community (type 0x43); its extended-community codec is a generic opaque 8-octet carrier (internal/core/bgp/attribute/community.go:231 ExtendedCommunity [8]byte), so Ze never originates this community and has no Reserved field to zero. |
-| [`RFC8097-2-2`](#rfc8097-2-2) Reserved field must be ignored upon receipt (§2) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not decode the origin-validation-state extended community; ParseExtendedCommunities (internal/core/bgp/attribute/community.go:275) retains every extended community as an opaque 8-octet value and never interprets bytes 2-6 as a reserved field, so there is no RFC 8097 Reserved field for Ze to ignore. |
+| [`RFC8097-2-1`](#rfc8097-2-1) The Reserved field MUST be set to 0 (§2) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 8097 BGP Prefix Origin Validation State Extended Community. It performs local RFC 6811 origin validation (internal/component/bgp/plugins/rpki/validate.go) but has no encoder for the origin-validation-state extended community (type 0x43); its extended-community codec is a generic opaque 8-octet carrier (internal/core/bgp/attribute/community.go:231 ExtendedCommunity [8]byte), so Ze never originates this community and has no Reserved field to zero. |
+| [`RFC8097-2-2`](#rfc8097-2-2) The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not decode the origin-validation-state extended community; ParseExtendedCommunities (internal/core/bgp/attribute/community.go:275) retains every extended community as an opaque 8-octet value and never interprets bytes 2-6 as a reserved field, so there is no RFC 8097 Reserved field for Ze to ignore. |
 | [`RFC8097-2-3`](#rfc8097-2-3) However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not process the origin-validation-state extended community (no type-0x43 decoder; community.go:275 keeps ext-communities opaque), so there is no validation-state value to compare across instances and no greatest-state selection code path. |
 | [`RFC8097-2-4`](#rfc8097-2-4) By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not recognize or process the origin-validation-state extended community (no type-0x43 handling; community.go:275), so it applies no RFC 8097 semantics -- there is no origin-validation-state community for Ze to drop-vs-process based on the eBGP/iBGP peer type. |
 | [`RFC8097-2-5`](#rfc8097-2-5) If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not decode the origin-validation-state extended community's validation-state octet (community.go:275 keeps the 8-octet value opaque and never reads it as a validation state), so it has no code path that could observe a state value > 2 to apply the RFC 7606 discard against. |
@@ -119,7 +120,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC8097-2-1`](#rfc8097-2-1)
 
-Reserved field (bytes 2-6) must be set to 0 on transmission (§2)
+The Reserved field MUST be set to 0 (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -127,7 +128,7 @@ No test carries RFC8097-2-1, so no unit is bound to it.
 
 ### [`RFC8097-2-2`](#rfc8097-2-2)
 
-Reserved field must be ignored upon receipt (§2)
+The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 

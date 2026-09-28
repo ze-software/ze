@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 15.0% | 3 of 20 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 17 | of 20 gated MUSTs judged | 7 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 20 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 20 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 3 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 32 |
 | Tagged units | 32 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 17 |
 | Discrimination records | 32 |
 | Summary | `rfc/short/rfc9514.md` |
 | Requirement shard | `rfc/requirements/rfc9514.md` |
@@ -109,37 +111,37 @@ Native OSPFv3 SRv6 state and SRv6 BGP EPE segment assignment are absent. SID Str
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC9514-3.1-1` | A single instance of the SRv6 Capabilities TLV (1038) MUST be included in the BGP-LS Attribute for each SRv6-capable node (§3.1) | MUST | 3.1 - SRv6 Capabilities TLV | **positive:** `unit/verify` [`TestRFC9514ISISSRv6CapabilitiesSingleInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L82). **negative:** `unit/verify` [`TestRFC9514ISISSRv6CapabilitiesSingleInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L91) |
-| `RFC9514-3.1-2` | Reserved field in SRv6 Capabilities TLV MUST be set to 0 when originated (§3.1) | MUST | 3.1 - SRv6 Capabilities TLV | **positive:** `unit/verify` [`TestRFC9514NativeSRv6Advertisements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L40). **negative:** `unit/verify` [`TestRFC9514NativeSRv6ReservedCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L58) |
-| `RFC9514-3.1-3` | The Reserved field of the SRv6 Capabilities TLV MUST be ignored on receipt (§3.1) | MUST | 3.1 - SRv6 Capabilities TLV | **positive:** `unit/verify` [`TestRFC9514CapabilitiesDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L131). **negative:** `unit/verify` [`TestRFC9514CapabilitiesReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L143) |
-| `RFC9514-4.1-1` | Reserved field in SRv6 End.X SID TLV MUST be set to 0 when originated (§4.1) | MUST | 4.1 - SRv6 End.X SID TLV | **positive:** `unit/verify` [`TestRFC9514ISISEndXReservedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L107). **negative:** `unit/verify` [`TestRFC9514ISISEndXReservedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L110) |
-| `RFC9514-4.1-2` | The Reserved field of the SRv6 End.X SID TLV MUST be ignored on receipt (§4.1) | MUST | 4.1 - SRv6 End.X SID TLV | **positive:** `unit/verify` [`TestRFC9514EndXSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L43). **negative:** `unit/verify` [`TestRFC9514EndXSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L44) |
-| `RFC9514-4.2-1` | Reserved field in SRv6 LAN End.X SID TLV MUST be set to 0 when originated (§4.2) | MUST | 4.2 - SRv6 LAN End.X SID TLV | **positive:** `unit/verify` [`TestRFC9514ISISEndXReservedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L108). **negative:** `unit/verify` [`TestRFC9514ISISEndXReservedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L111) |
-| `RFC9514-4.2-2` | The Reserved field of the SRv6 LAN End.X SID TLV MUST be ignored on receipt (§4.2) | MUST | 4.2 - SRv6 LAN End.X SID TLV | **positive:** `unit/verify` [`TestRFC9514EndXSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L45). **negative:** `unit/verify` [`TestRFC9514EndXSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L46) |
-| `RFC9514-5.1-1` | Reserved field in SRv6 Locator TLV MUST be set to 0 when originated (§5.1) | MUST | 5.1 - SRv6 Locator TLV | **positive:** `unit/verify` [`TestRFC9514NativeSRv6Advertisements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L41). **negative:** `unit/verify` [`TestRFC9514NativeSRv6ReservedCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L59) |
-| `RFC9514-5.1-2` | The Reserved field of the SRv6 Locator TLV MUST be ignored on receipt (§5.1) | MUST | 5.1 - SRv6 Locator TLV | **positive:** `unit/verify` [`TestRFC9514LocatorDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L155). **negative:** `unit/verify` [`TestRFC9514LocatorReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L183) |
-| `RFC9514-6-1` | SRv6 SID Descriptors MUST contain a single SRv6 SID Information TLV (518) (§6) | MUST | 6 - SRv6 SID NLRI | **positive:** `unit/verify` [`TestRFC9514NativeSRv6Advertisements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L42). **negative:** no negative test. **{single-polarity}:** internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology passes one SRv6SID to ls.NewBGPLSSRv6SID, which writes the one SRv6SID field of SRv6SIDDescriptor as exactly one TLV 518, so no input can yield a second one for a negative case |
-| `RFC9514-7.1-1` | The SRv6 Endpoint Behavior TLV (1250) MUST be included in the BGP-LS Attribute associated with the SRv6 SID NLRI (§7.1) | MUST | 7.1 - SRv6 Endpoint Behavior TLV | **positive:** `unit/verify` [`TestRFC9514NativeSRv6Advertisements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L43). **negative:** `unit/verify` [`TestRFC9514NativeSIDRequiresEndpointBehavior`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L68) |
-| `RFC9514-7.1-2` | Undefined flags in SRv6 Endpoint Behavior TLV MUST be set to 0 when originating (§7.1) | MUST | 7.1 - SRv6 Endpoint Behavior TLV | **positive:** `unit/verify` [`TestRFC9514ISISEndpointBehaviorFlagsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L136). **negative:** `unit/verify` [`TestRFC9514ISISEndpointBehaviorFlagsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L137) |
-| `RFC9514-7.1-4` | Undefined flags in the SRv6 Endpoint Behavior TLV MUST be ignored on receipt (§7.1) | MUST | 7.1 - SRv6 Endpoint Behavior TLV | **positive:** `unit/verify` [`TestRFC9514EndpointBehaviorUndefinedFlagsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L70). **negative:** `unit/verify` [`TestRFC9514EndpointBehaviorUndefinedFlagsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L71) |
+| `RFC9514-3.1-1` | A single instance of this TLV MUST be included in the BGP-LS Attribute for each SRv6-capable node. (§3.1) | MUST | 3.1 - SRv6 Capabilities TLV | **positive:** `unit/verify` [`TestRFC9514ISISSRv6CapabilitiesSingleInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L82). **negative:** `unit/verify` [`TestRFC9514ISISSRv6CapabilitiesSingleInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L91) |
+| `RFC9514-3.1-2` | Reserved: 2-octet field that MUST be set to 0 when originated (§3.1) | MUST | 3.1 - SRv6 Capabilities TLV | **positive:** `unit/verify` [`TestRFC9514NativeSRv6Advertisements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L40). **negative:** `unit/verify` [`TestRFC9514NativeSRv6ReservedCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L58) |
+| `RFC9514-3.1-3` | Reserved: 2-octet field that MUST be set to 0 when originated and ignored on receipt. (§3.1) | MUST | 3.1 - SRv6 Capabilities TLV | **positive:** `unit/verify` [`TestRFC9514CapabilitiesDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L131). **negative:** `unit/verify` [`TestRFC9514CapabilitiesReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L143) |
+| `RFC9514-4.1-1` | Reserved: 1-octet field that MUST be set to 0 when originated (§4.1) | MUST | 4.1 - SRv6 End.X SID TLV | **positive:** `unit/verify` [`TestRFC9514ISISEndXReservedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L107). **negative:** `unit/verify` [`TestRFC9514ISISEndXReservedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L110) |
+| `RFC9514-4.1-2` | Reserved: 1-octet field that MUST be set to 0 when originated and ignored on receipt. (§4.1) | MUST | 4.1 - SRv6 End.X SID TLV | **positive:** `unit/verify` [`TestRFC9514EndXSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L43). **negative:** `unit/verify` [`TestRFC9514EndXSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L44) |
+| `RFC9514-4.2-1` | Reserved: 1-octet field that MUST be set to 0 when originated (§4.2) | MUST | 4.2 - SRv6 LAN End.X SID TLV | **positive:** `unit/verify` [`TestRFC9514ISISEndXReservedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L108). **negative:** `unit/verify` [`TestRFC9514ISISEndXReservedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L111) |
+| `RFC9514-4.2-2` | Reserved: 1-octet field that MUST be set to 0 when originated and ignored on receipt. (§4.2) | MUST | 4.2 - SRv6 LAN End.X SID TLV | **positive:** `unit/verify` [`TestRFC9514EndXSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L45). **negative:** `unit/verify` [`TestRFC9514EndXSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L46) |
+| `RFC9514-5.1-1` | Reserved: 2-octet field. The value MUST be set to 0 when originated (§5.1) | MUST | 5.1 - SRv6 Locator TLV | **positive:** `unit/verify` [`TestRFC9514NativeSRv6Advertisements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L41). **negative:** `unit/verify` [`TestRFC9514NativeSRv6ReservedCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L59) |
+| `RFC9514-5.1-2` | Reserved: 2-octet field. The value MUST be set to 0 when originated and ignored on receipt. (§5.1) | MUST | 5.1 - SRv6 Locator TLV | **positive:** `unit/verify` [`TestRFC9514LocatorDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L155). **negative:** `unit/verify` [`TestRFC9514LocatorReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L183) |
+| `RFC9514-6-1` | SRv6 SID Descriptors: Set of SRv6 SID Descriptor TLVs. This field MUST contain a single SRv6 SID Information TLV (§6) | MUST | 6 - SRv6 SID NLRI | **positive:** `unit/verify` [`TestRFC9514NativeSRv6Advertisements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L42). **negative:** no negative test. **{single-polarity}:** internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology passes one SRv6SID to ls.NewBGPLSSRv6SID, which writes the one SRv6SID field of SRv6SIDDescriptor as exactly one TLV 518, so no input can yield a second one for a negative case |
+| `RFC9514-7.1-1` | The SRv6 Endpoint Behavior TLV is a mandatory TLV that MUST be included in the BGP-LS Attribute associated with the BGP-LS SRv6 SID NLRI. (§7.1) | MUST | 7.1 - SRv6 Endpoint Behavior TLV | **positive:** `unit/verify` [`TestRFC9514NativeSRv6Advertisements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L43). **negative:** `unit/verify` [`TestRFC9514NativeSIDRequiresEndpointBehavior`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L68) |
+| `RFC9514-7.1-2` | Undefined flags MUST be set to 0 when originating (§7.1) | MUST | 7.1 - SRv6 Endpoint Behavior TLV | **positive:** `unit/verify` [`TestRFC9514ISISEndpointBehaviorFlagsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L136). **negative:** `unit/verify` [`TestRFC9514ISISEndpointBehaviorFlagsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L137) |
+| `RFC9514-7.1-4` | Undefined flags MUST be set to 0 when originating and ignored on receipt. (§7.1) | MUST | 7.1 - SRv6 Endpoint Behavior TLV | **positive:** `unit/verify` [`TestRFC9514EndpointBehaviorUndefinedFlagsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L70). **negative:** `unit/verify` [`TestRFC9514EndpointBehaviorUndefinedFlagsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L71) |
 | `RFC9514-7.1-3` | The algorithm value MUST be 0 unless an algorithm is associated locally with the SRv6 Locator from which the SID is allocated. (§7.1) | MUST | 7.1 - SRv6 Endpoint Behavior TLV | **positive:** `unit/verify` [`TestRFC9514ISISEndpointBehaviorAlgorithm`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9514_test.go#L154). **negative:** no negative test. **{single-polarity}:** the IS-IS source copies the algorithm of the locator the SID is allocated from into the TLV (internal/plugins/isis/bgpls_export.go::endSID) and reads no other algorithm, so both branches of the rule, 0 with no associated algorithm and the associated one otherwise, are conforming outputs the positive test asserts, and no input exists for a refusal |
-| `RFC9514-7.2-1` | SRv6 BGP PeerNode SID TLV (1251) MUST be included along with SRv6 SIDs associated with BGP PeerNode or PeerSet functionality (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** no positive test. **negative:** no negative test. **{gap}:** the LsSRv6BGPPeerNodeSID decoder and encoder exist but no EPE origination path instantiates or includes the TLV from a live session (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:78, :102, plugin.go:70-71) |
-| `RFC9514-7.2-2` | Reserved bits (3-7) in SRv6 BGP PeerNode SID flags MUST be set to 0 when originating (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder writes the Flags byte verbatim without masking bits 3-7 and no production path originates the TLV (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:81, plugin.go:70-71) |
-| `RFC9514-7.2-5` | The bits reserved for future use in the SRv6 BGP PeerNode SID Flags field MUST be ignored on receipt (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L108). **negative:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L109) |
-| `RFC9514-7.2-3` | Reserved field in SRv6 BGP PeerNode SID TLV MUST be set to 0 when originated (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder hardcodes both reserved octets to 0 but ze originates no SRv6 BGP PeerNode SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:83-84, plugin.go:70-71) |
-| `RFC9514-7.2-6` | The Reserved field of the SRv6 BGP PeerNode SID TLV MUST be ignored on receipt (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L121). **negative:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L122) |
-| `RFC9514-8-1` | SRv6 SID Structure sum (LB Length + LN Length + Fun. Length + Arg. Length) MUST be less than or equal to 128 (§8) | MUST | 8 - SRv6 SID Structure TLV | **positive:** `unit/verify` [`TestRFC9514NativeSIDStructureBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L85). **negative:** `unit/verify` [`TestRFC9514NativeSIDStructureBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L86) |
-| `RFC9514-11-1` | Isolation of BGP-LS peering sessions is RECOMMENDED to ensure SRv6 topology information is not advertised to external BGP peers outside the SR domain (§11) | SHOULD | 11 - Security Considerations | **positive:** no positive test. **negative:** no negative test |
-| `RFC9514-6-2` | SRv6 SID Descriptors MAY contain the Multi-Topology Identifier TLV (§6) | MAY | 6 - SRv6 SID NLRI | **positive:** no positive test. **negative:** no negative test |
-| `RFC9514-7.2-4` | A PeerSet SID MAY be assigned to one or more End.X SIDs (§7.2) | MAY | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** no positive test. **negative:** no negative test |
+| `RFC9514-7.2-1` | The SRv6 BGP PeerNode SID TLV is a mandatory TLV for use in the BGP-LS Attribute for an SRv6 SID NLRI advertised by BGP for the EPE functionality. This TLV MUST be included along with SRv6 SIDs that are associated with the BGP PeerNode or PeerSet functionality. (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** no positive test. **negative:** no negative test. **{gap}:** the LsSRv6BGPPeerNodeSID decoder and encoder exist but no EPE origination path instantiates or includes the TLV from a live session (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:78, :102, plugin.go:70-71) |
+| `RFC9514-7.2-2` | Other bits are reserved for future use and MUST be set to 0 when originated (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder writes the Flags byte verbatim without masking bits 3-7 and no production path originates the TLV (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:81, plugin.go:70-71) |
+| `RFC9514-7.2-5` | Other bits are reserved for future use and MUST be set to 0 when originated and ignored on receipt. (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L108). **negative:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L109) |
+| `RFC9514-7.2-3` | Reserved: 2-octet field. The value MUST be set to 0 when originated (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder hardcodes both reserved octets to 0 but ze originates no SRv6 BGP PeerNode SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:83-84, plugin.go:70-71) |
+| `RFC9514-7.2-6` | Reserved: 2-octet field. The value MUST be set to 0 when originated and ignored on receipt. (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L121). **negative:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go#L122) |
+| `RFC9514-8-1` | The sum of the LB Length, LN Length, Fun. Length, and Arg. Length MUST be less than or equal to 128. (§8) | MUST | 8 - SRv6 SID Structure TLV | **positive:** `unit/verify` [`TestRFC9514NativeSIDStructureBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L85). **negative:** `unit/verify` [`TestRFC9514NativeSIDStructureBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9514_test.go#L86) |
+| `RFC9514-11-1` | The isolation of BGP-LS peering sessions is RECOMMENDED to ensure that BGP-LS topology information (including the newly added SR information) is not advertised to an external BGP peering session outside the SR domain. (§11) | SHOULD | 11 - Security Considerations | **positive:** no positive test. **negative:** no negative test |
+| `RFC9514-6-2` | This field MUST contain a single SRv6 SID Information TLV (Section 6.1) and MAY contain the Multi-Topology Identifier TLV [RFC7752]. (§6) | MAY | 6 - SRv6 SID NLRI | **positive:** no positive test. **negative:** no negative test |
+| `RFC9514-7.2-4` | When set, the S-Flag indicates that the SID refers to a set of BGP peering sessions (i.e., BGP Peer Set SID functionality) and therefore MAY be assigned to one or more End.X SIDs associated with BGP peering sessions. (§7.2) | MAY | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC9514-7.2-1`](#rfc9514-7.2-1) SRv6 BGP PeerNode SID TLV (1251) MUST be included along with SRv6 SIDs associated with BGP PeerNode or PeerSet functionality (§7.2) | {gap}, no test | the LsSRv6BGPPeerNodeSID decoder and encoder exist but no EPE origination path instantiates or includes the TLV from a live session (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:78, :102, plugin.go:70-71) |
-| [`RFC9514-7.2-2`](#rfc9514-7.2-2) Reserved bits (3-7) in SRv6 BGP PeerNode SID flags MUST be set to 0 when originating (§7.2) | {gap}, no test | the encoder writes the Flags byte verbatim without masking bits 3-7 and no production path originates the TLV (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:81, plugin.go:70-71) |
-| [`RFC9514-7.2-3`](#rfc9514-7.2-3) Reserved field in SRv6 BGP PeerNode SID TLV MUST be set to 0 when originated (§7.2) | {gap}, no test | the encoder hardcodes both reserved octets to 0 but ze originates no SRv6 BGP PeerNode SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:83-84, plugin.go:70-71) |
+| [`RFC9514-7.2-1`](#rfc9514-7.2-1) The SRv6 BGP PeerNode SID TLV is a mandatory TLV for use in the BGP-LS Attribute for an SRv6 SID NLRI advertised by BGP for the EPE functionality. This TLV MUST be included along with SRv6 SIDs that are associated with the BGP PeerNode or PeerSet functionality. (§7.2) | {gap}, no test | the LsSRv6BGPPeerNodeSID decoder and encoder exist but no EPE origination path instantiates or includes the TLV from a live session (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:78, :102, plugin.go:70-71) |
+| [`RFC9514-7.2-2`](#rfc9514-7.2-2) Other bits are reserved for future use and MUST be set to 0 when originated (§7.2) | {gap}, no test | the encoder writes the Flags byte verbatim without masking bits 3-7 and no production path originates the TLV (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:81, plugin.go:70-71) |
+| [`RFC9514-7.2-3`](#rfc9514-7.2-3) Reserved: 2-octet field. The value MUST be set to 0 when originated (§7.2) | {gap}, no test | the encoder hardcodes both reserved octets to 0 but ze originates no SRv6 BGP PeerNode SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:83-84, plugin.go:70-71) |
 
 ## Proof state
 
@@ -147,9 +149,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC9514-3.1-1`](#rfc9514-3.1-1)
 
-A single instance of the SRv6 Capabilities TLV (1038) MUST be included in the BGP-LS Attribute for each SRv6-capable node (§3.1)
+A single instance of this TLV MUST be included in the BGP-LS Attribute for each SRv6-capable node. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an SRv6-capable node with no TLV 1038, or with two. TestRFC9514ISISSRv6CapabilitiesSingleInstance positive fails on len(got)!=1 for a node advertising SRv6 Capabilities (absence goes red); negative feeds two native sub-TLVs and fails on len(got)!=1 (a second instance goes red).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -158,9 +160,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-3.1-2`](#rfc9514-3.1-2)
 
-Reserved field in SRv6 Capabilities TLV MUST be set to 0 when originated (§3.1)
+Reserved: 2-octet field that MUST be set to 0 when originated (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a non-zero Reserved word in an originated TLV 1038. TestRFC9514NativeSRv6ReservedCleared feeds source reserved 0xffff and require.Equal on the emitted value {0x40,0,0,0} goes red if any reserved byte leaks; the positive pins the clean encoding with the flags preserved.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -169,9 +171,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-3.1-3`](#rfc9514-3.1-3)
 
-The Reserved field of the SRv6 Capabilities TLV MUST be ignored on receipt (§3.1)
+Reserved: 2-octet field that MUST be set to 0 when originated and ignored on receipt. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Receipt clause: TestRFC9514CapabilitiesReservedIgnored decodes TLV 1038 with Reserved 0xffff and asserts the exact map (flags only, following node-name present), red on a refusal or a leak. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero Reserved word in TLV 1038; that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -180,9 +182,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-4.1-1`](#rfc9514-4.1-1)
 
-Reserved field in SRv6 End.X SID TLV MUST be set to 0 when originated (§4.1)
+Reserved: 1-octet field that MUST be set to 0 when originated (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a non-zero Reserved octet in an originated End.X SID TLV 1106. TestRFC9514ISISEndXReservedZero fails on got[0][5]!=0 for both clean and all-ones native flags/weight.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -191,9 +193,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-4.1-2`](#rfc9514-4.1-2)
 
-The Reserved field of the SRv6 End.X SID TLV MUST be ignored on receipt (§4.1)
+Reserved: 1-octet field that MUST be set to 0 when originated and ignored on receipt. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Receipt clause: TestRFC9514EndXSIDReservedIgnored require.NoError on Reserved 0xFF and assert.Equal(zero, set) for TLV 1106, red on a refusal or the octet reaching a decoded field. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero Reserved octet in TLV 1106; that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -202,9 +204,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-4.2-1`](#rfc9514-4.2-1)
 
-Reserved field in SRv6 LAN End.X SID TLV MUST be set to 0 when originated (§4.2)
+Reserved: 1-octet field that MUST be set to 0 when originated (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a non-zero Reserved octet in an originated LAN End.X SID TLV. TestRFC9514ISISEndXReservedZero fails on got[0][5]!=0 for TLV 1107 with clean and all-ones native values. Ze originates no OSPFv3 1108 (no SRv6 code in internal/plugins/ospf).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -213,9 +215,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-4.2-2`](#rfc9514-4.2-2)
 
-The Reserved field of the SRv6 LAN End.X SID TLV MUST be ignored on receipt (§4.2)
+Reserved: 1-octet field that MUST be set to 0 when originated and ignored on receipt. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Receipt clause: TestRFC9514EndXSIDReservedIgnored subtests for 1107 and 1108, require.NoError and assert.Equal(zero, set), red on a refusal or a leak. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero Reserved octet in TLV 1107; that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -224,9 +226,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-5.1-1`](#rfc9514-5.1-1)
 
-Reserved field in SRv6 Locator TLV MUST be set to 0 when originated (§5.1)
+Reserved: 2-octet field. The value MUST be set to 0 when originated (§5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a non-zero Reserved word in an originated SRv6 Locator TLV 1162. TestRFC9514NativeSRv6ReservedCleared feeds reserved 0xffff and require.Equal on the whole emitted value goes red on a leak or on damage to following fields.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -235,9 +237,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-5.1-2`](#rfc9514-5.1-2)
 
-The Reserved field of the SRv6 Locator TLV MUST be ignored on receipt (§5.1)
+Reserved: 2-octet field. The value MUST be set to 0 when originated and ignored on receipt. (§5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Receipt clause: TestRFC9514LocatorReservedIgnored asserts the exact decoded map of TLV 1162 with Reserved 0xffff, red on a refusal or a leak. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero Reserved word in TLV 1162; that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -246,9 +248,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-6-1`](#rfc9514-6-1)
 
-SRv6 SID Descriptors MUST contain a single SRv6 SID Information TLV (518) (§6)
+SRv6 SID Descriptors: Set of SRv6 SID Descriptor TLVs. This field MUST contain a single SRv6 SID Information TLV (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: SRv6 SID Descriptors with zero or several SID Information TLVs. TestRFC9514NativeSRv6Advertisements require.Equal(t, [][]byte{sid[:]}, exportTLVValues(..., 518)) goes red on none or two; the row carries a {single-polarity} marker because the encoder writes one field.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -256,9 +258,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-7.1-1`](#rfc9514-7.1-1)
 
-The SRv6 Endpoint Behavior TLV (1250) MUST be included in the BGP-LS Attribute associated with the SRv6 SID NLRI (§7.1)
+The SRv6 Endpoint Behavior TLV is a mandatory TLV that MUST be included in the BGP-LS Attribute associated with the BGP-LS SRv6 SID NLRI. (§7.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an SRv6 SID NLRI whose attribute lacks TLV 1250. Positive require.Equal on the 1250 values goes red if absent; TestRFC9514NativeSIDRequiresEndpointBehavior require.Error on a replacement without 1250 and Len(commands,3) go red if it is advertised.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -267,9 +269,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-7.1-2`](#rfc9514-7.1-2)
 
-Undefined flags in SRv6 Endpoint Behavior TLV MUST be set to 0 when originating (§7.1)
+Undefined flags MUST be set to 0 when originating (§7.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: undefined flag bits set in an originated TLV 1250. TestRFC9514ISISEndpointBehaviorFlagsZero feeds native End SID flags 0xff and bytes.Equal to {0,1,0,0} goes red on any flag bit; IS-IS End SID defines no flag (RFC 9352), so every bit is undefined.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -278,9 +280,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-7.1-4`](#rfc9514-7.1-4)
 
-Undefined flags in the SRv6 Endpoint Behavior TLV MUST be ignored on receipt (§7.1)
+Undefined flags MUST be set to 0 when originating and ignored on receipt. (§7.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Receipt clause: TestRFC9514EndpointBehaviorUndefinedFlagsIgnored require.NoError on flags 0xFF and equality of EndpointBehavior and Algorithm with the clear case, red on a refusal or on behaviour changing. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero undefined flag in TLV 1250; that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -291,7 +293,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The algorithm value MUST be 0 unless an algorithm is associated locally with the SRv6 Locator from which the SID is allocated. (§7.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a non-zero algorithm for a SID whose locator has no algorithm, or another algorithm than the locator's. TestRFC9514ISISEndpointBehaviorAlgorithm fails on got[0][3]!=algo for locator algorithm 0 and 1. {single-polarity} marker: both branches are conforming outputs.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -299,7 +301,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-7.2-1`](#rfc9514-7.2-1)
 
-SRv6 BGP PeerNode SID TLV (1251) MUST be included along with SRv6 SIDs associated with BGP PeerNode or PeerSet functionality (§7.2)
+The SRv6 BGP PeerNode SID TLV is a mandatory TLV for use in the BGP-LS Attribute for an SRv6 SID NLRI advertised by BGP for the EPE functionality. This TLV MUST be included along with SRv6 SIDs that are associated with the BGP PeerNode or PeerSet functionality. (§7.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -307,7 +309,7 @@ No test carries RFC9514-7.2-1, so no unit is bound to it.
 
 ### [`RFC9514-7.2-2`](#rfc9514-7.2-2)
 
-Reserved bits (3-7) in SRv6 BGP PeerNode SID flags MUST be set to 0 when originating (§7.2)
+Other bits are reserved for future use and MUST be set to 0 when originated (§7.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -315,9 +317,9 @@ No test carries RFC9514-7.2-2, so no unit is bound to it.
 
 ### [`RFC9514-7.2-5`](#rfc9514-7.2-5)
 
-The bits reserved for future use in the SRv6 BGP PeerNode SID Flags field MUST be ignored on receipt (§7.2)
+Other bits are reserved for future use and MUST be set to 0 when originated and ignored on receipt. (§7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Receipt clause: TestRFC9514PeerNodeSIDReservedIgnored subtest reserved flag bits, require.NoError on 0xFF and equality of Weight, PeerAS, PeerBGPID with the 0xE0 case, red on a refusal or a leak. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero reserved flag bit in TLV 1251 (the sibling RFC9514-7.2-2 carries a {gap}); that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -326,7 +328,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-7.2-3`](#rfc9514-7.2-3)
 
-Reserved field in SRv6 BGP PeerNode SID TLV MUST be set to 0 when originated (§7.2)
+Reserved: 2-octet field. The value MUST be set to 0 when originated (§7.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -334,9 +336,9 @@ No test carries RFC9514-7.2-3, so no unit is bound to it.
 
 ### [`RFC9514-7.2-6`](#rfc9514-7.2-6)
 
-The Reserved field of the SRv6 BGP PeerNode SID TLV MUST be ignored on receipt (§7.2)
+Reserved: 2-octet field. The value MUST be set to 0 when originated and ignored on receipt. (§7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Receipt clause: TestRFC9514PeerNodeSIDReservedIgnored subtest reserved field, require.NoError on 0xFFFF and assert.Equal(base, set), red on a refusal or a leak. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero Reserved field in TLV 1251 (the sibling RFC9514-7.2-3 carries a {gap}); that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -345,9 +347,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9514-8-1`](#rfc9514-8-1)
 
-SRv6 SID Structure sum (LB Length + LN Length + Fun. Length + Arg. Length) MUST be less than or equal to 128 (§8)
+The sum of the LB Length, LN Length, Fun. Length, and Arg. Length MUST be less than or equal to 128. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: advertising a SID Structure whose four lengths sum above 128. TestRFC9514NativeSIDStructureBoundary accepts 32+32+16+48=128 (require.Equal on the emitted 1252) and require.Error plus Len(commands,3) go red if 129 is accepted or advertised.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

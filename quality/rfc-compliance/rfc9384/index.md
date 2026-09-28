@@ -57,6 +57,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 0 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 4 |
@@ -92,7 +93,7 @@ RFC 9384 declares no MUST-level requirement, so the gate counts nothing here.
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC9384-3-1` | When a BGP connection is terminated due to a BFD session going into the Down state, the BGP speaker SHOULD send a NOTIFICATION message with the error code "Cease" and the error subcode "BFD Down" (§3) | SHOULD | 3 - BFD Cease NOTIFICATION Subcode | **positive:** no positive test. **negative:** no negative test |
-| `RFC9384-4-1` | When there is a total loss of connectivity and the Cease NOTIFICATION message could not be sent, BGP speakers SHOULD provide this reason as part of their operational state (§4) | SHOULD | 4 - Operational Considerations | **positive:** `unit/verify` [`TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go#L29). **positive:** `unit/verify` [`TestNotificationRefusedBySocketStillRecordsTheReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L59). **negative:** `unit/verify` [`TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go#L33). **negative:** `unit/verify` [`TestNotificationDeliveredIsNotRecordedAsUnsent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L96) |
+| `RFC9384-4-1` | When there is a total loss of connectivity between two BGP speakers, it may not have been possible for the Cease NOTIFICATION message to have been sent. Even so, BGP speakers SHOULD provide this reason as part of their operational state. (§4) | SHOULD | 4 - Operational Considerations | **positive:** `unit/verify` [`TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go#L29). **positive:** `unit/verify` [`TestNotificationRefusedBySocketStillRecordsTheReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L59). **negative:** `unit/verify` [`TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go#L33). **negative:** `unit/verify` [`TestNotificationDeliveredIsNotRecordedAsUnsent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L96) |
 | `RFC9384-4-2` | When the procedures in [RFC8538] for sending a NOTIFICATION message with a "Cease" code and "Hard Reset" subcode are required, and the BGP connection is being terminated because BFD has gone into the Down state, the "BFD Down" subcode SHOULD be encapsulated in the Hard Reset's data portion of the NOTIFICATION message (§4) | SHOULD | 4 - Operational Considerations | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
@@ -105,7 +106,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC9384-4-1`](#rfc9384-4-1)
 
-When there is a total loss of connectivity and the Cease NOTIFICATION message could not be sent, BGP speakers SHOULD provide this reason as part of their operational state (§4)
+When there is a total loss of connectivity between two BGP speakers, it may not have been possible for the Cease NOTIFICATION message to have been sent. Even so, BGP speakers SHOULD provide this reason as part of their operational state. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 

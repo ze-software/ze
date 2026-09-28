@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5443 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5443: LDP IGP Synchronization. 8 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5443: LDP IGP Synchronization. 8 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5443 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5443: LDP IGP Synchronization. 8 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5443: LDP IGP Synchronization. 8 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5443 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5443: LDP IGP Synchronization. 8 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5443: LDP IGP Synchronization. 8 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>12.5%</strong><b>1 of 8 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 8 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>1</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>10</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -301,7 +305,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-1">RFC5443-2-1</code></td><td colspan="3"><span class="rfc-subject">While LDP is not fully operational on a link, the IGP advertises that link with maximum cost to avoid transit traffic (&#34;when LDP is not &#39;fully operational&#39; ... on a given link, the IGP will advertise the link with maximum cost to avoid any transit traffic over it&#34;) (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-1">RFC5443-2-1</code></td><td colspan="3"><span class="rfc-subject">In detail: when LDP is not &#34;fully operational&#34; (see below) on a given link, the IGP will advertise the link with maximum cost to avoid any transit traffic over it. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -310,7 +314,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncRestoresAfterHoldDown</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-2">RFC5443-2-2</code></td><td colspan="3"><span class="rfc-subject">In OSPF, the maximum cost advertised is LSInfinity, the 16-bit value `0xFFFF` (&#34;In the case of OSPF, this cost is LSInfinity (16-bit value 0xFFFF), as proposed in [RFC3137]&#34;) (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-2">RFC5443-2-2</code></td><td colspan="3"><span class="rfc-subject">In the case of OSPF, this cost is LSInfinity (16-bit value 0xFFFF), as proposed in [RFC3137]. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -319,7 +323,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L294" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncDisabledIsNoOp</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-3">RFC5443-2-3</code></td><td colspan="3"><span class="rfc-subject">In IS-IS, the maximum metric advertised is `2^24-2` (`0xFFFFFE`) (&#34;In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE)&#34;) (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-3">RFC5443-2-3</code></td><td colspan="3"><span class="rfc-subject">In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE). (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -328,7 +332,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze implements RFC 5443 LDP-IGP sync only in OSPF (internal/plugins/ospf/ldp_sync.go); IS-IS has no LDP-IGP sync state machine, so there is no IS-IS 2^24-2 max-metric cost-out producer (internal/plugins/isis defines only the generic MaxMetric topology-removal value)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-4">RFC5443-2-4</code></td><td colspan="3"><span class="rfc-subject">Do not advertise the IS-IS link at `2^24-1` (the per-RFC-5305 maximum link metric), because that removes the link from the topology and loses the last-resort IP path (&#34;if a link is configured with 2^24-1 ... then this link is not advertised in the topology. It is important to keep the link in the topology to allow IP traffic to use the link as a last resort&#34;) (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-4">RFC5443-2-4</code></td><td colspan="3"><span class="rfc-subject">Indeed, if a link is configured with 2^24-1 (the maximum link metric per [RFC5305]), then this link is not advertised in the topology. It is important to keep the link in the topology to allow IP traffic to use the link as a last resort in case of massive failure. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2</td>
@@ -337,7 +341,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no IS-IS LDP-IGP sync (internal/plugins/isis has no sync state machine), so it never originates an LDP-sync-driven IS-IS metric and cannot misuse the 2^24-1 value</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-5">RFC5443-2-5</code></td><td colspan="3"><span class="rfc-subject">Treat LDP as fully operational on a link only when all three conditions hold: an LDP hello adjacency exists, a suitable associated LDP session matching the hello adjacency&#39;s LDP Identifier is established to the peer at the other end of the link, and all label bindings have been exchanged over the session (&#34;LDP is considered fully operational on a link when an LDP hello adjacency exists on it, a suitable associated LDP session ... is established ... and all label bindings have been exchanged over the session&#34;) (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-5">RFC5443-2-5</code></td><td colspan="3"><span class="rfc-subject">LDP is considered fully operational on a link when an LDP hello adjacency exists on it, a suitable associated LDP session (matching the LDP Identifier of the hello adjacency) is established to the peer at the other end of the link, and all label bindings have been exchanged over the session. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -346,7 +350,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L190" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncRestoresAfterHoldDown</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-6">RFC5443-2-6</code></td><td colspan="3"><span class="rfc-subject">When LDP End-of-LIB is implemented, consider the neighbor LDP session fully operational only upon receipt of the End-of-LIB notification message (&#34;The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received&#34;) (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-6">RFC5443-2-6</code></td><td colspan="3"><span class="rfc-subject">The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -355,7 +359,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the precondition is unmet -- ze&#39;s LDP (internal/plugins/ldp) implements no End-of-LIB notification, so ze uses the RFC 5443 hold-down-estimate alternative instead</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-3-1">RFC5443-3-1</code></td><td colspan="3"><span class="rfc-subject">On broadcast links with more than one IGP/LDP peer, apply the cost-out procedure to the link as a whole, not to an individual peer (&#34;the cost-out procedure can only be applied to the link as a whole and not to an individual peer&#34;) (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-3-1">RFC5443-3-1</code></td><td colspan="3"><span class="rfc-subject">On broadcast links with more than one IGP/LDP peer, the cost-out procedure can only be applied to the link as a whole and not to an individual peer. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -364,7 +368,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L375" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-4-1">RFC5443-4-1</code></td><td colspan="3"><span class="rfc-subject">Apply the cost-raising mechanism only to the IP link cost, not the TE link cost (&#34;The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes&#34;) (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-4-1">RFC5443-4-1</code></td><td colspan="3"><span class="rfc-subject">The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -373,7 +377,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L369" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-3-2">RFC5443-3-2</code></td><td colspan="3"><span class="rfc-subject">When a genuine link problem (not merely link bring-up) causes the cost-out, the implementation should issue network management alerts so the operator can address the condition (&#34;an implementation should issue network management alerts to report the error condition and enable the operator to address it&#34;) (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-3-2">RFC5443-3-2</code></td><td colspan="3"><span class="rfc-subject">Note however that non- optimal IP forwarding only occurs for a short time after a link comes up or when there is a genuine problem on a link. In the latter case, an implementation should issue network management alerts to report the error condition and enable the operator to address it. (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3</td>
@@ -382,7 +386,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-5-1">RFC5443-5-1</code></td><td colspan="3"><span class="rfc-subject">Follow current best security practice for MPLS/GMPLS networks (&#34;implementors should follow the current best security practice [MPLS-GMPLS-Sec]&#34;) (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-5-1">RFC5443-5-1</code></td><td colspan="3"><span class="rfc-subject">These errors are considered general security issues and implementors should follow the current best security practice [MPLS-GMPLS-Sec]. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -391,7 +395,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-7">RFC5443-2-7</code></td><td colspan="3"><span class="rfc-subject">Use a configurable hold-down timer after LDP session establishment as the estimation strategy for &#34;all label bindings exchanged&#34; when End-of-LIB is not available (&#34;A simple implementation strategy is to use a configurable hold-down timer to allow LDP session establishment before declaring LDP fully operational&#34;) (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-7">RFC5443-2-7</code></td><td colspan="3"><span class="rfc-subject">A simple implementation strategy is to use a configurable hold-down timer to allow LDP session establishment before declaring LDP fully operational. (§2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2</td>
@@ -400,7 +404,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-8">RFC5443-2-8</code></td><td colspan="3"><span class="rfc-subject">Omit the hold-down timer entirely when LDP End-of-LIB is implemented (&#34;When LDP End-of-LIB is implemented, the configurable hold-down timer is no longer needed&#34;) (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-8">RFC5443-2-8</code></td><td colspan="3"><span class="rfc-subject">When LDP End-of-LIB is implemented, the configurable hold-down timer is no longer needed. (§2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2</td>
@@ -409,7 +413,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-3-3">RFC5443-3-3</code></td><td colspan="3"><span class="rfc-subject">As a policy decision on broadcast links, divert traffic away from all peers on the link when LDP service to one peer is unavailable (&#34;a policy decision has to be made whether the unavailability of LDP service to one peer should result in the traffic being diverted away from all the peers on the link&#34;) (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-3-3">RFC5443-3-3</code></td><td colspan="3"><span class="rfc-subject">So a policy decision has to be made whether the unavailability of LDP service to one peer should result in the traffic being diverted away from all the peers on the link. (§3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3</td>
@@ -418,7 +422,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-4-2">RFC5443-4-2</code></td><td colspan="3"><span class="rfc-subject">Raise the IP cost of a TE tunnel while there is no operational targeted LDP session between tunnel endpoints (&#34;raising the IP cost of the tunnel while there is no operational LDP session will solve the problem&#34;) (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-4-2">RFC5443-4-2</code></td><td colspan="3"><span class="rfc-subject">Again, raising the IP cost of the tunnel while there is no operational LDP session will solve the problem. (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4</td>
@@ -436,15 +440,15 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc5443-2-3"><code>RFC5443-2-3</code></a> In IS-IS, the maximum metric advertised is `2^24-2` (`0xFFFFFE`) (&#34;In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE)&#34;) (§2)</td>
+<tr><td><a href="#rfc5443-2-3"><code>RFC5443-2-3</code></a> In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE). (§2)</td>
 <td>{gap}, no test</td>
 <td>ze implements RFC 5443 LDP-IGP sync only in OSPF (internal/plugins/ospf/ldp_sync.go); IS-IS has no LDP-IGP sync state machine, so there is no IS-IS 2^24-2 max-metric cost-out producer (internal/plugins/isis defines only the generic MaxMetric topology-removal value)</td>
 </tr>
-<tr><td><a href="#rfc5443-2-4"><code>RFC5443-2-4</code></a> Do not advertise the IS-IS link at `2^24-1` (the per-RFC-5305 maximum link metric), because that removes the link from the topology and loses the last-resort IP path (&#34;if a link is configured with 2^24-1 ... then this link is not advertised in the topology. It is important to keep the link in the topology to allow IP traffic to use the link as a last resort&#34;) (§2)</td>
+<tr><td><a href="#rfc5443-2-4"><code>RFC5443-2-4</code></a> Indeed, if a link is configured with 2^24-1 (the maximum link metric per [RFC5305]), then this link is not advertised in the topology. It is important to keep the link in the topology to allow IP traffic to use the link as a last resort in case of massive failure. (§2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no IS-IS LDP-IGP sync (internal/plugins/isis has no sync state machine), so it never originates an LDP-sync-driven IS-IS metric and cannot misuse the 2^24-1 value</td>
 </tr>
-<tr><td><a href="#rfc5443-2-6"><code>RFC5443-2-6</code></a> When LDP End-of-LIB is implemented, consider the neighbor LDP session fully operational only upon receipt of the End-of-LIB notification message (&#34;The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received&#34;) (§2)</td>
+<tr><td><a href="#rfc5443-2-6"><code>RFC5443-2-6</code></a> The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received. (§2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the precondition is unmet -- ze&#39;s LDP (internal/plugins/ldp) implements no End-of-LIB notification, so ze uses the RFC 5443 hold-down-estimate alternative instead</td>
 </tr>
@@ -455,8 +459,8 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5443-2-1"><code>RFC5443-2-1</code></a></h3>
-<p>While LDP is not fully operational on a link, the IGP advertises that link with maximum cost to avoid transit traffic (&#34;when LDP is not &#39;fully operational&#39; ... on a given link, the IGP will advertise the link with maximum cost to avoid any transit traffic over it&#34;) (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In detail: when LDP is not &#34;fully operational&#34; (see below) on a given link, the IGP will advertise the link with maximum cost to avoid any transit traffic over it. (§2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Non-compliant: the originated router-LSA keeps the configured cost while LDP is not fully operational. No tagged assertion reads an originated LSA: TestLDPSyncForcesMaxMetric and TestLDPSyncRestoresAfterHoldDown assert effectiveP2PCost, whose only non-test caller is the show snapshot (ldp_sync.go:664); the advertised cost comes from applyLDPSyncOverride setting InterfaceInfo.LDPSyncMaxMetric and lsdb/origination.go:245/279 reading it. Deleting that flag assignment leaves every tag green. Broadcast links are withheld (RFC 6138 style), not costed out, and no tag covers that for this row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -475,8 +479,8 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 </table>
 </div>
 <h3><a href="#rfc5443-2-2"><code>RFC5443-2-2</code></a></h3>
-<p>In OSPF, the maximum cost advertised is LSInfinity, the 16-bit value `0xFFFF` (&#34;In the case of OSPF, this cost is LSInfinity (16-bit value 0xFFFF), as proposed in [RFC3137]&#34;) (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In the case of OSPF, this cost is LSInfinity (16-bit value 0xFFFF), as proposed in [RFC3137]. (§2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Non-compliant: advertising a max cost other than 0xFFFF. TestLDPSyncMaxMetricValue asserts only the constant ospflsdb.LSInfinity == 0xFFFF; no tagged assertion reads the metric the origination emits for an LDPSyncMaxMetric link. The negative (TestLDPSyncDisabledIsNoOp) proves an unmanaged interface keeps its cost, a neighbouring rule, not the value.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -495,16 +499,16 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 </table>
 </div>
 <h3><a href="#rfc5443-2-3"><code>RFC5443-2-3</code></a></h3>
-<p>In IS-IS, the maximum metric advertised is `2^24-2` (`0xFFFFFE`) (&#34;In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE)&#34;) (§2)</p>
+<p>In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE). (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5443-2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc5443-2-4"><code>RFC5443-2-4</code></a></h3>
-<p>Do not advertise the IS-IS link at `2^24-1` (the per-RFC-5305 maximum link metric), because that removes the link from the topology and loses the last-resort IP path (&#34;if a link is configured with 2^24-1 ... then this link is not advertised in the topology. It is important to keep the link in the topology to allow IP traffic to use the link as a last resort&#34;) (§2)</p>
+<p>Indeed, if a link is configured with 2^24-1 (the maximum link metric per [RFC5305]), then this link is not advertised in the topology. It is important to keep the link in the topology to allow IP traffic to use the link as a last resort in case of massive failure. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5443-2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc5443-2-5"><code>RFC5443-2-5</code></a></h3>
-<p>Treat LDP as fully operational on a link only when all three conditions hold: an LDP hello adjacency exists, a suitable associated LDP session matching the hello adjacency&#39;s LDP Identifier is established to the peer at the other end of the link, and all label bindings have been exchanged over the session (&#34;LDP is considered fully operational on a link when an LDP hello adjacency exists on it, a suitable associated LDP session ... is established ... and all label bindings have been exchanged over the session&#34;) (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>LDP is considered fully operational on a link when an LDP hello adjacency exists on it, a suitable associated LDP session (matching the LDP Identifier of the hello adjacency) is established to the peer at the other end of the link, and all label bindings have been exchanged over the session. (§2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Three clauses: hello adjacency exists, a session matching the adjacency&#39;s LDP Identifier is established, all bindings exchanged. Tagged units (TestLDPSyncSubscribesSessionEvents, TestLDPSyncRestoresAfterHoldDown) drive the real ldpSyncManager: SessionUp -&gt; hold-down, timer -&gt; synchronized, so a machine declaring sync on SessionUp goes red. No assertion covers the hello-adjacency or the LDP-Identifier-match clause: a session-up for a session not matching the link&#39;s adjacency is never exercised.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -523,12 +527,12 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 </table>
 </div>
 <h3><a href="#rfc5443-2-6"><code>RFC5443-2-6</code></a></h3>
-<p>When LDP End-of-LIB is implemented, consider the neighbor LDP session fully operational only upon receipt of the End-of-LIB notification message (&#34;The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received&#34;) (§2)</p>
+<p>The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5443-2-6, so no unit is bound to it.</p>
 <h3><a href="#rfc5443-3-1"><code>RFC5443-3-1</code></a></h3>
-<p>On broadcast links with more than one IGP/LDP peer, apply the cost-out procedure to the link as a whole, not to an individual peer (&#34;the cost-out procedure can only be applied to the link as a whole and not to an individual peer&#34;) (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>On broadcast links with more than one IGP/LDP peer, the cost-out procedure can only be applied to the link as a whole and not to an individual peer. (§3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Non-compliant: a per-peer cost-out on a broadcast link. TestLDPSyncTECostUntouched asserts ldpSyncWithholdTransit(notSynced, managed, cutEdge=false) is true and cut-edge false; the function takes no peer input, so the whole-link granularity is structural and no assertion would go red on a per-neighbour withhold introduced in applyLDPSyncOverride. The negative/positive both test RFC 6138 cut-edge logic rather than peer granularity.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -547,8 +551,8 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 </table>
 </div>
 <h3><a href="#rfc5443-4-1"><code>RFC5443-4-1</code></a></h3>
-<p>Apply the cost-raising mechanism only to the IP link cost, not the TE link cost (&#34;The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes&#34;) (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes. (§4)</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The row forbids raising the TE link cost. TestLDPSyncTECostUntouched asserts effectiveP2PCost == LSInfinity (the IP cost override, RFC5443-2-1) and the cut-edge withhold (RFC 6138 section 4); no assertion reads any TE metric. The tag prose says ze originates no TE LSA, yet interface_cost_test.go has TestDerivedCostReachesLDPSyncAndTEMetric, so that claim needs checking. Both tags prove neighbouring rules.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -725,7 +729,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

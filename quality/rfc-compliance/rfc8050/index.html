@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8050 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8050: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions. 6 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8050: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions. 6 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8050 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8050: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions. 6 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8050: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions. 6 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8050 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8050: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions. 6 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8050: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions. 6 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -124,7 +124,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>6</strong><b>of 7 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>6</strong><b>of 6 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 6 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>16.7%</strong><b>1 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 6 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -203,7 +204,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>7</td>
+<td>6</td>
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>6</td>
@@ -213,6 +214,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Declared gaps</td>
 <td>1</td>
+</tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>9</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -303,16 +307,16 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-x-1">RFC8050-x-1</code></td><td colspan="3"><span class="rfc-subject">A collector that receives add-path BGP sessions must use the add-path subtypes (BGP4MP_MESSAGE_ADDPATH, etc.) when writing MRT records (Compatibility)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-x-1">RFC8050-x-1</code></td><td colspan="3"><span class="rfc-subject">The Advertisement of Multiple Paths [RFC7911] extension for BGP alters the encoding of the BGP Network Layer Reachability Information (NLRI) format for withdraws and announcements. Therefore, new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396] are required to signal to an MRT parser how to parse the NLRI. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>x</td>
+<td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8050-x-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze selects the MRT add-path subtype from a static operator config toggle (internal/plugins/mrt/dump.go:206-250, config.go:19) rather than from each peer&#39;s negotiated RFC 7911 Add-Path capability (component.go:113 does not consult it), so a single dump cannot represent a mix of add-path and non-add-path peers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-4.1-1">RFC8050-4.1-1</code></td><td colspan="3"><span class="rfc-subject">For AFI/SAFI-specific RIB subtypes (8-11), the RIB Entry must include a 4-byte Path Identifier between Originated Time and Attribute Length (Section 4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-4.1-1">RFC8050-4.1-1</code></td><td colspan="3"><span class="rfc-subject">the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows: 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Peer Index | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Originated Time | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Path Identifier | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Attribute Length | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | BGP Attributes... (variable) +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Figure 1: RIB Entries for AFI/SAFI-Specific RIB Subtypes with Support for Additional Paths This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -321,7 +325,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L210" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestRIBRecordRoundTrip</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-4.2-1">RFC8050-4.2-1</code></td><td colspan="3"><span class="rfc-subject">For RIB_GENERIC_ADDPATH (subtype 12), RIB Entries must not be redefined; the Path Identifier is in the raw NLRI blob, not in the RIB Entry (Section 4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-4.2-1">RFC8050-4.2-1</code></td><td colspan="3"><span class="rfc-subject">These fields continue to encapsulate the raw and additional-path- enabled AFI/SAFI/NLRI in the record, and the raw attributes in the RIB Entries. For clarity, the RIB Entries in this subtype are not redefined. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -330,40 +334,31 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L306" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestRIBGenericRoundTrip</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-x-2">RFC8050-x-2</code></td><td colspan="3"><span class="rfc-subject">Path Identifier must be 4 bytes in network byte order, per RFC 7911 (Encoding Rules)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-x-2">RFC8050-x-2</code></td><td colspan="3"><span class="rfc-subject">0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Peer Index | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Originated Time | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Path Identifier | (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>x</td>
+<td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8050-x-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L262" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestRIBRecordAddPathRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Path ID is written and read big-endian (internal/mrt/encode.go:107, decode.go:295); there is no alternate-endianness path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-x-3">RFC8050-x-3</code></td><td colspan="3"><span class="rfc-subject">For BGP4MP add-path subtypes, the Path Identifier is inside the encapsulated BGP message&#39;s NLRI, not in the MRT header (Encoding Rules)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-x-3">RFC8050-x-3</code></td><td colspan="3"><span class="rfc-subject">The fields of these message types are identical to the equivalent non-additional-path versions specified in Section 4.4 of [RFC6396]. These enhancements continue to encapsulate the entire BGP message in the BGP message field. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>x</td>
+<td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8050-x-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L361" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestBGP4MPMessageRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L426" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestBGP4MPStateChangeRoundTrip</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-x-4">RFC8050-x-4</code></td><td colspan="3"><span class="rfc-subject">The subtype alone determines whether add-path encoding is present; no capability negotiation or flag bits (Decoding Rules)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-x-4">RFC8050-x-4</code></td><td colspan="3"><span class="rfc-subject">MRT parsers are usually stateless. In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>x</td>
+<td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8050-x-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L664" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestIsAddPathHelpers</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L673" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestIsAddPathHelpers</code></a></span></div>
-</div></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-x-5">RFC8050-x-5</code></td><td colspan="3"><span class="rfc-subject">Non-add-path-aware MRT parsers should skip records with unknown subtype codes per normal MRT parsing (Compatibility)</span></td></tr>
-<tr><td></td>
-<td>SHOULD</td>
-<td>x</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8050-x-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
 </tbody>
@@ -375,7 +370,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc8050-x-1"><code>RFC8050-x-1</code></a> A collector that receives add-path BGP sessions must use the add-path subtypes (BGP4MP_MESSAGE_ADDPATH, etc.) when writing MRT records (Compatibility)</td>
+<tr><td><a href="#rfc8050-x-1"><code>RFC8050-x-1</code></a> The Advertisement of Multiple Paths [RFC7911] extension for BGP alters the encoding of the BGP Network Layer Reachability Information (NLRI) format for withdraws and announcements. Therefore, new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396] are required to signal to an MRT parser how to parse the NLRI. (§2)</td>
 <td>{gap}, no test</td>
 <td>ze selects the MRT add-path subtype from a static operator config toggle (internal/plugins/mrt/dump.go:206-250, config.go:19) rather than from each peer&#39;s negotiated RFC 7911 Add-Path capability (component.go:113 does not consult it), so a single dump cannot represent a mix of add-path and non-add-path peers</td>
 </tr>
@@ -386,12 +381,12 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8050-x-1"><code>RFC8050-x-1</code></a></h3>
-<p>A collector that receives add-path BGP sessions must use the add-path subtypes (BGP4MP_MESSAGE_ADDPATH, etc.) when writing MRT records (Compatibility)</p>
+<p>The Advertisement of Multiple Paths [RFC7911] extension for BGP alters the encoding of the BGP Network Layer Reachability Information (NLRI) format for withdraws and announcements. Therefore, new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396] are required to signal to an MRT parser how to parse the NLRI. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8050-x-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8050-4.1-1"><code>RFC8050-4.1-1</code></a></h3>
-<p>For AFI/SAFI-specific RIB subtypes (8-11), the RIB Entry must include a 4-byte Path Identifier between Originated Time and Attribute Length (Section 4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows: 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Peer Index | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Originated Time | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Path Identifier | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Attribute Length | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | BGP Attributes... (variable) +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Figure 1: RIB Entries for AFI/SAFI-Specific RIB Subtypes with Support for Additional Paths This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes. (§4.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: writing or reading the Path Identifier of an AFI/SAFI-specific add-path RIB entry anywhere but the 4 octets between Originated Time and Attribute Length (Figure 1). TestRIBRecordAddPathRoundTrip is a symmetric round trip, WriteRIBEntries then DecodeRIBRecord, with no expected byte layout: an encoder and decoder that both put the Path Identifier after Attribute Length, or both used 2 octets (PathID 1 and 2 fit), stay green. The negative TestRIBRecordRoundTrip (base subtype 2 decodes PathID 0) is sound. Needed: a positive over hand-built Figure 1 bytes, or an assertion on the encoded bytes at the Originated Time + 4 offset.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -410,8 +405,8 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc8050-4.2-1"><code>RFC8050-4.2-1</code></a></h3>
-<p>For RIB_GENERIC_ADDPATH (subtype 12), RIB Entries must not be redefined; the Path Identifier is in the raw NLRI blob, not in the RIB Entry (Section 4.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>These fields continue to encapsulate the raw and additional-path- enabled AFI/SAFI/NLRI in the record, and the raw attributes in the RIB Entries. For clarity, the RIB Entries in this subtype are not redefined. (§4.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: reading RIB_GENERIC_ADDPATH (subtype 12) RIB Entries as redefined (a Path Identifier in each entry), or losing the Path Identifier that belongs in the raw NLRI. TestRIBGenericAddPathRoundTrip hand-builds the bytes the RFC describes (Path ID 42 at the head of the NLRI blob, then an entry with Peer Index, Originated Time, Attribute Length, attributes and no Path ID) and requires rec.NLRI == nlri and Entries[0].Attributes == attrs; a decoder that read a 4-octet Path ID from the entry would take 0x0004 plus attribute bytes as the path id and misparse the attribute length, so the attribute comparison or the decode goes red. The negative TestRIBGenericRoundTrip requires the base subtype 6 NLRI to decode verbatim. Ze writes no subtype 12 record (internal/mrt/encode.go writes none; internal/mrt/decode.go is the only producer), so the decode path is the whole surface.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -430,8 +425,8 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc8050-x-2"><code>RFC8050-x-2</code></a></h3>
-<p>Path Identifier must be 4 bytes in network byte order, per RFC 7911 (Encoding Rules)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Peer Index | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Originated Time | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Path Identifier | (§4.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a Path Identifier field that is not 32 bits wide (Figure 1), and, per the row&#39;s single-polarity marker, one not in network byte order. TestRIBRecordAddPathRoundTrip only round-trips PathID 1 and 2 through the Ze encoder and decoder: a symmetric pair using little-endian, or 16-bit fields, stays green because nothing compares the encoded octets with 00 00 00 01. Needed: an assertion on the exact encoded Path Identifier octets, or a decode of hand-built bytes with a value above 0xFFFF.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -445,8 +440,8 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc8050-x-3"><code>RFC8050-x-3</code></a></h3>
-<p>For BGP4MP add-path subtypes, the Path Identifier is inside the encapsulated BGP message&#39;s NLRI, not in the MRT header (Encoding Rules)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The fields of these message types are identical to the equivalent non-additional-path versions specified in Section 4.4 of [RFC6396]. These enhancements continue to encapsulate the entire BGP message in the BGP message field. (§3)</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The quoted sentence is about the four add-path BGP4MP subtypes (8 to 11): their fields are identical to the base versions and they carry the entire BGP message. TestBGP4MPMessageRoundTrip encodes and decodes subtype BGP4MP_MESSAGE_AS4 (4), a base subtype, with a 19-octet message holding no NLRI and no Path Identifier; TestBGP4MPStateChangeRoundTrip decodes a state change record. Both prove the RFC 6396 section 4.4 base layout, a neighbouring rule. No tagged unit drives BGP4MP_MESSAGE_ADDPATH, BGP4MP_MESSAGE_AS4_ADDPATH or the LOCAL variants, so a decoder that treated subtype 9 differently from 4 in the header stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -465,8 +460,8 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc8050-x-4"><code>RFC8050-x-4</code></a></h3>
-<p>The subtype alone determines whether add-path encoding is present; no capability negotiation or flag bits (Decoding Rules)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>MRT parsers are usually stateless. In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized. (§2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: deciding whether a record&#39;s NLRI carries Path Identifiers from anything but the MRT subtype (session state, a capability, a flag). TestIsAddPathHelpers requires IsAddPathRIBSubtype and IsAddPathBGP4MPSubtype to classify every add-path and base subtype correctly from the subtype alone, both polarities. It tests the classifier only: a decoder (internal/mrt/decode.go DecodeRIBRecord, or the BGP4MP reader) that stopped consulting the classifier and read an add-path flag from elsewhere keeps the unit green. No tagged unit decodes a record whose parse depends on the subtype.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -654,7 +649,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

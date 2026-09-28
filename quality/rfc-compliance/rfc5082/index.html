@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5082 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5082: The Generalized TTL Security Mechanism (GTSM). 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5082: The Generalized TTL Security Mechanism (GTSM). 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5082 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5082: The Generalized TTL Security Mechanism (GTSM). 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5082: The Generalized TTL Security Mechanism (GTSM). 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5082 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5082: The Generalized TTL Security Mechanism (GTSM). 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5082: The Generalized TTL Security Mechanism (GTSM). 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>3</strong><b>of 4 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>15</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>3</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>15</td>
@@ -303,10 +311,10 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L59" title="internal/core/network/ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDialerWithoutOutTTLLeavesTheDefault</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-2">RFC5082-3-2</code></td><td colspan="3"><span class="rfc-subject">The TTL 255 transmit and verify rule also applies to the related ICMP error handling messages of a GTSM-enabled session (§3, restated §6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-2">RFC5082-3-2</code></td><td colspan="3"><span class="rfc-subject">RFC 3682 [RFC3682] did not specify how to handle &#34;related messages&#34; (ICMP errors).  This specification mandates setting and verifying TTL=255 of those as well as the main protocol packets. (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3 - GTSM Procedure</td>
+<td>6.1 - Backwards Compatibility</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5082-3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L194" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDropsADangerousQuotedICMPError</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L333" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMMinHopCountDropsALowHopLimitICMPv6Error</code></a></span></div>
@@ -337,7 +345,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L165" title="internal/core/network/ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMNoFloorDeliversAnUnknownPacket</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-5">RFC5082-3-5</code></td><td colspan="3"><span class="rfc-subject">GTSM added to a protocol as an additional feature SHOULD NOT be enabled by default (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-5">RFC5082-3-5</code></td><td colspan="3"><span class="rfc-subject">If GTSM is not built into the protocol and is used as an additional feature (e.g., for BGP, LDP, or MSDP), it SHOULD NOT be enabled by default in order to remain backward-compatible with the unmodified protocol. (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>3 - GTSM Procedure</td>
@@ -346,7 +354,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-6">RFC5082-3-6</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD ensure that packets classified as Dangerous do not compete for resources with packets classified as Trusted or Unknown (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-6">RFC5082-3-6</code></td><td colspan="3"><span class="rfc-subject">SHOULD ensure that packets classified as Dangerous do not compete for resources with packets classified as Trusted or Unknown. (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3 - GTSM Procedure</td>
@@ -355,7 +363,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-7">RFC5082-3-7</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY drop packets classified as Dangerous (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-7">RFC5082-3-7</code></td><td colspan="3"><span class="rfc-subject">MAY drop packets classified as Dangerous. (§3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3 - GTSM Procedure</td>
@@ -364,7 +372,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-8">RFC5082-3-8</code></td><td colspan="3"><span class="rfc-subject">A protocol peer MAY suggest the use of GTSM when the protocol defines a built-in dynamic capability negotiation for it, provided GTSM is enabled only if both peers agree (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-8">RFC5082-3-8</code></td><td colspan="3"><span class="rfc-subject">However, if the protocol defines a built-in dynamic capability negotiation for GTSM, a protocol peer MAY suggest the use of GTSM provided that GTSM would only be enabled if both peers agree to use it. (§3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3 - GTSM Procedure</td>
@@ -373,7 +381,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-2-1">RFC5082-2-1</code></td><td colspan="3"><span class="rfc-subject">Use of GTSM is OPTIONAL and can be configured on a per-peer (group) basis (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-2-1">RFC5082-2-1</code></td><td colspan="3"><span class="rfc-subject">Use of GTSM is OPTIONAL, and can be configured on a per-peer (group) basis. (§2)</span></td></tr>
 <tr><td></td>
 <td>OPTIONAL</td>
 <td>2 - Assumptions Underlying GTSM</td>
@@ -382,7 +390,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-5.4-1">RFC5082-5.4-1</code></td><td colspan="3"><span class="rfc-subject">GTSM-protected protocols are highly RECOMMENDED to avoid fragmentation and reassembly by manual MTU tuning or Path MTU Discovery (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-5.4-1">RFC5082-5.4-1</code></td><td colspan="3"><span class="rfc-subject">As such, it is highly RECOMMENDED for GTSM-protected protocols to avoid fragmentation and reassembly by manual MTU tuning, using adaptive measures such as Path MTU Discovery (PMTUD), or any other available method [RFC1191], [RFC1981], or [RFC4821]. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>5.4 - Fragmentation Considerations</td>
@@ -421,8 +429,8 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 </table>
 </div>
 <h3><a href="#rfc5082-3-2"><code>RFC5082-3-2</code></a></h3>
-<p>The TTL 255 transmit and verify rule also applies to the related ICMP error handling messages of a GTSM-enabled session (§3, restated §6.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>RFC 3682 [RFC3682] did not specify how to handle &#34;related messages&#34; (ICMP errors).  This specification mandates setting and verifying TTL=255 of those as well as the main protocol packets. (§6.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27 against the §6.1 quote (setting AND verifying TTL=255 on related ICMP errors). Setting: forbidden is an ICMP error toward a GTSM peer leaving with TTL other than 255; TestGTSMTransmittedICMPErrorCarriesTTL255 fails on packet[8]!=255 and TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255 on packet[7]!=255, both over the route applyHopLimitRoutes installs; the withdraw negatives bind the 255 to that route. Verifying: forbidden is a below-floor ICMP error about the session being delivered; TestGTSMDropsADangerousQuotedICMPError fails when icmpInType rises, TestGTSMMinHopCountDropsALowHopLimitICMPv6Error when TCPMinTTLDrop does not; the TTL-255 negatives show delivery at 255.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -472,7 +480,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 </div>
 <h3><a href="#rfc5082-3-3"><code>RFC5082-3-3</code></a></h3>
 <p>The TTL of GTSM-enabled sessions MUST NOT be decremented. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: a GTSM session&#39;s packets arriving with their TTL decremented. TestGTSMTransmittedTTLArrivesUndecremented sets IP_TTL 255 on a loopback socket and reads 255 back; there is no GTSM session, and a loopback path has no forwarding hop that could decrement, so the assertion cannot go red on the behaviour the sentence forbids. TestGTSMTransmittedTTLReportsTheValueSet (254 arrives as 254) calibrates the probe and violates nothing, so the pair has no negative.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -492,7 +500,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 </div>
 <h3><a href="#rfc5082-3-4"><code>RFC5082-3-4</code></a></h3>
 <p>+ MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Two clauses. Trusted dropped: TestGTSMFloorDeliversATrustedPacket fails if the packet at the floor is not received (receiveByte). Unknown dropped: TestGTSMNoFloorDeliversAnUnknownPacket fails if a low-TTL packet on a no-floor socket is not delivered, and TestGTSMDeliversAnICMPErrorNoSessionClaims fails if icmpInType does not rise for three unclaimed ICMP errors at TTL 1.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -750,7 +758,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

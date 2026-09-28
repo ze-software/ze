@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 4 | of 11 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 11 |
 | Not applicable, so out of scope | 7 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 6 |
 | Tagged units | 6 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 4 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc7770.md` |
 | Requirement shard | `rfc/requirements/rfc7770.md` |
@@ -102,30 +111,30 @@ Same OSPF experimental status.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7770-2.4-1` | If the Router Informational Capabilities TLV is included, it must be the first TLV in the first instance (Instance 0) of the OSPF RI LSA (§2.4) -- Ze emits the type-1 TLV first (spec-ospf-ext-3, `buildRIInstances`) | MUST | 2.4 | **positive:** `unit/verify` [`TestRITLVType1First`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L124). **negative:** no negative test. **{single-polarity}:** ze always emits the type-1 Informational Capabilities TLV first in Instance 0 and, being informational-only on receive, never rejects a peer that misorders it, so only the positive direction is meaningful (internal/plugins/ospf/ri.go:153) |
-| `RFC7770-2.4-2` | The Router Informational Capabilities TLV must accurately reflect the OSPF router's capabilities in the scope advertised (§2.4) -- derived from live config (`deriveRICapabilities`) | MUST | 2.4 | **positive:** `unit/verify` [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L63). **positive:** `unit/verify` [`TestRICapabilityTEBitFromConfig`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L79). **negative:** `unit/verify` [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L57) |
+| `RFC7770-2.4-1` | If included, it MUST be the first TLV in the first instance, i.e., Instance 0, of the OSPF RI LSA. (§2.4) -- Ze emits the type-1 TLV first, spec-ospf-ext-3, `buildRIInstances` | MUST | 2.4 | **positive:** `unit/verify` [`TestRITLVType1First`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L124). **negative:** no negative test. **{single-polarity}:** ze always emits the type-1 Informational Capabilities TLV first in Instance 0 and, being informational-only on receive, never rejects a peer that misorders it, so only the positive direction is meaningful (internal/plugins/ospf/ri.go:153) |
+| `RFC7770-2.4-2` | Additionally, the TLV MUST accurately reflect the OSPF router's capabilities in the scope advertised. (§2.4) -- derived from live config, `deriveRICapabilities` | MUST | 2.4 | **positive:** `unit/verify` [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L63). **positive:** `unit/verify` [`TestRICapabilityTEBitFromConfig`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L79). **negative:** `unit/verify` [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L57) |
 | `RFC7770-2.6-1` | If included, it MUST be the included in the first instance of the LSA. (§2.6) -- Ze carries the empty type-2 TLV in Instance 0 | MUST | 2.6 | **positive:** `unit/verify` [`TestRITLVRegistered`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_registry_test.go#L51). **negative:** no negative test. **{single-polarity}:** ze carries the type-2 Functional Capabilities TLV in Instance 0's lead on every origination and does not police peer placement on receive, so only the positive direction is meaningful (internal/plugins/ospf/ri.go:155) |
-| `RFC7770-2.6-2` | The Router Functional Capabilities TLV must reflect the advertising OSPF router's actual functional capabilities (§2.6) -- carried empty (no functional capability supported) | MUST | 2.6 | **positive:** `unit/verify` [`TestRIFunctionalCapabilitiesEmittedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L154). **negative:** no negative test. **{single-polarity}:** ze supports no functional capability, so it emits the constant all-zero type-2 value (accurately none-supported), and there is no variable capability to exercise the opposite direction (internal/plugins/ospf/ri.go:155) |
+| `RFC7770-2.6-2` | Additionally, the TLV MUST reflect the advertising OSPF router's actual functional capabilities since the information will be used to dictate OSPF protocol operation in the flooding scope of the containing OSPF RI LSA. (§2.6) -- carried empty, no functional capability supported | MUST | 2.6 | **positive:** `unit/verify` [`TestRIFunctionalCapabilitiesEmittedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L154). **negative:** no negative test. **{single-polarity}:** ze supports no functional capability, so it emits the constant all-zero type-2 value (accurately none-supported), and there is no variable capability to exercise the opposite direction (internal/plugins/ospf/ri.go:155) |
 | `RFC7770-2.3-1` | When a new Router Information LSA TLV is defined, the specification MUST explicitly state whether the TLV is applicable to OSPFv2 only, OSPFv3 only, or both OSPFv2 and OSPFv3. (§2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of an IETF specification that defines a new RI TLV; ze implements TLVs but publishes no such specification, so it plays no role this MUST governs |
 | `RFC7770-2.6-3` | The specifications for functional capabilities advertised in this TLV MUST describe protocol behavior and address backwards compatibility. (§2.6) | MUST | 2.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of a functional-capability specification; ze advertises no functional capability and authors no such document |
 | `RFC7770-2.7-1` | TLV flooding-scope rules will be specified on a per- TLV basis and MUST be specified in the accompanying specifications for future Router Information LSA TLVs. (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of a specification that defines a new RI-TLV; ze selects flooding scope per configuration and does not specify TLV scope rules in a standards document |
 | `RFC7770-5.2-1` | o OSPFv3 LSAs with an LSA Function Code in the Vendor Private Use range 8184-8190 MUST include the Enterprise Code [ENTERPRISE-CODE] as the first 4 octets following the 20 octets of LSA header. (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze originates no OSPFv3 Vendor Private Use LSA (no reference to function codes 8184-8190 in internal/plugins/ospf/), so the requirement's antecedent never holds |
-| `RFC7770-2-1` | If a new OSPFv3 LSA Function Code is documented, the documentation must include the valid combinations of the U, S2, and S1 bits for the LSA (§5.2) -- U=1 with S2/S1 = link/area/AS (0x800C/0xA00C/0xC00C), documented in docs/architecture/wire/ospf.md | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the party documenting a new OSPFv3 function code; ze implements the already-defined function code 12 rather than documenting a new one, so the antecedent is false (the U/S2/S1 combinations are recorded at docs/architecture/wire/ospf.md) |
-| `RFC7770-5.3-1` | Before any assignments can be made in the reserved RI TLV range 32778-65535, there must be a Standards Track RFC that specifies IANA Considerations covering the range (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the IANA/IETF assignment process; ze registers no TLV type in the reserved 32778-65535 range and cannot author a Standards Track RFC |
+| `RFC7770-2-1` | If a new LSA Function Code is documented, the documentation MUST include the valid combinations of the U, S2, and S1 bits for the LSA. (§5.2) -- U=1 with S2/S1 = link/area/AS, 0x800C/0xA00C/0xC00C, documented in docs/architecture/wire/ospf.md | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the party documenting a new OSPFv3 function code; ze implements the already-defined function code 12 rather than documenting a new one, so the antecedent is false (the U/S2/S1 combinations are recorded at docs/architecture/wire/ospf.md) |
+| `RFC7770-5.3-1` | Types in the range 32778-65535 are reserved and are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that cover the range being assigned. (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the IANA/IETF assignment process; ze registers no TLV type in the reserved 32778-65535 range and cannot author a Standards Track RFC |
 | `RFC7770-5.2-2` | New values are assigned through RFCs that have been shepherded through the IESG as AD-Sponsored or IETF WG documents [IANA-GUIDE]. o OSPFv3 LSA function codes in the range 8176-8183 are for experimental use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§5.2) | MUST NOT | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds RFC authors; ze is an implementation, not an RFC, and references no experimental function code 8176-8183 in internal/plugins/ospf/ |
-| `RFC7770-2.1-1` | The first Opaque ID / Instance ID (0) should always contain the Router Informational Capabilities TLV and, if advertised, the Router Functional Capabilities TLV (§2.1, §2.2) -- Instance 0 always carries type-1 then type-2 (spec-ospf-ext-3) | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7770-2.7-2` | If AS-wide flooding scope is chosen, the originating router should also advertise area-scoped LSA(s) into any attached NSSA area(s) (§2.7) -- Ze originates area-scoped RI into attached NSSAs when AS scope is selected | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7770-5.2-3` | If a new OSPFv3 LSA Function Code is documented, it should also describe how the Link State ID is to be assigned (§5.2) | SHOULD | 5.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7770-3-1` | For backwards compatibility, previously advertised Router Information TLVs should continue to be advertised in the first instance (0) of the RI LSA (§3) -- Instance 0 retains the type-1 TLV; overflow spills to Instance 1+ | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7770-1-1` | For future OSPF extensions, the RI LSA advertisement may be used as the sole mechanism for advertisement and discovery (§1) | MAY | 1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7770-2.2-1` | OSPFv3 routers may advertise multiple RI LSAs per flooding scope (§2.2) | MAY | 2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7770-2.4-3` | An OSPF router advertising an RI LSA may include the Router Informational Capabilities TLV (§2.4) -- Ze always includes it | MAY | 2.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7770-2.4-4` | The Router Informational Capabilities TLV may be followed by optional TLVs that further specify a capability (§2.4) | MAY | 2.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7770-2.6-4` | An OSPF router advertising an RI LSA may include the Router Functional Capabilities TLV (§2.6) -- Ze carries it (empty by default) | MAY | 2.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7770-2.6-5` | The OSPF extensions advertised in the Functional Capabilities TLV may be used by other OSPF routers to dictate protocol operation (§2.6) | MAY | 2.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7770-2.6-6` | The Router Functional Capabilities TLV may be followed by optional TLVs that further specify a capability (§2.6) | MAY | 2.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7770-2.7-3` | An OSPF router may advertise different capabilities when both NSSA area-scoped LSA(s) and an AS-scoped LSA are advertised (§2.7) | MAY | 2.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7770-2.7-4` | The originating router may advertise multiple RI LSAs with the same Instance ID as long as the flooding scopes differ (§2.7) | MAY | 2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-2.1-1` | The first Opaque ID, i.e., 0, SHOULD always contain the Router Informational Capabilities TLV and, if advertised, the Router Functional Capabilities TLV. (§2.1) -- Instance 0 always carries type-1 then type-2, spec-ospf-ext-3 | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-2.7-2` | If AS-wide flooding scope is chosen, the originating router should also advertise area-scoped LSA(s) into any attached Not-So-Stubby Area (NSSA) area(s). (§2.7) -- Ze originates area-scoped RI into attached NSSAs when AS scope is selected | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-5.2-3` | If a new LSA Function Code is documented, the documentation MUST include the valid combinations of the U, S2, and S1 bits for the LSA. It SHOULD also describe how the Link State ID is to be assigned. (§5.2) | SHOULD | 5.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-3-1` | For backwards compatibility, previously advertised Router Information TLVs SHOULD continue to be advertised in the first instance, i.e., 0, of the Router Information LSA. (§3) -- Instance 0 retains the type-1 TLV; overflow spills to Instance 1+ | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-1-1` | For future OSPF extensions, this advertisement MAY be used as the sole mechanism for advertisement and discovery. (§1) | MAY | 1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-2.2-1` | OSPFv3 routers MAY advertise multiple RI LSAs per flooding scope. (§2.2) | MAY | 2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-2.4-3` | An OSPF router advertising an OSPF RI LSA MAY include the Router Informational Capabilities TLV. (§2.4) -- Ze always includes it | MAY | 2.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-2.4-4` | The Router Informational Capabilities TLV MAY be followed by optional TLVs that further specify a capability. (§2.4) | MAY | 2.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-2.6-4` | An OSPF router advertising an OSPF RI LSA MAY include the Router Functional Capabilities TLV. (§2.6) -- Ze carries it, empty by default | MAY | 2.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-2.6-5` | In contrast to the Router Informational Capabilities TLV, the OSPF extensions advertised in this TLV MAY be used by other OSPF routers to dictate protocol operation. (§2.6) | MAY | 2.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-2.6-6` | The Router Functional Capabilities TLV MAY be followed by optional TLVs that further specify a capability. (§2.6) | MAY | 2.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-2.7-3` | An OSPF router MAY advertise different capabilities when both NSSA area-scoped LSA(s) and an AS-scoped LSA are advertised. This allows functional capabilities to be limited in scope. (§2.7) | MAY | 2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-2.7-4` | The originating router MAY advertise multiple RI LSAs with the same Instance ID as long as the flooding scopes differ. (§2.7) | MAY | 2.7 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -135,8 +144,8 @@ Same OSPF experimental status.
 | [`RFC7770-2.6-3`](#rfc7770-2.6-3) The specifications for functional capabilities advertised in this TLV MUST describe protocol behavior and address backwards compatibility. (§2.6) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the author of a functional-capability specification; ze advertises no functional capability and authors no such document |
 | [`RFC7770-2.7-1`](#rfc7770-2.7-1) TLV flooding-scope rules will be specified on a per- TLV basis and MUST be specified in the accompanying specifications for future Router Information LSA TLVs. (§2.7) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the author of a specification that defines a new RI-TLV; ze selects flooding scope per configuration and does not specify TLV scope rules in a standards document |
 | [`RFC7770-5.2-1`](#rfc7770-5.2-1) o OSPFv3 LSAs with an LSA Function Code in the Vendor Private Use range 8184-8190 MUST include the Enterprise Code [ENTERPRISE-CODE] as the first 4 octets following the 20 octets of LSA header. (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze originates no OSPFv3 Vendor Private Use LSA (no reference to function codes 8184-8190 in internal/plugins/ospf/), so the requirement's antecedent never holds |
-| [`RFC7770-2-1`](#rfc7770-2-1) If a new OSPFv3 LSA Function Code is documented, the documentation must include the valid combinations of the U, S2, and S1 bits for the LSA (§5.2) -- U=1 with S2/S1 = link/area/AS (0x800C/0xA00C/0xC00C), documented in docs/architecture/wire/ospf.md | no test | no test carries this requirement id; annotated {not-applicable}: this binds the party documenting a new OSPFv3 function code; ze implements the already-defined function code 12 rather than documenting a new one, so the antecedent is false (the U/S2/S1 combinations are recorded at docs/architecture/wire/ospf.md) |
-| [`RFC7770-5.3-1`](#rfc7770-5.3-1) Before any assignments can be made in the reserved RI TLV range 32778-65535, there must be a Standards Track RFC that specifies IANA Considerations covering the range (§5.3) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the IANA/IETF assignment process; ze registers no TLV type in the reserved 32778-65535 range and cannot author a Standards Track RFC |
+| [`RFC7770-2-1`](#rfc7770-2-1) If a new LSA Function Code is documented, the documentation MUST include the valid combinations of the U, S2, and S1 bits for the LSA. (§5.2) -- U=1 with S2/S1 = link/area/AS, 0x800C/0xA00C/0xC00C, documented in docs/architecture/wire/ospf.md | no test | no test carries this requirement id; annotated {not-applicable}: this binds the party documenting a new OSPFv3 function code; ze implements the already-defined function code 12 rather than documenting a new one, so the antecedent is false (the U/S2/S1 combinations are recorded at docs/architecture/wire/ospf.md) |
+| [`RFC7770-5.3-1`](#rfc7770-5.3-1) Types in the range 32778-65535 are reserved and are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that cover the range being assigned. (§5.3) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the IANA/IETF assignment process; ze registers no TLV type in the reserved 32778-65535 range and cannot author a Standards Track RFC |
 | [`RFC7770-5.2-2`](#rfc7770-5.2-2) New values are assigned through RFCs that have been shepherded through the IESG as AD-Sponsored or IETF WG documents [IANA-GUIDE]. o OSPFv3 LSA function codes in the range 8176-8183 are for experimental use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: this binds RFC authors; ze is an implementation, not an RFC, and references no experimental function code 8176-8183 in internal/plugins/ospf/ |
 
 ## Proof state
@@ -145,9 +154,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC7770-2.4-1`](#rfc7770-2.4-1)
 
-If the Router Informational Capabilities TLV is included, it must be the first TLV in the first instance (Instance 0) of the OSPF RI LSA (§2.4) -- Ze emits the type-1 TLV first (spec-ospf-ext-3, `buildRIInstances`)
+If included, it MUST be the first TLV in the first instance, i.e., Instance 0, of the OSPF RI LSA. (§2.4) -- Ze emits the type-1 TLV first, spec-ospf-ext-3, `buildRIInstances`
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the type-1 Informational Capabilities TLV not being the first TLV of Instance 0. ri_test.go TestRITLVType1First registers a type-8 builder, decodes buildRIInstances(...)[0] (Instance 0) and fails unless decoded[0].Type is RITLVInformationalCapabilities. Single-polarity marker on the row covers the absent negative.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -155,9 +164,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7770-2.4-2`](#rfc7770-2.4-2)
 
-The Router Informational Capabilities TLV must accurately reflect the OSPF router's capabilities in the scope advertised (§2.4) -- derived from live config (`deriveRICapabilities`)
+Additionally, the TLV MUST accurately reflect the OSPF router's capabilities in the scope advertised. (§2.4) -- derived from live config, `deriveRICapabilities`
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Over-claim and under-claim are enforced for the whole router: TestRICapabilityBitsFromState fails if the TE bit is set with no TE configured or the stub-router bit is clear when max-metric is configured, TestRICapabilityTEBitFromConfig fails if TE is not set with an interface TE block. The clause "in the scope advertised" has no assertion: deriveRICapabilities (internal/plugins/ospf/ri.go) takes no scope, and no test shows a capability held in one area is not claimed in an RI LSA flooded into another.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -169,7 +178,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If included, it MUST be the included in the first instance of the LSA. (§2.6) -- Ze carries the empty type-2 TLV in Instance 0
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the type-2 Functional Capabilities TLV carried outside the first instance. ri_registry_test.go TestRITLVRegistered requires buildRIInstances to return exactly one instance whose TLV types are [1, 2, 8], so type-2 is in Instance 0. Single-polarity marker on the row covers the absent negative.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -177,9 +186,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7770-2.6-2`](#rfc7770-2.6-2)
 
-The Router Functional Capabilities TLV must reflect the advertising OSPF router's actual functional capabilities (§2.6) -- carried empty (no functional capability supported)
+Additionally, the TLV MUST reflect the advertising OSPF router's actual functional capabilities since the information will be used to dictate OSPF protocol operation in the flooding scope of the containing OSPF RI LSA. (§2.6) -- carried empty, no functional capability supported
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: advertising a functional capability Ze does not have. Ze supports none, so any set bit is non-compliant; ri_test.go TestRIFunctionalCapabilitiesEmittedZero fails if any byte of the type-2 value in Instance 0 is non-zero or RIReadCapabilities is non-zero. Single-polarity marker on the row covers the absent negative.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -219,7 +228,7 @@ No test carries RFC7770-5.2-1, so no unit is bound to it.
 
 ### [`RFC7770-2-1`](#rfc7770-2-1)
 
-If a new OSPFv3 LSA Function Code is documented, the documentation must include the valid combinations of the U, S2, and S1 bits for the LSA (§5.2) -- U=1 with S2/S1 = link/area/AS (0x800C/0xA00C/0xC00C), documented in docs/architecture/wire/ospf.md
+If a new LSA Function Code is documented, the documentation MUST include the valid combinations of the U, S2, and S1 bits for the LSA. (§5.2) -- U=1 with S2/S1 = link/area/AS, 0x800C/0xA00C/0xC00C, documented in docs/architecture/wire/ospf.md
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -227,7 +236,7 @@ No test carries RFC7770-2-1, so no unit is bound to it.
 
 ### [`RFC7770-5.3-1`](#rfc7770-5.3-1)
 
-Before any assignments can be made in the reserved RI TLV range 32778-65535, there must be a Standards Track RFC that specifies IANA Considerations covering the range (§5.3)
+Types in the range 32778-65535 are reserved and are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that cover the range being assigned. (§5.3)
 
 Audit verdict: not audited: no reader has judged these tests
 

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8669 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8669: Segment Routing Prefix Segment Identifier Extensions for BGP. 25 gated MUST-level requirements, 10 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8669: Segment Routing Prefix Segment Identifier Extensions for BGP. 25 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8669 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8669: Segment Routing Prefix Segment Identifier Extensions for BGP. 25 gated MUST-level requirements, 10 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8669: Segment Routing Prefix Segment Identifier Extensions for BGP. 25 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8669 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8669: Segment Routing Prefix Segment Identifier Extensions for BGP. 25 gated MUST-level requirements, 10 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8669: Segment Routing Prefix Segment Identifier Extensions for BGP. 25 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>40.0%</strong><b>10 of 25 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 25 gated MUSTs judged</b><p>10 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>10</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>35</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>12</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>12</td>
@@ -329,7 +333,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze has no receive-side Label-Index consumer for any family -- ExtractSRv6SIDFull steps over TLV type 1 by length (internal/component/bgp/plugins/rib/pool/srv6sid.go:47) and no other reader of TLV type 1 exists in internal/component/bgp or internal/core/bgp -- so the TLV is ignored on every AFI/SAFI and there is no label-index-driven behavior to drive negatively</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.1-3">RFC8669-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Label-Index TLV Reserved field MUST be clear on transmission (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.1-3">RFC8669-3.1-3</code></td><td colspan="3"><span class="rfc-subject">RESERVED: 8-bit field. It MUST be clear on transmission (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -338,7 +342,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ParsePrefixSID hardcodes the Reserved octet to 0 on encode and no code path emits a non-zero value, so there is no negative input to reject (internal/core/bgp/attribute/prefixsid.go)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.1-4">RFC8669-3.1-4</code></td><td colspan="3"><span class="rfc-subject">Label-Index TLV Reserved field MUST be ignored on reception (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.1-4">RFC8669-3.1-4</code></td><td colspan="3"><span class="rfc-subject">RESERVED: 8-bit field. It MUST be clear on transmission and MUST be ignored on reception. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -347,7 +351,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L114" title="internal/component/bgp/message/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexNonZeroReservedIgnored</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.1-5">RFC8669-3.1-5</code></td><td colspan="3"><span class="rfc-subject">Label-Index TLV Flags MUST be clear on transmission (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.1-5">RFC8669-3.1-5</code></td><td colspan="3"><span class="rfc-subject">Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -356,7 +360,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ParsePrefixSID hardcodes the Flags field to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.1-6">RFC8669-3.1-6</code></td><td colspan="3"><span class="rfc-subject">Label-Index TLV Flags MUST be ignored on reception (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.1-6">RFC8669-3.1-6</code></td><td colspan="3"><span class="rfc-subject">Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission and MUST be ignored on reception. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -365,7 +369,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L127" title="internal/component/bgp/message/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexNonZeroFlagsIgnored</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.2-1">RFC8669-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Originator SRGB TLV Flags MUST be clear on transmission (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.2-1">RFC8669-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Flags: 16 bits of flags. None are defined in this document. The Flags field MUST be clear on transmission (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
@@ -374,7 +378,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> parsePrefixSIDWithSRGB hardcodes both Flags octets to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.2-2">RFC8669-3.2-2</code></td><td colspan="3"><span class="rfc-subject">Originator SRGB TLV Flags MUST be ignored on reception (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.2-2">RFC8669-3.2-2</code></td><td colspan="3"><span class="rfc-subject">Flags: 16 bits of flags. None are defined in this document. The Flags field MUST be clear on transmission and MUST be ignored on reception. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
@@ -392,7 +396,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> no producer writes into an Originator SRGB TLV. The receive validator reads TLV headers and never writes a value (internal/component/bgp/message/rfc7606.go:837-856). The forward path&#39;s only code-40 operation is a whole-attribute suppress on a next-hop change (internal/component/bgp/reactor/peer_forward_facts.go:241) -- that removes the Originator SRGB along with everything else in the attribute rather than changing it, so it is not a counter-example to &#34;MUST NOT be changed&#34; but it does mean the TLV survives propagation only on the rails that keep the attribute. On those rails the SRGB octets are byte-identical, and no input produces changed SRGB bytes to drive negatively</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.2-4">RFC8669-3.2-4</code></td><td colspan="3"><span class="rfc-subject">Originator SRGB TLV MUST be ignored when received for non-Labeled Unicast AFI/SAFI combinations (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.2-4">RFC8669-3.2-4</code></td><td colspan="3"><span class="rfc-subject">The Originator SRGB TLV may only appear in a BGP Prefix-SID attribute attached to IPv4/IPv6 Labeled Unicast prefixes ([RFC8277]). It MUST be ignored when received for other BGP AFI/SAFI combinations. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
@@ -412,7 +416,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_test.go#L80" title="internal/component/bgp/reactor/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669PrefixSIDFromEBGPDiscardedByDefault</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-1">RFC8669-4.1-1</code></td><td colspan="3"><span class="rfc-subject">BGP Prefix-SID attribute attached to Labeled Unicast MUST contain the Label-Index TLV (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-1">RFC8669-4.1-1</code></td><td colspan="3"><span class="rfc-subject">When the BGP Prefix-SID attribute is attached to a BGP Labeled IPv4 or IPv6 Unicast [RFC8277] AFI/SAFI, it MUST contain the Label-Index TLV (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -540,7 +544,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc8669_test.go#L165" title="internal/component/bgp/plugins/rib/pool/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669DuplicateRecognizedTLVCannotOverrideFirst</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4-2">RFC8669-4-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker SHOULD log an error when discarding an attribute (§4, §6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4-2">RFC8669-4-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker SHOULD log an error for further analysis when discarding an attribute. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4</td>
@@ -549,7 +553,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-9">RFC8669-4.1-9</code></td><td colspan="3"><span class="rfc-subject">The label index from the best path BGP Prefix-SID attribute SHOULD be chosen when multiple paths have different indices (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-9">RFC8669-4.1-9</code></td><td colspan="3"><span class="rfc-subject">If multiple valid paths for the same prefix are received from multiple BGP speakers or, in the case of [RFC7911], from the same BGP speaker, and the BGP Prefix-SID attributes do not contain the same label index, then the label index from the best path BGP Prefix-SID attribute SHOULD be chosen with a notable exception being when [RFC5004] is being used to dampen route changes. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -558,7 +562,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-10">RFC8669-4.1-10</code></td><td colspan="3"><span class="rfc-subject">Speaker SHOULD program the derived label as the label for the prefix in its local MPLS data plane when acceptable (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-10">RFC8669-4.1-10</code></td><td colspan="3"><span class="rfc-subject">When a BGP speaker receives a path from a neighbor with an &#34;acceptable&#34; BGP Prefix-SID attribute and that path is selected as the best path, it SHOULD program the derived label as the label for the prefix in its local MPLS data plane. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -567,7 +571,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-11">RFC8669-4.1-11</code></td><td colspan="3"><span class="rfc-subject">Speaker SHOULD NOT treat a &#34;conflicting&#34; BGP Prefix-SID attribute as an error (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-11">RFC8669-4.1-11</code></td><td colspan="3"><span class="rfc-subject">In the case of a &#34;conflicting&#34; BGP Prefix-SID attribute, a BGP speaker SHOULD NOT treat it as an error (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4.1</td>
@@ -576,7 +580,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-12">RFC8669-4.1-12</code></td><td colspan="3"><span class="rfc-subject">Speaker SHOULD propagate the attribute unchanged for conflicting cases (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-12">RFC8669-4.1-12</code></td><td colspan="3"><span class="rfc-subject">In the case of a &#34;conflicting&#34; BGP Prefix-SID attribute, a BGP speaker SHOULD NOT treat it as an error and SHOULD propagate the attribute unchanged. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -585,7 +589,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-13">RFC8669-4.1-13</code></td><td colspan="3"><span class="rfc-subject">Speaker SHOULD log a warning for conflicting BGP Prefix-SID attributes (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-13">RFC8669-4.1-13</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker SHOULD log a warning for further analysis, i.e., in the case the conflict is not due to a label-index transition. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -594,7 +598,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-14">RFC8669-4.1-14</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD ensure all impacted prefixes revert to using label indices when transitioning from conflicting to acceptable (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-14">RFC8669-4.1-14</code></td><td colspan="3"><span class="rfc-subject">When a BGP Prefix-SID attribute changes and transitions from &#34;conflicting&#34; to &#34;acceptable&#34;, the BGP Prefix-SID attributes for other prefixes may also transition to &#34;acceptable&#34; as well. Implementations SHOULD ensure all impacted prefixes revert to using the label indices corresponding to these newly &#34;acceptable&#34; BGP Prefix-SID attributes. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -603,7 +607,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-5-1">RFC8669-5-1</code></td><td colspan="3"><span class="rfc-subject">Speaker SHOULD advertise the BGP Prefix-SID received with the path without modification (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-5-1">RFC8669-5-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that advertises a path received from one of its neighbors SHOULD advertise the BGP Prefix-SID received with the path without modification as long as the BGP Prefix-SID was acceptable. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -621,7 +625,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-8-2">RFC8669-8-2</code></td><td colspan="3"><span class="rfc-subject">BGP Prefix-SID attribute SHOULD NOT be attached to a prefix and advertised by default (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-8-2">RFC8669-8-2</code></td><td colspan="3"><span class="rfc-subject">By default, a BGP Prefix-SID attribute SHOULD NOT be attached to a prefix and advertised. (§8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>8</td>
@@ -630,7 +634,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-8-3">RFC8669-8-3</code></td><td colspan="3"><span class="rfc-subject">BGP Prefix-SID advertisement SHOULD require explicit enablement (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-8-3">RFC8669-8-3</code></td><td colspan="3"><span class="rfc-subject">Hence, BGP Prefix-SID Advertisement SHOULD require explicit enablement. (§8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8</td>
@@ -639,7 +643,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-5-2">RFC8669-5-2</code></td><td colspan="3"><span class="rfc-subject">Attribute filtering SHOULD be deployed at the administrative boundary of the SR domain (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-5-2">RFC8669-5-2</code></td><td colspan="3"><span class="rfc-subject">In order to prevent distribution of the BGP Prefix-SID attribute beyond its intended scope of applicability, attribute filtering SHOULD be deployed to remove the BGP Prefix-SID attribute at the administrative boundary of the SR domain. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -648,7 +652,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.2-5">RFC8669-3.2-5</code></td><td colspan="3"><span class="rfc-subject">If SRGB received via BGP-LS differs from Prefix-SID attribute, BGP-LS values SHOULD be preferred (§3.2, §9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.2-5">RFC8669-3.2-5</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker receives a node&#39;s SRGB as an attribute of the BGP-LS Node NLRI and the BGP speaker also receives the same node&#39;s SRGB in a BGP Prefix-SID attribute, then the received values should be the same. If the values are different, the values advertised in the BGP- LS NLRI SHOULD be preferred, and an error should be logged. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2</td>
@@ -657,7 +661,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-9-1">RFC8669-9-1</code></td><td colspan="3"><span class="rfc-subject">Speaker SHOULD log an error if BGP Prefix-SID SRGB differs from that received via BGP-LS Node NLRI (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-9-1">RFC8669-9-1</code></td><td colspan="3"><span class="rfc-subject">Since BGP-LS is the preferred method for advertising SRGB information, the BGP speaker SHOULD log an error if a BGP Prefix-SID attribute is received with SRGB information different from that received as an attribute of the same node&#39;s BGP-LS Node NLRI. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>9</td>
@@ -666,7 +670,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-9-2">RFC8669-9-2</code></td><td colspan="3"><span class="rfc-subject">Error log message rate limiting and suppression of duplicate error log messages SHOULD be deployed (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-9-2">RFC8669-9-2</code></td><td colspan="3"><span class="rfc-subject">To prevent a Denial-of-Service (DoS) or Distributed-Denial-of-Service (DDoS) attack due to excessive BGP updates with an invalid or conflicting BGP Prefix-SID attribute, error log message rate limiting as well as suppression of duplicate error log messages SHOULD be deployed. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>9</td>
@@ -684,7 +688,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-5.1-3">RFC8669-5.1-3</code></td><td colspan="3"><span class="rfc-subject">Originator may optionally announce the Originator SRGB TLV (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-5.1-3">RFC8669-5.1-3</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that originates a BGP Prefix-SID attribute MAY optionally announce the Originator SRGB TLV along with the mandatory Label-Index TLV. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.1</td>
@@ -693,7 +697,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-5-3">RFC8669-5-3</code></td><td colspan="3"><span class="rfc-subject">If path lacks Prefix-SID, speaker MAY attach a BGP Prefix-SID if configured (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-5-3">RFC8669-5-3</code></td><td colspan="3"><span class="rfc-subject">If the path did not come with a BGP Prefix-SID attribute, the speaker MAY attach a BGP Prefix-SID to the path if configured to do so. (§5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5</td>
@@ -702,7 +706,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.2-6">RFC8669-3.2-6</code></td><td colspan="3"><span class="rfc-subject">SRGB field MAY appear multiple times (ranges concatenated) (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.2-6">RFC8669-3.2-6</code></td><td colspan="3"><span class="rfc-subject">Note that the SRGB field MAY appear multiple times. If the SRGB field appears multiple times, the SRGB consists of multiple ranges that are concatenated. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.2</td>
@@ -724,7 +728,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>neither the sender nor the receiver requires TLV type 1 for labeled unicast -- validatePrefixSIDAttr accepts a Prefix-SID with no Label-Index TLV (internal/component/bgp/message/rfc7606.go:837) and BuildLabeledUnicast attaches whatever bytes the route configuration produced, including an SRv6-only attribute (internal/component/bgp/message/update_build_labeled.go:189)</td>
 </tr>
-<tr><td><a href="#rfc8669-4.1-1"><code>RFC8669-4.1-1</code></a> BGP Prefix-SID attribute attached to Labeled Unicast MUST contain the Label-Index TLV (§4.1)</td>
+<tr><td><a href="#rfc8669-4.1-1"><code>RFC8669-4.1-1</code></a> When the BGP Prefix-SID attribute is attached to a BGP Labeled IPv4 or IPv6 Unicast [RFC8277] AFI/SAFI, it MUST contain the Label-Index TLV (§4.1)</td>
 <td>{gap}, no test</td>
 <td>the receive validator never scans for TLV type 1, so a labeled-unicast Prefix-SID with no Label-Index TLV is accepted as well formed (internal/component/bgp/message/rfc7606.go:837)</td>
 </tr>
@@ -768,7 +772,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8669-3-1"><code>RFC8669-3-1</code></a></h3>
 <p>For future extensibility, unknown TLVs MUST be ignored and propagated unmodified. (§3, §6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;ignored&#39;: a validator rejecting an unknown TLV type goes red at message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored require.Equal(RFC7606ActionNone). Clause &#39;propagated unmodified&#39;: the only byte-equality assertion runs after ValidateUpdateRFC7606, not after any forward or re-advertise path, so a forward rail that strips or rewrites the unknown TLV (or drops the whole attribute, as applyFactsNextHop does on a next-hop change) turns nothing red. The propagation half has no assertion.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -787,7 +791,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC8669-3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-3.1-2"><code>RFC8669-3.1-2</code></a></h3>
 <p>It MUST be ignored when received for other BGP AFI/SAFI combinations. (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak (agrees with blind reader). The unit proves only that the SRv6 extractor steps over TLV type 1. The {single-polarity} premise that no other reader of TLV type 1 exists in internal/core/bgp is false: attribute/prefixsid_wire.go validatePrefixSIDTLVs refuses a Label-Index whose length is not 7, and the JSON formatter emits sr-label-index, both regardless of AFI/SAFI. No tagged unit feeds a Label-Index on a non-labeled-unicast route through validation or decode, so acting on it there (erroring or reporting it) stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -801,8 +805,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8669-3.1-3"><code>RFC8669-3.1-3</code></a></h3>
-<p>Label-Index TLV Reserved field MUST be clear on transmission (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>RESERVED: 8-bit field. It MUST be clear on transmission (§3.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Forbidden: non-zero Label-Index Reserved emitted. There are two Label-Index encoders: EncodePrefixSID&#39;s simple path (asserted sid[3]==0) and parsePrefixSIDWithSRGB (prefixsid.go:120), which builds its own Label-Index TLV. TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission inspects only sid[10:], so a non-zero Reserved in the SRGB path&#39;s Label-Index stays green. The {single-polarity} note calls the encoder ParsePrefixSID and names one encoder.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -816,8 +820,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8669-3.1-4"><code>RFC8669-3.1-4</code></a></h3>
-<p>Label-Index TLV Reserved field MUST be ignored on reception (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>RESERVED: 8-bit field. It MUST be clear on transmission and MUST be ignored on reception. (§3.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Reception clause proven: a Reserved 0xFF Label-Index yields RFC7606ActionNone with unchanged bytes. The quoted transmission clause (&#39;MUST be clear on transmission&#39;) has no assertion in this row&#39;s tagged units, and the units tagged RFC8669-3.1-3 leave the SRGB-path Label-Index encoder unasserted (see 3.1-3).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -836,8 +840,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8669-3.1-5"><code>RFC8669-3.1-5</code></a></h3>
-<p>Label-Index TLV Flags MUST be clear on transmission (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission (§3.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Forbidden: non-zero Label-Index Flags emitted. sid[4:6]=={0,0} is asserted only for EncodePrefixSID&#39;s simple Label-Index path; the Label-Index TLV that parsePrefixSIDWithSRGB (prefixsid.go:120) builds is not inspected by any tagged unit, so non-zero Flags there stay green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -851,8 +855,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8669-3.1-6"><code>RFC8669-3.1-6</code></a></h3>
-<p>Label-Index TLV Flags MUST be ignored on reception (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission and MUST be ignored on reception. (§3.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Reception clause proven: Flags 0xFFFF yields RFC7606ActionNone with unchanged bytes. The quoted transmission clause has no assertion in this row&#39;s tagged units, and RFC8669-3.1-5&#39;s unit misses the SRGB-path Label-Index encoder.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -871,8 +875,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8669-3.2-1"><code>RFC8669-3.2-1</code></a></h3>
-<p>Originator SRGB TLV Flags MUST be clear on transmission (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Flags: 16 bits of flags. None are defined in this document. The Flags field MUST be clear on transmission (§3.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Non-compliant behaviour: non-zero Originator SRGB Flags emitted. config/rfc8669_test.go::TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission asserts require.Equal([]byte{0,0}, srgb[3:5]) on EncodePrefixSID output. Single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -886,8 +890,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8669-3.2-2"><code>RFC8669-3.2-2</code></a></h3>
-<p>Originator SRGB TLV Flags MUST be ignored on reception (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Flags: 16 bits of flags. None are defined in this document. The Flags field MUST be clear on transmission and MUST be ignored on reception. (§3.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Reception clause: SRGB Flags 0xFFFF yields RFC7606ActionNone (no byte-unchanged assertion, unlike 3.1-4/3.1-6). The quoted transmission clause (&#39;MUST be clear on transmission&#39;) has no assertion in this row&#39;s tagged units; it is proven only by the unit tagged RFC8669-3.2-1.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -921,8 +925,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8669-3.2-4"><code>RFC8669-3.2-4</code></a></h3>
-<p>Originator SRGB TLV MUST be ignored when received for non-Labeled Unicast AFI/SAFI combinations (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The Originator SRGB TLV may only appear in a BGP Prefix-SID attribute attached to IPv4/IPv6 Labeled Unicast prefixes ([RFC8277]). It MUST be ignored when received for other BGP AFI/SAFI combinations. (§3.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. The unit proves only that the SRv6 extractor steps over TLV type 3. The {single-polarity} premise that the only SRGB code is the config-side encoder is false: attribute/prefixsid_wire.go validatePrefixSIDTLVs refuses an Originator SRGB whose length is not 2 + 6N, and the JSON formatter decodes it, regardless of AFI/SAFI. No tagged unit covers an SRGB on a non-labeled-unicast route through those paths.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -937,7 +941,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8669-4-1"><code>RFC8669-4-1</code></a></h3>
 <p>A BGP speaker receiving a BGP Prefix-SID attribute from an External BGP (EBGP) neighbor residing outside the boundaries of the SR domain MUST discard the attribute unless it is configured to accept the attribute from the EBGP neighbor. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clause &#39;MUST discard&#39;: a Prefix-SID kept from an unconfigured EBGP peer goes red at reactor/rfc8669_test.go::TestRFC8669PrefixSIDFromEBGPDiscardedByDefault assert.False(found) after enforceRFC7606, and for repeated copies at rfc8669_multi_test.go::TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP. Clause &#39;unless configured&#39;: an over-firing strip goes red at TestRFC8669PrefixSIDFromEBGPAcceptedWhenConfigured assert.True(found); IBGP not affected is pinned in TestRFC8669PrefixSIDKeptPathsKeepExactlyOneCopy.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -966,7 +970,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8669-4.1-1"><code>RFC8669-4.1-1</code></a></h3>
-<p>BGP Prefix-SID attribute attached to Labeled Unicast MUST contain the Label-Index TLV (§4.1)</p>
+<p>When the BGP Prefix-SID attribute is attached to a BGP Labeled IPv4 or IPv6 Unicast [RFC8277] AFI/SAFI, it MUST contain the Label-Index TLV (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8669-4.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-4.1-2"><code>RFC8669-4.1-2</code></a></h3>
@@ -1084,7 +1088,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8669-6-1"><code>RFC8669-6-1</code></a></h3>
 <p>When a BGP speaker receives a BGP UPDATE message containing a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers. (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Malformed via TLV overrun: message/rfc8669_test.go::TestRFC8669MalformedAttributeDiscardedAndNotAdvertised asserts discard and absence after ApplyAttrDiscard; trailing bytes: TestRFC8669TrailingBytesDiscarded asserts discard only, not removal. Unasserted clauses: (1) &#39;invalid&#39; (no Label-Index TLV, per 4.1) is never computed, so an invalid attribute is kept and advertised and no tagged unit goes red; (2) &#39;a TLV length that doesn&#39;t conform to the length constraints for the TLV&#39; is not checked by validatePrefixSIDAttr (a Label-Index TLV of length 6 or an SRGB TLV of length 3 is accepted), and no test drives it; (3) &#39;not meeting the minimum attribute length&#39; (e.g. a zero-length attribute) is accepted and untested.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1113,7 +1117,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC8669-6-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-6-3"><code>RFC8669-6-3</code></a></h3>
 <p>Similarly, if a recognized TLV appears more than once in a BGP Prefix-SID attribute while the specification only allows for a single occurrence, then all the occurrences of the TLV other than the first one SHALL be discarded and the Prefix-SID attribute will continue to be processed. (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Tagged units pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVFirstWins and ::TestRFC8669DuplicateRecognizedTLVCannotOverrideFirst prove first-wins reading of duplicate SRv6 L3 Service TLVs in ExtractSRv6SIDFull, which is the RFC 9252 rule &#39;all but the first instance MUST be ignored&#39;. Unasserted: that the later occurrences are DISCARDED (they stay in the attribute bytes forwarded on, same shape as the RFC8669-6-2 gap), and duplicates of RFC 8669&#39;s own single-occurrence TLV (Label-Index) are never driven.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1361,7 +1365,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4364 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4364: BGP/MPLS IP Virtual Private Networks (VPNs). 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4364: BGP/MPLS IP Virtual Private Networks (VPNs). 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4364 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4364: BGP/MPLS IP Virtual Private Networks (VPNs). 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4364: BGP/MPLS IP Virtual Private Networks (VPNs). 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4364 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4364: BGP/MPLS IP Virtual Private Networks (VPNs). 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4364: BGP/MPLS IP Virtual Private Networks (VPNs). 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -318,7 +321,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> LDP support for VPN LSP tunneling is a PE data-plane duty; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it neither sets up nor forwards over VPN LSPs</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-2">RFC4364-4.3.2-2</code></td><td colspan="3"><span class="rfc-subject">Downstream Unsolicited mode MUST be supported on interfaces that are neither LC-ATM nor LC-FR interfaces (§4.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-2">RFC4364-4.3.2-2</code></td><td colspan="3"><span class="rfc-subject">In particular, Downstream Unsolicited mode MUST be supported on interfaces that are neither Label Controlled ATM (LC-ATM) [MPLS-ATM] nor Label Controlled Frame Relay (LC-FR) [MPLS-FR] interfaces (§4.3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3.2 - Route Distribution Among PEs by BGP</td>
@@ -327,7 +330,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> LDP Downstream Unsolicited mode is a PE label-distribution/data-plane property; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-3">RFC4364-4.3.2-3</code></td><td colspan="3"><span class="rfc-subject">Downstream on Demand mode MUST be supported on LC-ATM and LC-FR interfaces (§4.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-3">RFC4364-4.3.2-3</code></td><td colspan="3"><span class="rfc-subject">Downstream on Demand mode MUST be supported on LC-ATM interfaces and LC-FR interfaces. (§4.3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3.2 - Route Distribution Among PEs by BGP</td>
@@ -336,7 +339,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> LDP Downstream on Demand on LC-ATM/LC-FR interfaces is a PE link-layer duty; ze has no such interfaces and no VPN forwarding path (ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-6-1">RFC4364-6-1</code></td><td colspan="3"><span class="rfc-subject">A router in the backbone MUST NOT accept a labeled packet from any adjacent non-backbone device unless conditions in §6 are met (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-6-1">RFC4364-6-1</code></td><td colspan="3"><span class="rfc-subject">If MPLS is being used as the tunneling technology, this means that a router in the backbone MUST NOT accept a labeled packet from any adjacent non-backbone device unless the following two conditions hold: 1. the label at the top of the label stack was actually distributed by that backbone router to that non-backbone device, and 2. the backbone router can determine that use of that label will cause the packet to leave the backbone before any labels lower in the stack will be inspected, and before the IP header will be inspected. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6 - Maintaining Proper Isolation of VPNs</td>
@@ -363,7 +366,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so there is no MPLS-in-IP/GRE VPN data path at an egress PE to validate a tunneled packet&#39;s source address</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-4">RFC4364-4.3.2-4</code></td><td colspan="3"><span class="rfc-subject">A PE router (unless it is a route reflector or ASBR) should not install a VPN-IPv4 route unless it has at least one VRF with a matching Import Target (§4.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-4">RFC4364-4.3.2-4</code></td><td colspan="3"><span class="rfc-subject">A PE router, UNLESS it is a route reflector (see Section 4.3.3) or an Autonomous System Border Router (ASBR) for an inter-provider VPN (see Section 10), should not install a VPN-IPv4 route unless it has at least one VRF with an Import Target identical to one of the route&#39;s Route Target attributes. (§4.3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.3.2 - Route Distribution Among PEs by BGP</td>
@@ -372,7 +375,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-5">RFC4364-4.3.2-5</code></td><td colspan="3"><span class="rfc-subject">Inbound filtering should be used to discard unneeded VPN-IPv4 routes (§4.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-5">RFC4364-4.3.2-5</code></td><td colspan="3"><span class="rfc-subject">Inbound filtering should be used to cause such routes to be discarded. (§4.3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.3.2 - Route Distribution Among PEs by BGP</td>
@@ -381,7 +384,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-13.2-1">RFC4364-13.2-1</code></td><td colspan="3"><span class="rfc-subject">TCP/IP MD5 authentication option should be used with both BGP and LDP (§13.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-13.2-1">RFC4364-13.2-1</code></td><td colspan="3"><span class="rfc-subject">To ensure security, neither BGP nor LDP connections should be made with untrusted peers. The TCP/IP MD5 authentication option [TCP-MD5] should be used with both these protocols. (§13.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>13.2 - Control Plane</td>
@@ -390,7 +393,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-6">RFC4364-4.3.2-6</code></td><td colspan="3"><span class="rfc-subject">PE may distribute exact VRF routes, aggregates, or both (§4.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-6">RFC4364-4.3.2-6</code></td><td colspan="3"><span class="rfc-subject">The PE may distribute the exact set of routes that appears in the VRF, or it may perform summarization and distribute aggregates of those routes, or it may do some of one and some of the other. (§4.3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.3.2 - Route Distribution Among PEs by BGP</td>
@@ -399,7 +402,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-7">RFC4364-4.3.2-7</code></td><td colspan="3"><span class="rfc-subject">Multiple label allocation strategies: per-VRF, per-attachment-circuit, or per-route (§4.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-7">RFC4364-4.3.2-7</code></td><td colspan="3"><span class="rfc-subject">Whether or not each route has a distinct label is an implementation matter. There are a number of possible algorithms one could use to determine whether two routes get assigned the same label (§4.3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.3.2 - Route Distribution Among PEs by BGP</td>
@@ -429,15 +432,15 @@ No tracked gap in current source anchors.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: LDP support for VPN LSP tunneling is a PE data-plane duty; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it neither sets up nor forwards over VPN LSPs</td>
 </tr>
-<tr><td><a href="#rfc4364-4.3.2-2"><code>RFC4364-4.3.2-2</code></a> Downstream Unsolicited mode MUST be supported on interfaces that are neither LC-ATM nor LC-FR interfaces (§4.3.2)</td>
+<tr><td><a href="#rfc4364-4.3.2-2"><code>RFC4364-4.3.2-2</code></a> In particular, Downstream Unsolicited mode MUST be supported on interfaces that are neither Label Controlled ATM (LC-ATM) [MPLS-ATM] nor Label Controlled Frame Relay (LC-FR) [MPLS-FR] interfaces (§4.3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: LDP Downstream Unsolicited mode is a PE label-distribution/data-plane property; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path</td>
 </tr>
-<tr><td><a href="#rfc4364-4.3.2-3"><code>RFC4364-4.3.2-3</code></a> Downstream on Demand mode MUST be supported on LC-ATM and LC-FR interfaces (§4.3.2)</td>
+<tr><td><a href="#rfc4364-4.3.2-3"><code>RFC4364-4.3.2-3</code></a> Downstream on Demand mode MUST be supported on LC-ATM interfaces and LC-FR interfaces. (§4.3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: LDP Downstream on Demand on LC-ATM/LC-FR interfaces is a PE link-layer duty; ze has no such interfaces and no VPN forwarding path (ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path)</td>
 </tr>
-<tr><td><a href="#rfc4364-6-1"><code>RFC4364-6-1</code></a> A router in the backbone MUST NOT accept a labeled packet from any adjacent non-backbone device unless conditions in §6 are met (§6)</td>
+<tr><td><a href="#rfc4364-6-1"><code>RFC4364-6-1</code></a> If MPLS is being used as the tunneling technology, this means that a router in the backbone MUST NOT accept a labeled packet from any adjacent non-backbone device unless the following two conditions hold: 1. the label at the top of the label stack was actually distributed by that backbone router to that non-backbone device, and 2. the backbone router can determine that use of that label will cause the packet to leave the backbone before any labels lower in the stack will be inspected, and before the IP header will be inspected. (§6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: accepting or rejecting a labeled packet at a backbone router is an MPLS forwarding/security duty; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it is not a P or PE forwarder</td>
 </tr>
@@ -468,15 +471,15 @@ No tracked gap in current source anchors.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4364-4.3.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4364-4.3.2-2"><code>RFC4364-4.3.2-2</code></a></h3>
-<p>Downstream Unsolicited mode MUST be supported on interfaces that are neither LC-ATM nor LC-FR interfaces (§4.3.2)</p>
+<p>In particular, Downstream Unsolicited mode MUST be supported on interfaces that are neither Label Controlled ATM (LC-ATM) [MPLS-ATM] nor Label Controlled Frame Relay (LC-FR) [MPLS-FR] interfaces (§4.3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4364-4.3.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4364-4.3.2-3"><code>RFC4364-4.3.2-3</code></a></h3>
-<p>Downstream on Demand mode MUST be supported on LC-ATM and LC-FR interfaces (§4.3.2)</p>
+<p>Downstream on Demand mode MUST be supported on LC-ATM interfaces and LC-FR interfaces. (§4.3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4364-4.3.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4364-6-1"><code>RFC4364-6-1</code></a></h3>
-<p>A router in the backbone MUST NOT accept a labeled packet from any adjacent non-backbone device unless conditions in §6 are met (§6)</p>
+<p>If MPLS is being used as the tunneling technology, this means that a router in the backbone MUST NOT accept a labeled packet from any adjacent non-backbone device unless the following two conditions hold: 1. the label at the top of the label stack was actually distributed by that backbone router to that non-backbone device, and 2. the backbone router can determine that use of that label will cause the packet to leave the backbone before any labels lower in the stack will be inspected, and before the IP header will be inspected. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4364-6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4364-13.1-1"><code>RFC4364-13.1-1</code></a></h3>
@@ -1077,7 +1080,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

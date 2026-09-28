@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 72.7% | 8 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 3 | of 11 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 11 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 9 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 3 |
 | Tagged units | 3 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 3 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc9085.md` |
 | Requirement shard | `rfc/requirements/rfc9085.md` |
@@ -109,34 +111,34 @@ Eight origination/encode MUSTs unmet (decode-only plugin, no config surface): th
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC9085-2.1.2-1` | SR Capabilities TLV (1034): Flags MUST be set to 0 for OSPFv2 and OSPFv3 (S2.1.2) | MUST | 2.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** transmit obligation; the LsSRCapabilities encoder writes Flags verbatim and no production path originates an SR Capabilities TLV (internal/component/bgp/plugins/nlri/ls/attr_node.go:339; plugin registers decode only at plugin.go:70-71) |
-| `RFC9085-2.1.2-2` | SR Capabilities TLV (1034): Reserved field MUST be set to 0 (S2.1.2) | MUST | 2.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder hardcodes the reserved octet to 0 but ze originates no SR Capabilities TLV in production (internal/component/bgp/plugins/nlri/ls/attr_node.go:340) |
-| `RFC9085-2.1.4-1` | SR Local Block TLV (1036): Flags MUST be set to 0 for OSPFv2 and OSPFv3 (S2.1.4) | MUST | 2.1.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** transmit obligation; the lsSRLocalBlock encoder writes Flags verbatim and no production path originates an SRLB TLV (internal/component/bgp/plugins/nlri/ls/attr_node.go:421) |
-| `RFC9085-2.1.4-2` | SR Local Block TLV (1036): Reserved field MUST be set to 0 (S2.1.4) | MUST | 2.1.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder hardcodes the reserved octet to 0 but ze originates no SRLB TLV in production (internal/component/bgp/plugins/nlri/ls/attr_node.go:422) |
-| `RFC9085-2.2.1-1` | Adjacency SID TLV (1099): Reserved field (2 octets) MUST be set to 0 (S2.2.1) | MUST | 2.2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder hardcodes both reserved octets to 0 but ze originates no Adjacency SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_link.go:436-437) |
-| `RFC9085-2.2.2-1` | LAN Adjacency SID TLV (1100): Reserved field (2 octets) MUST be set to 0 (S2.2.2) | MUST | 2.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze neither decodes nor encodes TLV 1100 (LAN Adjacency SID); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go) |
-| `RFC9085-2.3.1-1` | Prefix-SID TLV (1158): Reserved field (2 octets) MUST be set to 0 (S2.3.1) | MUST | 2.3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder hardcodes both reserved octets to 0 but ze originates no Prefix-SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_prefix.go:154-155) |
-| `RFC9085-2.3.5-1` | Range TLV (1159): Reserved field MUST be set to 0 (S2.3.5) | MUST | 2.3.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze neither decodes nor encodes TLV 1159 (Range); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go) |
-| `RFC9085-2.1.1-1` | SID/Label TLV (1161): When Length=3, the 4 leftmost bits MUST be 0 (S2.1.1) | MUST | 2.1.1 | **positive:** `unit/verify` [`TestRFC9085SIDLabelMasksLeftmostFourBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L888). **negative:** no negative test. **{single-polarity}:** the decoder enforces the leftmost-4-bits-zero rule on receipt by masking the 3-octet value to its 20 rightmost bits (& 0xFFFFF), clearing rather than rejecting, so only a positive decode assertion is meaningful (internal/component/bgp/plugins/nlri/ls/attr_prefix.go:242) |
-| `RFC9085-2.1-1` | TLVs should only be added to the BGP-LS Attribute of the NLRI type the document names for them (Node, Link or Prefix): "These TLVs should only be added to the BGP-LS Attribute associated with the Node NLRI that describes the IGP node that is originating the corresponding IGP TLV/sub-TLV described below." (S2.1, and the same sentence at S2.2 and S2.3) | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** this is an origination placement rule and ze originates no BGP-LS; the plugin registers decode mode only, so it never adds a TLV to any NLRI (internal/component/bgp/plugins/nlri/ls/plugin.go:70-71) |
-| `RFC9085-2.1.2-3` | Reserved fields MUST be ignored on receipt (S2.1.2, S2.1.4, S2.2.1, S2.2.2, S2.3.1, S2.3.5) | MUST | 2.1.2 | **positive:** `unit/verify` [`TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L938). **negative:** no negative test. **{single-polarity}:** every SR decoder skips its reserved octets and never rejects on reserved content, so only a positive test is meaningful (internal/component/bgp/plugins/nlri/ls/attr_node.go:363, attr_link.go:478-479, attr_prefix.go:187-188) |
-| `RFC9085-2.1.2-4` | OSPF-undefined flags in SR Capabilities/SRLB MUST be ignored on receipt (S2.1.2, S2.1.4) | MUST | 2.1.2 | **positive:** `unit/verify` [`TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L928). **negative:** no negative test. **{single-polarity}:** decodeSRCapabilities and decodeSRLocalBlock store the Flags octet without branching on or rejecting any bit, so undefined flags are inherently ignored (internal/component/bgp/plugins/nlri/ls/attr_node.go:367, :439) |
-| `RFC9085-2.2.3-1` | L2 Bundle Member Attributes TLV MAY include sub-TLVs describing bundle member attributes (S2.2.3) | MAY | 2.2.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9085-2.1.2-1` | The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.2) | MUST | 2.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** transmit obligation; the LsSRCapabilities encoder writes Flags verbatim and no production path originates an SR Capabilities TLV (internal/component/bgp/plugins/nlri/ls/attr_node.go:339; plugin registers decode only at plugin.go:70-71) |
+| `RFC9085-2.1.2-2` | Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.2) | MUST | 2.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder hardcodes the reserved octet to 0 but ze originates no SR Capabilities TLV in production (internal/component/bgp/plugins/nlri/ls/attr_node.go:340) |
+| `RFC9085-2.1.4-1` | The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.4) | MUST | 2.1.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** transmit obligation; the lsSRLocalBlock encoder writes Flags verbatim and no production path originates an SRLB TLV (internal/component/bgp/plugins/nlri/ls/attr_node.go:421) |
+| `RFC9085-2.1.4-2` | Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.4) | MUST | 2.1.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder hardcodes the reserved octet to 0 but ze originates no SRLB TLV in production (internal/component/bgp/plugins/nlri/ls/attr_node.go:422) |
+| `RFC9085-2.2.1-1` | Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.2.1) | MUST | 2.2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder hardcodes both reserved octets to 0 but ze originates no Adjacency SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_link.go:436-437) |
+| `RFC9085-2.2.2-1` | Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.2.2) | MUST | 2.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze neither decodes nor encodes TLV 1100 (LAN Adjacency SID); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go) |
+| `RFC9085-2.3.1-1` | Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.3.1) | MUST | 2.3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder hardcodes both reserved octets to 0 but ze originates no Prefix-SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_prefix.go:154-155) |
+| `RFC9085-2.3.5-1` | Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.3.5) | MUST | 2.3.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze neither decodes nor encodes TLV 1159 (Range); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go) |
+| `RFC9085-2.1.1-1` | SID/Label: If the length is set to 3, then the 20 rightmost bits represent a label (the total TLV size is 7), and the 4 leftmost bits are set to 0. (§2.1.1) | MUST | 2.1.1 | **positive:** `unit/verify` [`TestRFC9085SIDLabelMasksLeftmostFourBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L888). **negative:** no negative test. **{single-polarity}:** the decoder enforces the leftmost-4-bits-zero rule on receipt by masking the 3-octet value to its 20 rightmost bits (& 0xFFFFF), clearing rather than rejecting, so only a positive decode assertion is meaningful (internal/component/bgp/plugins/nlri/ls/attr_prefix.go:242) |
+| `RFC9085-2.1-1` | These TLVs should only be added to the BGP-LS Attribute associated with the Node NLRI that describes the IGP node that is originating the corresponding IGP TLV/sub-TLV described below. (§2.1) | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** this is an origination placement rule and ze originates no BGP-LS; the plugin registers decode mode only, so it never adds a TLV to any NLRI (internal/component/bgp/plugins/nlri/ls/plugin.go:70-71) |
+| `RFC9085-2.1.2-3` | Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.2) | MUST | 2.1.2 | **positive:** `unit/verify` [`TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L938). **negative:** no negative test. **{single-polarity}:** every SR decoder skips its reserved octets and never rejects on reserved content, so only a positive test is meaningful (internal/component/bgp/plugins/nlri/ls/attr_node.go:363, attr_link.go:478-479, attr_prefix.go:187-188) |
+| `RFC9085-2.1.2-4` | The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.2) | MUST | 2.1.2 | **positive:** `unit/verify` [`TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L928). **negative:** no negative test. **{single-polarity}:** decodeSRCapabilities and decodeSRLocalBlock store the Flags octet without branching on or rejecting any bit, so undefined flags are inherently ignored (internal/component/bgp/plugins/nlri/ls/attr_node.go:367, :439) |
+| `RFC9085-2.2.3-1` | The TLV MAY include sub-TLVs that describe attributes associated with the bundle member. (§2.2.3) | MAY | 2.2.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9085-2.2.3-2` | Multiple L2 Bundle Member Attributes TLVs MAY be associated with a Link NLRI (S2.2.3) | MAY | 2.2.3 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC9085-2.1.2-1`](#rfc9085-2.1.2-1) SR Capabilities TLV (1034): Flags MUST be set to 0 for OSPFv2 and OSPFv3 (S2.1.2) | {gap}, no test | transmit obligation; the LsSRCapabilities encoder writes Flags verbatim and no production path originates an SR Capabilities TLV (internal/component/bgp/plugins/nlri/ls/attr_node.go:339; plugin registers decode only at plugin.go:70-71) |
-| [`RFC9085-2.1.2-2`](#rfc9085-2.1.2-2) SR Capabilities TLV (1034): Reserved field MUST be set to 0 (S2.1.2) | {gap}, no test | the encoder hardcodes the reserved octet to 0 but ze originates no SR Capabilities TLV in production (internal/component/bgp/plugins/nlri/ls/attr_node.go:340) |
-| [`RFC9085-2.1.4-1`](#rfc9085-2.1.4-1) SR Local Block TLV (1036): Flags MUST be set to 0 for OSPFv2 and OSPFv3 (S2.1.4) | {gap}, no test | transmit obligation; the lsSRLocalBlock encoder writes Flags verbatim and no production path originates an SRLB TLV (internal/component/bgp/plugins/nlri/ls/attr_node.go:421) |
-| [`RFC9085-2.1.4-2`](#rfc9085-2.1.4-2) SR Local Block TLV (1036): Reserved field MUST be set to 0 (S2.1.4) | {gap}, no test | the encoder hardcodes the reserved octet to 0 but ze originates no SRLB TLV in production (internal/component/bgp/plugins/nlri/ls/attr_node.go:422) |
-| [`RFC9085-2.2.1-1`](#rfc9085-2.2.1-1) Adjacency SID TLV (1099): Reserved field (2 octets) MUST be set to 0 (S2.2.1) | {gap}, no test | the encoder hardcodes both reserved octets to 0 but ze originates no Adjacency SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_link.go:436-437) |
-| [`RFC9085-2.2.2-1`](#rfc9085-2.2.2-1) LAN Adjacency SID TLV (1100): Reserved field (2 octets) MUST be set to 0 (S2.2.2) | {gap}, no test | ze neither decodes nor encodes TLV 1100 (LAN Adjacency SID); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go) |
-| [`RFC9085-2.3.1-1`](#rfc9085-2.3.1-1) Prefix-SID TLV (1158): Reserved field (2 octets) MUST be set to 0 (S2.3.1) | {gap}, no test | the encoder hardcodes both reserved octets to 0 but ze originates no Prefix-SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_prefix.go:154-155) |
-| [`RFC9085-2.3.5-1`](#rfc9085-2.3.5-1) Range TLV (1159): Reserved field MUST be set to 0 (S2.3.5) | {gap}, no test | ze neither decodes nor encodes TLV 1159 (Range); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go) |
-| [`RFC9085-2.1-1`](#rfc9085-2.1-1) TLVs should only be added to the BGP-LS Attribute of the NLRI type the document names for them (Node, Link or Prefix): "These TLVs should only be added to the BGP-LS Attribute associated with the Node NLRI that describes the IGP node that is originating the corresponding IGP TLV/sub-TLV described below." (S2.1, and the same sentence at S2.2 and S2.3) | {gap} | this is an origination placement rule and ze originates no BGP-LS; the plugin registers decode mode only, so it never adds a TLV to any NLRI (internal/component/bgp/plugins/nlri/ls/plugin.go:70-71) |
+| [`RFC9085-2.1.2-1`](#rfc9085-2.1.2-1) The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.2) | {gap}, no test | transmit obligation; the LsSRCapabilities encoder writes Flags verbatim and no production path originates an SR Capabilities TLV (internal/component/bgp/plugins/nlri/ls/attr_node.go:339; plugin registers decode only at plugin.go:70-71) |
+| [`RFC9085-2.1.2-2`](#rfc9085-2.1.2-2) Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.2) | {gap}, no test | the encoder hardcodes the reserved octet to 0 but ze originates no SR Capabilities TLV in production (internal/component/bgp/plugins/nlri/ls/attr_node.go:340) |
+| [`RFC9085-2.1.4-1`](#rfc9085-2.1.4-1) The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.4) | {gap}, no test | transmit obligation; the lsSRLocalBlock encoder writes Flags verbatim and no production path originates an SRLB TLV (internal/component/bgp/plugins/nlri/ls/attr_node.go:421) |
+| [`RFC9085-2.1.4-2`](#rfc9085-2.1.4-2) Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.4) | {gap}, no test | the encoder hardcodes the reserved octet to 0 but ze originates no SRLB TLV in production (internal/component/bgp/plugins/nlri/ls/attr_node.go:422) |
+| [`RFC9085-2.2.1-1`](#rfc9085-2.2.1-1) Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.2.1) | {gap}, no test | the encoder hardcodes both reserved octets to 0 but ze originates no Adjacency SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_link.go:436-437) |
+| [`RFC9085-2.2.2-1`](#rfc9085-2.2.2-1) Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.2.2) | {gap}, no test | ze neither decodes nor encodes TLV 1100 (LAN Adjacency SID); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go) |
+| [`RFC9085-2.3.1-1`](#rfc9085-2.3.1-1) Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.3.1) | {gap}, no test | the encoder hardcodes both reserved octets to 0 but ze originates no Prefix-SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_prefix.go:154-155) |
+| [`RFC9085-2.3.5-1`](#rfc9085-2.3.5-1) Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.3.5) | {gap}, no test | ze neither decodes nor encodes TLV 1159 (Range); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go) |
+| [`RFC9085-2.1-1`](#rfc9085-2.1-1) These TLVs should only be added to the BGP-LS Attribute associated with the Node NLRI that describes the IGP node that is originating the corresponding IGP TLV/sub-TLV described below. (§2.1) | {gap} | this is an origination placement rule and ze originates no BGP-LS; the plugin registers decode mode only, so it never adds a TLV to any NLRI (internal/component/bgp/plugins/nlri/ls/plugin.go:70-71) |
 
 ## Proof state
 
@@ -144,7 +146,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC9085-2.1.2-1`](#rfc9085-2.1.2-1)
 
-SR Capabilities TLV (1034): Flags MUST be set to 0 for OSPFv2 and OSPFv3 (S2.1.2)
+The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -152,7 +154,7 @@ No test carries RFC9085-2.1.2-1, so no unit is bound to it.
 
 ### [`RFC9085-2.1.2-2`](#rfc9085-2.1.2-2)
 
-SR Capabilities TLV (1034): Reserved field MUST be set to 0 (S2.1.2)
+Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -160,7 +162,7 @@ No test carries RFC9085-2.1.2-2, so no unit is bound to it.
 
 ### [`RFC9085-2.1.4-1`](#rfc9085-2.1.4-1)
 
-SR Local Block TLV (1036): Flags MUST be set to 0 for OSPFv2 and OSPFv3 (S2.1.4)
+The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -168,7 +170,7 @@ No test carries RFC9085-2.1.4-1, so no unit is bound to it.
 
 ### [`RFC9085-2.1.4-2`](#rfc9085-2.1.4-2)
 
-SR Local Block TLV (1036): Reserved field MUST be set to 0 (S2.1.4)
+Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -176,7 +178,7 @@ No test carries RFC9085-2.1.4-2, so no unit is bound to it.
 
 ### [`RFC9085-2.2.1-1`](#rfc9085-2.2.1-1)
 
-Adjacency SID TLV (1099): Reserved field (2 octets) MUST be set to 0 (S2.2.1)
+Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.2.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -184,7 +186,7 @@ No test carries RFC9085-2.2.1-1, so no unit is bound to it.
 
 ### [`RFC9085-2.2.2-1`](#rfc9085-2.2.2-1)
 
-LAN Adjacency SID TLV (1100): Reserved field (2 octets) MUST be set to 0 (S2.2.2)
+Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -192,7 +194,7 @@ No test carries RFC9085-2.2.2-1, so no unit is bound to it.
 
 ### [`RFC9085-2.3.1-1`](#rfc9085-2.3.1-1)
 
-Prefix-SID TLV (1158): Reserved field (2 octets) MUST be set to 0 (S2.3.1)
+Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -200,7 +202,7 @@ No test carries RFC9085-2.3.1-1, so no unit is bound to it.
 
 ### [`RFC9085-2.3.5-1`](#rfc9085-2.3.5-1)
 
-Range TLV (1159): Reserved field MUST be set to 0 (S2.3.5)
+Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.3.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -208,9 +210,9 @@ No test carries RFC9085-2.3.5-1, so no unit is bound to it.
 
 ### [`RFC9085-2.1.1-1`](#rfc9085-2.1.1-1)
 
-SID/Label TLV (1161): When Length=3, the 4 leftmost bits MUST be 0 (S2.1.1)
+SID/Label: If the length is set to 3, then the 20 rightmost bits represent a label (the total TLV size is 7), and the 4 leftmost bits are set to 0. (§2.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Two clauses. The 20 rightmost bits represent the label: the tagged test decodes 0xF12345 and assert.Equal(0x12345, sl.SID) goes red if the top nibble is folded in. The 4 leftmost bits are set to 0: a transmit duty, and no tagged unit asserts what Ze encodes (Ze originates no BGP-LS, plugin.go registers decode only), so that clause has no assertion.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -218,9 +220,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9085-2.1.2-3`](#rfc9085-2.1.2-3)
 
-Reserved fields MUST be ignored on receipt (S2.1.2, S2.1.4, S2.2.1, S2.2.2, S2.3.1, S2.3.5)
+Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The quoted sentence is "Reserved: 1 octet that MUST be set to 0 and ignored on receipt." Ignored on receipt: TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags sets the octet to 0xFF and require.NoError plus Range 1000 / FirstSID 16000 go red if it is rejected or consumed. Set to 0: no tagged unit asserts the transmitted octet (that duty is RFC9085-2.1.2-2, a gap). The row also claims five other sections' reserved fields (split needed), none exercised here.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -228,9 +230,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9085-2.1.2-4`](#rfc9085-2.1.2-4)
 
-OSPF-undefined flags in SR Capabilities/SRLB MUST be ignored on receipt (S2.1.2, S2.1.4)
+The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The quoted sentence is "The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt." Ignored on receipt: the same test sets undefined bit 0x02 and require.NoError plus the I-flag assertion go red if the TLV is rejected or the meaningful flag disturbed. Set to 0: no tagged unit asserts transmitted flags (RFC9085-2.1.2-1, a gap). The row also claims §2.1.4 SRLB flags (split needed), not exercised by this unit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

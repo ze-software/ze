@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 6608 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 6608: Subcodes for BGP Finite State Machine Error. 3 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 6608: Subcodes for BGP Finite State Machine Error. 3 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 6608 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 6608: Subcodes for BGP Finite State Machine Error. 3 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 6608: Subcodes for BGP Finite State Machine Error. 3 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 6608 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 6608: Subcodes for BGP Finite State Machine Error. 3 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 6608: Subcodes for BGP Finite State Machine Error. 3 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -214,6 +214,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>3</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -295,7 +298,7 @@ Three MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/r
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6608-4-1">RFC6608-4-1</code></td><td colspan="3"><span class="rfc-subject">On receiving an unexpected message in OpenSent state, MUST send NOTIFICATION with Error Code 5 (FSM Error) and Subcode 1 (&#34;Receive Unexpected Message in OpenSent State&#34;), with Data field containing the 1-octet message type (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6608-4-1">RFC6608-4-1</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker receives an unexpected message (e.g., KEEPALIVE/ UPDATE/ROUTE-REFRESH message) on a session in OpenSent state, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode &#34;Receive Unexpected Message in OpenSent State&#34;. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -304,7 +307,7 @@ Three MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/r
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze defines and decodes the RFC 6608 subcodes (internal/component/bgp/message/notification.go:110-113, internal/component/bgp/format/decode.go:316-320) but never sends them -- the reactor dispatches received messages by type with no FSM-state guard (internal/component/bgp/reactor/session_read.go:260-273), and no code path emits a code-5 FSM Error NOTIFICATION with subcode 1 on an unexpected message in OpenSent. Disclosed in the docs/features/rfc-status.md RFC 6608 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6608-4-2">RFC6608-4-2</code></td><td colspan="3"><span class="rfc-subject">On receiving an unexpected message in OpenConfirm state, MUST send NOTIFICATION with Error Code 5 (FSM Error) and Subcode 2 (&#34;Receive Unexpected Message in OpenConfirm State&#34;), with Data field containing the 1-octet message type (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6608-4-2">RFC6608-4-2</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker receives an unexpected message (e.g., OPEN/UPDATE/ ROUTE-REFRESH message) on a session in OpenConfirm state, it MUST send a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode &#34;Receive Unexpected Message in OpenConfirm State&#34; to the neighbor. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -313,7 +316,7 @@ Three MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/r
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> same root cause as 4-1 -- ze decodes the RFC 6608 subcodes but no reactor path sends a code-5 FSM Error NOTIFICATION with subcode 2 on an unexpected message in OpenConfirm (session_read.go:260-273). Disclosed in the docs/features/rfc-status.md RFC 6608 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6608-4-3">RFC6608-4-3</code></td><td colspan="3"><span class="rfc-subject">On receiving an unexpected message in Established state, MUST send NOTIFICATION with Error Code 5 (FSM Error) and Subcode 3 (&#34;Receive Unexpected Message in Established State&#34;), with Data field containing the 1-octet message type (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6608-4-3">RFC6608-4-3</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker receives an unexpected message (e.g., OPEN message) on a session in Established State, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode &#34;Receive Unexpected Message in Established State&#34;. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -331,15 +334,15 @@ Three MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/r
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc6608-4-1"><code>RFC6608-4-1</code></a> On receiving an unexpected message in OpenSent state, MUST send NOTIFICATION with Error Code 5 (FSM Error) and Subcode 1 (&#34;Receive Unexpected Message in OpenSent State&#34;), with Data field containing the 1-octet message type (Section 4)</td>
+<tr><td><a href="#rfc6608-4-1"><code>RFC6608-4-1</code></a> If a BGP speaker receives an unexpected message (e.g., KEEPALIVE/ UPDATE/ROUTE-REFRESH message) on a session in OpenSent state, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode &#34;Receive Unexpected Message in OpenSent State&#34;. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)</td>
 <td>{gap}, no test</td>
 <td>ze defines and decodes the RFC 6608 subcodes (internal/component/bgp/message/notification.go:110-113, internal/component/bgp/format/decode.go:316-320) but never sends them -- the reactor dispatches received messages by type with no FSM-state guard (internal/component/bgp/reactor/session_read.go:260-273), and no code path emits a code-5 FSM Error NOTIFICATION with subcode 1 on an unexpected message in OpenSent. Disclosed in the docs/features/rfc-status.md RFC 6608 row</td>
 </tr>
-<tr><td><a href="#rfc6608-4-2"><code>RFC6608-4-2</code></a> On receiving an unexpected message in OpenConfirm state, MUST send NOTIFICATION with Error Code 5 (FSM Error) and Subcode 2 (&#34;Receive Unexpected Message in OpenConfirm State&#34;), with Data field containing the 1-octet message type (Section 4)</td>
+<tr><td><a href="#rfc6608-4-2"><code>RFC6608-4-2</code></a> If a BGP speaker receives an unexpected message (e.g., OPEN/UPDATE/ ROUTE-REFRESH message) on a session in OpenConfirm state, it MUST send a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode &#34;Receive Unexpected Message in OpenConfirm State&#34; to the neighbor. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)</td>
 <td>{gap}, no test</td>
 <td>same root cause as 4-1 -- ze decodes the RFC 6608 subcodes but no reactor path sends a code-5 FSM Error NOTIFICATION with subcode 2 on an unexpected message in OpenConfirm (session_read.go:260-273). Disclosed in the docs/features/rfc-status.md RFC 6608 row</td>
 </tr>
-<tr><td><a href="#rfc6608-4-3"><code>RFC6608-4-3</code></a> On receiving an unexpected message in Established state, MUST send NOTIFICATION with Error Code 5 (FSM Error) and Subcode 3 (&#34;Receive Unexpected Message in Established State&#34;), with Data field containing the 1-octet message type (Section 4)</td>
+<tr><td><a href="#rfc6608-4-3"><code>RFC6608-4-3</code></a> If a BGP speaker receives an unexpected message (e.g., OPEN message) on a session in Established State, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode &#34;Receive Unexpected Message in Established State&#34;. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)</td>
 <td>{gap}, no test</td>
 <td>same root cause as 4-1 -- ze decodes the RFC 6608 subcodes but no reactor path sends a code-5 FSM Error NOTIFICATION with subcode 3 on an unexpected message in Established (session_read.go:260-273). Disclosed in the docs/features/rfc-status.md RFC 6608 row</td>
 </tr>
@@ -350,15 +353,15 @@ Three MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/r
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc6608-4-1"><code>RFC6608-4-1</code></a></h3>
-<p>On receiving an unexpected message in OpenSent state, MUST send NOTIFICATION with Error Code 5 (FSM Error) and Subcode 1 (&#34;Receive Unexpected Message in OpenSent State&#34;), with Data field containing the 1-octet message type (Section 4)</p>
+<p>If a BGP speaker receives an unexpected message (e.g., KEEPALIVE/ UPDATE/ROUTE-REFRESH message) on a session in OpenSent state, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode &#34;Receive Unexpected Message in OpenSent State&#34;. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6608-4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6608-4-2"><code>RFC6608-4-2</code></a></h3>
-<p>On receiving an unexpected message in OpenConfirm state, MUST send NOTIFICATION with Error Code 5 (FSM Error) and Subcode 2 (&#34;Receive Unexpected Message in OpenConfirm State&#34;), with Data field containing the 1-octet message type (Section 4)</p>
+<p>If a BGP speaker receives an unexpected message (e.g., OPEN/UPDATE/ ROUTE-REFRESH message) on a session in OpenConfirm state, it MUST send a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode &#34;Receive Unexpected Message in OpenConfirm State&#34; to the neighbor. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6608-4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6608-4-3"><code>RFC6608-4-3</code></a></h3>
-<p>On receiving an unexpected message in Established state, MUST send NOTIFICATION with Error Code 5 (FSM Error) and Subcode 3 (&#34;Receive Unexpected Message in Established State&#34;), with Data field containing the 1-octet message type (Section 4)</p>
+<p>If a BGP speaker receives an unexpected message (e.g., OPEN message) on a session in Established State, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode &#34;Receive Unexpected Message in Established State&#34;. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6608-4-3, so no unit is bound to it.</p>
 </section>
@@ -515,7 +518,7 @@ Three MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/r
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -56,6 +56,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 11 |
 | Not applicable, so out of scope | 11 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
@@ -92,42 +93,42 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2473-4.1.1-1` | When Tunnel Encapsulation Limit option value reaches zero, discard packet and send ICMPv6 Parameter Problem (code 0, pointer to limit octet) (§4.1.1) | MUST | 4.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the tunnel-node datapath that processes the encapsulation-limit option and emits ICMPv6 Parameter Problem is the kernel ip6_tunnel module; ze only creates and configures the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44) |
+| `RFC2473-4.1.1-1` | If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is zero, the packet is discarded and an ICMP Parameter Problem message [ICMP-Spec] is sent to the source of the packet, which is the previous tunnel entry-point node. The Code field of the Parameter Problem message is set to zero ("erroneous header field encountered") and the Pointer field is set to point to the third octet of the Tunnel Encapsulation Limit option (i.e., the octet containing the limit value of zero). (§4.1.1) | MUST | 4.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the tunnel-node datapath that processes the encapsulation-limit option and emits ICMPv6 Parameter Problem is the kernel ip6_tunnel module; ze only creates and configures the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44) |
 | `RFC2473-4.1.1-2` | (c) If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is non-zero, an additional Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. (§4.1.1) | MUST | 4.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** decrementing and re-emitting the encapsulation-limit option during encapsulation is a kernel/VPP datapath action; ze supplies only the configured limit via netlink (internal/plugins/iface/netlink/tunnel_linux.go:266) |
-| `RFC2473-4.1.1-3` | When no Tunnel Encapsulation Limit option is found but a limit is configured, include a Tunnel Encapsulation Limit option with the configured value (§4.1.1) | MUST | 4.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** inserting the configured encapsulation-limit option is done by the kernel ip6_tunnel datapath; ze passes IFLA_IPTUN_ENCAP_LIMIT at internal/plugins/iface/netlink/tunnel_linux.go:266-267 |
-| `RFC2473-4.1.1-4` | Examine headers following the IPv6 header in strict left-to-right order when checking for Tunnel Encapsulation Limit option (§4.1.1) | MUST | 4.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** left-to-right extension-header parsing at packet time is kernel datapath parsing; ze carries no per-packet header path, only tunnel netdev creation (internal/plugins/iface/netlink/tunnel_linux.go:44) |
-| `RFC2473-4.1.2-1` | Loopback encapsulation (entry-point and exit-point are the same node) must be avoided (§4.1.2) | MUST | 4.1.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** detecting loopback encapsulation at packet time binds the kernel ip6_tunnel datapath; ze only creates the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44) |
-| `RFC2473-7.1-1` | Tunnel entry-point node must support fragmentation of tunnel IPv6 packets (§7.1) | MUST | 7.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** fragmenting outbound tunnel packets is a kernel/VPP datapath capability; ze holds no packet-forwarding code, only tunnel config (internal/plugins/iface/netlink/tunnel_linux.go:248) |
-| `RFC2473-7.1-2` | Tunnel intermediate node must not fragment a packet undergoing forwarding (§7.1) | MUST NOT | 7.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a routing control plane with no IPv6 forwarding datapath; the intermediate-node no-fragment rule is enforced by the kernel/VPP |
-| `RFC2473-7.1-3` | If original IPv6 packet exceeds tunnel MTU and is larger than IPv6 minimum link MTU, discard and send ICMPv6 Packet Too Big with MTU = max(tunnel MTU, IPv6 minimum link MTU) (§7.1) | MUST | 7.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** tunnel-MTU comparison, discard, and ICMPv6 Packet Too Big generation are kernel ip6_tunnel datapath actions ze does not perform |
-| `RFC2473-7.1-4` | If original IPv6 packet exceeds tunnel MTU but is equal or smaller than IPv6 minimum link MTU, encapsulate then fragment the tunnel packet (§7.1) | MUST | 7.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** encapsulate-then-fragment is a kernel/VPP datapath operation; ze only configures the tunnel interface (internal/plugins/iface/netlink/tunnel_linux.go:248) |
-| `RFC2473-7.2-1` | If original IPv4 packet has DF set and exceeds tunnel MTU, discard and send ICMP unreachable/packet-too-big with tunnel MTU (§7.2) | MUST | 7.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** DF handling and ICMP unreachable/too-big generation for encapsulated IPv4 are kernel datapath behavior; ze only sets PMtuDisc via netlink (internal/plugins/iface/netlink/tunnel_linux.go:210-214) |
+| `RFC2473-4.1.1-3` | If a Tunnel Encapsulation Limit option is not found in the packet entering the tunnel and if an encapsulation limit has been configured for this tunnel, a Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. The limit value in the option is set to the configured limit. (§4.1.1) | MUST | 4.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** inserting the configured encapsulation-limit option is done by the kernel ip6_tunnel datapath; ze passes IFLA_IPTUN_ENCAP_LIMIT at internal/plugins/iface/netlink/tunnel_linux.go:266-267 |
+| `RFC2473-4.1.1-4` | Examine the packet to see if a Tunnel Encapsulation Limit option is present following its IPv6 header. The headers following the IPv6 header must be examined in strict "left-to-right" order (§4.1.1) | MUST | 4.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** left-to-right extension-header parsing at packet time is kernel datapath parsing; ze carries no per-packet header path, only tunnel netdev creation (internal/plugins/iface/netlink/tunnel_linux.go:44) |
+| `RFC2473-4.1.2-1` | A particular case of encapsulation which must be avoided is the loopback encapsulation. Loopback encapsulation takes place when a tunnel IPv6 entry-point node encapsulates tunnel IPv6 packets originated from itself, and destined to itself. (§4.1.2) | MUST | 4.1.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** detecting loopback encapsulation at packet time binds the kernel ip6_tunnel datapath; ze only creates the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44) |
+| `RFC2473-7.1-1` | Therefore, like any source of an IPv6 packet, a tunnel entry-point node must support fragmentation of tunnel IPv6 packets. (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** fragmenting outbound tunnel packets is a kernel/VPP datapath capability; ze holds no packet-forwarding code, only tunnel config (internal/plugins/iface/netlink/tunnel_linux.go:248) |
+| `RFC2473-7.1-2` | A tunnel intermediate node that forwards a tunnel packet to another node in the tunnel follows the general IPv6 rule that it must not fragment a packet undergoing forwarding. (§7) | MUST NOT | 7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a routing control plane with no IPv6 forwarding datapath; the intermediate-node no-fragment rule is enforced by the kernel/VPP |
+| `RFC2473-7.1-3` | if the original IPv6 packet size is larger than the IPv6 minimum link MTU [IPv6-Spec], the entry-point node discards the packet and sends an ICMPv6 "Packet Too Big" message to the source address of the original packet with the recommended MTU size field set to the tunnel MTU or the IPv6 minimum link MTU, whichever is larger, i.e. max (tunnel MTU, IPv6 minimum link MTU). (§7.1) | MUST | 7.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** tunnel-MTU comparison, discard, and ICMPv6 Packet Too Big generation are kernel ip6_tunnel datapath actions ze does not perform |
+| `RFC2473-7.1-4` | if the original IPv6 packet is equal or smaller than the IPv6 minimum link MTU, the tunnel entry-point node encapsulates the original packet, and subsequently fragments the resulting IPv6 tunnel packet into IPv6 fragments that do not exceed the Path MTU to the tunnel exit-point. (§7.1) | MUST | 7.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** encapsulate-then-fragment is a kernel/VPP datapath operation; ze only configures the tunnel interface (internal/plugins/iface/netlink/tunnel_linux.go:248) |
+| `RFC2473-7.2-1` | if in the original IPv4 packet header the Don't Fragment - DF - bit flag is SET, the entry-point node discards the packet and returns an ICMP message. The ICMP message has the type = "unreachable", the code = "packet too big", and the recommended MTU size field set to the size of the tunnel MTU - see sections 6.7 and 8.3. (§7.2) | MUST | 7.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** DF handling and ICMP unreachable/too-big generation for encapsulated IPv4 are kernel datapath behavior; ze only sets PMtuDisc via netlink (internal/plugins/iface/netlink/tunnel_linux.go:210-214) |
 | `RFC2473-8-1` | To report a problem detected inside the tunnel to the source of an original packet, the tunnel entry point node must relay the ICMP message received from inside the tunnel to the source of that original IPv6 packet. (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** relaying tunnel-internal ICMP errors to the original source is a kernel ip6_tunnel datapath function ze does not perform |
-| `RFC2473-3.1-1` | Tunnel extension headers should appear in the order recommended by IPv6 specifications (§3.1, §5.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2473-6.3-1` | The "single-hop" mechanism should be implemented by setting tunnel hop limit independently of the original header (§6.3) | SHOULD | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2473-4.1.2-2` | Implementation should check and reject configuration of a tunnel where entry-point and exit-point addresses belong to the same node (§4.1.2) | SHOULD | 4.1.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2473-4.1.2-3` | Encapsulating engine should check for and reject encapsulation where tunnel endpoint addresses match original packet source/destination addresses (§4.1.2) | SHOULD | 4.1.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2473-4.1.3-1` | Maximum hops on a path with tunnels should be controlled by both original packet hop limit and tunnel encapsulation limit (§4.1.3) | SHOULD | 4.1.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2473-6.3-2` | Tunnel hop limit should be configured to ensure packets reach exit-point and expire quickly on routing loops (§6.3) | SHOULD | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2473-6.1-1` | Tunnel entry-point node address should be validated at tunnel configuration time (§6.1) | SHOULD | 6.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2473-6.4-1` | Traffic Class in tunnel header MAY be inherited from inner packet or set per-tunnel (§6.4) | MAY | 6.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2473-4.1.1-5` | Implementations MAY allow per-tunnel override of the encapsulation limit (§4.1.1, §6.6) | MAY | 4.1.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2473-5.1-1` | Tunnel entry-point node may append IPv6 extension headers (Hop-by-Hop, Routing, etc.) to the tunnel header (§5.1) | MAY | 5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2473-3.1-1` | Tunnel extension headers should appear in the order recommended by the specifications that define the extension headers (§3.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2473-6.3-1` | The "single-hop" mechanism should be implemented by having the tunnel entry point node set a tunnel IPv6 header hop limit independently of the hop limit of the original header. (§6.3) | SHOULD | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2473-4.1.2-2` | To avoid such a case, it is recommended that an implementation have a mechanism that checks and rejects the configuration of a tunnel in which both the entry-point and exit-point node addresses belong to the same node. (§4.1.2) | SHOULD | 4.1.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2473-4.1.2-3` | It is also recommended that the encapsulating engine check for and reject the encapsulation of a packet that has the pair of tunnel entry-point and exit-point addresses identical with the pair of original packet source and final destination addresses. (§4.1.2) | SHOULD | 4.1.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2473-4.1.3-1` | When the path of a packet from source to final destination includes tunnels, the maximum number of hops that the packet can traverse should be controlled by two mechanisms used together to avoid the negative effects of recursive encapsulation in routing loops: (a) the original packet hop limit. It is decremented at each forwarding operation performed on an original packet. This includes each encapsulation of the original packet. It does not include nested encapsulations of the original packet (b) the tunnel IPv6 packet encapsulation limit. (§4.1.3) | SHOULD | 4.1.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2473-6.3-2` | It is recommended that the tunnel hop limit be configured with a value that ensures: (a) that tunnel IPv6 packets can reach the tunnel exit-point node (b) a quick expiration of the tunnel packet if a routing loop occurs within the IPv6 tunnel. (§6.3) | SHOULD | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2473-6.1-1` | The tunnel entry-point node address is one of the valid IPv6 unicast addresses of the entry-point node - the validation of the address at tunnel configuration time is recommended. (§6.1) | SHOULD | 6.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2473-6.4-1` | The configured Packet Traffic Class can also indicate whether the value of the Traffic Class field in the tunnel header is copied from the original header, or it is set to the pre-configured value. (§6.4) | MAY | 6.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2473-4.1.1-5` | A tunnel entry-point node may be configured to include a Tunnel Encapsulation Limit option as part of the information prepended to all packets entering a tunnel at that node. (§4.1.1) | MAY | 4.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2473-5.1-1` | Depending on IPv6 node configuration parameters, a tunnel entry-point node may append to the tunnel IPv6 main header one or more IPv6 extension headers, such as a Hop-by-Hop Options header, a Routing header, or others. (§5.1) | MAY | 5.1 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC2473-4.1.1-1`](#rfc2473-4.1.1-1) When Tunnel Encapsulation Limit option value reaches zero, discard packet and send ICMPv6 Parameter Problem (code 0, pointer to limit octet) (§4.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: the tunnel-node datapath that processes the encapsulation-limit option and emits ICMPv6 Parameter Problem is the kernel ip6_tunnel module; ze only creates and configures the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44) |
+| [`RFC2473-4.1.1-1`](#rfc2473-4.1.1-1) If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is zero, the packet is discarded and an ICMP Parameter Problem message [ICMP-Spec] is sent to the source of the packet, which is the previous tunnel entry-point node. The Code field of the Parameter Problem message is set to zero ("erroneous header field encountered") and the Pointer field is set to point to the third octet of the Tunnel Encapsulation Limit option (i.e., the octet containing the limit value of zero). (§4.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: the tunnel-node datapath that processes the encapsulation-limit option and emits ICMPv6 Parameter Problem is the kernel ip6_tunnel module; ze only creates and configures the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44) |
 | [`RFC2473-4.1.1-2`](#rfc2473-4.1.1-2) (c) If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is non-zero, an additional Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. (§4.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: decrementing and re-emitting the encapsulation-limit option during encapsulation is a kernel/VPP datapath action; ze supplies only the configured limit via netlink (internal/plugins/iface/netlink/tunnel_linux.go:266) |
-| [`RFC2473-4.1.1-3`](#rfc2473-4.1.1-3) When no Tunnel Encapsulation Limit option is found but a limit is configured, include a Tunnel Encapsulation Limit option with the configured value (§4.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: inserting the configured encapsulation-limit option is done by the kernel ip6_tunnel datapath; ze passes IFLA_IPTUN_ENCAP_LIMIT at internal/plugins/iface/netlink/tunnel_linux.go:266-267 |
-| [`RFC2473-4.1.1-4`](#rfc2473-4.1.1-4) Examine headers following the IPv6 header in strict left-to-right order when checking for Tunnel Encapsulation Limit option (§4.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: left-to-right extension-header parsing at packet time is kernel datapath parsing; ze carries no per-packet header path, only tunnel netdev creation (internal/plugins/iface/netlink/tunnel_linux.go:44) |
-| [`RFC2473-4.1.2-1`](#rfc2473-4.1.2-1) Loopback encapsulation (entry-point and exit-point are the same node) must be avoided (§4.1.2) | no test | no test carries this requirement id; annotated {not-applicable}: detecting loopback encapsulation at packet time binds the kernel ip6_tunnel datapath; ze only creates the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44) |
-| [`RFC2473-7.1-1`](#rfc2473-7.1-1) Tunnel entry-point node must support fragmentation of tunnel IPv6 packets (§7.1) | no test | no test carries this requirement id; annotated {not-applicable}: fragmenting outbound tunnel packets is a kernel/VPP datapath capability; ze holds no packet-forwarding code, only tunnel config (internal/plugins/iface/netlink/tunnel_linux.go:248) |
-| [`RFC2473-7.1-2`](#rfc2473-7.1-2) Tunnel intermediate node must not fragment a packet undergoing forwarding (§7.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze is a routing control plane with no IPv6 forwarding datapath; the intermediate-node no-fragment rule is enforced by the kernel/VPP |
-| [`RFC2473-7.1-3`](#rfc2473-7.1-3) If original IPv6 packet exceeds tunnel MTU and is larger than IPv6 minimum link MTU, discard and send ICMPv6 Packet Too Big with MTU = max(tunnel MTU, IPv6 minimum link MTU) (§7.1) | no test | no test carries this requirement id; annotated {not-applicable}: tunnel-MTU comparison, discard, and ICMPv6 Packet Too Big generation are kernel ip6_tunnel datapath actions ze does not perform |
-| [`RFC2473-7.1-4`](#rfc2473-7.1-4) If original IPv6 packet exceeds tunnel MTU but is equal or smaller than IPv6 minimum link MTU, encapsulate then fragment the tunnel packet (§7.1) | no test | no test carries this requirement id; annotated {not-applicable}: encapsulate-then-fragment is a kernel/VPP datapath operation; ze only configures the tunnel interface (internal/plugins/iface/netlink/tunnel_linux.go:248) |
-| [`RFC2473-7.2-1`](#rfc2473-7.2-1) If original IPv4 packet has DF set and exceeds tunnel MTU, discard and send ICMP unreachable/packet-too-big with tunnel MTU (§7.2) | no test | no test carries this requirement id; annotated {not-applicable}: DF handling and ICMP unreachable/too-big generation for encapsulated IPv4 are kernel datapath behavior; ze only sets PMtuDisc via netlink (internal/plugins/iface/netlink/tunnel_linux.go:210-214) |
+| [`RFC2473-4.1.1-3`](#rfc2473-4.1.1-3) If a Tunnel Encapsulation Limit option is not found in the packet entering the tunnel and if an encapsulation limit has been configured for this tunnel, a Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. The limit value in the option is set to the configured limit. (§4.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: inserting the configured encapsulation-limit option is done by the kernel ip6_tunnel datapath; ze passes IFLA_IPTUN_ENCAP_LIMIT at internal/plugins/iface/netlink/tunnel_linux.go:266-267 |
+| [`RFC2473-4.1.1-4`](#rfc2473-4.1.1-4) Examine the packet to see if a Tunnel Encapsulation Limit option is present following its IPv6 header. The headers following the IPv6 header must be examined in strict "left-to-right" order (§4.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: left-to-right extension-header parsing at packet time is kernel datapath parsing; ze carries no per-packet header path, only tunnel netdev creation (internal/plugins/iface/netlink/tunnel_linux.go:44) |
+| [`RFC2473-4.1.2-1`](#rfc2473-4.1.2-1) A particular case of encapsulation which must be avoided is the loopback encapsulation. Loopback encapsulation takes place when a tunnel IPv6 entry-point node encapsulates tunnel IPv6 packets originated from itself, and destined to itself. (§4.1.2) | no test | no test carries this requirement id; annotated {not-applicable}: detecting loopback encapsulation at packet time binds the kernel ip6_tunnel datapath; ze only creates the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44) |
+| [`RFC2473-7.1-1`](#rfc2473-7.1-1) Therefore, like any source of an IPv6 packet, a tunnel entry-point node must support fragmentation of tunnel IPv6 packets. (§7) | no test | no test carries this requirement id; annotated {not-applicable}: fragmenting outbound tunnel packets is a kernel/VPP datapath capability; ze holds no packet-forwarding code, only tunnel config (internal/plugins/iface/netlink/tunnel_linux.go:248) |
+| [`RFC2473-7.1-2`](#rfc2473-7.1-2) A tunnel intermediate node that forwards a tunnel packet to another node in the tunnel follows the general IPv6 rule that it must not fragment a packet undergoing forwarding. (§7) | no test | no test carries this requirement id; annotated {not-applicable}: ze is a routing control plane with no IPv6 forwarding datapath; the intermediate-node no-fragment rule is enforced by the kernel/VPP |
+| [`RFC2473-7.1-3`](#rfc2473-7.1-3) if the original IPv6 packet size is larger than the IPv6 minimum link MTU [IPv6-Spec], the entry-point node discards the packet and sends an ICMPv6 "Packet Too Big" message to the source address of the original packet with the recommended MTU size field set to the tunnel MTU or the IPv6 minimum link MTU, whichever is larger, i.e. max (tunnel MTU, IPv6 minimum link MTU). (§7.1) | no test | no test carries this requirement id; annotated {not-applicable}: tunnel-MTU comparison, discard, and ICMPv6 Packet Too Big generation are kernel ip6_tunnel datapath actions ze does not perform |
+| [`RFC2473-7.1-4`](#rfc2473-7.1-4) if the original IPv6 packet is equal or smaller than the IPv6 minimum link MTU, the tunnel entry-point node encapsulates the original packet, and subsequently fragments the resulting IPv6 tunnel packet into IPv6 fragments that do not exceed the Path MTU to the tunnel exit-point. (§7.1) | no test | no test carries this requirement id; annotated {not-applicable}: encapsulate-then-fragment is a kernel/VPP datapath operation; ze only configures the tunnel interface (internal/plugins/iface/netlink/tunnel_linux.go:248) |
+| [`RFC2473-7.2-1`](#rfc2473-7.2-1) if in the original IPv4 packet header the Don't Fragment - DF - bit flag is SET, the entry-point node discards the packet and returns an ICMP message. The ICMP message has the type = "unreachable", the code = "packet too big", and the recommended MTU size field set to the size of the tunnel MTU - see sections 6.7 and 8.3. (§7.2) | no test | no test carries this requirement id; annotated {not-applicable}: DF handling and ICMP unreachable/too-big generation for encapsulated IPv4 are kernel datapath behavior; ze only sets PMtuDisc via netlink (internal/plugins/iface/netlink/tunnel_linux.go:210-214) |
 | [`RFC2473-8-1`](#rfc2473-8-1) To report a problem detected inside the tunnel to the source of an original packet, the tunnel entry point node must relay the ICMP message received from inside the tunnel to the source of that original IPv6 packet. (§8) | no test | no test carries this requirement id; annotated {not-applicable}: relaying tunnel-internal ICMP errors to the original source is a kernel ip6_tunnel datapath function ze does not perform |
 
 ## Proof state
@@ -136,7 +137,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC2473-4.1.1-1`](#rfc2473-4.1.1-1)
 
-When Tunnel Encapsulation Limit option value reaches zero, discard packet and send ICMPv6 Parameter Problem (code 0, pointer to limit octet) (§4.1.1)
+If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is zero, the packet is discarded and an ICMP Parameter Problem message [ICMP-Spec] is sent to the source of the packet, which is the previous tunnel entry-point node. The Code field of the Parameter Problem message is set to zero ("erroneous header field encountered") and the Pointer field is set to point to the third octet of the Tunnel Encapsulation Limit option (i.e., the octet containing the limit value of zero). (§4.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -152,7 +153,7 @@ No test carries RFC2473-4.1.1-2, so no unit is bound to it.
 
 ### [`RFC2473-4.1.1-3`](#rfc2473-4.1.1-3)
 
-When no Tunnel Encapsulation Limit option is found but a limit is configured, include a Tunnel Encapsulation Limit option with the configured value (§4.1.1)
+If a Tunnel Encapsulation Limit option is not found in the packet entering the tunnel and if an encapsulation limit has been configured for this tunnel, a Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. The limit value in the option is set to the configured limit. (§4.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -160,7 +161,7 @@ No test carries RFC2473-4.1.1-3, so no unit is bound to it.
 
 ### [`RFC2473-4.1.1-4`](#rfc2473-4.1.1-4)
 
-Examine headers following the IPv6 header in strict left-to-right order when checking for Tunnel Encapsulation Limit option (§4.1.1)
+Examine the packet to see if a Tunnel Encapsulation Limit option is present following its IPv6 header. The headers following the IPv6 header must be examined in strict "left-to-right" order (§4.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -168,7 +169,7 @@ No test carries RFC2473-4.1.1-4, so no unit is bound to it.
 
 ### [`RFC2473-4.1.2-1`](#rfc2473-4.1.2-1)
 
-Loopback encapsulation (entry-point and exit-point are the same node) must be avoided (§4.1.2)
+A particular case of encapsulation which must be avoided is the loopback encapsulation. Loopback encapsulation takes place when a tunnel IPv6 entry-point node encapsulates tunnel IPv6 packets originated from itself, and destined to itself. (§4.1.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -176,7 +177,7 @@ No test carries RFC2473-4.1.2-1, so no unit is bound to it.
 
 ### [`RFC2473-7.1-1`](#rfc2473-7.1-1)
 
-Tunnel entry-point node must support fragmentation of tunnel IPv6 packets (§7.1)
+Therefore, like any source of an IPv6 packet, a tunnel entry-point node must support fragmentation of tunnel IPv6 packets. (§7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -184,7 +185,7 @@ No test carries RFC2473-7.1-1, so no unit is bound to it.
 
 ### [`RFC2473-7.1-2`](#rfc2473-7.1-2)
 
-Tunnel intermediate node must not fragment a packet undergoing forwarding (§7.1)
+A tunnel intermediate node that forwards a tunnel packet to another node in the tunnel follows the general IPv6 rule that it must not fragment a packet undergoing forwarding. (§7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -192,7 +193,7 @@ No test carries RFC2473-7.1-2, so no unit is bound to it.
 
 ### [`RFC2473-7.1-3`](#rfc2473-7.1-3)
 
-If original IPv6 packet exceeds tunnel MTU and is larger than IPv6 minimum link MTU, discard and send ICMPv6 Packet Too Big with MTU = max(tunnel MTU, IPv6 minimum link MTU) (§7.1)
+if the original IPv6 packet size is larger than the IPv6 minimum link MTU [IPv6-Spec], the entry-point node discards the packet and sends an ICMPv6 "Packet Too Big" message to the source address of the original packet with the recommended MTU size field set to the tunnel MTU or the IPv6 minimum link MTU, whichever is larger, i.e. max (tunnel MTU, IPv6 minimum link MTU). (§7.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -200,7 +201,7 @@ No test carries RFC2473-7.1-3, so no unit is bound to it.
 
 ### [`RFC2473-7.1-4`](#rfc2473-7.1-4)
 
-If original IPv6 packet exceeds tunnel MTU but is equal or smaller than IPv6 minimum link MTU, encapsulate then fragment the tunnel packet (§7.1)
+if the original IPv6 packet is equal or smaller than the IPv6 minimum link MTU, the tunnel entry-point node encapsulates the original packet, and subsequently fragments the resulting IPv6 tunnel packet into IPv6 fragments that do not exceed the Path MTU to the tunnel exit-point. (§7.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -208,7 +209,7 @@ No test carries RFC2473-7.1-4, so no unit is bound to it.
 
 ### [`RFC2473-7.2-1`](#rfc2473-7.2-1)
 
-If original IPv4 packet has DF set and exceeds tunnel MTU, discard and send ICMP unreachable/packet-too-big with tunnel MTU (§7.2)
+if in the original IPv4 packet header the Don't Fragment - DF - bit flag is SET, the entry-point node discards the packet and returns an ICMP message. The ICMP message has the type = "unreachable", the code = "packet too big", and the recommended MTU size field set to the size of the tunnel MTU - see sections 6.7 and 8.3. (§7.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -227,7 +228,7 @@ No test carries RFC2473-8-1, so no unit is bound to it.
 | Field | Value |
 |---|---|
 | Reviewer | claude |
-| Signed off | 2026-09-21 |
+| Signed off | 2026-09-27 |
 | Register | prose |
 | Source | rfc/full/rfc2473.txt |
 | Source fingerprint | 59956643eb9ece1a |
@@ -274,7 +275,10 @@ No test carries RFC2473-8-1, so no unit is bound to it.
 | `8.4` | not stated | 0 | walked | not stated |
 | `9` | not stated | 0 | walked | not stated |
 | `10` | not stated | 0 | walked | not stated |
-| `11` | not stated | 1 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `A.1` | Appendix subsection A.1 | 0 | walked | Appendix subsection A.1. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A.1.1` | Appendix subsection A.1.1 | 0 | walked | Appendix subsection A.1.1. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A.1.2` | Appendix subsection A.1.2 | 1 | walked | Appendix subsection A.1.2. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of section 11, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote. |
 
 ### Excluded sentences
 
@@ -284,7 +288,7 @@ No test carries RFC2473-8-1, so no unit is bound to it.
 | `4.1.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | the lead-in that introduces the enumerated procedure (a) to (e); the obligations are the steps themselves, carried by sites 4.1.1:2 to 4.1.1:4 and by the section's unsourced id RFC2473-4.1.1-1 for step (b) | A tunnel entry-point node is required to execute the following procedure for every packet entering a tunnel at that node: |
 | `7:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | descriptive prose explaining why anycast destinations are unsuitable: "a requirement that is not necessarily satisfied by packets sent to an anycast address". It describes the reassembly property of IPv6 fragmentation, and imposes nothing on a tunnel node | The problem, which is similar to that of original fragmented IPv6 packets destined to nodes identified by an anycast address, is that all the fragments of a packet must arrive at the same destination node for that node to be able to perform a successful reassembly, a requirement that is not necessarily satisfied by packets sent to an anycast address. |
 | `8.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | the keyword sits inside the noun phrase "the minimum link MTU size required for IPv6 [IPv6-Spec]", which names a constant; the sentence itself restates the rule of section 7.1 in indicative prose | According to the general rules described in 7.1, an ICMP "packet too big" message is sent to the source of the original packet only if the original packet size is larger than the minimum link MTU size required for IPv6 [IPv6-Spec]. |
-| `11:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | the Internet Society copyright notice; its "must" binds anyone republishing the document, not an implementation | However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English. |
+| `A.1.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | the Internet Society copyright notice; its "must" binds anyone republishing the document, not an implementation | However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English. |
 
 ## Superseded
 

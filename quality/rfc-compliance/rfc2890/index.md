@@ -56,6 +56,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 3 |
 | Not applicable, so out of scope | 3 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
@@ -95,10 +96,10 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | `RFC2890-2.2-3` | The Sequence Number MUST be used by the receiver to establish the order in which packets have been transmitted from the encapsulator to the receiver. (S2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** GRE receive-side sequence ordering is performed by the kernel/VPP datapath; ze has no GRE decapsulation or packet-parse code path |
 | `RFC2890-2.2-4` | If a packet has been waiting that long, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (and ignoring any sequence number gaps) until there are no more packets in the buffer that have been waiting longer than OUTOFORDER_TIMER milliseconds. (S2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze has no GRE receiver buffer or OUTOFORDER_TIMER; it programs kernel/VPP tunnels and does not process GRE payloads |
 | `RFC2890-3-1` | In order to protect against such attacks, IP security protocols [4] MUST be used to protect the GRE header and the tunneled payload. (S3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze applies no ESP or AH to GRE; IPsec is not wired to the GRE tunnel builders (internal/plugins/iface/netlink/tunnel_linux.go, internal/plugins/iface/vpp/tunnel.go) |
-| `RFC2890-1.1-1` | When silently discarding, the implementation SHOULD provide the capability of logging the error (S1.1) | SHOULD | 1.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2890-1.1-2` | When silently discarding, the implementation SHOULD record the event in a statistics counter (S1.1) | SHOULD | 1.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2890-2.2-5` | An out-of-sequence packet SHOULD be silently discarded (S2.2) | SHOULD | 2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2890-2.2-8` | Reordering of out-of-sequence packets MAY be performed by the decapsulator (S2.2) | MAY | 2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2890-1.1-1` | The implementation SHOULD provide the capability of logging the error, including the contents of the discarded datagram (S1.1) | SHOULD | 1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2890-1.1-2` | The implementation SHOULD provide the capability of logging the error, including the contents of the discarded datagram, and SHOULD record the event in a statistics counter. (S1.1) | SHOULD | 1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2890-2.2-5` | When the decapsulator receives an out-of sequence packet it SHOULD be silently discarded. (S2.2) | SHOULD | 2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2890-2.2-8` | Reordering of out-of sequence packets MAY be performed by the decapsulator for improved performance and tolerance to reordering in the network. (S2.2) | MAY | 2.2 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 

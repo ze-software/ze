@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 6482 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 6482: A Profile for Route Origin Authorizations (ROAs). 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 6482: A Profile for Route Origin Authorizations (ROAs). 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 6482 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 6482: A Profile for Route Origin Authorizations (ROAs). 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 6482: A Profile for Route Origin Authorizations (ROAs). 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 6482 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 6482: A Profile for Route Origin Authorizations (ROAs). 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 6482: A Profile for Route Origin Authorizations (ROAs). 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -305,7 +308,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; there is no CMS/ASN.1 ROA decode in the RPKI path, so no eContentType/content-type OID is ever checked</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-3.3-1">RFC6482-3.3-1</code></td><td colspan="3"><span class="rfc-subject">addressFamily MUST be either 0001 (IPv4) or 0002 (IPv6) (Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-3.3-1">RFC6482-3.3-1</code></td><td colspan="3"><span class="rfc-subject">This specification only supports IPv4 and IPv6. Therefore, addressFamily MUST be either 0001 or 0002. (Section 3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3</td>
@@ -341,7 +344,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; the RFC 6488 and ROA-specific validation checks are performed by the relying-party cache, not by ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-4-3">RFC6482-4-3</code></td><td colspan="3"><span class="rfc-subject">Each IP address prefix in the ROA MUST be contained within the set of IP addresses specified by the EE certificate&#39;s IP address delegation extension (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-4-3">RFC6482-4-3</code></td><td colspan="3"><span class="rfc-subject">To validate a ROA, the relying party MUST perform all the validation checks specified in [RFC6488] as well as the following additional ROA-specific validation step. o The IP address delegation extension [RFC3779] is present in the end-entity (EE) certificate (contained within the ROA), and each IP address prefix(es) in the ROA is contained within the set of IP addresses specified by the EE certificate&#39;s IP address delegation extension. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -368,7 +371,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; verifying the ROA&#39;s X.509 signature and address-space match is a relying-party/cache responsibility ze does not perform</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-3.3-3">RFC6482-3.3-3</code></td><td colspan="3"><span class="rfc-subject">A ROA MAY contain two ROAIPAddress elements with identical IP address prefix, but this is NOT RECOMMENDED as the shorter maxLength grants no additional privileges (Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-3.3-3">RFC6482-3.3-3</code></td><td colspan="3"><span class="rfc-subject">Additionally, a ROA MAY contain two ROAIPAddress elements, where the IP address prefix is identical in both cases. However, this is NOT RECOMMENDED as, in such a case, the ROAIPAddress with the shorter maxLength grants no additional privileges to the indicated AS and thus can be omitted without changing the meaning of the ROA. (Section 3.3)</span></td></tr>
 <tr><td></td>
 <td>NOT RECOMMENDED</td>
 <td>3.3</td>
@@ -394,7 +397,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; there is no CMS/ASN.1 ROA decode in the RPKI path, so no eContentType/content-type OID is ever checked</td>
 </tr>
-<tr><td><a href="#rfc6482-3.3-1"><code>RFC6482-3.3-1</code></a> addressFamily MUST be either 0001 (IPv4) or 0002 (IPv6) (Section 3.3)</td>
+<tr><td><a href="#rfc6482-3.3-1"><code>RFC6482-3.3-1</code></a> This specification only supports IPv4 and IPv6. Therefore, addressFamily MUST be either 0001 or 0002. (Section 3.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; ze receives per-address-family RTR Prefix PDUs (IPv4 Type 4 / IPv6 Type 6), not ROA ipAddrBlocks with an addressFamily field</td>
 </tr>
@@ -410,7 +413,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; the RFC 6488 and ROA-specific validation checks are performed by the relying-party cache, not by ze</td>
 </tr>
-<tr><td><a href="#rfc6482-4-3"><code>RFC6482-4-3</code></a> Each IP address prefix in the ROA MUST be contained within the set of IP addresses specified by the EE certificate&#39;s IP address delegation extension (Section 4)</td>
+<tr><td><a href="#rfc6482-4-3"><code>RFC6482-4-3</code></a> To validate a ROA, the relying party MUST perform all the validation checks specified in [RFC6488] as well as the following additional ROA-specific validation step. o The IP address delegation extension [RFC3779] is present in the end-entity (EE) certificate (contained within the ROA), and each IP address prefix(es) in the ROA is contained within the set of IP addresses specified by the EE certificate&#39;s IP address delegation extension. (Section 4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; checking each prefix against the EE certificate&#39;s IP delegation extension requires the ROA CMS and EE certificate that ze never handles</td>
 </tr>
@@ -437,7 +440,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6482-2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6482-3.3-1"><code>RFC6482-3.3-1</code></a></h3>
-<p>addressFamily MUST be either 0001 (IPv4) or 0002 (IPv6) (Section 3.3)</p>
+<p>This specification only supports IPv4 and IPv6. Therefore, addressFamily MUST be either 0001 or 0002. (Section 3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6482-3.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6482-3.3-2"><code>RFC6482-3.3-2</code></a></h3>
@@ -453,7 +456,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6482-4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6482-4-3"><code>RFC6482-4-3</code></a></h3>
-<p>Each IP address prefix in the ROA MUST be contained within the set of IP addresses specified by the EE certificate&#39;s IP address delegation extension (Section 4)</p>
+<p>To validate a ROA, the relying party MUST perform all the validation checks specified in [RFC6488] as well as the following additional ROA-specific validation step. o The IP address delegation extension [RFC3779] is present in the end-entity (EE) certificate (contained within the ROA), and each IP address prefix(es) in the ROA is contained within the set of IP addresses specified by the EE certificate&#39;s IP address delegation extension. (Section 4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6482-4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc6482-5-1"><code>RFC6482-5-1</code></a></h3>
@@ -474,7 +477,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-09-27</td>
 </tr>
 <tr><td>Register</td>
 <td>prose</td>
@@ -598,6 +601,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>walked</td>
 <td>not stated</td>
 </tr>
+<tr><td><code>A</code></td>
+<td>Appendix A</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix A. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -652,7 +661,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

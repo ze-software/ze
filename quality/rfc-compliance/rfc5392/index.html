@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5392 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5392: OSPF Extensions in Support of Inter-Autonomous System (AS) MPLS and GMPLS Traffic Engineering. 12 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5392: OSPF Extensions in Support of Inter-Autonomous System (AS) MPLS and GMPLS Traffic Engineering. 12 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5392 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5392: OSPF Extensions in Support of Inter-Autonomous System (AS) MPLS and GMPLS Traffic Engineering. 12 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5392: OSPF Extensions in Support of Inter-Autonomous System (AS) MPLS and GMPLS Traffic Engineering. 12 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5392 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5392: OSPF Extensions in Support of Inter-Autonomous System (AS) MPLS and GMPLS Traffic Engineering. 12 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5392: OSPF Extensions in Support of Inter-Autonomous System (AS) MPLS and GMPLS Traffic Engineering. 12 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,10 +116,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>25.0%</strong><b>3 of 12 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>41.7%</strong><b>5 of 12 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>41.7%</strong><b>5 of 12 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>25.0%</strong><b>3 of 12 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 11 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>15.4%</strong><b>2 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>33.3%</strong><b>4 of 12 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>8</strong><b>of 12 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>4</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -221,16 +225,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>11</td>
+<td>13</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>11</td>
+<td>13</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5392.md</code></td>
@@ -267,11 +271,11 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>3</strong></td>
+<td><strong>5</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>9</strong></td>
+<td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -294,17 +298,17 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc5392-3.2.1-4"><code>RFC5392-3.2.1-4</code></a>, <a href="#rfc5392-3.2.1-1"><code>RFC5392-3.2.1-1</code></a>, <a href="#rfc5392-4-3"><code>RFC5392-4-3</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (9):</strong> <a href="#rfc5392-3.3.1-1"><code>RFC5392-3.3.1-1</code></a>, <a href="#rfc5392-3.1.2-1"><code>RFC5392-3.1.2-1</code></a>, <a href="#rfc5392-3.2.1-2"><code>RFC5392-3.2.1-2</code></a>, <a href="#rfc5392-3.3.2-1"><code>RFC5392-3.3.2-1</code></a>, <a href="#rfc5392-3.3.2-2"><code>RFC5392-3.3.2-2</code></a>, <a href="#rfc5392-3.3.3-1"><code>RFC5392-3.3.3-1</code></a>, <a href="#rfc5392-3.3.3-2"><code>RFC5392-3.3.3-2</code></a>, <a href="#rfc5392-4-1"><code>RFC5392-4-1</code></a>, <a href="#rfc5392-4-2"><code>RFC5392-4-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc5392-3.2.1-4"><code>RFC5392-3.2.1-4</code></a>, <a href="#rfc5392-3.2.1-1"><code>RFC5392-3.2.1-1</code></a>, <a href="#rfc5392-4-1"><code>RFC5392-4-1</code></a>, <a href="#rfc5392-4-2"><code>RFC5392-4-2</code></a>, <a href="#rfc5392-4-3"><code>RFC5392-4-3</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (7):</strong> <a href="#rfc5392-3.3.1-1"><code>RFC5392-3.3.1-1</code></a>, <a href="#rfc5392-3.1.2-1"><code>RFC5392-3.1.2-1</code></a>, <a href="#rfc5392-3.2.1-2"><code>RFC5392-3.2.1-2</code></a>, <a href="#rfc5392-3.3.2-1"><code>RFC5392-3.3.2-1</code></a>, <a href="#rfc5392-3.3.2-2"><code>RFC5392-3.3.2-2</code></a>, <a href="#rfc5392-3.3.3-1"><code>RFC5392-3.3.3-1</code></a>, <a href="#rfc5392-3.3.3-2"><code>RFC5392-3.3.3-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.2.1-4">RFC5392-3.2.1-4</code></td><td colspan="3"><span class="rfc-subject">The Remote-AS-Number sub-TLV (type 21) is included in the Link TLV of both the Inter-AS-TE-v2 and Inter-AS-TE-v3 LSA; it is REQUIRED in any Link TLV advertising an inter-AS TE link (§3.2.1, §3.3.1) -- Ze (v2): `remote-as` mandatory in YANG + validateConfig; emitted as sub-TLV 21 (spec-ospf-ext-2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.2.1-4">RFC5392-3.2.1-4</code></td><td colspan="3"><span class="rfc-subject">The Remote-AS-Number sub-TLV MUST be included in the Link TLV of both the Inter-AS-TE-v2 LSA and Inter-AS-TE-v3 LSA. (§3.2.1) -- Ze, v2 only: `remote-as` mandatory in YANG + validateConfig; emitted as sub-TLV 21; spec-ospf-ext-2</span></td></tr>
 <tr><td></td>
-<td>REQUIRED</td>
+<td>MUST</td>
 <td>3.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5392-3.2.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L250" title="internal/plugins/ospf/te_originate_test.go" target="_blank" rel="noopener"><code>TestInterAsTEOriginateScopePolicy</code></a></span></div>
@@ -329,7 +333,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze originates inter-AS TE only as the OSPFv2 Opaque-type-6 LSA; the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is not implemented, so there is no LS Type or U-bit to set (internal/plugins/ospf/te.go:88-91)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.2.1-1">RFC5392-3.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The Link ID sub-TLV MUST NOT be used in the Link TLV of an Inter-AS-TE-v2 LSA (§3.2.1) -- Ze never emits sub-TLV 2 for an inter-AS link, and a received type-6 Link TLV carrying it is skipped (validateReceivedTELink)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.2.1-1">RFC5392-3.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The Link ID sub-TLV [OSPF-TE] MUST NOT be used in the Link TLV of an Inter-AS-TE-v2 LSA (§3.2.1) -- Ze never emits sub-TLV 2 for an inter-AS link, and a received type-6 Link TLV carrying it is skipped by validateReceivedTELink</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2.1</td>
@@ -338,7 +342,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_test.go#L52" title="internal/plugins/ospf/te_test.go" target="_blank" rel="noopener"><code>TestTEReceiveMalformedNoEntry</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.2.1-2">RFC5392-3.2.1-2</code></td><td colspan="3"><span class="rfc-subject">The Neighbor ID sub-TLV MUST NOT be used in the Link TLV of an Inter-AS-TE-v3 LSA (§3.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.2.1-2">RFC5392-3.2.1-2</code></td><td colspan="3"><span class="rfc-subject">the Neighbor ID sub-TLV [OSPF-V3-TE] MUST NOT be used in the Link TLV of an Inter-AS-TE-v3 LSA (§3.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2.1</td>
@@ -347,7 +351,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no OSPFv3 Inter-AS-TE-v3 LSA, so there is no v3 inter-AS Link TLV in which a Neighbor ID sub-TLV could be emitted or prohibited (internal/plugins/ospf/te.go:88-91)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.2-1">RFC5392-3.3.2-1</code></td><td colspan="3"><span class="rfc-subject">In OSPFv2 advertisements, the IPv4 Remote ASBR ID sub-TLV (type 22) MUST be included if the neighboring ASBR has an IPv4 address (§3.3.2) -- Ze: `remote-asbr-ipv4` leaf emitted as sub-TLV 22; validateConfig requires at least one remote-asbr (spec-ospf-ext-2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.2-1">RFC5392-3.3.2-1</code></td><td colspan="3"><span class="rfc-subject">In OSPFv2 advertisements, the IPv4 Remote ASBR ID sub-TLV MUST be included if the neighboring ASBR has an IPv4 address. (§3.3.2) -- Ze: `remote-asbr-ipv4` leaf emitted as sub-TLV 22; validateConfig requires at least one remote-asbr; spec-ospf-ext-2</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3.2</td>
@@ -356,7 +360,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze emits sub-TLV 22 whenever the operator configures remote-asbr-ipv4; the remote ASBR&#39;s addresses are proxied from config, so ze cannot independently detect an IPv4 address and there is no adversarial negative (internal/plugins/ospf/packet/te_interas.go:38-39)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.2-2">RFC5392-3.3.2-2</code></td><td colspan="3"><span class="rfc-subject">In OSPFv2, if the neighboring ASBR has no IPv4 address (not even an IPv4 TE Router ID), the IPv6 Remote ASBR ID sub-TLV MUST be included instead (§3.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.2-2">RFC5392-3.3.2-2</code></td><td colspan="3"><span class="rfc-subject">If the neighboring ASBR does not have an IPv4 address (not even an IPv4 TE Router ID), the IPv6 Remote ASBR ID sub-TLV MUST be included instead. (§3.3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3.2</td>
@@ -365,7 +369,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> validateConfig requires at least one Remote ASBR ID, so a v4-less inter-AS link carries the IPv6 Remote ASBR ID sub-TLV 24; the selection is operator config and the only enforced rejection is neither-present (internal/plugins/ospf/te_config.go:163, packet/te_interas.go:41-44)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.3-1">RFC5392-3.3.3-1</code></td><td colspan="3"><span class="rfc-subject">In OSPFv3 advertisements, the IPv6 Remote ASBR ID sub-TLV (type 24) MUST be included if the neighboring ASBR has an IPv6 address (§3.3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.3-1">RFC5392-3.3.3-1</code></td><td colspan="3"><span class="rfc-subject">In OSPFv3 advertisements, the IPv6 Remote ASBR ID sub-TLV MUST be included if the neighboring ASBR has an IPv6 address. (§3.3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3.3</td>
@@ -374,7 +378,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> OSPFv3 inter-AS TE (function code 13) is not implemented, so ze originates no OSPFv3 advertisement in which to require the IPv6 Remote ASBR ID (the type-24 codec exists but is only ever emitted into a v2 LSA) (internal/plugins/ospf/te.go:88-91)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.3-2">RFC5392-3.3.3-2</code></td><td colspan="3"><span class="rfc-subject">In OSPFv3, if the neighboring ASBR has no IPv6 address, the IPv4 Remote ASBR ID sub-TLV MUST be included instead (§3.3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.3-2">RFC5392-3.3.3-2</code></td><td colspan="3"><span class="rfc-subject">If the neighboring ASBR does not have an IPv6 address, the IPv4 Remote ASBR ID sub-TLV MUST be included instead. (§3.3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3.3</td>
@@ -383,25 +387,25 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no OSPFv3 Inter-AS-TE-v3 LSA, so the v3 IPv4-fallback rule has no origination path to bind (internal/plugins/ospf/te.go:88-91)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-1">RFC5392-4-1</code></td><td colspan="3"><span class="rfc-subject">Hellos MUST NOT be exchanged over the inter-AS link (§4) -- Ze proxies the inter-AS link from config only; the `inter-as` block forms no adjacency and sends no Hello on that link</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-1">RFC5392-4-1</code></td><td colspan="3"><span class="rfc-subject">Hellos MUST NOT be exchanged over the inter-AS link (§4) -- an interface carrying an `inter-as` block is forced passive at config parse by parseInterface in internal/plugins/ospf/config.go, so no Hello is sent on it</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5392-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L278" title="internal/plugins/ospf/te_originate_test.go" target="_blank" rel="noopener"><code>TestInterASTEOriginatesWithoutNeighbor</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s inter-AS TE advertisement is a config-only proxy that forms no adjacency and requires no Full neighbor, so the feature originates no Hellos; ze provides no guard forcing the interface passive, so there is no enforced rejection to exercise as a negative (internal/plugins/ospf/te_originate.go:167-202, te_config.go:53)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_interas_passive_test.go#L33" title="internal/plugins/ospf/rfc5392_interas_passive_test.go" target="_blank" rel="noopener"><code>TestRFC5392InterASInterfaceIsPassive</code></a></span></div>
+</div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-2">RFC5392-4-2</code></td><td colspan="3"><span class="rfc-subject">An OSPF adjacency MUST NOT be formed on the inter-AS link (§4) -- the inter-AS advertisement is config-driven (a passive/loopback proxy link); no FSM runs on it</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-2">RFC5392-4-2</code></td><td colspan="3"><span class="rfc-subject">Hellos MUST NOT be exchanged over the inter-AS link, and consequently, an OSPF adjacency MUST NOT be formed. (§4) -- the forced-passive interface is not an active interface, so no neighbor FSM runs and no adjacency forms on it</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5392-4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L281" title="internal/plugins/ospf/te_originate_test.go" target="_blank" rel="noopener"><code>TestInterASTEOriginatesWithoutNeighbor</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> inter-AS TE origination is decoupled from the adjacency FSM and never consults neighbor state, so the feature forms no adjacency; there is no guard rejecting an inter-as block on a non-passive interface, so no testable negative exists (internal/plugins/ospf/te_originate.go:167-202, te_config.go:45-53)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_interas_passive_test.go#L36" title="internal/plugins/ospf/rfc5392_interas_passive_test.go" target="_blank" rel="noopener"><code>TestRFC5392InterASInterfaceIsPassive</code></a></span></div>
+</div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-3">RFC5392-4-3</code></td><td colspan="3"><span class="rfc-subject">When re-advertising on TE parameter change, the ASBR MUST take precautions against excessive re-advertisements as described in [RFC3630] (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-3">RFC5392-4-3</code></td><td colspan="3"><span class="rfc-subject">the ASBR MUST take precautions against excessive re- advertisements as described in [OSPF-TE]. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -410,7 +414,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_originate_test.go#L153" title="internal/plugins/ospf/lsdb/opaque_originate_test.go" target="_blank" rel="noopener"><code>TestInterASTEReAdvertiseRateLimited</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.1.1-1">RFC5392-3.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The inter-AS TE link advertisement SHOULD be carried in a Type 10 Opaque LSA when flooding scope is limited to the ASBR&#39;s IGP area (§3.1.1) -- Ze: `inter-as scope area` (the default) originates a Type 10 opaque LSA</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.1.1-1">RFC5392-3.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The inter-AS TE link advertisement SHOULD be carried in a Type 10 Opaque LSA [RFC5250] if the flooding scope is to be limited to within the single IGP area to which the ASBR belongs (§3.1.1) -- Ze: `inter-as scope area`, the default, originates a Type 10 opaque LSA</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1.1</td>
@@ -419,7 +423,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.1.1-2">RFC5392-3.1.1-2</code></td><td colspan="3"><span class="rfc-subject">Configuration control of the Type 10 vs Type 11 (Inter-AS-TE-v2) choice SHOULD be provided in ASBR implementations that advertise inter-AS TE links (§3.1.1) -- Ze: the `inter-as scope { area | as }` leaf selects Type 10 vs Type 11 per link</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.1.1-2">RFC5392-3.1.1-2</code></td><td colspan="3"><span class="rfc-subject">The choice between the use of a Type 10 (area-scoped) or Type 11 (AS-scoped) Opaque LSA is an AS-wide policy choice, and configuration control of it SHOULD be provided in ASBR implementations that support the advertisement of inter-AS TE links. (§3.1.1) -- Ze: the `inter-as scope { area | as }` leaf selects Type 10 vs Type 11 per link</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1.1</td>
@@ -428,7 +432,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.1.2-2">RFC5392-3.1.2-2</code></td><td colspan="3"><span class="rfc-subject">For the Inter-AS-TE-v3 LSA, the S2/S1 bits SHOULD be set to 01 to limit flooding scope to the ASBR&#39;s IGP area (§3.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.1.2-2">RFC5392-3.1.2-2</code></td><td colspan="3"><span class="rfc-subject">For the Inter-AS-TE-v3-LSA, the S2 and S1 bits SHOULD be set to 01 to indicate that the flooding scope is to be limited to within the single IGP area to which the ASBR belongs (§3.1.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1.2</td>
@@ -437,7 +441,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.1.2-3">RFC5392-3.1.2-3</code></td><td colspan="3"><span class="rfc-subject">Configuration control of the 01 vs 10 (Inter-AS-TE-v3) scope choice SHOULD be provided in ASBR implementations that advertise inter-AS TE links (§3.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.1.2-3">RFC5392-3.1.2-3</code></td><td colspan="3"><span class="rfc-subject">The choice between the use of 01 or 10 is a network-wide policy choice, and configuration control SHOULD be provided in ASBR implementations that support the advertisement of inter-AS TE links. (§3.1.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1.2</td>
@@ -446,7 +450,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.2.1-3">RFC5392-3.2.1-3</code></td><td colspan="3"><span class="rfc-subject">At least one of the IPv4-Remote-ASBR-ID and IPv6-Remote-ASBR-ID sub-TLV SHOULD be included in the Link TLV of both LSAs (§3.2.1) -- Ze: validateConfig requires at least one of `remote-asbr-ipv4` / `remote-asbr-ipv6`</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.2.1-3">RFC5392-3.2.1-3</code></td><td colspan="3"><span class="rfc-subject">At least one of the IPv4-Remote-ASBR-ID sub-TLV and the IPv6-Remote-ASBR-ID sub-TLV SHOULD be included in the Link TLV of the Inter-AS-TE-v2 LSA and Inter-AS-TE-v3 LSA. (§3.2.1) -- Ze: validateConfig requires at least one of `remote-asbr-ipv4` / `remote-asbr-ipv6`</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2.1</td>
@@ -455,7 +459,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-4">RFC5392-4-4</code></td><td colspan="3"><span class="rfc-subject">When TE is enabled on an inter-AS link and the link is up, the ASBR SHOULD advertise this link using normal OSPF-TE procedures (§4) -- Ze originates the Opaque-type-6 LSA via the standard opaque origination pass</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-4">RFC5392-4-4</code></td><td colspan="3"><span class="rfc-subject">When TE is enabled on an inter-AS link and the link is up, the ASBR SHOULD advertise this link using the normal procedures for OSPF-TE [OSPF-TE]. (§4) -- Ze originates the Opaque-type-6 LSA via the standard opaque origination pass</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4</td>
@@ -464,7 +468,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-5">RFC5392-4-5</code></td><td colspan="3"><span class="rfc-subject">When the link is down or TE is disabled, the ASBR SHOULD withdraw the advertisement (§4) -- Ze&#39;s pull-model origination emits a Withdraw for a removed inter-AS instance (MaxAge-flush)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-5">RFC5392-4-5</code></td><td colspan="3"><span class="rfc-subject">When either the link is down or TE is disabled on the link, the ASBR SHOULD withdraw the advertisement. (§4) -- Ze&#39;s pull-model origination emits a Withdraw for a removed inter-AS instance by MaxAge-flush</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4</td>
@@ -473,7 +477,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-6">RFC5392-4-6</code></td><td colspan="3"><span class="rfc-subject">On TE parameter change, the ASBR SHOULD re-advertise the link (§4) -- a changed body re-originates on the next self-LSA pass under the carrier&#39;s MinLSInterval rate-limit</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-6">RFC5392-4-6</code></td><td colspan="3"><span class="rfc-subject">When there are changes to the TE parameters for the link (for example, when the available bandwidth changes), the ASBR SHOULD re-advertise the link (§4) -- a changed body re-originates on the next self-LSA pass under the carrier&#39;s MinLSInterval rate-limit</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4</td>
@@ -482,7 +486,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-7">RFC5392-4-7</code></td><td colspan="3"><span class="rfc-subject">Routers/PCEs SHOULD NOT use inter-AS TE links to compute paths that exit an AS to a remote ASBR then immediately re-enter the AS through another TE link (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-7">RFC5392-4-7</code></td><td colspan="3"><span class="rfc-subject">Routers or PCEs that are capable of processing advertisements of inter-AS TE links SHOULD NOT use such links to compute paths that exit an AS to a remote ASBR and then immediately re-enter the AS through another TE link. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4</td>
@@ -491,7 +495,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-8">RFC5392-4-8</code></td><td colspan="3"><span class="rfc-subject">Such exit-and-re-enter paths SHOULD NOT be allowed except as a result of specific policy configurations at the computing router or PCE (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-4-8">RFC5392-4-8</code></td><td colspan="3"><span class="rfc-subject">Such paths would constitute extremely rare occurrences and SHOULD NOT be allowed except as the result of specific policy configurations at the router or PCE computing the path. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4</td>
@@ -500,7 +504,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-5-1">RFC5392-5-1</code></td><td colspan="3"><span class="rfc-subject">If a different remote AS number is received in a BGP OPEN than locally configured into OSPF-TE, local policy SHOULD be applied to alert the operator or suppress the OSPF advertisement (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-5-1">RFC5392-5-1</code></td><td colspan="3"><span class="rfc-subject">For example, if a different remote AS number is received in a BGP OPEN [BGP] from that locally configured into OSPF-TE, as we describe here, then local policy SHOULD be applied to determine whether to alert the operator to a potential misconfiguration or to suppress the OSPF advertisement of the inter-AS TE link. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -509,7 +513,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-5-2">RFC5392-5-2</code></td><td colspan="3"><span class="rfc-subject">If BGP is used to exchange TE information (§4.1), the inter-AS BGP session SHOULD be secured per [RFC4271] for authentication and integrity (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-5-2">RFC5392-5-2</code></td><td colspan="3"><span class="rfc-subject">if BGP is used to exchange TE information as described in Section 4.1, the inter-AS BGP session SHOULD be secured using mechanisms as described in [BGP] to provide authentication and integrity checks. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -518,7 +522,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.2-3">RFC5392-3.3.2-3</code></td><td colspan="3"><span class="rfc-subject">Use of the TE Router ID from the Router Address TLV [RFC3630] is RECOMMENDED for the IPv4 Remote ASBR ID value (§3.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.2-3">RFC5392-3.3.2-3</code></td><td colspan="3"><span class="rfc-subject">Use of the TE Router Address TE Router ID as specified in the Router Address TLV [OSPF-TE] is RECOMMENDED. (§3.3.2)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>3.3.2</td>
@@ -527,7 +531,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.3-3">RFC5392-3.3.3-3</code></td><td colspan="3"><span class="rfc-subject">Use of the IPv6 TE Router ID from the IPv6 Router Address TLV [RFC5329] is RECOMMENDED for the IPv6 Remote ASBR ID value (§3.3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.3-3">RFC5392-3.3.3-3</code></td><td colspan="3"><span class="rfc-subject">Use of the TE Router IPv6 Address IPv6 TE Router ID as specified in the IPv6 Router Address, which is specified in the IPv6 Router Address TLV [OSPF-V3-TE], is RECOMMENDED. (§3.3.3)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>3.3.3</td>
@@ -545,7 +549,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.1.1-3">RFC5392-3.1.1-3</code></td><td colspan="3"><span class="rfc-subject">The inter-AS TE link advertisement MAY be carried in a Type 11 Opaque LSA when the information is intended to reach all routers (ABRs, ASBRs, PCEs) in the AS (Inter-AS-TE-v2) (§3.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.1.1-3">RFC5392-3.1.1-3</code></td><td colspan="3"><span class="rfc-subject">The inter-AS TE link advertisement SHOULD be carried in a Type 10 Opaque LSA [RFC5250] if the flooding scope is to be limited to within the single IGP area to which the ASBR belongs, or MAY be carried in a Type 11 Opaque LSA [RFC5250] if the information is intended to reach all routers (including area border routers, ASBRs, and PCEs) in the AS. (§3.1.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1.1</td>
@@ -554,7 +558,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.1.2-4">RFC5392-3.1.2-4</code></td><td colspan="3"><span class="rfc-subject">For the Inter-AS-TE-v3 LSA, the S2/S1 bits MAY be set to 10 when the information should reach all routers (ABRs, ASBRs, PCEs) in the AS (§3.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.1.2-4">RFC5392-3.1.2-4</code></td><td colspan="3"><span class="rfc-subject">For the Inter-AS-TE-v3-LSA, the S2 and S1 bits SHOULD be set to 01 to indicate that the flooding scope is to be limited to within the single IGP area to which the ASBR belongs, but MAY be set to 10 if the information should reach all routers (including area border routers, ASBRs, and PCEs) in the AS. (§3.1.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1.2</td>
@@ -563,7 +567,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.2-4">RFC5392-3.3.2-4</code></td><td colspan="3"><span class="rfc-subject">An IPv4 Remote ASBR ID sub-TLV and an IPv6 Remote ASBR ID sub-TLV MAY both be present in a Link TLV in OSPFv2 or OSPFv3 (§3.3.2, §3.3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5392-3.3.2-4">RFC5392-3.3.2-4</code></td><td colspan="3"><span class="rfc-subject">An IPv4 Remote ASBR ID sub-TLV and IPv6 Remote ASBR ID sub-TLV MAY both be present in a Link TLV in OSPFv2 or OSPFv3. (§3.3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.3.2</td>
@@ -585,15 +589,15 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <td>{gap}, no test</td>
 <td>ze originates inter-AS TE only as the OSPFv2 Opaque-type-6 LSA; the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is not implemented, so there is no LS Type or U-bit to set (internal/plugins/ospf/te.go:88-91)</td>
 </tr>
-<tr><td><a href="#rfc5392-3.2.1-2"><code>RFC5392-3.2.1-2</code></a> The Neighbor ID sub-TLV MUST NOT be used in the Link TLV of an Inter-AS-TE-v3 LSA (§3.2.1)</td>
+<tr><td><a href="#rfc5392-3.2.1-2"><code>RFC5392-3.2.1-2</code></a> the Neighbor ID sub-TLV [OSPF-V3-TE] MUST NOT be used in the Link TLV of an Inter-AS-TE-v3 LSA (§3.2.1)</td>
 <td>{gap}, no test</td>
 <td>ze implements no OSPFv3 Inter-AS-TE-v3 LSA, so there is no v3 inter-AS Link TLV in which a Neighbor ID sub-TLV could be emitted or prohibited (internal/plugins/ospf/te.go:88-91)</td>
 </tr>
-<tr><td><a href="#rfc5392-3.3.3-1"><code>RFC5392-3.3.3-1</code></a> In OSPFv3 advertisements, the IPv6 Remote ASBR ID sub-TLV (type 24) MUST be included if the neighboring ASBR has an IPv6 address (§3.3.3)</td>
+<tr><td><a href="#rfc5392-3.3.3-1"><code>RFC5392-3.3.3-1</code></a> In OSPFv3 advertisements, the IPv6 Remote ASBR ID sub-TLV MUST be included if the neighboring ASBR has an IPv6 address. (§3.3.3)</td>
 <td>{gap}, no test</td>
 <td>OSPFv3 inter-AS TE (function code 13) is not implemented, so ze originates no OSPFv3 advertisement in which to require the IPv6 Remote ASBR ID (the type-24 codec exists but is only ever emitted into a v2 LSA) (internal/plugins/ospf/te.go:88-91)</td>
 </tr>
-<tr><td><a href="#rfc5392-3.3.3-2"><code>RFC5392-3.3.3-2</code></a> In OSPFv3, if the neighboring ASBR has no IPv6 address, the IPv4 Remote ASBR ID sub-TLV MUST be included instead (§3.3.3)</td>
+<tr><td><a href="#rfc5392-3.3.3-2"><code>RFC5392-3.3.3-2</code></a> If the neighboring ASBR does not have an IPv6 address, the IPv4 Remote ASBR ID sub-TLV MUST be included instead. (§3.3.3)</td>
 <td>{gap}, no test</td>
 <td>ze implements no OSPFv3 Inter-AS-TE-v3 LSA, so the v3 IPv4-fallback rule has no origination path to bind (internal/plugins/ospf/te.go:88-91)</td>
 </tr>
@@ -604,8 +608,8 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5392-3.2.1-4"><code>RFC5392-3.2.1-4</code></a></h3>
-<p>The Remote-AS-Number sub-TLV (type 21) is included in the Link TLV of both the Inter-AS-TE-v2 and Inter-AS-TE-v3 LSA; it is REQUIRED in any Link TLV advertising an inter-AS TE link (§3.2.1, §3.3.1) -- Ze (v2): `remote-as` mandatory in YANG + validateConfig; emitted as sub-TLV 21 (spec-ospf-ext-2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The Remote-AS-Number sub-TLV MUST be included in the Link TLV of both the Inter-AS-TE-v2 LSA and Inter-AS-TE-v3 LSA. (§3.2.1) -- Ze, v2 only: `remote-as` mandatory in YANG + validateConfig; emitted as sub-TLV 21; spec-ospf-ext-2</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quoted sentence has two clauses: the Remote-AS-Number sub-TLV MUST be in the Link TLV of the Inter-AS-TE-v2 LSA, and of the Inter-AS-TE-v3 LSA. v2 clause: forbidden is a type-6 Link TLV without sub-TLV 21; TestInterAsTEOriginateScopePolicy asserts `!l.HasRemoteAS || l.RemoteAS != 65001` fatal, and TestTEReceiveType6MissingRemoteASSkipped asserts reception stores no TED link without it. v3 clause: ze originates no Inter-AS-TE-v3 LSA (function code 13 unimplemented, internal/plugins/ospf/te.go:88-91), so no assertion goes red on a v3 Link TLV lacking sub-TLV 21. One clause unproven, so weak; the v3 clause is a gap like RFC5392-3.2.1-2 and wants its own row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -625,7 +629,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 </div>
 <h3><a href="#rfc5392-3.3.1-1"><code>RFC5392-3.3.1-1</code></a></h3>
 <p>When only two octets are used for the AS number, as in current deployments, the left (high- order) two octets MUST be set to zero. (§3.3.1) -- Ze encodes the 4-octet field big-endian from a uint32, so a 2-byte ASN is zero-extended</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a 2-octet AS number encoded with non-zero high-order octets in the 4-octet Remote AS Number field. Red on it: TestInterAsTERemoteAsTLV (packet/te_interas_test.go) encodes RemoteAS 65001 and asserts `body[8] != 0x00 || body[9] != 0x00` fatal on the wire bytes. Positive only, covered by the row&#39;s {single-polarity: positive} marker (uint32 big-endian encode cannot set the high octets for a 2-byte ASN).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -643,8 +647,8 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5392-3.1.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5392-3.2.1-1"><code>RFC5392-3.2.1-1</code></a></h3>
-<p>The Link ID sub-TLV MUST NOT be used in the Link TLV of an Inter-AS-TE-v2 LSA (§3.2.1) -- Ze never emits sub-TLV 2 for an inter-AS link, and a received type-6 Link TLV carrying it is skipped (validateReceivedTELink)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The Link ID sub-TLV [OSPF-TE] MUST NOT be used in the Link TLV of an Inter-AS-TE-v2 LSA (§3.2.1) -- Ze never emits sub-TLV 2 for an inter-AS link, and a received type-6 Link TLV carrying it is skipped by validateReceivedTELink</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Type-6 Inter-AS-TE-v2 Link TLV that carries the Link ID sub-TLV (type 2). Red on it: TestInterAsTEOriginateScopePolicy asserts `if l.HasLinkID { t.Fatalf }` on the Link TLV teOriginateType6 emits, for both area and AS scope. Negative polarity: TestTEReceiveMalformedNoEntry feeds a type-6 Link TLV that is otherwise valid (Link Type, Remote AS, IPv4 Remote ASBR ID) plus a Link ID and asserts no TED entry (validateReceivedTELink rejects l.HasLinkID for InterAsTEOpaqueType).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -663,12 +667,12 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 </table>
 </div>
 <h3><a href="#rfc5392-3.2.1-2"><code>RFC5392-3.2.1-2</code></a></h3>
-<p>The Neighbor ID sub-TLV MUST NOT be used in the Link TLV of an Inter-AS-TE-v3 LSA (§3.2.1)</p>
+<p>the Neighbor ID sub-TLV [OSPF-V3-TE] MUST NOT be used in the Link TLV of an Inter-AS-TE-v3 LSA (§3.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5392-3.2.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5392-3.3.2-1"><code>RFC5392-3.3.2-1</code></a></h3>
-<p>In OSPFv2 advertisements, the IPv4 Remote ASBR ID sub-TLV (type 22) MUST be included if the neighboring ASBR has an IPv4 address (§3.3.2) -- Ze: `remote-asbr-ipv4` leaf emitted as sub-TLV 22; validateConfig requires at least one remote-asbr (spec-ospf-ext-2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In OSPFv2 advertisements, the IPv4 Remote ASBR ID sub-TLV MUST be included if the neighboring ASBR has an IPv4 address. (§3.3.2) -- Ze: `remote-asbr-ipv4` leaf emitted as sub-TLV 22; validateConfig requires at least one remote-asbr; spec-ospf-ext-2</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an OSPFv2 inter-AS advertisement that omits the IPv4 Remote ASBR ID sub-TLV (22) when the neighboring ASBR has an IPv4 address. Ze learns the remote ASBR&#39;s address only from config (remote-asbr-ipv4), so the observable case is a configured IPv4 remote ASBR ID. Red on it: TestInterAsTEOriginateScopePolicy configures remote-asbr-ipv4 203.0.113.9 and asserts `!l.HasRemoteASBRv4` fatal on the originated type-6 Link TLV. Positive only, covered by the row&#39;s {single-polarity: positive} marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -682,8 +686,8 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 </table>
 </div>
 <h3><a href="#rfc5392-3.3.2-2"><code>RFC5392-3.3.2-2</code></a></h3>
-<p>In OSPFv2, if the neighboring ASBR has no IPv4 address (not even an IPv4 TE Router ID), the IPv6 Remote ASBR ID sub-TLV MUST be included instead (§3.3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the neighboring ASBR does not have an IPv4 address (not even an IPv4 TE Router ID), the IPv6 Remote ASBR ID sub-TLV MUST be included instead. (§3.3.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an OSPFv2 inter-AS advertisement for a neighbor ASBR with no IPv4 address that lacks the IPv6 Remote ASBR ID sub-TLV. The only tagged unit, TestInterAsTEIPv6AsbrIdType24 (internal/plugins/ospf/packet/te_interas_test.go), hand-builds a TELSA with HasRemoteASBRv6 and checks the ENCODER writes sub-TLV 24 and no 22. It never drives origination (buildInterASTELink / teOriginateType6) from a v6-only inter-as config, so a defect that drops remote-asbr-ipv6 when building the originated Link TLV, or originates a v4-less link without it, stays green. The tag prose says &#39;origination emits&#39;, which the unit does not exercise.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -697,20 +701,25 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 </table>
 </div>
 <h3><a href="#rfc5392-3.3.3-1"><code>RFC5392-3.3.3-1</code></a></h3>
-<p>In OSPFv3 advertisements, the IPv6 Remote ASBR ID sub-TLV (type 24) MUST be included if the neighboring ASBR has an IPv6 address (§3.3.3)</p>
+<p>In OSPFv3 advertisements, the IPv6 Remote ASBR ID sub-TLV MUST be included if the neighboring ASBR has an IPv6 address. (§3.3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5392-3.3.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5392-3.3.3-2"><code>RFC5392-3.3.3-2</code></a></h3>
-<p>In OSPFv3, if the neighboring ASBR has no IPv6 address, the IPv4 Remote ASBR ID sub-TLV MUST be included instead (§3.3.3)</p>
+<p>If the neighboring ASBR does not have an IPv6 address, the IPv4 Remote ASBR ID sub-TLV MUST be included instead. (§3.3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5392-3.3.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5392-4-1"><code>RFC5392-4-1</code></a></h3>
-<p>Hellos MUST NOT be exchanged over the inter-AS link (§4) -- Ze proxies the inter-AS link from config only; the `inter-as` block forms no adjacency and sends no Hello on that link</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Hellos MUST NOT be exchanged over the inter-AS link (§4) -- an interface carrying an `inter-as` block is forced passive at config parse by parseInterface in internal/plugins/ospf/config.go, so no Hello is sent on it</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by QF-2 after the row&#39;s trailing implementation note lost its parenthesis, so the quote ends at the §4 sub-span &#39;Hellos MUST NOT be exchanged over the inter-AS link&#39;. Forbidden: an inter-AS interface that runs Hellos. TestRFC5392InterASInterfaceIsPassive asserts `!ic.Passive || active` fails the test when parseInterface leaves an inter-as interface active, with an intra-AS TE control. Enforced stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_interas_passive_test.go#L33" title="internal/plugins/ospf/rfc5392_interas_passive_test.go" target="_blank" rel="noopener"><code>TestRFC5392InterASInterfaceIsPassive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L278" title="internal/plugins/ospf/te_originate_test.go" target="_blank" rel="noopener"><code>TestInterASTEOriginatesWithoutNeighbor</code></a></td>
 <td>unit/verify</td>
@@ -720,12 +729,17 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 </table>
 </div>
 <h3><a href="#rfc5392-4-2"><code>RFC5392-4-2</code></a></h3>
-<p>An OSPF adjacency MUST NOT be formed on the inter-AS link (§4) -- the inter-AS advertisement is config-driven (a passive/loopback proxy link); no FSM runs on it</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Hellos MUST NOT be exchanged over the inter-AS link, and consequently, an OSPF adjacency MUST NOT be formed. (§4) -- the forced-passive interface is not an active interface, so no neighbor FSM runs and no adjacency forms on it</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by DF-OSPF-C (author of the fix; independent /ze-rfc-audit owed). Same producer as RFC5392-4-1: the forced-passive inter-AS interface is not in activeInterfaces, so no neighbor FSM runs and no adjacency forms. The negative TestRFC5392InterASInterfaceIsPassive now carries the rule; the positive TestInterASTEOriginatesWithoutNeighbor only shows origination needs no neighbor. REV-OSPF independent re-audit 2026-09-27: kept enforced on the same producer and assertion as RFC5392-4-1: no socket is opened on a passive interface, so no neighbor FSM and no adjacency.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_interas_passive_test.go#L36" title="internal/plugins/ospf/rfc5392_interas_passive_test.go" target="_blank" rel="noopener"><code>TestRFC5392InterASInterfaceIsPassive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L281" title="internal/plugins/ospf/te_originate_test.go" target="_blank" rel="noopener"><code>TestInterASTEOriginatesWithoutNeighbor</code></a></td>
 <td>unit/verify</td>
@@ -735,8 +749,8 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 </table>
 </div>
 <h3><a href="#rfc5392-4-3"><code>RFC5392-4-3</code></a></h3>
-<p>When re-advertising on TE parameter change, the ASBR MUST take precautions against excessive re-advertisements as described in [RFC3630] (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>the ASBR MUST take precautions against excessive re- advertisements as described in [OSPF-TE]. (§4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: re-advertising a changed inter-AS TE LSA without any precaution against excessive re-advertisement. Red on it: TestInterASTEReAdvertiseRateLimited (internal/plugins/ospf/lsdb/opaque_originate_test.go) originates a Type-6 LSA, changes its body within MinLSInterval and asserts `ok || h2.Sequence != h1.Sequence` fatal plus no extra LS Update send. Negative polarity: after MinLSInterval the changed body is re-advertised with the next sequence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1066,7 +1080,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

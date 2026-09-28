@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2890 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2890: Key and Sequence Number Extensions to GRE. 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 2890: Key and Sequence Number Extensions to GRE. 3 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2890 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2890: Key and Sequence Number Extensions to GRE. 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 2890: Key and Sequence Number Extensions to GRE. 3 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2890 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2890: Key and Sequence Number Extensions to GRE. 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 2890: Key and Sequence Number Extensions to GRE. 3 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -314,7 +317,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze applies no ESP or AH to GRE; IPsec is not wired to the GRE tunnel builders (internal/plugins/iface/netlink/tunnel_linux.go, internal/plugins/iface/vpp/tunnel.go)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-1.1-1">RFC2890-1.1-1</code></td><td colspan="3"><span class="rfc-subject">When silently discarding, the implementation SHOULD provide the capability of logging the error (S1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-1.1-1">RFC2890-1.1-1</code></td><td colspan="3"><span class="rfc-subject">The implementation SHOULD provide the capability of logging the error, including the contents of the discarded datagram (S1.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>1.1</td>
@@ -323,7 +326,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-1.1-2">RFC2890-1.1-2</code></td><td colspan="3"><span class="rfc-subject">When silently discarding, the implementation SHOULD record the event in a statistics counter (S1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-1.1-2">RFC2890-1.1-2</code></td><td colspan="3"><span class="rfc-subject">The implementation SHOULD provide the capability of logging the error, including the contents of the discarded datagram, and SHOULD record the event in a statistics counter. (S1.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>1.1</td>
@@ -332,7 +335,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-2.2-5">RFC2890-2.2-5</code></td><td colspan="3"><span class="rfc-subject">An out-of-sequence packet SHOULD be silently discarded (S2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-2.2-5">RFC2890-2.2-5</code></td><td colspan="3"><span class="rfc-subject">When the decapsulator receives an out-of sequence packet it SHOULD be silently discarded. (S2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.2</td>
@@ -341,7 +344,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-2.2-8">RFC2890-2.2-8</code></td><td colspan="3"><span class="rfc-subject">Reordering of out-of-sequence packets MAY be performed by the decapsulator (S2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-2.2-8">RFC2890-2.2-8</code></td><td colspan="3"><span class="rfc-subject">Reordering of out-of sequence packets MAY be performed by the decapsulator for improved performance and tolerance to reordering in the network. (S2.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.2</td>
@@ -542,7 +545,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

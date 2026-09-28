@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 32.0% | 8 of 25 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 18 | of 25 gated MUSTs judged | 8 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 25 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 8 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 32 |
 | Tagged units | 32 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 18 |
 | Discrimination records | 8 |
 | Summary | `rfc/short/rfc9252.md` |
 | Requirement shard | `rfc/requirements/rfc9252.md` |
@@ -115,46 +117,46 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC9252-3.1-1` | Service TLV Reserved field MUST be set to 0 by sender (S3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestEncodePrefixSIDSRv6_ReservedFieldsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L163). **negative:** no negative test. **{single-polarity}:** ParsePrefixSIDSRv6 hardcodes the Service TLV Reserved octet to 0 on encode and no code path emits a non-zero value, so there is no negative input to reject (internal/core/bgp/attribute/prefixsid.go) |
-| `RFC9252-3.1-2` | Service TLV Reserved field MUST be ignored by receiver (S3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestExtractSRv6SID_ServiceReservedZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L255). **negative:** `unit/verify` [`TestExtractSRv6SID_ServiceReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L269) |
-| `RFC9252-3.2-1` | SID Information Sub-TLV RESERVED1 MUST be set to 0 (S3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestEncodePrefixSIDSRv6_ReservedFieldsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L164). **negative:** no negative test. **{single-polarity}:** ParsePrefixSIDSRv6 hardcodes RESERVED1 to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go) |
-| `RFC9252-3.2-2` | SID Information Sub-TLV Service SID Flags MUST be set to 0 (S3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestEncodePrefixSIDSRv6_ReservedFieldsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L165). **negative:** no negative test. **{single-polarity}:** ParsePrefixSIDSRv6 hardcodes the Service SID Flags octet to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go) |
-| `RFC9252-3.2-3` | SID Information Sub-TLV RESERVED2 MUST be set to 0 (S3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestEncodePrefixSIDSRv6_ReservedFieldsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L166). **negative:** no negative test. **{single-polarity}:** ParsePrefixSIDSRv6 hardcodes RESERVED2 to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go) |
+| `RFC9252-3.1-1` | This field is reserved; it MUST be set to 0 by the sender (§2) | MUST | 2 | **positive:** `unit/verify` [`TestEncodePrefixSIDSRv6_ReservedFieldsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L163). **negative:** no negative test. **{single-polarity}:** ParsePrefixSIDSRv6 hardcodes the Service TLV Reserved octet to 0 on encode and no code path emits a non-zero value, so there is no negative input to reject (internal/core/bgp/attribute/prefixsid.go) |
+| `RFC9252-3.1-2` | This field is reserved; it MUST be set to 0 by the sender and ignored by the receiver. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestExtractSRv6SID_ServiceReservedZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L255). **negative:** `unit/verify` [`TestExtractSRv6SID_ServiceReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L269) |
+| `RFC9252-3.2-1` | RESERVED1 (1 octet): This field MUST be set to 0 by the sender (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestEncodePrefixSIDSRv6_ReservedFieldsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L164). **negative:** no negative test. **{single-polarity}:** ParsePrefixSIDSRv6 hardcodes RESERVED1 to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go) |
+| `RFC9252-3.2-2` | This field encodes SRv6 Service SID Flags -- none are currently defined. It MUST be set to 0 by the sender (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestEncodePrefixSIDSRv6_ReservedFieldsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L165). **negative:** no negative test. **{single-polarity}:** ParsePrefixSIDSRv6 hardcodes the Service SID Flags octet to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go) |
+| `RFC9252-3.2-3` | RESERVED2 (1 octet): This field MUST be set to 0 by the sender (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestEncodePrefixSIDSRv6_ReservedFieldsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L166). **negative:** no negative test. **{single-polarity}:** ParsePrefixSIDSRv6 hardcodes RESERVED2 to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go) |
 | `RFC9252-3.2.1-1` | In this case, the Transposition Offset MUST be set to 0. (S3.2.1) | MUST | 3.2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** parseSIDStructure returns no-transposition when Transposition Length is 0 and never marks the SID invalid for a non-zero Transposition Offset, and ParsePrefixSIDSRv6 passes the configured structure through without enforcing offset 0 (internal/component/bgp/plugins/rib/pool/srv6sid.go:132) |
-| `RFC9252-3.2.1-2` | Transposition Offset and Length MUST be 0 when Transposition Scheme is not applicable (S3.2.1) | MUST | 3.2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** parseSIDStructure has no family or label-field context, so it never enforces zero Transposition Offset and Length for SIDs advertised with routes where transposition does not apply (internal/component/bgp/plugins/rib/pool/srv6sid.go:106) |
-| `RFC9252-3.2.1-3` | As defined in [RFC8986], the sum of the Locator Block Length (LBL), Locator Node Length (LNL), Function Length (FL), and Argument Length (AL) fields MUST be less than or equal to 128 and greater than the sum of Transposition Offset and Transposition Length. (S3.2.1, errata 7817) | MUST | 3.2.1 | **positive:** `unit/verify` [`TestExtractSRv6SIDFull_WithTransposition`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L139). **negative:** `unit/verify` [`TestExtractSRv6SIDFull_InvalidSIDStructure`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L217). **negative:** `unit/verify` [`TestExtractSRv6SIDFull_SumBelowTransposition`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L235) |
-| `RFC9252-4.1-1` | IPv4/IPv6 VPN: Transposition Length MUST be <= 20 and <= FL (S4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the 20-bit half is enforced -- srv6SIDFromResult refuses to reconstruct and isSRv6Ineligible makes the path ineligible when Transposition Length exceeds labelWidthForSAFI (internal/component/bgp/plugins/rib/rib_bestchange.go) -- but neither they nor parseSIDStructure bound it against the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go) |
-| `RFC9252-6.1-1` | EVPN ESI Label: Transposition Length MUST be <= 24 and <= AL (S6.1) | MUST | 6.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the 24-bit half is enforced by labelWidthForSAFI through srv6SIDFromResult and isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go), but the Argument Length is never bounded, the ESI Label extended community that carries these bits is never read, and the EVPN encoder carries no SRv6 ESI-label SID (internal/component/bgp/plugins/rib/pool/srv6sid.go) |
-| `RFC9252-6.2-1` | EVPN routes 2/3/5: Transposition Length MUST be <= 24 and <= FL (S6.2, S6.3, S6.4) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the 24-bit half is enforced by labelWidthForSAFI through srv6SIDFromResult and isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go), but the Function Length is never bounded and no EVPN label field is read at all -- TranspositionLabel answers only the VPN families, so an EVPN transposition yields no SID rather than a reconstructed one (internal/core/bgp/nlri/nlrisplit/transposition.go) |
-| `RFC9252-3.2-4` | Unrecognized SRv6 Endpoint Behavior MUST NOT be considered invalid (unless involves arguments) (S3.2) | MUST NOT | 3.2 | **positive:** `unit/verify` [`TestExtractSRv6SID_UnknownEndpointBehavior`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L285). **negative:** no negative test. **{single-polarity}:** extractSIDFromServiceTLV extracts the SID without inspecting or validating the SRv6 Endpoint Behavior, so an unrecognized behavior is never rejected and there is no behavior-based rejection path to drive negatively (internal/component/bgp/plugins/rib/pool/srv6sid.go:84) |
+| `RFC9252-3.2.1-2` | The transposition offset and length MUST be 0 when the Sub-Sub-TLV is advertised along with routes where the Transposition Scheme is not applicable (e.g., for global IPv6 service [RFC2545] where there is no label field). (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** parseSIDStructure has no family or label-field context, so it never enforces zero Transposition Offset and Length for SIDs advertised with routes where transposition does not apply (internal/component/bgp/plugins/rib/pool/srv6sid.go:106) |
+| `RFC9252-3.2.1-3` | As defined in [RFC8986], the sum of the Locator Block Length (LBL), Locator Node Length (LNL), Function Length (FL), and Argument Length (AL) fields MUST be less than or equal to 128 and greater than or equal to the sum of Transposition Offset and Transposition Length. (S3.2.1, errata 7817) | MUST | 3.2.1 | **positive:** `unit/verify` [`TestExtractSRv6SIDFull_WithTransposition`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L139). **negative:** `unit/verify` [`TestExtractSRv6SIDFull_InvalidSIDStructure`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L217). **negative:** `unit/verify` [`TestExtractSRv6SIDFull_SumBelowTransposition`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L235) |
+| `RFC9252-4.1-1` | When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 20 and less than or equal to the FL. (§5.1, §5.2) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the 20-bit half is enforced -- srv6SIDFromResult refuses to reconstruct and isSRv6Ineligible makes the path ineligible when Transposition Length exceeds labelWidthForSAFI (internal/component/bgp/plugins/rib/rib_bestchange.go) -- but neither they nor parseSIDStructure bound it against the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go) |
+| `RFC9252-6.1-1` | When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the AL. (§6.1.1) | MUST | 6.1.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the 24-bit half is enforced by labelWidthForSAFI through srv6SIDFromResult and isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go), but the Argument Length is never bounded, the ESI Label extended community that carries these bits is never read, and the EVPN encoder carries no SRv6 ESI-label SID (internal/component/bgp/plugins/rib/pool/srv6sid.go) |
+| `RFC9252-6.2-1` | When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL. (§6.2, §6.3, §6.5) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the 24-bit half is enforced by labelWidthForSAFI through srv6SIDFromResult and isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go), but the Function Length is never bounded and no EVPN label field is read at all -- TranspositionLabel answers only the VPN families, so an EVPN transposition yields no SID rather than a reconstructed one (internal/core/bgp/nlri/nlrisplit/transposition.go) |
+| `RFC9252-3.2-4` | An unrecognized SRv6 Endpoint Behavior MUST NOT be considered invalid by the receiver, except for behaviors that involve the use of arguments (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestExtractSRv6SID_UnknownEndpointBehavior`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L285). **negative:** no negative test. **{single-polarity}:** extractSIDFromServiceTLV extracts the SID without inspecting or validating the SRv6 Endpoint Behavior, so an unrecognized behavior is never rejected and there is no behavior-based rejection path to drive negatively (internal/component/bgp/plugins/rib/pool/srv6sid.go:84) |
 | `RFC9252-3.2-5` | A receiver is unable to validate the applicability of arguments for SRv6 Endpoint Behaviors that are unknown to it and hence MUST ignore SRv6 SIDs with arguments (indicated by a non-zero AL) with unknown SRv6 Endpoint Behaviors. (S3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze maintains no SRv6 Endpoint Behavior registry and extractSIDFromServiceTLV returns the SID regardless of a non-zero Argument Length or an unknown behavior, so such SIDs are used rather than ignored (internal/component/bgp/plugins/rib/pool/srv6sid.go:84) |
 | `RFC9252-3.2-6` | For SIDs corresponding to an SRv6 Endpoint Behavior that is known, a receiver MUST validate that the consistency of the AL with the specific SRv6 Endpoint Behavior definition. (S3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no SRv6 Endpoint Behavior definitions, so it never validates the Argument Length against a known behavior's expected argument size (internal/component/bgp/plugins/rib/pool/srv6sid.go:84) |
-| `RFC9252-5-1` | Path with no valid SRv6 SID MUST be considered ineligible for best-path selection (S5) | MUST | 5 | **positive:** `unit/verify` [`TestIsSRv6Ineligible_ValidSID`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/srv6_ineligible_test.go#L72). **negative:** `unit/verify` [`TestIsSRv6Ineligible_InvalidSID`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/srv6_ineligible_test.go#L83). **negative:** `unit/verify` [`TestSRv6TranspositionWiderThanLabelFieldIsIneligible`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/srv6_transposition_test.go#L168) |
+| `RFC9252-5-1` | The path having any such Prefix-SID attribute without any valid SRv6 SID information MUST be considered ineligible during the selection of the best path for the corresponding prefix. (§7) | MUST | 7 | **positive:** `unit/verify` [`TestIsSRv6Ineligible_ValidSID`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/srv6_ineligible_test.go#L72). **negative:** `unit/verify` [`TestIsSRv6Ineligible_InvalidSID`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/srv6_ineligible_test.go#L83). **negative:** `unit/verify` [`TestSRv6TranspositionWiderThanLabelFieldIsIneligible`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/srv6_transposition_test.go#L168) |
 | `RFC9252-5-2` | Therefore, the ingress PE MUST perform a resolvability check for the SRv6 Service SID before considering the received prefix for the BGP best path computation. (S5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze acts as an SRv6 ingress PE -- it extracts the received best-path Service SID (internal/component/bgp/plugins/rib/rib_bestchange.go:729,:882) and installs it into the FIB as a kernel SEG6 encap route (internal/plugins/fib/kernel/nexthop_linux.go:78) or a VPP SR steering policy (internal/plugins/fib/vpp/srv6.go:35) -- but performs no RFC 9252 Section 5 resolvability check: isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go:963) gates best-path on SID extraction validity only, never on locator reachability (no resolvability check exists in internal/component/bgp) |
-| `RFC9252-3.3-1` | When next-hop unchanged, all Reserved fields MUST be propagated unchanged (S3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L336). **negative:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L339) |
-| `RFC9252-3.3-2` | When next-hop changed, unrecognized Sub-TLVs and Sub-Sub-TLVs MUST be removed (S3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L338). **negative:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L337) |
-| `RFC9252-3.4-1` | treat-as-withdraw MUST be performed when at least one malformed SRv6 Service TLV is present (S3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestValidatePrefixSIDAttr_Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2397). **negative:** `unit/verify` [`TestValidateSRv6ServiceTLV_SIDInfoTooShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2466). **negative:** `unit/verify` [`TestValidateSRv6ServiceTLV_TrailingBytes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2426) |
-| `RFC9252-3.2.1-4` | When the Transposition Scheme is used, "The bits that have been shifted out MUST be set to 0 in the SID value" (S3.2.1) | MUST | 3.2.1 | **positive:** `unit/verify` [`TestSRv6OriginTranspositionKeepsOnlyUntransposedBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L10). **negative:** `unit/verify` [`TestSRv6OriginRefusesNonzeroTransposedBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L21) |
+| `RFC9252-3.3-1` | If the BGP next hop is unchanged during the advertisement, the SRv6 Service TLVs, including any unrecognized Types of Sub-TLV and Sub-Sub-TLV, SHOULD be propagated further. In addition, all Reserved fields in the TLV, Sub-TLV, or Sub-Sub-TLV MUST be propagated unchanged. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L336). **negative:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L339) |
+| `RFC9252-3.3-2` | If the BGP next hop is changed, the TLVs, Sub-TLVs, and Sub-Sub- TLVs SHOULD be updated with the locally allocated SRv6 SID information. Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L338). **negative:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L337) |
+| `RFC9252-3.4-1` | The treat-as-withdraw action [RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID attribute. (§7) | MUST | 7 | **positive:** `unit/verify` [`TestValidatePrefixSIDAttr_Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2397). **negative:** `unit/verify` [`TestValidateSRv6ServiceTLV_SIDInfoTooShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2466). **negative:** `unit/verify` [`TestValidateSRv6ServiceTLV_TrailingBytes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2426) |
+| `RFC9252-3.2.1-4` | The bits that have been shifted out MUST be set to 0 in the SID value. (§3.2.1) | MUST | 3.2.1 | **positive:** `unit/verify` [`TestSRv6OriginTranspositionKeepsOnlyUntransposedBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L10). **negative:** `unit/verify` [`TestSRv6OriginRefusesNonzeroTransposedBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L21) |
 | `RFC9252-3.2.1-5` | Implementations supporting this specification MUST provide a mechanism to control the advertisement of SRv6-based BGP service routes on a per-neighbor and per-service basis. (S3.2.1) | MUST | 3.2.1 | **positive:** `functional/verify` [`srv6-service-export-control.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/srv6-service-export-control.ci#L2). **negative:** `functional/verify` [`srv6-service-export-control.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/srv6-service-export-control.ci#L3) |
 | `RFC9252-3.2.1-6` | Arguments may be generally applicable for SIDs of only specific SRv6 Endpoint Behaviors (e.g., End.DT2M); therefore, the AL MUST be set to 0 for SIDs where the Argument is not applicable. (S3.2.1) | MUST | 3.2.1 | **positive:** `unit/verify` [`TestSRv6OriginWithoutArguments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L30). **negative:** `unit/verify` [`TestSRv6OriginRefusesArgumentsForDT4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L41) |
-| `RFC9252-5-3` | The SRv6 Service TLV "indicates that the egress PE supports SRv6 overlay, and the BGP ingress PE receiving this route MUST perform IPv6 encapsulation and insert an SRH [RFC8754] when required" (S5) | MUST | 5 | **positive:** `unit/verify` [`TestSRv6ServiceSIDSelectsIPv6Encapsulation`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_srv6_linux_test.go#L15). **negative:** `unit/verify` [`TestRouteWithoutServiceSIDKeepsMPLSEncapsulation`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_srv6_linux_test.go#L39) |
+| `RFC9252-5-3` | it indicates that the egress PE supports SRv6 overlay, and the BGP ingress PE receiving this route MUST perform IPv6 encapsulation and insert an SRH [RFC8754] when required (§5) | MUST | 5 | **positive:** `unit/verify` [`TestSRv6ServiceSIDSelectsIPv6Encapsulation`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_srv6_linux_test.go#L15). **negative:** `unit/verify` [`TestRouteWithoutServiceSIDKeepsMPLSEncapsulation`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_srv6_linux_test.go#L39) |
 | `RFC9252-7-1` | If multiple instances of the SRv6 L3 Service TLV are encountered, all but the first instance MUST be ignored. (S7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC9252FirstServiceTLVWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go#L31). **negative:** `unit/verify` [`TestRFC9252FirstServiceTLVWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go#L32) |
 | `RFC9252-7-2` | If multiple instances of the SRv6 L2 Service TLV are encountered, all but the first instance MUST be ignored. (S7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC9252FirstServiceTLVWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go#L33). **negative:** `unit/verify` [`TestRFC9252FirstServiceTLVWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go#L34) |
-| `RFC9252-3.2-7` | When multiple SRv6 SID Information Sub-TLVs present, ingress PE SHOULD use the first instance (S3.2) | SHOULD | 3.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9252-3.3-3` | When next-hop unchanged, SRv6 Service TLVs SHOULD be propagated further (S3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9252-3.3-4` | When next-hop changed, TLVs/Sub-TLVs/Sub-Sub-TLVs SHOULD be updated with locally allocated SRv6 SID info (S3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9252-3.2-8` | Implementation MAY provide local policy to override SID selection (S3.2) | MAY | 3.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9252-3.2-9` | Endpoint Behavior 0xFFFF MAY be used to abstract actual behavior (S3.2) | MAY | 3.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9252-3.2-7` | When multiple SRv6 SID Information Sub-TLVs are present, the ingress PE SHOULD use the SRv6 SID from the first instance of the Sub-TLV. (§3.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9252-3.3-3` | If the BGP next hop is unchanged during the advertisement, the SRv6 Service TLVs, including any unrecognized Types of Sub-TLV and Sub-Sub-TLV, SHOULD be propagated further. (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9252-3.3-4` | If the BGP next hop is changed, the TLVs, Sub-TLVs, and Sub-Sub- TLVs SHOULD be updated with the locally allocated SRv6 SID information. (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9252-3.2-8` | When multiple SRv6 SID Information Sub-TLVs are present, the ingress PE SHOULD use the SRv6 SID from the first instance of the Sub-TLV. An implementation MAY provide a local policy to override this selection. (§3.1) | MAY | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9252-3.2-9` | The opaque SRv6 Endpoint Behavior (i.e., value 0xFFFF) MAY be used when the advertising router wishes to abstract the actual behavior of its locally instantiated SRv6 SID. (§3.1) | MAY | 3.1 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC9252-3.2.1-1`](#rfc9252-3.2.1-1) In this case, the Transposition Offset MUST be set to 0. (S3.2.1) | {gap}, no test | parseSIDStructure returns no-transposition when Transposition Length is 0 and never marks the SID invalid for a non-zero Transposition Offset, and ParsePrefixSIDSRv6 passes the configured structure through without enforcing offset 0 (internal/component/bgp/plugins/rib/pool/srv6sid.go:132) |
-| [`RFC9252-3.2.1-2`](#rfc9252-3.2.1-2) Transposition Offset and Length MUST be 0 when Transposition Scheme is not applicable (S3.2.1) | {gap}, no test | parseSIDStructure has no family or label-field context, so it never enforces zero Transposition Offset and Length for SIDs advertised with routes where transposition does not apply (internal/component/bgp/plugins/rib/pool/srv6sid.go:106) |
-| [`RFC9252-4.1-1`](#rfc9252-4.1-1) IPv4/IPv6 VPN: Transposition Length MUST be <= 20 and <= FL (S4.1) | {gap}, no test | the 20-bit half is enforced -- srv6SIDFromResult refuses to reconstruct and isSRv6Ineligible makes the path ineligible when Transposition Length exceeds labelWidthForSAFI (internal/component/bgp/plugins/rib/rib_bestchange.go) -- but neither they nor parseSIDStructure bound it against the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go) |
-| [`RFC9252-6.1-1`](#rfc9252-6.1-1) EVPN ESI Label: Transposition Length MUST be <= 24 and <= AL (S6.1) | {gap}, no test | the 24-bit half is enforced by labelWidthForSAFI through srv6SIDFromResult and isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go), but the Argument Length is never bounded, the ESI Label extended community that carries these bits is never read, and the EVPN encoder carries no SRv6 ESI-label SID (internal/component/bgp/plugins/rib/pool/srv6sid.go) |
-| [`RFC9252-6.2-1`](#rfc9252-6.2-1) EVPN routes 2/3/5: Transposition Length MUST be <= 24 and <= FL (S6.2, S6.3, S6.4) | {gap}, no test | the 24-bit half is enforced by labelWidthForSAFI through srv6SIDFromResult and isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go), but the Function Length is never bounded and no EVPN label field is read at all -- TranspositionLabel answers only the VPN families, so an EVPN transposition yields no SID rather than a reconstructed one (internal/core/bgp/nlri/nlrisplit/transposition.go) |
+| [`RFC9252-3.2.1-2`](#rfc9252-3.2.1-2) The transposition offset and length MUST be 0 when the Sub-Sub-TLV is advertised along with routes where the Transposition Scheme is not applicable (e.g., for global IPv6 service [RFC2545] where there is no label field). (§7) | {gap}, no test | parseSIDStructure has no family or label-field context, so it never enforces zero Transposition Offset and Length for SIDs advertised with routes where transposition does not apply (internal/component/bgp/plugins/rib/pool/srv6sid.go:106) |
+| [`RFC9252-4.1-1`](#rfc9252-4.1-1) When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 20 and less than or equal to the FL. (§5.1, §5.2) | {gap}, no test | the 20-bit half is enforced -- srv6SIDFromResult refuses to reconstruct and isSRv6Ineligible makes the path ineligible when Transposition Length exceeds labelWidthForSAFI (internal/component/bgp/plugins/rib/rib_bestchange.go) -- but neither they nor parseSIDStructure bound it against the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go) |
+| [`RFC9252-6.1-1`](#rfc9252-6.1-1) When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the AL. (§6.1.1) | {gap}, no test | the 24-bit half is enforced by labelWidthForSAFI through srv6SIDFromResult and isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go), but the Argument Length is never bounded, the ESI Label extended community that carries these bits is never read, and the EVPN encoder carries no SRv6 ESI-label SID (internal/component/bgp/plugins/rib/pool/srv6sid.go) |
+| [`RFC9252-6.2-1`](#rfc9252-6.2-1) When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL. (§6.2, §6.3, §6.5) | {gap}, no test | the 24-bit half is enforced by labelWidthForSAFI through srv6SIDFromResult and isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go), but the Function Length is never bounded and no EVPN label field is read at all -- TranspositionLabel answers only the VPN families, so an EVPN transposition yields no SID rather than a reconstructed one (internal/core/bgp/nlri/nlrisplit/transposition.go) |
 | [`RFC9252-3.2-5`](#rfc9252-3.2-5) A receiver is unable to validate the applicability of arguments for SRv6 Endpoint Behaviors that are unknown to it and hence MUST ignore SRv6 SIDs with arguments (indicated by a non-zero AL) with unknown SRv6 Endpoint Behaviors. (S3.2) | {gap}, no test | ze maintains no SRv6 Endpoint Behavior registry and extractSIDFromServiceTLV returns the SID regardless of a non-zero Argument Length or an unknown behavior, so such SIDs are used rather than ignored (internal/component/bgp/plugins/rib/pool/srv6sid.go:84) |
 | [`RFC9252-3.2-6`](#rfc9252-3.2-6) For SIDs corresponding to an SRv6 Endpoint Behavior that is known, a receiver MUST validate that the consistency of the AL with the specific SRv6 Endpoint Behavior definition. (S3.2) | {gap}, no test | ze has no SRv6 Endpoint Behavior definitions, so it never validates the Argument Length against a known behavior's expected argument size (internal/component/bgp/plugins/rib/pool/srv6sid.go:84) |
 | [`RFC9252-5-2`](#rfc9252-5-2) Therefore, the ingress PE MUST perform a resolvability check for the SRv6 Service SID before considering the received prefix for the BGP best path computation. (S5) | {gap}, no test | ze acts as an SRv6 ingress PE -- it extracts the received best-path Service SID (internal/component/bgp/plugins/rib/rib_bestchange.go:729,:882) and installs it into the FIB as a kernel SEG6 encap route (internal/plugins/fib/kernel/nexthop_linux.go:78) or a VPP SR steering policy (internal/plugins/fib/vpp/srv6.go:35) -- but performs no RFC 9252 Section 5 resolvability check: isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go:963) gates best-path on SID extraction validity only, never on locator reachability (no resolvability check exists in internal/component/bgp) |
@@ -165,9 +167,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC9252-3.1-1`](#rfc9252-3.1-1)
 
-Service TLV Reserved field MUST be set to 0 by sender (S3.1)
+This field is reserved; it MUST be set to 0 by the sender (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: the sender emits a non-zero Service TLV RESERVED octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[3]==0 on EncodePrefixSIDSRv6 output, with a non-zero behavior code so the zero is not a zero-filled buffer. Single-polarity marker present (no reject path on encode).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -175,9 +177,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9252-3.1-2`](#rfc9252-3.1-2)
 
-Service TLV Reserved field MUST be ignored by receiver (S3.1)
+This field is reserved; it MUST be set to 0 by the sender and ignored by the receiver. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: a receiver that rejects or mis-parses a Service TLV whose RESERVED octet is non-zero. (b) TestExtractSRv6SID_ServiceReservedIgnored feeds RESERVED=0xFF and asserts ExtractSRv6SID still returns the SID; TestExtractSRv6SID_ServiceReservedZero is the positive. validateSRv6ServiceTLV (rfc7606.go) never reads the octet, so the UPDATE path does not reject it either.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -186,9 +188,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9252-3.2-1`](#rfc9252-3.2-1)
 
-SID Information Sub-TLV RESERVED1 MUST be set to 0 (S3.2)
+RESERVED1 (1 octet): This field MUST be set to 0 by the sender (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: the sender emits a non-zero SID Information RESERVED1 octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[7]==0. Single-polarity marker present.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -196,9 +198,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9252-3.2-2`](#rfc9252-3.2-2)
 
-SID Information Sub-TLV Service SID Flags MUST be set to 0 (S3.2)
+This field encodes SRv6 Service SID Flags -- none are currently defined. It MUST be set to 0 by the sender (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: the sender emits a non-zero Service SID Flags octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[24]==0. The quote covers the sender half only; the receiver half (unknown flags MUST be ignored) has no row. Single-polarity marker present.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -206,9 +208,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9252-3.2-3`](#rfc9252-3.2-3)
 
-SID Information Sub-TLV RESERVED2 MUST be set to 0 (S3.2)
+RESERVED2 (1 octet): This field MUST be set to 0 by the sender (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: the sender emits a non-zero RESERVED2 octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[27]==0, next to a behavior of 0x003e. Single-polarity marker present.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -224,7 +226,7 @@ No test carries RFC9252-3.2.1-1, so no unit is bound to it.
 
 ### [`RFC9252-3.2.1-2`](#rfc9252-3.2.1-2)
 
-Transposition Offset and Length MUST be 0 when Transposition Scheme is not applicable (S3.2.1)
+The transposition offset and length MUST be 0 when the Sub-Sub-TLV is advertised along with routes where the Transposition Scheme is not applicable (e.g., for global IPv6 service [RFC2545] where there is no label field). (§7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -232,9 +234,9 @@ No test carries RFC9252-3.2.1-2, so no unit is bound to it.
 
 ### [`RFC9252-3.2.1-3`](#rfc9252-3.2.1-3)
 
-As defined in [RFC8986], the sum of the Locator Block Length (LBL), Locator Node Length (LNL), Function Length (FL), and Argument Length (AL) fields MUST be less than or equal to 128 and greater than the sum of Transposition Offset and Transposition Length. (S3.2.1, errata 7817)
+As defined in [RFC8986], the sum of the Locator Block Length (LBL), Locator Node Length (LNL), Function Length (FL), and Argument Length (AL) fields MUST be less than or equal to 128 and greater than or equal to the sum of Transposition Offset and Transposition Length. (S3.2.1, errata 7817)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-09-27 by QF-2 after the row took the Corrected Text of verified erratum 7817 (rfc/errata/rfc9252/7817.txt): 'greater than or equal to'. Both bounds are detected: TestExtractSRv6SIDFull_InvalidSIDStructure (sum 200 > 128) and TestExtractSRv6SIDFull_SumBelowTransposition (64 < 76) assert HasTranspos false, and TestExtractSRv6SIDFull_WithTransposition accepts sum 64 == offset 48 + length 16, the equality the erratum allows. Weak: both negatives also assert the SID stays valid and ze uses it whole, while Section 7 makes such a SID invalid and the path ineligible, so no assertion goes red on the consequence of breaking this MUST.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -244,7 +246,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9252-4.1-1`](#rfc9252-4.1-1)
 
-IPv4/IPv6 VPN: Transposition Length MUST be <= 20 and <= FL (S4.1)
+When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 20 and less than or equal to the FL. (§5.1, §5.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -252,7 +254,7 @@ No test carries RFC9252-4.1-1, so no unit is bound to it.
 
 ### [`RFC9252-6.1-1`](#rfc9252-6.1-1)
 
-EVPN ESI Label: Transposition Length MUST be <= 24 and <= AL (S6.1)
+When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the AL. (§6.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -260,7 +262,7 @@ No test carries RFC9252-6.1-1, so no unit is bound to it.
 
 ### [`RFC9252-6.2-1`](#rfc9252-6.2-1)
 
-EVPN routes 2/3/5: Transposition Length MUST be <= 24 and <= FL (S6.2, S6.3, S6.4)
+When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL. (§6.2, §6.3, §6.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -268,9 +270,9 @@ No test carries RFC9252-6.2-1, so no unit is bound to it.
 
 ### [`RFC9252-3.2-4`](#rfc9252-3.2-4)
 
-Unrecognized SRv6 Endpoint Behavior MUST NOT be considered invalid (unless involves arguments) (S3.2)
+An unrecognized SRv6 Endpoint Behavior MUST NOT be considered invalid by the receiver, except for behaviors that involve the use of arguments (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: a receiver treating a SID with an unrecognized, argument-free Endpoint Behavior as invalid. (b) TestExtractSRv6SID_UnknownEndpointBehavior feeds behavior 0xFEED with no SID Structure and asserts the SID is returned. validateSRv6ServiceTLV never reads the behavior. The argument exception is the gap row RFC9252-3.2-5. Single-polarity marker present.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -294,9 +296,9 @@ No test carries RFC9252-3.2-6, so no unit is bound to it.
 
 ### [`RFC9252-5-1`](#rfc9252-5-1)
 
-Path with no valid SRv6 SID MUST be considered ineligible for best-path selection (S5)
+The path having any such Prefix-SID attribute without any valid SRv6 SID information MUST be considered ineligible during the selection of the best path for the corresponding prefix. (§7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. 'any such' refers back to the Section 7 cases: transposition length wider than the label field, a SID Structure condition of Section 3.2.1 unmet, a non-zero transposition where none applies. TestIsSRv6Ineligible_InvalidSID covers only a SID Information Sub-TLV too short to hold a SID. isSRv6Ineligible decides on pool.ExtractSRv6SID, which returns a valid SID in each of the Section 7 cases, so such a path stays eligible. TestSRv6TranspositionWiderThanLabelFieldIsIneligible is tagged negative but asserts only that no SID is reconstructed, and says in its own comment that ineligibility is not asserted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -308,15 +310,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 Therefore, the ingress PE MUST perform a resolvability check for the SRv6 Service SID before considering the received prefix for the BGP best path computation. (S5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. {gap} confirmed at the producer. isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go) is the only best-path gate on the SRv6 Service SID, and it excludes a route only when an SRv6 Service TLV yields no extractable SID; it never asks whether the SID resolves. The one resolvability check ze runs, srv6SIDResolvable in sysRIB.fibEntry (internal/component/sysrib/sysrib.go), runs after both selections and only declines the FIB write, so a route whose SID reaches nothing still wins the prefix and the next-best route is not used. No tagged unit exists; the check before best path is plan/immediate/spec-srv6-bestpath-resolvability.md.
 
 No test carries RFC9252-5-2, so no unit is bound to it.
 
 ### [`RFC9252-3.3-1`](#rfc9252-3.3-1)
 
-When next-hop unchanged, all Reserved fields MUST be propagated unchanged (S3.3)
+If the BGP next hop is unchanged during the advertisement, the SRv6 Service TLVs, including any unrecognized Types of Sub-TLV and Sub-Sub-TLV, SHOULD be propagated further. In addition, all Reserved fields in the TLV, Sub-TLV, or Sub-Sub-TLV MUST be propagated unchanged. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: with the next hop unchanged, a forwarded Prefix-SID whose Reserved octets differ from those received. TestPrefixSIDPropagationNextHop asserts only that applyFactsNextHop emits no op for code 40; nothing compares the forwarded Prefix-SID bytes on the wire, so a re-encode that zeroed Reserved would pass. Its negative-tagged subtest asserts the next-hop-changed suppression, which is RFC9252-3.3-2, not a violation of this row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -325,9 +327,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9252-3.3-2`](#rfc9252-3.3-2)
 
-When next-hop changed, unrecognized Sub-TLVs and Sub-Sub-TLVs MUST be removed (S3.3)
+If the BGP next hop is changed, the TLVs, Sub-TLVs, and Sub-Sub- TLVs SHOULD be updated with the locally allocated SRv6 SID information. Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: with the next hop changed, unrecognized Sub-TLVs or Sub-Sub-TLVs forwarded. (b) TestPrefixSIDPropagationNextHop 'next-hop changed removes Prefix-SID' asserts exactly one AttrModSuppress op on code 40, so the whole attribute and every unrecognized sub-TLV in it is removed; removing it would turn the assertion red. The negative subtest pins that next-hop-unchanged does not suppress. The SHOULD half (update with a local SID) is not done: ze removes the attribute.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -336,9 +338,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9252-3.4-1`](#rfc9252-3.4-1)
 
-treat-as-withdraw MUST be performed when at least one malformed SRv6 Service TLV is present (S3.4)
+The treat-as-withdraw action [RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID attribute. (§7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Section 7 lists the malformed cases. Asserted to give treat-as-withdraw: trailing bytes after the last Sub-TLV (TestValidateSRv6ServiceTLV_TrailingBytes) and a SID Information Sub-TLV under 21 octets (TestValidateSRv6ServiceTLV_SIDInfoTooShort). Not asserted by any tagged unit: TLV Length less than 1, and TLV Length inconsistent with the Prefix-SID attribute length. The second one gives the wrong action: validatePrefixSIDAttr answers RFC7606ActionAttributeDiscard for a type 5 or 6 TLV that overruns the attribute, not treat-as-withdraw.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -348,9 +350,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9252-3.2.1-4`](#rfc9252-3.2.1-4)
 
-When the Transposition Scheme is used, "The bits that have been shifted out MUST be set to 0 in the SID value" (S3.2.1)
+The bits that have been shifted out MUST be set to 0 in the SID value. (§3.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: advertising a SID with a set bit inside the transposed range. (b) TestSRv6OriginRefusesNonzeroTransposedBits configures bit 79 set within offset 65 length 15 and requires ParseRouteAttributes to fail (validateSRv6OriginStructure); TestSRv6OriginTranspositionKeepsOnlyUntransposedBits is the positive, keeping the adjacent bit 64.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -361,7 +363,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Implementations supporting this specification MUST provide a mechanism to control the advertisement of SRv6-based BGP service routes on a per-neighbor and per-service basis. (S3.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: no way to withhold an SRv6 service route from one neighbour while sending another service to it, or while sending the same service to another neighbour. (b) test/plugin/srv6-service-export-control.ci: filtered-peer has reject=pattern for the RT10 SID and expects the RT20 SID (per service); control-peer expects both SIDs (per neighbour). Losing either control turns an expect or reject red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -372,7 +374,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Arguments may be generally applicable for SIDs of only specific SRv6 Endpoint Behaviors (e.g., End.DT2M); therefore, the AL MUST be set to 0 for SIDs where the Argument is not applicable. (S3.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: advertising a non-zero AL for a behavior with no argument. (b) TestSRv6OriginRefusesArgumentsForDT4 configures End.DT4 with AL=16 and requires ParseRouteAttributes to fail; TestSRv6OriginWithoutArguments asserts AL octet 0 for End.DT4. validateSRv6OriginStructure allows AL only for End.DT2M (0x0018).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -381,9 +383,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9252-5-3`](#rfc9252-5-3)
 
-The SRv6 Service TLV "indicates that the egress PE supports SRv6 overlay, and the BGP ingress PE receiving this route MUST perform IPv6 encapsulation and insert an SRH [RFC8754] when required" (S5)
+it indicates that the egress PE supports SRv6 overlay, and the BGP ingress PE receiving this route MUST perform IPv6 encapsulation and insert an SRH [RFC8754] when required (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an ingress PE forwarding an SRv6 service route without IPv6 encapsulation. TestSRv6ServiceSIDSelectsIPv6Encapsulation asserts SEG6 encap mode 1 with the SID for the kernel backend (buildRichRoute). The VPP backend (internal/plugins/fib/vpp/srv6.go) has no test. The negative-tagged TestRouteWithoutServiceSIDKeepsMPLSEncapsulation proves a route without a SID keeps MPLS, which is not a violation of this row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -394,7 +396,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If multiple instances of the SRv6 L3 Service TLV are encountered, all but the first instance MUST be ignored. (S7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC9252FirstServiceTLVWins asserts the first of two L3 Service TLVs that both carry a valid SID is used. ExtractSRv6SIDFull returns the first TLV that yields a valid SID, so when the first instance carries none (for example a SID Information Sub-TLV under 21 octets, or no SID Information Sub-TLV) the second instance's SID is used instead of being ignored. No assertion covers that input.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -405,7 +407,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If multiple instances of the SRv6 L2 Service TLV are encountered, all but the first instance MUST be ignored. (S7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Same unit and same gap as RFC9252-7-1, for the L2 Service TLV: the first instance wins only when it holds a valid SID; otherwise ExtractSRv6SIDFull falls through to the second instance, which Section 7 says MUST be ignored.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

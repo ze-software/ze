@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 100.0% | 16 of 16 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 16 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 16 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 13.2% | 5 of 38 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 100.0% | 15 of 15 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 15 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 15 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 15 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 13.9% | 5 of 36 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,13 +22,21 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 16 | of 18 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 16 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 16 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 16 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 16 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 15 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 15 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 15 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 15 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 15 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 12 | of 15 gated MUSTs judged | 7 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
+The 7 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -52,15 +60,16 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Supported for subscriber access |
 | Enrolment | Enrolled |
-| Requirements | 18 |
-| Gated MUST-level | 16 |
+| Requirements | 16 |
+| Gated MUST-level | 15 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 38 |
-| Tagged units | 38 |
-| Recorded audit verdicts | 0 |
+| Test tags | 36 |
+| Tagged units | 36 |
+| Recorded audit verdicts | 12 |
 | Discrimination records | 5 |
 | Summary | `rfc/short/rfc2866.md` |
 | Requirement shard | `rfc/requirements/rfc2866.md` |
@@ -68,7 +77,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: ze is a RADIUS accounting client (NAS); the five gated MUST requirements the checklist held before 2026-08-31 are tested with positive+negative pairs. RFC2866-3-1 (MUST NOT tear down sessions on accounting failure): TestRFC2866AcctFailureKeepsSession positive (a failed Accounting-Start against an unreachable server leaves the session tracked), TestRFC2866SessionTeardownIndependentOfAccounting negative (teardown is driven only by the session-down event; producer authradius/acct.go:254-264 sendAcctPacket only logs on error, onSessionDown separate at acct.go:143-162). RFC2866-3-2 (authenticator = MD5(Code+ID+Length+16 zero octets+Attributes+Secret)): TestRFC2866AccountingRequestAuthFormula positive (equals an independent MD5 reference; producer radius/packet.go:252 AccountingRequestAuth, applied radius/client.go:127-132), TestRFC2866AccountingRequestAuthRejectsTampering negative (authenticator changes when secret/attribute/Code changes). RFC2866-3-3 (a retransmission whose contents are identical reuses the Identifier, and one whose Acct-Delay-Time was updated takes a new one): TestRFC2866AccountingRetransmitTakesANewIdentifier positive (ze stamps Acct-Delay-Time on an Accounting-Request by default, so its attributes move on every attempt and each attempt carries a distinct Identifier; producer radius/client.go Exchange, encodeRequest and setAcctDelayTime), TestRFC2866AccountingDistinctRequestsDifferIdentifier negative. The identical-contents half is proven on the Access-Request path by TestAccessRequestRetransmitIsByteIdentical, and on the accounting path by TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier, which is the record of an operator who wrote `attributes exclude acct-delay-time`: producer radius/client.go stampsAcctDelayTime, whose false branch re-sends the first buffer under its original Identifier. The delay value itself is proven by TestAcctDelayTimeUpdatesOnRetransmit. RFC2866-5-1 (Acct-Status-Type present Start/Stop/Interim): TestRFC2866AcctStatusTypePresent positive (each lifecycle event yields exactly one attribute valued 1/2/3; producer authradius/acct.go:196 buildAcctPacket), TestRFC2866AcctStatusTypeNeverOmitted negative. RFC2866-5.5-1 (Acct-Session-Id unique across the NAS): TestRFC2866AcctSessionIDUnique positive (1600 concurrent ids all distinct; producer authradius/acct.go:77-84 genSessionID monotonic counter under lock), TestRFC2866AcctSessionIDNoCollisionOnReusedKey negative. No SHOULD/MAY requirements are gated. The extraction walk of 2026-08-31 (rfc/extraction/rfc2866.json) added ten obligations the checklist never declared, each with a positive+negative pair: RFC2866-3-4 and RFC2866-3-5 (octets outside the Length are padding, a datagram shorter than its Length is discarded; producers radius/packet.go Decode and radius/client.go readLoop), RFC2866-4.1-2 (User-Password, CHAP-Password, Reply-Message and State never present), RFC2866-4.1-3 (either NAS-IP-Address or NAS-Identifier present; producer authradius/nasidentity.go appendNASIdentity, which fixed a config setting neither leaf), RFC2866-4.1-4 (a new request takes a new Identifier; producer radius/client.go SendToServers), RFC2866-4.2-1 (the Response Authenticator of an Accounting-Response; producer radius/client.go dispatchResponse), RFC2866-5-2 (embedded nulls survive an attribute value), RFC2866-5-3 (text of length zero omitted; producer authradius/acct.go buildAcctPacket, which fixed an empty User-Name reaching the wire), RFC2866-5.5-2 and RFC2866-5.5-3 (every record carries an Acct-Session-Id, and the records of one session carry the same one).
+Enrolled: ze is a RADIUS accounting client (NAS); the four gated MUST requirements the checklist held before 2026-08-31 are tested with positive+negative pairs. A fifth, that an accounting failure must not tear a session down, was retired on 2026-09-27 because RFC 2866 states no such rule (rfc/corrections/rfc2866.md). RFC2866-3-2 (authenticator = MD5(Code+ID+Length+16 zero octets+Attributes+Secret)): TestRFC2866AccountingRequestAuthFormula positive (equals an independent MD5 reference; producer radius/packet.go:252 AccountingRequestAuth, applied radius/client.go:127-132), TestRFC2866AccountingRequestAuthRejectsTampering negative (authenticator changes when secret/attribute/Code changes). RFC2866-3-3 (a retransmission whose contents are identical reuses the Identifier, and one whose Acct-Delay-Time was updated takes a new one): TestRFC2866AccountingRetransmitTakesANewIdentifier positive (ze stamps Acct-Delay-Time on an Accounting-Request by default, so its attributes move on every attempt and each attempt carries a distinct Identifier; producer radius/client.go Exchange, encodeRequest and setAcctDelayTime), TestRFC2866AccountingDistinctRequestsDifferIdentifier negative. The identical-contents half is proven on the Access-Request path by TestAccessRequestRetransmitIsByteIdentical, and on the accounting path by TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier, which is the record of an operator who wrote `attributes exclude acct-delay-time`: producer radius/client.go stampsAcctDelayTime, whose false branch re-sends the first buffer under its original Identifier. The delay value itself is proven by TestAcctDelayTimeUpdatesOnRetransmit. RFC2866-5-1 (Acct-Status-Type present Start/Stop/Interim): TestRFC2866AcctStatusTypePresent positive (each lifecycle event yields exactly one attribute valued 1/2/3; producer authradius/acct.go:196 buildAcctPacket), TestRFC2866AcctStatusTypeNeverOmitted negative. RFC2866-5.5-1 (Acct-Session-Id unique across the NAS): TestRFC2866AcctSessionIDUnique positive (1600 concurrent ids all distinct; producer authradius/acct.go:77-84 genSessionID monotonic counter under lock), TestRFC2866AcctSessionIDNoCollisionOnReusedKey negative. No SHOULD/MAY requirements are gated. The extraction walk of 2026-08-31 (rfc/extraction/rfc2866.json) added ten obligations the checklist never declared, each with a positive+negative pair: RFC2866-3-4 and RFC2866-3-5 (octets outside the Length are padding, a datagram shorter than its Length is discarded; producers radius/packet.go Decode and radius/client.go readLoop), RFC2866-4.1-2 (User-Password, CHAP-Password, Reply-Message and State never present), RFC2866-4.1-3 (either NAS-IP-Address or NAS-Identifier present; producer authradius/nasidentity.go appendNASIdentity, which fixed a config setting neither leaf), RFC2866-4.1-4 (a new request takes a new Identifier; producer radius/client.go SendToServers), RFC2866-4.2-1 (the Response Authenticator of an Accounting-Response; producer radius/client.go dispatchResponse), RFC2866-5-2 (embedded nulls survive an attribute value), RFC2866-5-3 (text of length zero omitted; producer authradius/acct.go buildAcctPacket, which fixed an empty User-Name reaching the wire), RFC2866-5.5-2 and RFC2866-5.5-3 (every record carries an Acct-Session-Id, and the records of one session carry the same one).
 
 ## What the public ledger says
 
@@ -86,26 +95,25 @@ Admin/operator RADIUS accounting is not wired; the admin backend is authenticati
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 16 | one part of the gated population |
+| Positive and negative tests | 15 | one part of the gated population |
 | Annotated instead of tested | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **16** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **15** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (16):** [`RFC2866-3-1`](#rfc2866-3-1), [`RFC2866-3-2`](#rfc2866-3-2), [`RFC2866-5.5-1`](#rfc2866-5.5-1), [`RFC2866-4.1-1`](#rfc2866-4.1-1), [`RFC2866-5-1`](#rfc2866-5-1), [`RFC2866-3-3`](#rfc2866-3-3), [`RFC2866-3-4`](#rfc2866-3-4), [`RFC2866-3-5`](#rfc2866-3-5), [`RFC2866-4.1-2`](#rfc2866-4.1-2), [`RFC2866-4.1-3`](#rfc2866-4.1-3), [`RFC2866-4.1-4`](#rfc2866-4.1-4), [`RFC2866-4.2-1`](#rfc2866-4.2-1), [`RFC2866-5-2`](#rfc2866-5-2), [`RFC2866-5-3`](#rfc2866-5-3), [`RFC2866-5.5-2`](#rfc2866-5.5-2), [`RFC2866-5.5-3`](#rfc2866-5.5-3)
+**Positive and negative tests (15):** [`RFC2866-3-2`](#rfc2866-3-2), [`RFC2866-5.5-1`](#rfc2866-5.5-1), [`RFC2866-4.1-1`](#rfc2866-4.1-1), [`RFC2866-5-1`](#rfc2866-5-1), [`RFC2866-3-3`](#rfc2866-3-3), [`RFC2866-3-4`](#rfc2866-3-4), [`RFC2866-3-5`](#rfc2866-3-5), [`RFC2866-4.1-2`](#rfc2866-4.1-2), [`RFC2866-4.1-3`](#rfc2866-4.1-3), [`RFC2866-4.1-4`](#rfc2866-4.1-4), [`RFC2866-4.2-1`](#rfc2866-4.2-1), [`RFC2866-5-2`](#rfc2866-5-2), [`RFC2866-5-3`](#rfc2866-5-3), [`RFC2866-5.5-2`](#rfc2866-5.5-2), [`RFC2866-5.5-3`](#rfc2866-5.5-3)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2866-3-1` | Accounting failures MUST NOT tear down user sessions (§3) | MUST NOT | 3 - Packet Format | **positive:** `unit/verify` [`TestRFC2866AcctFailureKeepsSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L156). **negative:** `unit/verify` [`TestRFC2866SessionTeardownIndependentOfAccounting`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L192) |
-| `RFC2866-3-2` | Accounting-Request authenticator MUST be computed as MD5(Code+ID+Length+16_zero_octets+Attributes+Secret) (§3) | MUST | 3 - Packet Format | **positive:** `unit/verify` [`TestRFC2866AccountingRequestAuthFormula`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L84). **negative:** `unit/verify` [`TestRFC2866AccountingRequestAuthRejectsTampering`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L127) |
-| `RFC2866-5.5-1` | Acct-Session-Id MUST be unique across all active sessions on the NAS (§5.5) | MUST | 5.5 - Acct-Session-Id | **positive:** `unit/verify` [`TestRFC2866AcctSessionIDUnique`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L112). **negative:** `unit/verify` [`TestRFC2866AcctSessionIDNoCollisionOnReusedKey`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L144) |
-| `RFC2866-4.1-1` | A Framed-IP-Address included in an Accounting-Request MUST contain the IP address of the user, and where the Access-Accept used a special value telling the NAS to assign or negotiate an address, MUST contain the address actually assigned or negotiated (§4.1) | MUST | 4.1 - Accounting-Request | **positive:** `unit/verify` [`TestAccountingAddressFamiliesShareLifetime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_lifetime_test.go#L13). **positive:** `unit/verify` [`TestAcctFramedIPAddressPresent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L32). **positive:** `unit/verify` [`TestSessionEventDrivesAddressAndPortID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L121). **negative:** `unit/verify` [`TestAcctFramedIPAddressIsSubscriberNotNAS`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L56). **negative:** `unit/verify` [`TestAcctFramedIPAddressOmittedWhenNotIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L79). **positive:** `functional/verify` [`radius-acct-wire.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/radius-acct-wire.ci#L40) |
-| `RFC2866-5-1` | Acct-Status-Type attribute MUST be included in Accounting-Request to indicate Start (1), Stop (2), or Interim-Update (3) (§5) | MUST | 5 - Attributes | **positive:** `unit/verify` [`TestRFC2866AcctStatusTypePresent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L57). **negative:** `unit/verify` [`TestRFC2866AcctStatusTypeNeverOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L88) |
-| `RFC2866-3-3` | Same retransmit rules as RFC 2865: "For retransmissions where the contents are identical, the Identifier MUST remain unchanged", so an Accounting-Request carrying Acct-Delay-Time, whose value "will be updated when the packet is retransmitted", takes a new Identifier and Request Authenticator instead (§3, stated at §4.1) | MUST | 3 - Packet Format | **positive:** `unit/verify` [`TestRFC2866AccountingRetransmitTakesANewIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L167). **positive:** `unit/verify` [`TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/acct_delay_time_omit_test.go#L120). **negative:** `unit/verify` [`TestRFC2866AccountingDistinctRequestsDifferIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L225) |
+| `RFC2866-3-2` | The Request Authenticator field in Accounting-Request packets contains a one- way MD5 hash calculated over a stream of octets consisting of the Code + Identifier + Length + 16 zero octets + request attributes + shared secret (where + indicates concatenation). (§3) | MUST | 3 - Packet Format | **positive:** `unit/verify` [`TestRFC2866AccountingRequestAuthFormula`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L84). **negative:** `unit/verify` [`TestRFC2866AccountingRequestAuthRejectsTampering`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L127) |
+| `RFC2866-5.5-1` | This attribute is a unique Accounting ID to make it easy to match start and stop records in a log file. (§5.5) | MUST | 5.5 - Acct-Session-Id | **positive:** `unit/verify` [`TestRFC2866AcctSessionIDUnique`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L112). **negative:** `unit/verify` [`TestRFC2866AcctSessionIDNoCollisionOnReusedKey`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L144) |
+| `RFC2866-4.1-1` | If the Accounting-Request packet includes a Framed-IP-Address, that attribute MUST contain the IP address of the user. If the Access-Accept used the special values for Framed-IP-Address telling the NAS to assign or negotiate an IP address for the user, the Framed-IP-Address (if any) in the Accounting-Request MUST contain the actual IP address assigned or negotiated. (§4.1) | MUST | 4.1 - Accounting-Request | **positive:** `unit/verify` [`TestAccountingAddressFamiliesShareLifetime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_lifetime_test.go#L13). **positive:** `unit/verify` [`TestAcctFramedIPAddressPresent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L32). **positive:** `unit/verify` [`TestSessionEventDrivesAddressAndPortID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L121). **negative:** `unit/verify` [`TestAcctFramedIPAddressIsSubscriberNotNAS`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L56). **negative:** `unit/verify` [`TestAcctFramedIPAddressOmittedWhenNotIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L79). **positive:** `functional/verify` [`radius-acct-wire.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/radius-acct-wire.ci#L40) |
+| `RFC2866-5-1` | 1 Acct-Status-Type 0-1 Acct-Delay-Time 0-1 Acct-Input-Octets 0-1 Acct-Output-Octets 1 Acct-Session-Id 0-1 Acct-Authentic 0-1 Acct-Session-Time 0-1 Acct-Input-Packets 0-1 Acct-Output-Packets 0-1 Acct-Terminate-Cause 0+ Acct-Multi-Session-Id 0+ Acct-Link-Count 0 CHAP-Challenge 0-1 NAS-Port-Type 0-1 Port-Limit 0-1 Login-LAT-Port [Note 1] An Accounting-Request MUST contain either a NAS-IP-Address or a NAS-Identifier (or both). The following table defines the above table entries. 0 This attribute MUST NOT be present 0+ Zero or more instances of this attribute MAY be present. 0-1 Zero or one instance of this attribute MAY be present. 1 Exactly one instance of this attribute MUST be present. (§5.13) | MUST | 5.13 - Table of Attributes | **positive:** `unit/verify` [`TestRFC2866AcctStatusTypePresent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L57). **negative:** `unit/verify` [`TestRFC2866AcctStatusTypeNeverOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L88) |
+| `RFC2866-3-3` | For retransmissions where the contents are identical, the Identifier MUST remain unchanged. Note that if Acct-Delay-Time is included in the attributes of an Accounting-Request then the Acct-Delay-Time value will be updated when the packet is retransmitted, changing the content of the Attributes field and requiring a new Identifier and Request Authenticator. (§4.1) | MUST | 4.1 - Accounting-Request | **positive:** `unit/verify` [`TestRFC2866AccountingRetransmitTakesANewIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L167). **positive:** `unit/verify` [`TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/acct_delay_time_omit_test.go#L120). **negative:** `unit/verify` [`TestRFC2866AccountingDistinctRequestsDifferIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L225) |
 | `RFC2866-3-4` | Octets outside the range of the Length field MUST be treated as padding and ignored on reception (§3) | MUST | 3 - Packet Format | **positive:** `unit/verify` [`TestRFC2866LengthPaddingIgnoredOnReception`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L112). **negative:** `unit/verify` [`TestRFC2866LengthPaddingBoundaryIsTheLengthField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L133) |
 | `RFC2866-3-5` | If the packet is shorter than the Length field indicates, it MUST be silently discarded. (§3) | MUST | 3 - Packet Format | **positive:** `unit/verify` [`TestRFC2866ShortPacketSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L164). **negative:** `unit/verify` [`TestRFC2866HonestLengthIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L181) |
 | `RFC2866-4.1-2` | Any attribute valid in a RADIUS Access-Request or Access-Accept packet is valid in a RADIUS Accounting-Request packet, except that the following attributes MUST NOT be present in an Accounting- Request: User-Password, CHAP-Password, Reply-Message, State. (§4.1) | MUST NOT | 4.1 - Accounting-Request | **positive:** `unit/verify` [`TestRFC2866AcctForbiddenAttributesAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L37). **negative:** `unit/verify` [`TestRFC2866AcctForbiddenAttributesDoNotEmptyTheRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L67) |
@@ -116,8 +124,7 @@ Admin/operator RADIUS accounting is not wired; the admin backend is authenticati
 | `RFC2866-5-3` | Text of length zero (0) MUST NOT be sent; omit the entire attribute instead. (§5) | MUST NOT | 5 - Attributes | **positive:** `unit/verify` [`TestRFC2866AcctZeroLengthTextOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L148). **negative:** `unit/verify` [`TestRFC2866AcctNonEmptyTextIsSent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L168) |
 | `RFC2866-5.5-2` | The start and stop records for a given session MUST have the same Acct-Session-Id (§5.5) | MUST | 5.5 - Acct-Session-Id | **positive:** `unit/verify` [`TestAccountingAddressFamiliesShareLifetime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_lifetime_test.go#L11). **positive:** `unit/verify` [`TestRFC2866AcctSessionIDSameAcrossRecords`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L181). **negative:** `unit/verify` [`TestRFC2866AcctSessionIDDiffersBetweenSessions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L200) |
 | `RFC2866-5.5-3` | An Accounting-Request packet MUST have an Acct-Session-Id (§5.5) | MUST | 5.5 - Acct-Session-Id | **positive:** `unit/verify` [`TestRFC2866AcctSessionIDPresentOnEveryRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L216). **negative:** `unit/verify` [`TestRFC2866AcctSessionIDNeverEmpty`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L236) |
-| `RFC2866-x-1` | NAS SHOULD use exponential backoff between retransmits (per RFC 2865 §2.5) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC2866-x-2` | Interim-Update interval MAY be locally configured (Implementation Constraints) | MAY | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC2866-x-1` | It is recommended that the client continue attempting to send the Accounting-Request packet until it receives an acknowledgement, using some form of backoff. (§2) | SHOULD | 2 - Operation | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -127,22 +134,11 @@ RFC 2866 declares no gap, and every gated MUST it carries has a test bound to it
 
 A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
 
-### [`RFC2866-3-1`](#rfc2866-3-1)
-
-Accounting failures MUST NOT tear down user sessions (§3)
-
-Audit verdict: not audited: no reader has judged these tests
-
-| Polarity | Test | Kind and tier | Proof state |
-|---|---|---|---|
-| negative | [`TestRFC2866SessionTeardownIndependentOfAccounting`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L192) | unit/verify | unproven |
-| positive | [`TestRFC2866AcctFailureKeepsSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L156) | unit/verify | unproven |
-
 ### [`RFC2866-3-2`](#rfc2866-3-2)
 
-Accounting-Request authenticator MUST be computed as MD5(Code+ID+Length+16_zero_octets+Attributes+Secret) (§3)
+The Request Authenticator field in Accounting-Request packets contains a one- way MD5 hash calculated over a stream of octets consisting of the Code + Identifier + Length + 16 zero octets + request attributes + shared secret (where + indicates concatenation). (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an Accounting-Request whose Request Authenticator field does not hold MD5(Code+Identifier+Length+16 zero octets+attributes+secret). TestRFC2866AccountingRequestAuthFormula compares AccountingRequestAuth against an independent MD5 reference, and TestRFC2866AccountingRequestAuthRejectsTampering shows the secret, an attribute byte and the Code feed it; both call the helper directly. No tagged unit reads the Authenticator field of a request ze actually sends, so a client that stopped applying the helper (radius/client.go) or applied it before the final Length was set stays green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -151,9 +147,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2866-5.5-1`](#rfc2866-5.5-1)
 
-Acct-Session-Id MUST be unique across all active sessions on the NAS (§5.5)
+This attribute is a unique Accounting ID to make it easy to match start and stop records in a log file. (§5.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: two sessions whose records carry the same Acct-Session-Id in the log. TestRFC2866AcctSessionIDUnique (1600 concurrent ids) and TestRFC2866AcctSessionIDNoCollisionOnReusedKey prove uniqueness within one process lifetime. genSessionID (authradius/acct.go) is tunnel-session-counter with a counter that restarts at 1 on every start, and no tagged unit covers a restart; the RFC's own example reserves digits for the reboot count because the log outlives a reboot.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -162,9 +158,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2866-4.1-1`](#rfc2866-4.1-1)
 
-A Framed-IP-Address included in an Accounting-Request MUST contain the IP address of the user, and where the Access-Accept used a special value telling the NAS to assign or negotiate an address, MUST contain the address actually assigned or negotiated (§4.1)
+If the Accounting-Request packet includes a Framed-IP-Address, that attribute MUST contain the IP address of the user. If the Access-Accept used the special values for Framed-IP-Address telling the NAS to assign or negotiate an IP address for the user, the Framed-IP-Address (if any) in the Accounting-Request MUST contain the actual IP address assigned or negotiated. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause 1, the attribute holds the user's address: TestAcctFramedIPAddressPresent, TestAcctFramedIPAddressIsSubscriberNotNAS and test/l2tp/radius-acct-wire.ci go red on a wrong or NAS address. Clause 2, where the Access-Accept used the special assign/negotiate values the attribute MUST carry the address actually assigned or negotiated: no tagged unit feeds an Access-Accept carrying Framed-IP-Address 255.255.255.254 or 255.255.255.255 and checks that the special value never reaches the Accounting-Request. The units build from acctSession.peerAddr directly.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -177,9 +173,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2866-5-1`](#rfc2866-5-1)
 
-Acct-Status-Type attribute MUST be included in Accounting-Request to indicate Start (1), Stop (2), or Interim-Update (3) (§5)
+1 Acct-Status-Type 0-1 Acct-Delay-Time 0-1 Acct-Input-Octets 0-1 Acct-Output-Octets 1 Acct-Session-Id 0-1 Acct-Authentic 0-1 Acct-Session-Time 0-1 Acct-Input-Packets 0-1 Acct-Output-Packets 0-1 Acct-Terminate-Cause 0+ Acct-Multi-Session-Id 0+ Acct-Link-Count 0 CHAP-Challenge 0-1 NAS-Port-Type 0-1 Port-Limit 0-1 Login-LAT-Port [Note 1] An Accounting-Request MUST contain either a NAS-IP-Address or a NAS-Identifier (or both). The following table defines the above table entries. 0 This attribute MUST NOT be present 0+ Zero or more instances of this attribute MAY be present. 0-1 Zero or one instance of this attribute MAY be present. 1 Exactly one instance of this attribute MUST be present. (§5.13)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The row's quote is the Section 5.13 table span from '1 Acct-Status-Type' to the legend, because no shorter verbatim text names the attribute and the MUST. The Acct-Status-Type clause is proven: TestRFC2866AcctStatusTypePresent fails on a count other than 1 or a wrong value for Start, Stop and Interim-Update. The other entries of the span (Acct-Session-Id 1, CHAP-Challenge 0, Note 1, the 0-1 cardinalities) have no assertion in a unit tagged with this id, and the negative TestRFC2866AcctStatusTypeNeverOmitted repeats the positive's presence check.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -188,9 +184,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2866-3-3`](#rfc2866-3-3)
 
-Same retransmit rules as RFC 2865: "For retransmissions where the contents are identical, the Identifier MUST remain unchanged", so an Accounting-Request carrying Acct-Delay-Time, whose value "will be updated when the packet is retransmitted", takes a new Identifier and Request Authenticator instead (§3, stated at §4.1)
+For retransmissions where the contents are identical, the Identifier MUST remain unchanged. Note that if Acct-Delay-Time is included in the attributes of an Accounting-Request then the Acct-Delay-Time value will be updated when the packet is retransmitted, changing the content of the Attributes field and requiring a new Identifier and Request Authenticator. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause 1, identical contents keep the Identifier: TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier goes red on a changed Identifier. Clause 2, an updated Acct-Delay-Time requires a new Identifier AND a new Request Authenticator: TestRFC2866AccountingRetransmitTakesANewIdentifier asserts only distinct Identifiers, and its mock server (startRecordingAcctServer) never checks the request authenticator, so a retransmit that kept the old authenticator bytes stays green. The negative TestRFC2866AccountingDistinctRequestsDifferIdentifier proves the neighbouring RFC2866-4.1-4 rule, not a violation of this one.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -213,7 +209,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the packet is shorter than the Length field indicates, it MUST be silently discarded. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: accepting a datagram shorter than its Length field. TestRFC2866ShortPacketSilentlyDiscarded overstates the Length by 8 and fails if the exchange completes; TestRFC2866HonestLengthIsAccepted shows the same server with an honest Length completes, isolating the length claim.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -224,7 +220,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Any attribute valid in a RADIUS Access-Request or Access-Accept packet is valid in a RADIUS Accounting-Request packet, except that the following attributes MUST NOT be present in an Accounting- Request: User-Password, CHAP-Password, Reply-Message, State. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: User-Password, CHAP-Password, Reply-Message or State in an Accounting-Request. TestRFC2866AcctForbiddenAttributesAbsent checks each of the four (and CHAP-Challenge) on Start, Interim-Update and Stop from buildAcctPacket; the negative shows the packet still carries User-Name, Acct-Session-Id and Acct-Status-Type, so an empty builder cannot pass. The permissive first clause obliges the sender nothing.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -235,7 +231,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Either NAS-IP-Address or NAS-Identifier MUST be present in a RADIUS Accounting-Request. (§4.1, restated at §5.13 Note 1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: an Accounting-Request carrying neither NAS-IP-Address nor NAS-Identifier. TestRFC2866AcctNASIdentityAlwaysPresent fails on that for every status and every leaf combination, including neither leaf set; TestRFC2866AcctNASIdentityFallbackIsNarrow shows the fallback does not replace a configured identity.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -246,7 +242,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Identifier field MUST be changed whenever the content of the Attributes field changes, and whenever a valid reply has been received for a previous request. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Two triggers: a changed Attributes field, and a valid reply received for the previous request. TestRFC2866IdentifierChangesForANewRequest sends a second record that differs in attributes AND follows a valid reply, so a client that changed the Identifier on only one of the triggers stays green; neither trigger is isolated. The negative TestRFC2866IdentifierCounterCoversTheWholeSpace proves NextID never repeats, a property of the counter, not a violating input.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -257,7 +253,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Response Authenticator field MUST contain the correct response for the pending Accounting-Request. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The sentence binds the producer of an Accounting-Response, the accounting server: its Response Authenticator MUST contain the correct response. Ze is only the accounting client and sends no Accounting-Response. TestRFC2866AccountingResponseAuthenticatorAccepted and TestRFC2866AccountingResponseAuthenticatorForgeryDiscarded prove the neighbouring client rule, that ze verifies the authenticator and discards a forged reply (RFC 2865 Section 3 style), not this obligation.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -268,7 +264,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Servers and servers and clients MUST be able to deal with embedded nulls. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a null octet read as a terminator. TestRFC2866EmbeddedNullsSurviveTheWire round-trips a value with interior nulls through EncodeTo and Decode and compares bytes; TestRFC2866AllNullValueKeepsItsLength fails if an all-null value loses length. A strcpy-style cut goes red in both.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -279,7 +275,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Text of length zero (0) MUST NOT be sent; omit the entire attribute instead. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a text attribute of length zero on the wire. TestRFC2866AcctZeroLengthTextOmitted builds all three records for a session with no username and fails on a User-Name or any zero-length attribute; TestRFC2866AcctNonEmptyTextIsSent shows a non-empty User-Name is still sent.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -332,7 +328,7 @@ Audit verdict: not audited: no reader has judged these tests
 | `1` | Introduction | 0 | walked | Introduction. Names the problem RADIUS Accounting answers, and lists the key features: the client/server model, the shared secret that is never sent over the network, and the variable-length Attribute-Length-Value 3-tuples. No obligation. |
 | `1.1` | Specification of Requirements | 0 | walked | Specification of Requirements. The RFC 2119 key-words paragraph, plus one sentence of its own: 'These key words mean the same thing whether capitalized or not.' That sentence is why this walk reads a lowercase modal as normative wherever it binds a speaker, and it is why site 2.1:1 counts although the source writes 'MUST not'. |
 | `1.2` | Terminology | 0 | walked | Terminology. Defines service, session and 'silently discard'. The 'silently discard' entry carries two SHOULD clauses, on logging the error and on counting the event; neither is gated and neither is declared in rfc/short/rfc2866.md. |
-| `2` | Operation | 1 | walked | Operation. Describes the Start and Stop exchange, recommends that the client retry with some form of backoff and can fall back to an alternate server, and states that retry and fallback algorithms are not specified in detail in this document. One capitalised site, binding the accounting server. RFC2866-3-1 is declared unsourced here: RFC 2866 nowhere states that an accounting failure must not tear a session down. The summary read it from this section's model, in which accounting is an exchange beside the session rather than a step of it, and ze meets it (sendAcctPacket logs a failed record and returns; onSessionDown is driven by the session-down event alone). |
+| `2` | Operation | 1 | walked | Operation. Describes the Start and Stop exchange, recommends that the client retry with some form of backoff and can fall back to an alternate server, and states that retry and fallback algorithms are not specified in detail in this document. One capitalised site, binding the accounting server. RFC 2866 nowhere states that an accounting failure must not tear a session down; the row that said so was retired on 2026-09-27 (rfc/corrections/rfc2866.md). |
 | `2.1` | Proxy | 1 | walked | Proxy. Walks the four steps of a forwarding server and a remote server, and states one obligation binding the forwarding server. The rest is advice to whoever implements a proxy that takes responsibility for retransmissions. |
 | `3` | Packet Format | 2 | walked | Packet Format. States the encapsulation, UDP port 1813, the field layout, and both authenticator computations in RFC 2866's own voice; it does not defer to RFC 2865. The two capitalised sites are the Length rules. The Request Authenticator formula is stated in indicative prose ('contains a one-way MD5 hash calculated over a stream of octets consisting of the Code + Identifier + Length + 16 zero octets + request attributes + shared secret'), so the site scan sees no keyword there and RFC2866-3-2 is declared unsourced. The Response Authenticator paragraph is indicative in the same way; RFC2866-4.2-1 is instead read from the capitalised sentence in Section 4.2. The section closes with one SHOULD on preserving the order of attributes of the same type. |
 | `4` | Packet Types | 0 | walked | Packet Types. One sentence: the Code field in the first octet decides the packet type. |

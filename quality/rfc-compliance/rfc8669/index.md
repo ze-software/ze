@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 40.0% | 10 of 25 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 12 | of 25 gated MUSTs judged | 10 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 25 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 10 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 35 |
 | Tagged units | 35 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 12 |
 | Discrimination records | 12 |
 | Summary | `rfc/short/rfc8669.md` |
 | Requirement shard | `rfc/requirements/rfc8669.md` |
@@ -116,16 +118,16 @@ Ten MUST gaps annotated in [`rfc/short/rfc8669.md`](https://github.com/ze-softwa
 | `RFC8669-3-1` | For future extensibility, unknown TLVs MUST be ignored and propagated unmodified. (§3, §6) | MUST | 3 | **positive:** `unit/verify` [`TestRFC8669UnknownTLVIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L80). **negative:** no negative test. **{single-polarity}:** ze has no producer that rewrites a Prefix-SID TLV. validatePrefixSIDAttr walks TLV headers and reads the value of types 5 and 6 only, never writing any of them (internal/component/bgp/message/rfc7606.go:840-856), and no forward path edits the attribute value. Ze's one code-40 modification is coarser than this requirement rather than a counter-example to it: applyFactsNextHop drops the WHOLE attribute on every next-hop-changing readvertisement (internal/component/bgp/reactor/peer_forward_facts.go:241), taking any unknown TLV with it, so on that rail the attribute is not propagated at all. Where the attribute IS propagated its bytes are untouched, and no input can make a TLV come out modified, so there is nothing to drive negatively |
 | `RFC8669-3.1-1` | Label-Index TLV MUST be present in the BGP Prefix-SID attribute attached to IPv4/IPv6 Labeled Unicast prefixes (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** neither the sender nor the receiver requires TLV type 1 for labeled unicast -- validatePrefixSIDAttr accepts a Prefix-SID with no Label-Index TLV (internal/component/bgp/message/rfc7606.go:837) and BuildLabeledUnicast attaches whatever bytes the route configuration produced, including an SRv6-only attribute (internal/component/bgp/message/update_build_labeled.go:189) |
 | `RFC8669-3.1-2` | It MUST be ignored when received for other BGP AFI/SAFI combinations. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC8669LabelIndexIgnoredOnNonLabeledUnicastFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc8669_test.go#L98). **negative:** no negative test. **{single-polarity}:** ze has no receive-side Label-Index consumer for any family -- ExtractSRv6SIDFull steps over TLV type 1 by length (internal/component/bgp/plugins/rib/pool/srv6sid.go:47) and no other reader of TLV type 1 exists in internal/component/bgp or internal/core/bgp -- so the TLV is ignored on every AFI/SAFI and there is no label-index-driven behavior to drive negatively |
-| `RFC8669-3.1-3` | Label-Index TLV Reserved field MUST be clear on transmission (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L30). **negative:** no negative test. **{single-polarity}:** ParsePrefixSID hardcodes the Reserved octet to 0 on encode and no code path emits a non-zero value, so there is no negative input to reject (internal/core/bgp/attribute/prefixsid.go) |
-| `RFC8669-3.1-4` | Label-Index TLV Reserved field MUST be ignored on reception (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC8669LabelIndexReservedAndFlagsZeroAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L96). **negative:** `unit/verify` [`TestRFC8669LabelIndexNonZeroReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L114) |
-| `RFC8669-3.1-5` | Label-Index TLV Flags MUST be clear on transmission (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L31). **negative:** no negative test. **{single-polarity}:** ParsePrefixSID hardcodes the Flags field to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go) |
-| `RFC8669-3.1-6` | Label-Index TLV Flags MUST be ignored on reception (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC8669LabelIndexReservedAndFlagsZeroAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L97). **negative:** `unit/verify` [`TestRFC8669LabelIndexNonZeroFlagsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L127) |
-| `RFC8669-3.2-1` | Originator SRGB TLV Flags MUST be clear on transmission (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L55). **negative:** no negative test. **{single-polarity}:** parsePrefixSIDWithSRGB hardcodes both Flags octets to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go) |
-| `RFC8669-3.2-2` | Originator SRGB TLV Flags MUST be ignored on reception (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC8669SRGBFlagsZeroAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L140). **negative:** `unit/verify` [`TestRFC8669SRGBNonZeroFlagsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L151) |
+| `RFC8669-3.1-3` | RESERVED: 8-bit field. It MUST be clear on transmission (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L30). **negative:** no negative test. **{single-polarity}:** ParsePrefixSID hardcodes the Reserved octet to 0 on encode and no code path emits a non-zero value, so there is no negative input to reject (internal/core/bgp/attribute/prefixsid.go) |
+| `RFC8669-3.1-4` | RESERVED: 8-bit field. It MUST be clear on transmission and MUST be ignored on reception. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC8669LabelIndexReservedAndFlagsZeroAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L96). **negative:** `unit/verify` [`TestRFC8669LabelIndexNonZeroReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L114) |
+| `RFC8669-3.1-5` | Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L31). **negative:** no negative test. **{single-polarity}:** ParsePrefixSID hardcodes the Flags field to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go) |
+| `RFC8669-3.1-6` | Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission and MUST be ignored on reception. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC8669LabelIndexReservedAndFlagsZeroAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L97). **negative:** `unit/verify` [`TestRFC8669LabelIndexNonZeroFlagsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L127) |
+| `RFC8669-3.2-1` | Flags: 16 bits of flags. None are defined in this document. The Flags field MUST be clear on transmission (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L55). **negative:** no negative test. **{single-polarity}:** parsePrefixSIDWithSRGB hardcodes both Flags octets to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go) |
+| `RFC8669-3.2-2` | Flags: 16 bits of flags. None are defined in this document. The Flags field MUST be clear on transmission and MUST be ignored on reception. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC8669SRGBFlagsZeroAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L140). **negative:** `unit/verify` [`TestRFC8669SRGBNonZeroFlagsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L151) |
 | `RFC8669-3.2-3` | Originator SRGB TLV MUST NOT be changed during the propagation of the BGP update (§3.2) | MUST NOT | 3.2 | **positive:** `unit/verify` [`TestRFC8669SRGBUnchangedThroughReceiveValidation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L170). **negative:** no negative test. **{single-polarity}:** no producer writes into an Originator SRGB TLV. The receive validator reads TLV headers and never writes a value (internal/component/bgp/message/rfc7606.go:837-856). The forward path's only code-40 operation is a whole-attribute suppress on a next-hop change (internal/component/bgp/reactor/peer_forward_facts.go:241) -- that removes the Originator SRGB along with everything else in the attribute rather than changing it, so it is not a counter-example to "MUST NOT be changed" but it does mean the TLV survives propagation only on the rails that keep the attribute. On those rails the SRGB octets are byte-identical, and no input produces changed SRGB bytes to drive negatively |
-| `RFC8669-3.2-4` | Originator SRGB TLV MUST be ignored when received for non-Labeled Unicast AFI/SAFI combinations (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC8669SRGBIgnoredOnNonLabeledUnicastFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc8669_test.go#L125). **negative:** no negative test. **{single-polarity}:** ze has no receive-side Originator SRGB consumer for any family -- ExtractSRv6SIDFull steps over TLV type 3 by length (internal/component/bgp/plugins/rib/pool/srv6sid.go:47) and the only SRGB code in internal/component/bgp is the config-side encoder -- so the TLV is ignored on every AFI/SAFI and there is no SRGB-driven behavior to drive negatively |
+| `RFC8669-3.2-4` | The Originator SRGB TLV may only appear in a BGP Prefix-SID attribute attached to IPv4/IPv6 Labeled Unicast prefixes ([RFC8277]). It MUST be ignored when received for other BGP AFI/SAFI combinations. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC8669SRGBIgnoredOnNonLabeledUnicastFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc8669_test.go#L125). **negative:** no negative test. **{single-polarity}:** ze has no receive-side Originator SRGB consumer for any family -- ExtractSRv6SIDFull steps over TLV type 3 by length (internal/component/bgp/plugins/rib/pool/srv6sid.go:47) and the only SRGB code in internal/component/bgp is the config-side encoder -- so the TLV is ignored on every AFI/SAFI and there is no SRGB-driven behavior to drive negatively |
 | `RFC8669-4-1` | A BGP speaker receiving a BGP Prefix-SID attribute from an External BGP (EBGP) neighbor residing outside the boundaries of the SR domain MUST discard the attribute unless it is configured to accept the attribute from the EBGP neighbor. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC8669PrefixSIDFromEBGPAcceptedWhenConfigured`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_test.go#L58). **positive:** `unit/verify` [`TestRFC8669PrefixSIDKeptPathsKeepExactlyOneCopy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_multi_test.go#L120). **negative:** `unit/verify` [`TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_multi_test.go#L67). **negative:** `unit/verify` [`TestRFC8669PrefixSIDFromEBGPDiscardedByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_test.go#L80) |
-| `RFC8669-4.1-1` | BGP Prefix-SID attribute attached to Labeled Unicast MUST contain the Label-Index TLV (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the receive validator never scans for TLV type 1, so a labeled-unicast Prefix-SID with no Label-Index TLV is accepted as well formed (internal/component/bgp/message/rfc7606.go:837) |
+| `RFC8669-4.1-1` | When the BGP Prefix-SID attribute is attached to a BGP Labeled IPv4 or IPv6 Unicast [RFC8277] AFI/SAFI, it MUST contain the Label-Index TLV (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the receive validator never scans for TLV type 1, so a labeled-unicast Prefix-SID with no Label-Index TLV is accepted as well formed (internal/component/bgp/message/rfc7606.go:837) |
 | `RFC8669-4.1-2` | A BGP Prefix-SID attribute received without a Label-Index TLV MUST be considered to be "invalid" by the receiving speaker. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no "invalid" state for the Prefix-SID attribute -- validatePrefixSIDAttr returns nil for any attribute whose TLVs fit the declared bounds, whatever their types (internal/component/bgp/message/rfc7606.go:858) |
 | `RFC8669-4.1-3` | If multiple different prefixes are received with the same label index, all of the different prefixes MUST have their BGP Prefix-SID attribute considered to be "conflicting". (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze keeps no label-index-to-prefix reverse index and reads no label index at all -- the only reader of the Prefix-SID TLV list is the SRv6 extractor, which skips TLV type 1 (internal/component/bgp/plugins/rib/pool/srv6sid.go:47), so no conflict can be detected |
 | `RFC8669-4.1-4` | When a BGP speaker receives a path from a neighbor with an "invalid" or "conflicting" BGP Prefix-SID attribute, or when a BGP speaker receives a path from a neighbor with a BGP Prefix-SID attribute but is unable to process it (e.g., local policy disables the functionality), it MUST ignore the BGP Prefix-SID attribute. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** neither the invalid nor the conflicting state is computed, so the ignore action has no trigger -- the receive path's only Prefix-SID discard reasons are malformed TLV bounds (internal/component/bgp/message/rfc7606.go:842) and the EBGP boundary rule (internal/component/bgp/reactor/session_validation.go:107) |
@@ -138,32 +140,32 @@ Ten MUST gaps annotated in [`rfc/short/rfc8669.md`](https://github.com/ze-softwa
 | `RFC8669-6-1` | When a BGP speaker receives a BGP UPDATE message containing a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC8669WellFormedAttributeAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L187). **negative:** `unit/verify` [`TestRFC8669MalformedAttributeDiscardedAndNotAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L208). **negative:** `unit/verify` [`TestRFC8669TrailingBytesDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L238) |
 | `RFC8669-6-2` | As per [RFC7606], if the BGP Prefix-SID attribute appears more than once in an UPDATE message, all the occurrences of the attribute other than the first one SHALL be discarded and the UPDATE message will continue to be processed. (§6) | SHALL | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the processing half holds -- an already-seen non-MP attribute code is skipped without validation (internal/component/bgp/message/rfc7606.go:283) -- but nothing removes the duplicate from the bytes forwarded on. A valid first occurrence with a duplicate produces no DiscardEntry, and ApplyAttrDiscard returns the path attributes untouched when the entry list is empty (internal/component/bgp/message/attr_discard.go:73-75), so the second copy is re-advertised. When the FIRST occurrence is the malformed one, applyInPlace tombstones it through AttrFind, which returns only the first match (internal/component/bgp/message/attr_discard.go:111, internal/core/bgp/attribute/iterator.go:155), leaving the untouched duplicate on the wire |
 | `RFC8669-6-3` | Similarly, if a recognized TLV appears more than once in a BGP Prefix-SID attribute while the specification only allows for a single occurrence, then all the occurrences of the TLV other than the first one SHALL be discarded and the Prefix-SID attribute will continue to be processed. (§6) | SHALL | 6 | **positive:** `unit/verify` [`TestRFC8669DuplicateRecognizedTLVFirstWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc8669_test.go#L149). **negative:** `unit/verify` [`TestRFC8669DuplicateRecognizedTLVCannotOverrideFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc8669_test.go#L165) |
-| `RFC8669-4-2` | A BGP speaker SHOULD log an error when discarding an attribute (§4, §6) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-4.1-9` | The label index from the best path BGP Prefix-SID attribute SHOULD be chosen when multiple paths have different indices (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-4.1-10` | Speaker SHOULD program the derived label as the label for the prefix in its local MPLS data plane when acceptable (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-4.1-11` | Speaker SHOULD NOT treat a "conflicting" BGP Prefix-SID attribute as an error (§4.1) | SHOULD NOT | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-4.1-12` | Speaker SHOULD propagate the attribute unchanged for conflicting cases (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-4.1-13` | Speaker SHOULD log a warning for conflicting BGP Prefix-SID attributes (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-4.1-14` | Implementations SHOULD ensure all impacted prefixes revert to using label indices when transitioning from conflicting to acceptable (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-5-1` | Speaker SHOULD advertise the BGP Prefix-SID received with the path without modification (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-4-2` | A BGP speaker SHOULD log an error for further analysis when discarding an attribute. (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-4.1-9` | If multiple valid paths for the same prefix are received from multiple BGP speakers or, in the case of [RFC7911], from the same BGP speaker, and the BGP Prefix-SID attributes do not contain the same label index, then the label index from the best path BGP Prefix-SID attribute SHOULD be chosen with a notable exception being when [RFC5004] is being used to dampen route changes. (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-4.1-10` | When a BGP speaker receives a path from a neighbor with an "acceptable" BGP Prefix-SID attribute and that path is selected as the best path, it SHOULD program the derived label as the label for the prefix in its local MPLS data plane. (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-4.1-11` | In the case of a "conflicting" BGP Prefix-SID attribute, a BGP speaker SHOULD NOT treat it as an error (§4.1) | SHOULD NOT | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-4.1-12` | In the case of a "conflicting" BGP Prefix-SID attribute, a BGP speaker SHOULD NOT treat it as an error and SHOULD propagate the attribute unchanged. (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-4.1-13` | A BGP speaker SHOULD log a warning for further analysis, i.e., in the case the conflict is not due to a label-index transition. (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-4.1-14` | When a BGP Prefix-SID attribute changes and transitions from "conflicting" to "acceptable", the BGP Prefix-SID attributes for other prefixes may also transition to "acceptable" as well. Implementations SHOULD ensure all impacted prefixes revert to using the label indices corresponding to these newly "acceptable" BGP Prefix-SID attributes. (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-5-1` | A BGP speaker that advertises a path received from one of its neighbors SHOULD advertise the BGP Prefix-SID received with the path without modification as long as the BGP Prefix-SID was acceptable. (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8669-5.1-2` | Since the label-index value must be unique within an SR domain, by default an implementation SHOULD NOT advertise the BGP Prefix-SID attribute outside an AS unless it is explicitly configured to do so. (§5.1) | SHOULD NOT | 5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-8-2` | BGP Prefix-SID attribute SHOULD NOT be attached to a prefix and advertised by default (§8) | SHOULD NOT | 8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-8-3` | BGP Prefix-SID advertisement SHOULD require explicit enablement (§8) | SHOULD | 8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-5-2` | Attribute filtering SHOULD be deployed at the administrative boundary of the SR domain (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-3.2-5` | If SRGB received via BGP-LS differs from Prefix-SID attribute, BGP-LS values SHOULD be preferred (§3.2, §9) | SHOULD | 3.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-9-1` | Speaker SHOULD log an error if BGP Prefix-SID SRGB differs from that received via BGP-LS Node NLRI (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-9-2` | Error log message rate limiting and suppression of duplicate error log messages SHOULD be deployed (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-8-2` | By default, a BGP Prefix-SID attribute SHOULD NOT be attached to a prefix and advertised. (§8) | SHOULD NOT | 8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-8-3` | Hence, BGP Prefix-SID Advertisement SHOULD require explicit enablement. (§8) | SHOULD | 8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-5-2` | In order to prevent distribution of the BGP Prefix-SID attribute beyond its intended scope of applicability, attribute filtering SHOULD be deployed to remove the BGP Prefix-SID attribute at the administrative boundary of the SR domain. (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-3.2-5` | If a BGP speaker receives a node's SRGB as an attribute of the BGP-LS Node NLRI and the BGP speaker also receives the same node's SRGB in a BGP Prefix-SID attribute, then the received values should be the same. If the values are different, the values advertised in the BGP- LS NLRI SHOULD be preferred, and an error should be logged. (§3.2) | SHOULD | 3.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-9-1` | Since BGP-LS is the preferred method for advertising SRGB information, the BGP speaker SHOULD log an error if a BGP Prefix-SID attribute is received with SRGB information different from that received as an attribute of the same node's BGP-LS Node NLRI. (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-9-2` | To prevent a Denial-of-Service (DoS) or Distributed-Denial-of-Service (DDoS) attack due to excessive BGP updates with an invalid or conflicting BGP Prefix-SID attribute, error log message rate limiting as well as suppression of duplicate error log messages SHOULD be deployed. (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8669-1-1` | A BGP Prefix-SID MAY be attached to a BGP prefix (§1) | MAY | 1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-5.1-3` | Originator may optionally announce the Originator SRGB TLV (§5.1) | MAY | 5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-5-3` | If path lacks Prefix-SID, speaker MAY attach a BGP Prefix-SID if configured (§5) | MAY | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8669-3.2-6` | SRGB field MAY appear multiple times (ranges concatenated) (§3.2) | MAY | 3.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-5.1-3` | A BGP speaker that originates a BGP Prefix-SID attribute MAY optionally announce the Originator SRGB TLV along with the mandatory Label-Index TLV. (§5.1) | MAY | 5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-5-3` | If the path did not come with a BGP Prefix-SID attribute, the speaker MAY attach a BGP Prefix-SID to the path if configured to do so. (§5) | MAY | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8669-3.2-6` | Note that the SRGB field MAY appear multiple times. If the SRGB field appears multiple times, the SRGB consists of multiple ranges that are concatenated. (§3.2) | MAY | 3.2 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC8669-3.1-1`](#rfc8669-3.1-1) Label-Index TLV MUST be present in the BGP Prefix-SID attribute attached to IPv4/IPv6 Labeled Unicast prefixes (§3.1) | {gap}, no test | neither the sender nor the receiver requires TLV type 1 for labeled unicast -- validatePrefixSIDAttr accepts a Prefix-SID with no Label-Index TLV (internal/component/bgp/message/rfc7606.go:837) and BuildLabeledUnicast attaches whatever bytes the route configuration produced, including an SRv6-only attribute (internal/component/bgp/message/update_build_labeled.go:189) |
-| [`RFC8669-4.1-1`](#rfc8669-4.1-1) BGP Prefix-SID attribute attached to Labeled Unicast MUST contain the Label-Index TLV (§4.1) | {gap}, no test | the receive validator never scans for TLV type 1, so a labeled-unicast Prefix-SID with no Label-Index TLV is accepted as well formed (internal/component/bgp/message/rfc7606.go:837) |
+| [`RFC8669-4.1-1`](#rfc8669-4.1-1) When the BGP Prefix-SID attribute is attached to a BGP Labeled IPv4 or IPv6 Unicast [RFC8277] AFI/SAFI, it MUST contain the Label-Index TLV (§4.1) | {gap}, no test | the receive validator never scans for TLV type 1, so a labeled-unicast Prefix-SID with no Label-Index TLV is accepted as well formed (internal/component/bgp/message/rfc7606.go:837) |
 | [`RFC8669-4.1-2`](#rfc8669-4.1-2) A BGP Prefix-SID attribute received without a Label-Index TLV MUST be considered to be "invalid" by the receiving speaker. (§4.1) | {gap}, no test | ze has no "invalid" state for the Prefix-SID attribute -- validatePrefixSIDAttr returns nil for any attribute whose TLVs fit the declared bounds, whatever their types (internal/component/bgp/message/rfc7606.go:858) |
 | [`RFC8669-4.1-3`](#rfc8669-4.1-3) If multiple different prefixes are received with the same label index, all of the different prefixes MUST have their BGP Prefix-SID attribute considered to be "conflicting". (§4.1) | {gap}, no test | ze keeps no label-index-to-prefix reverse index and reads no label index at all -- the only reader of the Prefix-SID TLV list is the SRv6 extractor, which skips TLV type 1 (internal/component/bgp/plugins/rib/pool/srv6sid.go:47), so no conflict can be detected |
 | [`RFC8669-4.1-4`](#rfc8669-4.1-4) When a BGP speaker receives a path from a neighbor with an "invalid" or "conflicting" BGP Prefix-SID attribute, or when a BGP speaker receives a path from a neighbor with a BGP Prefix-SID attribute but is unable to process it (e.g., local policy disables the functionality), it MUST ignore the BGP Prefix-SID attribute. (§4.1) | {gap}, no test | neither the invalid nor the conflicting state is computed, so the ignore action has no trigger -- the receive path's only Prefix-SID discard reasons are malformed TLV bounds (internal/component/bgp/message/rfc7606.go:842) and the EBGP boundary rule (internal/component/bgp/reactor/session_validation.go:107) |
@@ -181,7 +183,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 For future extensibility, unknown TLVs MUST be ignored and propagated unmodified. (§3, §6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause 'ignored': a validator rejecting an unknown TLV type goes red at message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored require.Equal(RFC7606ActionNone). Clause 'propagated unmodified': the only byte-equality assertion runs after ValidateUpdateRFC7606, not after any forward or re-advertise path, so a forward rail that strips or rewrites the unknown TLV (or drops the whole attribute, as applyFactsNextHop does on a next-hop change) turns nothing red. The propagation half has no assertion.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -199,7 +201,7 @@ No test carries RFC8669-3.1-1, so no unit is bound to it.
 
 It MUST be ignored when received for other BGP AFI/SAFI combinations. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak (agrees with blind reader). The unit proves only that the SRv6 extractor steps over TLV type 1. The {single-polarity} premise that no other reader of TLV type 1 exists in internal/core/bgp is false: attribute/prefixsid_wire.go validatePrefixSIDTLVs refuses a Label-Index whose length is not 7, and the JSON formatter emits sr-label-index, both regardless of AFI/SAFI. No tagged unit feeds a Label-Index on a non-labeled-unicast route through validation or decode, so acting on it there (erroring or reporting it) stays green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -207,9 +209,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8669-3.1-3`](#rfc8669-3.1-3)
 
-Label-Index TLV Reserved field MUST be clear on transmission (§3.1)
+RESERVED: 8-bit field. It MUST be clear on transmission (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Forbidden: non-zero Label-Index Reserved emitted. There are two Label-Index encoders: EncodePrefixSID's simple path (asserted sid[3]==0) and parsePrefixSIDWithSRGB (prefixsid.go:120), which builds its own Label-Index TLV. TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission inspects only sid[10:], so a non-zero Reserved in the SRGB path's Label-Index stays green. The {single-polarity} note calls the encoder ParsePrefixSID and names one encoder.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -217,9 +219,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8669-3.1-4`](#rfc8669-3.1-4)
 
-Label-Index TLV Reserved field MUST be ignored on reception (§3.1)
+RESERVED: 8-bit field. It MUST be clear on transmission and MUST be ignored on reception. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Reception clause proven: a Reserved 0xFF Label-Index yields RFC7606ActionNone with unchanged bytes. The quoted transmission clause ('MUST be clear on transmission') has no assertion in this row's tagged units, and the units tagged RFC8669-3.1-3 leave the SRGB-path Label-Index encoder unasserted (see 3.1-3).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -228,9 +230,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8669-3.1-5`](#rfc8669-3.1-5)
 
-Label-Index TLV Flags MUST be clear on transmission (§3.1)
+Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Forbidden: non-zero Label-Index Flags emitted. sid[4:6]=={0,0} is asserted only for EncodePrefixSID's simple Label-Index path; the Label-Index TLV that parsePrefixSIDWithSRGB (prefixsid.go:120) builds is not inspected by any tagged unit, so non-zero Flags there stay green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -238,9 +240,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8669-3.1-6`](#rfc8669-3.1-6)
 
-Label-Index TLV Flags MUST be ignored on reception (§3.1)
+Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission and MUST be ignored on reception. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Reception clause proven: Flags 0xFFFF yields RFC7606ActionNone with unchanged bytes. The quoted transmission clause has no assertion in this row's tagged units, and RFC8669-3.1-5's unit misses the SRGB-path Label-Index encoder.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -249,9 +251,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8669-3.2-1`](#rfc8669-3.2-1)
 
-Originator SRGB TLV Flags MUST be clear on transmission (§3.2)
+Flags: 16 bits of flags. None are defined in this document. The Flags field MUST be clear on transmission (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Non-compliant behaviour: non-zero Originator SRGB Flags emitted. config/rfc8669_test.go::TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission asserts require.Equal([]byte{0,0}, srgb[3:5]) on EncodePrefixSID output. Single-polarity marker present.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -259,9 +261,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8669-3.2-2`](#rfc8669-3.2-2)
 
-Originator SRGB TLV Flags MUST be ignored on reception (§3.2)
+Flags: 16 bits of flags. None are defined in this document. The Flags field MUST be clear on transmission and MUST be ignored on reception. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Reception clause: SRGB Flags 0xFFFF yields RFC7606ActionNone (no byte-unchanged assertion, unlike 3.1-4/3.1-6). The quoted transmission clause ('MUST be clear on transmission') has no assertion in this row's tagged units; it is proven only by the unit tagged RFC8669-3.2-1.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -280,9 +282,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8669-3.2-4`](#rfc8669-3.2-4)
 
-Originator SRGB TLV MUST be ignored when received for non-Labeled Unicast AFI/SAFI combinations (§3.2)
+The Originator SRGB TLV may only appear in a BGP Prefix-SID attribute attached to IPv4/IPv6 Labeled Unicast prefixes ([RFC8277]). It MUST be ignored when received for other BGP AFI/SAFI combinations. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. The unit proves only that the SRv6 extractor steps over TLV type 3. The {single-polarity} premise that the only SRGB code is the config-side encoder is false: attribute/prefixsid_wire.go validatePrefixSIDTLVs refuses an Originator SRGB whose length is not 2 + 6N, and the JSON formatter decodes it, regardless of AFI/SAFI. No tagged unit covers an SRGB on a non-labeled-unicast route through those paths.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -292,7 +294,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A BGP speaker receiving a BGP Prefix-SID attribute from an External BGP (EBGP) neighbor residing outside the boundaries of the SR domain MUST discard the attribute unless it is configured to accept the attribute from the EBGP neighbor. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Clause 'MUST discard': a Prefix-SID kept from an unconfigured EBGP peer goes red at reactor/rfc8669_test.go::TestRFC8669PrefixSIDFromEBGPDiscardedByDefault assert.False(found) after enforceRFC7606, and for repeated copies at rfc8669_multi_test.go::TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP. Clause 'unless configured': an over-firing strip goes red at TestRFC8669PrefixSIDFromEBGPAcceptedWhenConfigured assert.True(found); IBGP not affected is pinned in TestRFC8669PrefixSIDKeptPathsKeepExactlyOneCopy.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -303,7 +305,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8669-4.1-1`](#rfc8669-4.1-1)
 
-BGP Prefix-SID attribute attached to Labeled Unicast MUST contain the Label-Index TLV (§4.1)
+When the BGP Prefix-SID attribute is attached to a BGP Labeled IPv4 or IPv6 Unicast [RFC8277] AFI/SAFI, it MUST contain the Label-Index TLV (§4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -400,7 +402,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 When a BGP speaker receives a BGP UPDATE message containing a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Malformed via TLV overrun: message/rfc8669_test.go::TestRFC8669MalformedAttributeDiscardedAndNotAdvertised asserts discard and absence after ApplyAttrDiscard; trailing bytes: TestRFC8669TrailingBytesDiscarded asserts discard only, not removal. Unasserted clauses: (1) 'invalid' (no Label-Index TLV, per 4.1) is never computed, so an invalid attribute is kept and advertised and no tagged unit goes red; (2) 'a TLV length that doesn't conform to the length constraints for the TLV' is not checked by validatePrefixSIDAttr (a Label-Index TLV of length 6 or an SRGB TLV of length 3 is accepted), and no test drives it; (3) 'not meeting the minimum attribute length' (e.g. a zero-length attribute) is accepted and untested.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -420,7 +422,7 @@ No test carries RFC8669-6-2, so no unit is bound to it.
 
 Similarly, if a recognized TLV appears more than once in a BGP Prefix-SID attribute while the specification only allows for a single occurrence, then all the occurrences of the TLV other than the first one SHALL be discarded and the Prefix-SID attribute will continue to be processed. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Tagged units pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVFirstWins and ::TestRFC8669DuplicateRecognizedTLVCannotOverrideFirst prove first-wins reading of duplicate SRv6 L3 Service TLVs in ExtractSRv6SIDFull, which is the RFC 9252 rule 'all but the first instance MUST be ignored'. Unasserted: that the later occurrences are DISCARDED (they stay in the attribute bytes forwarded on, same shape as the RFC8669-6-2 gap), and duplicates of RFC 8669's own single-occurrence TLV (Label-Index) are never driven.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

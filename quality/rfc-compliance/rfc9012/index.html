@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9012 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9012: The BGP Tunnel Encapsulation Attribute. 75 gated MUST-level requirements, 51 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 9012: The BGP Tunnel Encapsulation Attribute. 75 gated MUST-level requirements, 51 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9012 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9012: The BGP Tunnel Encapsulation Attribute. 75 gated MUST-level requirements, 51 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 9012: The BGP Tunnel Encapsulation Attribute. 75 gated MUST-level requirements, 51 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9012 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9012: The BGP Tunnel Encapsulation Attribute. 75 gated MUST-level requirements, 51 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 9012: The BGP Tunnel Encapsulation Attribute. 75 gated MUST-level requirements, 51 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>68.0%</strong><b>51 of 75 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>15</strong><b>of 75 gated MUSTs judged</b><p>15 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 75 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>51</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>30</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>15</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -303,7 +307,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1-2">RFC9012-3.1-2</code></td><td colspan="3"><span class="rfc-subject">The Reserved subfield of the Tunnel Egress Endpoint sub-TLV MUST be disregarded on receipt (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1-2">RFC9012-3.1-2</code></td><td colspan="3"><span class="rfc-subject">It MUST be disregarded on receipt (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -312,7 +316,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> no code decodes the Tunnel Egress Endpoint sub-TLV, so ze holds no Reserved subfield to disregard: SubTLVs returns raw type and value pairs (internal/core/bgp/attribute/tunnel_encap.go:104) and a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1-3">RFC9012-3.1-3</code></td><td colspan="3"><span class="rfc-subject">The Reserved subfield of the Tunnel Egress Endpoint sub-TLV MUST be propagated unchanged (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1-3">RFC9012-3.1-3</code></td><td colspan="3"><span class="rfc-subject">it MUST be propagated unchanged (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -366,7 +370,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the Section 3.1.1 origin-AS validation procedure is itself optional and ze applies none, so there is no procedure to reapply; grep -rniE &#39;route_as|egress.?endpoint&#39; over internal, pkg and cmd matches only this RFC&#39;s own tests, and the best-path comparison consults no attribute 23 (internal/component/bgp/plugins/rib/bestpath.go:307)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.2.1-1">RFC9012-3.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The reserved (R) Flags bits of the VXLAN/NVGRE Encapsulation sub-TLV MUST always be set to 0 by the originator (§3.2.1, §3.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.2.1-1">RFC9012-3.2.1-1</code></td><td colspan="3"><span class="rfc-subject">They MUST always be set to 0 by the originator of the sub-TLV. (§3.2.1, §3.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.1</td>
@@ -492,7 +496,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the Embedded Label Handling sub-TLV is never decoded and the attribute is never correlated with the address family of the UPDATE carrying it: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.5-2">RFC9012-3.5-2</code></td><td colspan="3"><span class="rfc-subject">If the Embedded Label Handling sub-TLV is in a TLV whose tunnel type has no virtual network identifier, it MUST be disregarded (§3.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.5-2">RFC9012-3.5-2</code></td><td colspan="3"><span class="rfc-subject">If the sub-TLV is contained in a TLV whose tunnel type does not have a virtual network identifier in its encapsulation header, the sub-TLV MUST be disregarded. (§3.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.5</td>
@@ -573,7 +577,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze pushes no label stack from the attribute, so no S bit is cleared: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-7">RFC9012-3.6-7</code></td><td colspan="3"><span class="rfc-subject">When pushed onto a packet with no existing label stack, the S bit of the bottommost pushed entry MUST be set (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-7">RFC9012-3.6-7</code></td><td colspan="3"><span class="rfc-subject">When the label stack entries are pushed onto a packet that does not already have a label stack, the S bit of the bottommost label stack entry MUST be set (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
@@ -582,7 +586,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze pushes no label stack from the attribute, so no bottom-of-stack bit is set: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-8">RFC9012-3.6-8</code></td><td colspan="3"><span class="rfc-subject">When pushed onto a packet with no existing label stack, the S bit of every other pushed entry MUST be cleared (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-8">RFC9012-3.6-8</code></td><td colspan="3"><span class="rfc-subject">When the label stack entries are pushed onto a packet that does not already have a label stack, the S bit of the bottommost label stack entry MUST be set, and the S bit of all the other label stack entries MUST be cleared. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
@@ -600,7 +604,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze pushes no label stack from the attribute, so a zero TTL in a received entry is never rewritten: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.7-2">RFC9012-3.7-2</code></td><td colspan="3"><span class="rfc-subject">If a Prefix-SID sub-TLV is included in a BGP UPDATE for an address family other than IPv4/IPv6 Labeled Unicast, it MUST be ignored (§3.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.7-2">RFC9012-3.7-2</code></td><td colspan="3"><span class="rfc-subject">If included in a BGP UPDATE for any other address family, it MUST be ignored. (§3.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.7</td>
@@ -654,7 +658,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no tunnel dataplane keyed on the Encapsulation Extended Community, so no payload of any type is carried through a tunnel signaled by one. Ze does READ the extended community -- ParseExtendedCommunities copies every 8-octet value in and ExtendedCommunities.WriteTo copies them back out (internal/core/bgp/attribute/community.go:275, :250) -- but the carriage is opaque: nothing decodes type 0x03 sub-type 0x0c into a tunnel type, and grep -rniE &#39;encap.*extended.?communit&#39; over internal, pkg and cmd matches no such decoder. With no tunnel established from the community, the payload-type restriction has no behavior to constrain</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-4.2-1">RFC9012-4.2-1</code></td><td colspan="3"><span class="rfc-subject">If a Router&#39;s MAC Extended Community and a VXLAN/NVGRE Encapsulation sub-TLV carry conflicting MACs, the Router&#39;s MAC Extended Community value MUST be used (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-4.2-1">RFC9012-4.2-1</code></td><td colspan="3"><span class="rfc-subject">In case of such a conflict, the information in the Router&#39;s MAC Extended Community MUST be used. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -663,7 +667,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze decodes neither side of the conflict into a MAC address, so the two can never disagree. An extended community reaches ze only as 8 opaque octets that are parsed in and re-encoded out unchanged (internal/core/bgp/attribute/community.go:275, :250) with no Router&#39;s MAC decoder -- grep -rniE &#34;router.?s? mac|RouterMAC&#34; over internal, pkg and cmd matches only the VRRP virtual MAC (internal/plugins/vrrp/packet/packet.go:94) -- and the only Tunnel Encapsulation sub-TLV ze decodes is Preference (TunnelTLV.Preference, internal/core/bgp/attribute/tunnel_encap.go:145), never a VXLAN or NVGRE Encapsulation sub-TLV</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-4.3-1">RFC9012-4.3-1</code></td><td colspan="3"><span class="rfc-subject">The Flags field of the Color Extended Community MUST be set to zero by the originator and ignored by the receiver (§4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-4.3-1">RFC9012-4.3-1</code></td><td colspan="3"><span class="rfc-subject">No flags are defined in this document; this field MUST be set to zero by the originator and ignored by the receiver (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3</td>
@@ -672,7 +676,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> neither half of this requirement has a producer that could violate it. Ze originates no Color Extended Community -- grep -rniE &#39;030b|color.?extended&#39; over internal, pkg and cmd matches no writer -- so nothing sets the Flags field at all. On receipt ze does read the extended community, but only as 8 opaque octets: ParseExtendedCommunities copies each value whole (internal/core/bgp/attribute/community.go:275) and ExtendedCommunities.WriteTo copies it back (:250) without ever addressing the Flags subfield, which is exactly the &#34;ignored by the receiver&#34; behavior, reached by having no field decoder rather than by a check</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-4.3-2">RFC9012-4.3-2</code></td><td colspan="3"><span class="rfc-subject">The Color Extended Community value MUST NOT be changed when propagating the extended community (§4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-4.3-2">RFC9012-4.3-2</code></td><td colspan="3"><span class="rfc-subject">the value MUST NOT be changed when propagating this extended community. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.3</td>
@@ -699,7 +703,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> tunnel feasibility takes no part in route resolvability: comparePair implements the decision process with no tunnel step (internal/component/bgp/plugins/rib/bestpath.go:307) and a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-8-1">RFC9012-8-1</code></td><td colspan="3"><span class="rfc-subject">When U1 has no attribute and its next hop resolves to U2 which has the attribute, packet P MUST be sent through one of U2&#39;s tunnels (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-8-1">RFC9012-8-1</code></td><td colspan="3"><span class="rfc-subject">Then packet P MUST be sent through one of the tunnels identified in the Tunnel Encapsulation attribute of UPDATE U2. (§8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8</td>
@@ -861,7 +865,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L277" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012DuplicateSingleInstanceSubTLVs</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-8">RFC9012-13-8</code></td><td colspan="3"><span class="rfc-subject">A Tunnel TLV carrying duplicate single-instance sub-TLVs MUST NOT be considered malformed (§13)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-8">RFC9012-13-8</code></td><td colspan="3"><span class="rfc-subject">However, the Tunnel TLV containing them MUST NOT be considered to be malformed (§13)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>13</td>
@@ -870,7 +874,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L159" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MalformedAttributeIsRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-9">RFC9012-13-9</code></td><td colspan="3"><span class="rfc-subject">All the sub-TLVs MUST be propagated if the route carrying the attribute is propagated (§13)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-9">RFC9012-13-9</code></td><td colspan="3"><span class="rfc-subject">all the sub-TLVs MUST be propagated if the route carrying the Tunnel Encapsulation attribute is propagated. (§13)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>13</td>
@@ -906,7 +910,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L247" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MalformedSubTLVTreatedAsUnrecognized</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-13">RFC9012-13-13</code></td><td colspan="3"><span class="rfc-subject">A TLV containing a malformed Tunnel Egress Endpoint sub-TLV MUST be ignored in its entirety (§13)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-13">RFC9012-13-13</code></td><td colspan="3"><span class="rfc-subject">if a TLV contains a malformed Tunnel Egress Endpoint sub-TLV (as defined in Section 3.1), the entire TLV MUST be ignored (§13)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>13</td>
@@ -915,7 +919,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> a malformed Tunnel Egress Endpoint sub-TLV is never identified, so the TLV containing it is not ignored: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-14">RFC9012-13-14</code></td><td colspan="3"><span class="rfc-subject">A TLV containing a malformed Tunnel Egress Endpoint sub-TLV MUST be removed from the attribute before the route is distributed (§13)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-14">RFC9012-13-14</code></td><td colspan="3"><span class="rfc-subject">if a TLV contains a malformed Tunnel Egress Endpoint sub-TLV (as defined in Section 3.1), the entire TLV MUST be ignored and MUST be removed from the Tunnel Encapsulation attribute before the route carrying that attribute is distributed. (§13)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>13</td>
@@ -933,7 +937,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the count of Tunnel Egress Endpoint sub-TLVs in a TLV is never taken, so a TLV without exactly one is not treated as carrying a malformed one: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-16">RFC9012-13-16</code></td><td colspan="3"><span class="rfc-subject">A sub-TLV that is meaningless for the identified tunnel type MUST be disregarded (§13)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-16">RFC9012-13-16</code></td><td colspan="3"><span class="rfc-subject">A TLV identifying a particular tunnel type may contain a sub-TLV that is meaningless for that tunnel type. For example, perhaps the TLV contains a UDP Destination Port sub-TLV, but the identified tunnel type does not use UDP encapsulation at all, or a tunnel of the form &#34;X-in-Y&#34; contains a Protocol Type sub-TLV that specifies something other than &#34;X&#34;. Sub-TLVs of this sort MUST be disregarded. (§13)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>13</td>
@@ -951,7 +955,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze creates no encapsulation header from the attribute, so no sub-TLV meaningless or otherwise contributes to one: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151), and grep for TunnelEncap over internal/plugins/fib matches nothing</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-18">RFC9012-13-18</code></td><td colspan="3"><span class="rfc-subject">A meaningless sub-TLV MUST NOT be considered malformed (§13)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-18">RFC9012-13-18</code></td><td colspan="3"><span class="rfc-subject">However, the sub-TLV MUST NOT be considered to be malformed (§13)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>13</td>
@@ -960,7 +964,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L154" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MalformedAttributeIsRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-19">RFC9012-13-19</code></td><td colspan="3"><span class="rfc-subject">A meaningless sub-TLV MUST NOT be removed from the TLV before the route is distributed (§13)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-19">RFC9012-13-19</code></td><td colspan="3"><span class="rfc-subject">the sub-TLV MUST NOT be considered to be malformed and MUST NOT be removed from the TLV before the route carrying the Tunnel Encapsulation attribute is distributed. (§13)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>13</td>
@@ -978,7 +982,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze filters no traffic and no attribute at an SR domain boundary: there is no attribute-23 filter to apply (setBlockAllowedKeys, internal/component/bgp/plugins/filter_modify/config.go:30) and the Prefix-SID sub-TLV of the attribute is never decoded (internal/core/bgp/attribute/tunnel_encap.go:145)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1-1">RFC9012-3.1-1</code></td><td colspan="3"><span class="rfc-subject">The Reserved subfield of the Tunnel Egress Endpoint sub-TLV SHOULD be originated as zero (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1-1">RFC9012-3.1-1</code></td><td colspan="3"><span class="rfc-subject">The Reserved subfield SHOULD be originated as zero. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1</td>
@@ -987,7 +991,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-9">RFC9012-3.6-9</code></td><td colspan="3"><span class="rfc-subject">The TC field of each label stack entry SHOULD be set to 0, unless changed by policy at the originator (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-9">RFC9012-3.6-9</code></td><td colspan="3"><span class="rfc-subject">The Traffic Class (TC) field [RFC3270][RFC5129] of each label stack entry SHOULD be set to 0, unless changed by policy at the originator of the sub-TLV. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.6</td>
@@ -996,7 +1000,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-10">RFC9012-3.6-10</code></td><td colspan="3"><span class="rfc-subject">When pushing the label stack onto a packet, the TC of each entry SHOULD be preserved, unless local policy modifies it (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-10">RFC9012-3.6-10</code></td><td colspan="3"><span class="rfc-subject">When pushing the label stack onto a packet, the TC of each label stack SHOULD be preserved, unless local policy results in a modification. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.6</td>
@@ -1005,7 +1009,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-11">RFC9012-3.6-11</code></td><td colspan="3"><span class="rfc-subject">The TTL field of each label stack entry SHOULD be set to 255, unless changed to another non-zero value by policy at the originator (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-11">RFC9012-3.6-11</code></td><td colspan="3"><span class="rfc-subject">The TTL (Time to Live) field of each label stack entry SHOULD be set to 255, unless changed to some other non-zero value by policy at the originator of the sub-TLV. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.6</td>
@@ -1014,7 +1018,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-12">RFC9012-3.6-12</code></td><td colspan="3"><span class="rfc-subject">When pushing the label stack onto a packet, the TTL of each entry SHOULD be preserved, unless local policy modifies it to another non-zero value (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-12">RFC9012-3.6-12</code></td><td colspan="3"><span class="rfc-subject">When pushing the label stack onto a packet, the TTL of each label stack entry SHOULD be preserved, unless local policy results in a modification to some other non-zero value. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.6</td>
@@ -1023,7 +1027,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.7-1">RFC9012-3.7-1</code></td><td colspan="3"><span class="rfc-subject">The Prefix-SID sub-TLV SHOULD only be included in a BGP UPDATE for an address family for which RFC 8669 defines behavior, namely IPv4/IPv6 Labeled Unicast (§3.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.7-1">RFC9012-3.7-1</code></td><td colspan="3"><span class="rfc-subject">similar limitations exist for the Prefix-SID sub-TLV: it SHOULD only be included in a BGP UPDATE message for one of the address families for which [RFC8669] has a defined behavior, namely BGP IPv4/IPv6 Labeled Unicast [RFC4760] [RFC8277]. (§3.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.7</td>
@@ -1032,7 +1036,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-11-3">RFC9012-11-3</code></td><td colspan="3"><span class="rfc-subject">Filtering of the attribute on incoming UPDATEs SHOULD be possible on a per-BGP-session basis (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-11-3">RFC9012-11-3</code></td><td colspan="3"><span class="rfc-subject">When the attribute is filtered from an incoming UPDATE, the attribute is neither processed nor distributed. This filtering SHOULD be possible on a per-BGP-session basis (§11)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>11</td>
@@ -1041,7 +1045,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-11-7">RFC9012-11-7</code></td><td colspan="3"><span class="rfc-subject">Filtering of the attribute on outgoing UPDATEs SHOULD be possible on a per-BGP-session basis (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-11-7">RFC9012-11-7</code></td><td colspan="3"><span class="rfc-subject">In addition, any BGP speaker that understands the attribute MUST be able to filter the attribute from outgoing BGP UPDATE messages. This filtering SHOULD be possible on a per-BGP-session basis. (§11)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>11</td>
@@ -1050,7 +1054,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-1.5-1">RFC9012-1.5-1</code></td><td colspan="3"><span class="rfc-subject">The Load-Balancing Block sub-TLV MAY be included in any Tunnel Encapsulation attribute where load balancing is desired (§1.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-1.5-1">RFC9012-1.5-1</code></td><td colspan="3"><span class="rfc-subject">the Load-Balancing Block sub-TLV MAY be included in any Tunnel Encapsulation attribute where load balancing is desired. (§1.5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>1.5</td>
@@ -1059,7 +1063,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1-6">RFC9012-3.1-6</code></td><td colspan="3"><span class="rfc-subject">The Tunnel Egress Endpoint sub-TLV MAY have a Value field whose Address Family subfield contains 0, meaning the egress endpoint is the next hop (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1-6">RFC9012-3.1-6</code></td><td colspan="3"><span class="rfc-subject">the Tunnel Egress Endpoint sub-TLV MAY have a Value field whose Address Family subfield contains 0. This means that the tunnel&#39;s egress endpoint is the address of the next hop. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1</td>
@@ -1068,7 +1072,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1-9">RFC9012-3.1-9</code></td><td colspan="3"><span class="rfc-subject">The restriction rejecting a &#34;Martian&#34; tunnel egress address MAY be relaxed by explicit configuration (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1-9">RFC9012-3.1-9</code></td><td colspan="3"><span class="rfc-subject">(Such routes are sometimes colloquially known as &#34;Martians&#34;.) This restriction MAY be relaxed by explicit configuration. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1</td>
@@ -1077,7 +1081,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1.1-1">RFC9012-3.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The procedure to validate that the Address subfield belongs to the route&#39;s origin AS MAY be applied (§3.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1.1-1">RFC9012-3.1.1-1</code></td><td colspan="3"><span class="rfc-subject">This section provides a procedure that MAY be applied to validate that the IP address in the sub-TLV&#39;s Address subfield belongs to the AS that originated the route that contains the attribute. (§3.1.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1.1</td>
@@ -1086,7 +1090,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1.1-2">RFC9012-3.1.1-2</code></td><td colspan="3"><span class="rfc-subject">Configuration MAY allow a tunnel egress endpoint to reside in an AS other than Route_AS, within a configured set of permitted AS numbers (§3.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1.1-2">RFC9012-3.1.1-2</code></td><td colspan="3"><span class="rfc-subject">In some cases, a network operator who controls a set of ASes might wish to allow a tunnel egress endpoint to reside in an AS other than Route_AS; configuration MAY allow for such a case, in which case the check becomes: if Egress_AS is not within the configured set of permitted AS numbers, then the Tunnel Egress Endpoint sub-TLV is considered to be &#34;malformed&#34;. (§3.1.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1.1</td>
@@ -1095,7 +1099,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.3.1-1">RFC9012-3.3.1-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY provide a facility to use policy to filter or modify the DS field (§3.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.3.1-1">RFC9012-3.3.1-1</code></td><td colspan="3"><span class="rfc-subject">an implementation MAY provide a facility to use policy to filter or modify the DS field. (§3.3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.3.1</td>
@@ -1104,7 +1108,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.4.1-1">RFC9012-3.4.1-1</code></td><td colspan="3"><span class="rfc-subject">The Protocol Type sub-TLV MAY be included in a TLV to indicate the payload types allowed to be encapsulated (§3.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.4.1-1">RFC9012-3.4.1-1</code></td><td colspan="3"><span class="rfc-subject">The Protocol Type sub-TLV MAY be included in a given TLV to indicate the type of the payload packets that are allowed to be encapsulated with the tunnel parameters that are being signaled in the TLV. (§3.4.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.4.1</td>
@@ -1113,7 +1117,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.4.2-1">RFC9012-3.4.2-1</code></td><td colspan="3"><span class="rfc-subject">The Color sub-TLV MAY be used to &#34;color&#34; the corresponding Tunnel TLV (§3.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.4.2-1">RFC9012-3.4.2-1</code></td><td colspan="3"><span class="rfc-subject">The Color sub-TLV MAY be used as a way to &#34;color&#34; the corresponding Tunnel TLV. (§3.4.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.4.2</td>
@@ -1122,7 +1126,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-14">RFC9012-3.6-14</code></td><td colspan="3"><span class="rfc-subject">If an invalid or unsupported label stack is received, the tunnel MAY be treated as not feasible per Section 6 (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.6-14">RFC9012-3.6-14</code></td><td colspan="3"><span class="rfc-subject">If an invalid or unsupported label stack is received, the tunnel MAY be treated as not feasible, according to the procedures of Section 6. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.6</td>
@@ -1131,7 +1135,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-6-1">RFC9012-6-1</code></td><td colspan="3"><span class="rfc-subject">The BGP Tunnel Encapsulation attribute MAY be carried in UPDATEs of AFI/SAFI 1/1, 2/1, 1/4, 2/4, 1/128, 2/128, or 25/70 (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-6-1">RFC9012-6-1</code></td><td colspan="3"><span class="rfc-subject">The BGP Tunnel Encapsulation attribute MAY be carried in any BGP UPDATE message whose AFI/SAFI is 1/1 (IPv4 Unicast), 2/1 (IPv6 Unicast), 1/4 (IPv4 Labeled Unicast), 2/4 (IPv6 Labeled Unicast), 1/128 (VPN-IPv4 Labeled Unicast), 2/128 (VPN-IPv6 Labeled Unicast), or 25/70 (Ethernet VPN, usually known as EVPN). (§6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6</td>
@@ -1140,7 +1144,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-6-3">RFC9012-6-3</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MAY have local policy that influences the choice of tunnel and how the encapsulation is formed (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-6-3">RFC9012-6-3</code></td><td colspan="3"><span class="rfc-subject">Notwithstanding anything said in this document, a BGP speaker MAY have local policy that influences the choice of tunnel and the way the encapsulation is formed. (§6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6</td>
@@ -1149,7 +1153,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-6-4">RFC9012-6-4</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MAY have local policy telling it to ignore the Tunnel Encapsulation attribute entirely or in part (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-6-4">RFC9012-6-4</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MAY also have a local policy that tells it to ignore the Tunnel Encapsulation attribute entirely or in part. (§6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6</td>
@@ -1158,7 +1162,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-11-4">RFC9012-11-4</code></td><td colspan="3"><span class="rfc-subject">Finer filtering granularities (per route and/or per attribute TLV) MAY be supported (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-11-4">RFC9012-11-4</code></td><td colspan="3"><span class="rfc-subject">finer granularities (for example, per route and/or per attribute TLV) MAY be supported. (§11)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>11</td>
@@ -1167,7 +1171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-20">RFC9012-13-20</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY log a message when it encounters a sub-TLV that is meaningless for the tunnel type (§13)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-20">RFC9012-13-20</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY log a message when it encounters such a sub-TLV. (§13)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>13</td>
@@ -1185,7 +1189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc9012-3.1-2"><code>RFC9012-3.1-2</code></a> The Reserved subfield of the Tunnel Egress Endpoint sub-TLV MUST be disregarded on receipt (§3.1)</td>
+<tr><td><a href="#rfc9012-3.1-2"><code>RFC9012-3.1-2</code></a> It MUST be disregarded on receipt (§3.1)</td>
 <td>{gap}, no test</td>
 <td>no code decodes the Tunnel Egress Endpoint sub-TLV, so ze holds no Reserved subfield to disregard: SubTLVs returns raw type and value pairs (internal/core/bgp/attribute/tunnel_encap.go:104) and a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</td>
 </tr>
@@ -1209,7 +1213,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the Section 3.1.1 origin-AS validation procedure is itself optional and ze applies none, so there is no procedure to reapply; grep -rniE &#39;route_as|egress.?endpoint&#39; over internal, pkg and cmd matches only this RFC&#39;s own tests, and the best-path comparison consults no attribute 23 (internal/component/bgp/plugins/rib/bestpath.go:307)</td>
 </tr>
-<tr><td><a href="#rfc9012-3.2.1-1"><code>RFC9012-3.2.1-1</code></a> The reserved (R) Flags bits of the VXLAN/NVGRE Encapsulation sub-TLV MUST always be set to 0 by the originator (§3.2.1, §3.2.2)</td>
+<tr><td><a href="#rfc9012-3.2.1-1"><code>RFC9012-3.2.1-1</code></a> They MUST always be set to 0 by the originator of the sub-TLV. (§3.2.1, §3.2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze originates no VXLAN or NVGRE Encapsulation sub-TLV, so it sets no R bits: buildTunnelEncap emits tunnel type 15 alone, carrying only the RFC 9830 sub-TLVs preference, binding SID, priority, segment list and the two names (internal/component/bgp/plugins/nlri/srpolicy/config.go:331), and grep -rniE &#39;encapsulation sub-?tlv|buildEncap&#39; over internal, pkg and cmd finds no Encapsulation sub-TLV builder</td>
 </tr>
@@ -1261,7 +1265,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>the Embedded Label Handling sub-TLV is never decoded and the attribute is never correlated with the address family of the UPDATE carrying it: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</td>
 </tr>
-<tr><td><a href="#rfc9012-3.5-2"><code>RFC9012-3.5-2</code></a> If the Embedded Label Handling sub-TLV is in a TLV whose tunnel type has no virtual network identifier, it MUST be disregarded (§3.5)</td>
+<tr><td><a href="#rfc9012-3.5-2"><code>RFC9012-3.5-2</code></a> If the sub-TLV is contained in a TLV whose tunnel type does not have a virtual network identifier in its encapsulation header, the sub-TLV MUST be disregarded. (§3.5)</td>
 <td>{gap}, no test</td>
 <td>no code relates a sub-TLV to whether its tunnel type uses a virtual network identifier: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</td>
 </tr>
@@ -1293,11 +1297,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>ze pushes no label stack from the attribute, so no S bit is cleared: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</td>
 </tr>
-<tr><td><a href="#rfc9012-3.6-7"><code>RFC9012-3.6-7</code></a> When pushed onto a packet with no existing label stack, the S bit of the bottommost pushed entry MUST be set (§3.6)</td>
+<tr><td><a href="#rfc9012-3.6-7"><code>RFC9012-3.6-7</code></a> When the label stack entries are pushed onto a packet that does not already have a label stack, the S bit of the bottommost label stack entry MUST be set (§3.6)</td>
 <td>{gap}, no test</td>
 <td>ze pushes no label stack from the attribute, so no bottom-of-stack bit is set: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</td>
 </tr>
-<tr><td><a href="#rfc9012-3.6-8"><code>RFC9012-3.6-8</code></a> When pushed onto a packet with no existing label stack, the S bit of every other pushed entry MUST be cleared (§3.6)</td>
+<tr><td><a href="#rfc9012-3.6-8"><code>RFC9012-3.6-8</code></a> When the label stack entries are pushed onto a packet that does not already have a label stack, the S bit of the bottommost label stack entry MUST be set, and the S bit of all the other label stack entries MUST be cleared. (§3.6)</td>
 <td>{gap}, no test</td>
 <td>ze pushes no label stack from the attribute, so no S bit of a non-bottom entry is cleared: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</td>
 </tr>
@@ -1305,7 +1309,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>ze pushes no label stack from the attribute, so a zero TTL in a received entry is never rewritten: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</td>
 </tr>
-<tr><td><a href="#rfc9012-3.7-2"><code>RFC9012-3.7-2</code></a> If a Prefix-SID sub-TLV is included in a BGP UPDATE for an address family other than IPv4/IPv6 Labeled Unicast, it MUST be ignored (§3.7)</td>
+<tr><td><a href="#rfc9012-3.7-2"><code>RFC9012-3.7-2</code></a> If included in a BGP UPDATE for any other address family, it MUST be ignored. (§3.7)</td>
 <td>{gap}, no test</td>
 <td>the Prefix-SID sub-TLV of the Tunnel Encapsulation attribute is never decoded, so it is neither used nor deliberately ignored per address family: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</td>
 </tr>
@@ -1329,11 +1333,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no tunnel dataplane keyed on the Encapsulation Extended Community, so no payload of any type is carried through a tunnel signaled by one. Ze does READ the extended community -- ParseExtendedCommunities copies every 8-octet value in and ExtendedCommunities.WriteTo copies them back out (internal/core/bgp/attribute/community.go:275, :250) -- but the carriage is opaque: nothing decodes type 0x03 sub-type 0x0c into a tunnel type, and grep -rniE &#39;encap.*extended.?communit&#39; over internal, pkg and cmd matches no such decoder. With no tunnel established from the community, the payload-type restriction has no behavior to constrain</td>
 </tr>
-<tr><td><a href="#rfc9012-4.2-1"><code>RFC9012-4.2-1</code></a> If a Router&#39;s MAC Extended Community and a VXLAN/NVGRE Encapsulation sub-TLV carry conflicting MACs, the Router&#39;s MAC Extended Community value MUST be used (§4.2)</td>
+<tr><td><a href="#rfc9012-4.2-1"><code>RFC9012-4.2-1</code></a> In case of such a conflict, the information in the Router&#39;s MAC Extended Community MUST be used. (§4.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze decodes neither side of the conflict into a MAC address, so the two can never disagree. An extended community reaches ze only as 8 opaque octets that are parsed in and re-encoded out unchanged (internal/core/bgp/attribute/community.go:275, :250) with no Router&#39;s MAC decoder -- grep -rniE &#34;router.?s? mac|RouterMAC&#34; over internal, pkg and cmd matches only the VRRP virtual MAC (internal/plugins/vrrp/packet/packet.go:94) -- and the only Tunnel Encapsulation sub-TLV ze decodes is Preference (TunnelTLV.Preference, internal/core/bgp/attribute/tunnel_encap.go:145), never a VXLAN or NVGRE Encapsulation sub-TLV</td>
 </tr>
-<tr><td><a href="#rfc9012-4.3-1"><code>RFC9012-4.3-1</code></a> The Flags field of the Color Extended Community MUST be set to zero by the originator and ignored by the receiver (§4.3)</td>
+<tr><td><a href="#rfc9012-4.3-1"><code>RFC9012-4.3-1</code></a> No flags are defined in this document; this field MUST be set to zero by the originator and ignored by the receiver (§4.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: neither half of this requirement has a producer that could violate it. Ze originates no Color Extended Community -- grep -rniE &#39;030b|color.?extended&#39; over internal, pkg and cmd matches no writer -- so nothing sets the Flags field at all. On receipt ze does read the extended community, but only as 8 opaque octets: ParseExtendedCommunities copies each value whole (internal/core/bgp/attribute/community.go:275) and ExtendedCommunities.WriteTo copies it back (:250) without ever addressing the Flags subfield, which is exactly the &#34;ignored by the receiver&#34; behavior, reached by having no field decoder rather than by a check</td>
 </tr>
@@ -1345,7 +1349,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>tunnel feasibility takes no part in route resolvability: comparePair implements the decision process with no tunnel step (internal/component/bgp/plugins/rib/bestpath.go:307) and a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</td>
 </tr>
-<tr><td><a href="#rfc9012-8-1"><code>RFC9012-8-1</code></a> When U1 has no attribute and its next hop resolves to U2 which has the attribute, packet P MUST be sent through one of U2&#39;s tunnels (§8)</td>
+<tr><td><a href="#rfc9012-8-1"><code>RFC9012-8-1</code></a> Then packet P MUST be sent through one of the tunnels identified in the Tunnel Encapsulation attribute of UPDATE U2. (§8)</td>
 <td>{gap}, no test</td>
 <td>a route&#39;s next hop is never followed to another route&#39;s Tunnel Encapsulation attribute: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151), and the RIB stores the attribute without linking it to a resolving route (internal/component/bgp/plugins/rib/bestpath.go:307)</td>
 </tr>
@@ -1405,11 +1409,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze originates none of the seven sub-TLVs this names: buildTunnelEncap emits tunnel type 15 alone, carrying only the RFC 9830 sub-TLVs preference, binding SID, priority, segment list and the two names (internal/component/bgp/plugins/nlri/srpolicy/config.go:331), so no origination of ze&#39;s can repeat one</td>
 </tr>
-<tr><td><a href="#rfc9012-13-13"><code>RFC9012-13-13</code></a> A TLV containing a malformed Tunnel Egress Endpoint sub-TLV MUST be ignored in its entirety (§13)</td>
+<tr><td><a href="#rfc9012-13-13"><code>RFC9012-13-13</code></a> if a TLV contains a malformed Tunnel Egress Endpoint sub-TLV (as defined in Section 3.1), the entire TLV MUST be ignored (§13)</td>
 <td>{gap}, no test</td>
 <td>a malformed Tunnel Egress Endpoint sub-TLV is never identified, so the TLV containing it is not ignored: a received Tunnel Encapsulation attribute is kept as raw TLV bytes (internal/core/bgp/attribute/tunnel_encap.go:39) and the only sub-TLV ze decodes is Preference (TunnelTLV.Preference, tunnel_encap.go:145, whose type/length gate is at :151)</td>
 </tr>
-<tr><td><a href="#rfc9012-13-14"><code>RFC9012-13-14</code></a> A TLV containing a malformed Tunnel Egress Endpoint sub-TLV MUST be removed from the attribute before the route is distributed (§13)</td>
+<tr><td><a href="#rfc9012-13-14"><code>RFC9012-13-14</code></a> if a TLV contains a malformed Tunnel Egress Endpoint sub-TLV (as defined in Section 3.1), the entire TLV MUST be ignored and MUST be removed from the Tunnel Encapsulation attribute before the route carrying that attribute is distributed. (§13)</td>
 <td>{gap}, no test</td>
 <td>a TLV is never removed from the attribute before distribution: WriteTo re-emits every parsed TLV verbatim (internal/core/bgp/attribute/tunnel_encap.go:71) and no code inspects a Tunnel Egress Endpoint sub-TLV to decide otherwise</td>
 </tr>
@@ -1432,12 +1436,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc9012-3.1-2"><code>RFC9012-3.1-2</code></a></h3>
-<p>The Reserved subfield of the Tunnel Egress Endpoint sub-TLV MUST be disregarded on receipt (§3.1)</p>
+<p>It MUST be disregarded on receipt (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-3.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.1-3"><code>RFC9012-3.1-3</code></a></h3>
-<p>The Reserved subfield of the Tunnel Egress Endpoint sub-TLV MUST be propagated unchanged (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>it MUST be propagated unchanged (§3.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: changing the Tunnel Egress Endpoint Reserved octets on propagation. The positive is ParseTunnelEncap then WriteTo on test-built bytes, not the route distribution path; the negative shows zeroed Reserved octets make different bytes, a comparison of two test-built strings that exercises no Ze behaviour. No {single-polarity} marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1476,12 +1480,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-3.1.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.2.1-1"><code>RFC9012-3.2.1-1</code></a></h3>
-<p>The reserved (R) Flags bits of the VXLAN/NVGRE Encapsulation sub-TLV MUST always be set to 0 by the originator (§3.2.1, §3.2.2)</p>
+<p>They MUST always be set to 0 by the originator of the sub-TLV. (§3.2.1, §3.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-3.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.2.1-2"><code>RFC9012-3.2.1-2</code></a></h3>
 <p>Intermediate routers MUST propagate them without modification. (§3.2.1, §3.2.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: masking the VXLAN R bits on propagation. The positive is ParseTunnelEncap then WriteTo on test-built bytes, not the route distribution path; the negative compares two test-built byte strings, exercising no Ze behaviour. No {single-polarity} marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1548,12 +1552,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-3.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.5-2"><code>RFC9012-3.5-2</code></a></h3>
-<p>If the Embedded Label Handling sub-TLV is in a TLV whose tunnel type has no virtual network identifier, it MUST be disregarded (§3.5)</p>
+<p>If the sub-TLV is contained in a TLV whose tunnel type does not have a virtual network identifier in its encapsulation header, the sub-TLV MUST be disregarded. (§3.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-3.5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.5-3"><code>RFC9012-3.5-3</code></a></h3>
 <p>In those cases where the sub-TLV is ignored, it MUST NOT be stripped from the TLV before the route is propagated. (§3.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: stripping an ignored Embedded Label Handling sub-TLV before propagation. The positive is ParseTunnelEncap then WriteTo on test-built bytes, not the route distribution path; the negative compares two test-built byte strings, exercising no Ze behaviour. No {single-polarity} marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1600,11 +1604,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-3.6-6, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.6-7"><code>RFC9012-3.6-7</code></a></h3>
-<p>When pushed onto a packet with no existing label stack, the S bit of the bottommost pushed entry MUST be set (§3.6)</p>
+<p>When the label stack entries are pushed onto a packet that does not already have a label stack, the S bit of the bottommost label stack entry MUST be set (§3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-3.6-7, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.6-8"><code>RFC9012-3.6-8</code></a></h3>
-<p>When pushed onto a packet with no existing label stack, the S bit of every other pushed entry MUST be cleared (§3.6)</p>
+<p>When the label stack entries are pushed onto a packet that does not already have a label stack, the S bit of the bottommost label stack entry MUST be set, and the S bit of all the other label stack entries MUST be cleared. (§3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-3.6-8, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.6-13"><code>RFC9012-3.6-13</code></a></h3>
@@ -1612,7 +1616,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-3.6-13, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.7-2"><code>RFC9012-3.7-2</code></a></h3>
-<p>If a Prefix-SID sub-TLV is included in a BGP UPDATE for an address family other than IPv4/IPv6 Labeled Unicast, it MUST be ignored (§3.7)</p>
+<p>If included in a BGP UPDATE for any other address family, it MUST be ignored. (§3.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-3.7-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.7-3"><code>RFC9012-3.7-3</code></a></h3>
@@ -1636,16 +1640,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-4.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-4.2-1"><code>RFC9012-4.2-1</code></a></h3>
-<p>If a Router&#39;s MAC Extended Community and a VXLAN/NVGRE Encapsulation sub-TLV carry conflicting MACs, the Router&#39;s MAC Extended Community value MUST be used (§4.2)</p>
+<p>In case of such a conflict, the information in the Router&#39;s MAC Extended Community MUST be used. (§4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-4.3-1"><code>RFC9012-4.3-1</code></a></h3>
-<p>The Flags field of the Color Extended Community MUST be set to zero by the originator and ignored by the receiver (§4.3)</p>
+<p>No flags are defined in this document; this field MUST be set to zero by the originator and ignored by the receiver (§4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-4.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-4.3-2"><code>RFC9012-4.3-2</code></a></h3>
-<p>The Color Extended Community value MUST NOT be changed when propagating the extended community (§4.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>the value MUST NOT be changed when propagating this extended community. (§4.3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: changing a Color Extended Community value on propagation. The positive is ParseExtendedCommunities then WriteTo, not the route distribution path; the negative only shows two different colours encode differently, which no propagation behaviour can fail. No {single-polarity} marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1672,7 +1676,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-7.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-8-1"><code>RFC9012-8-1</code></a></h3>
-<p>When U1 has no attribute and its next hop resolves to U2 which has the attribute, packet P MUST be sent through one of U2&#39;s tunnels (§8)</p>
+<p>Then packet P MUST be sent through one of the tunnels identified in the Tunnel Encapsulation attribute of UPDATE U2. (§8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-8-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-8-2"><code>RFC9012-8-2</code></a></h3>
@@ -1725,7 +1729,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC9012-13-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-13-3"><code>RFC9012-13-3</code></a></h3>
 <p>If a Tunnel Encapsulation attribute can be parsed correctly but contains a TLV whose tunnel type is not recognized by a particular BGP speaker, that BGP speaker MUST NOT consider the attribute to be malformed. (§13)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: calling an attribute with an unrecognized tunnel type malformed. The positive enforces it: TestRFC9012UnrecognizedTunnelTypeIsCarried fails if ParseTunnelEncap (the registered attribute parser, wire.go knownAttrParsers) refuses the 0xFFFE TLV. The negative (TLV length overrun refused) is the framing rule of 13-1/13-2, a neighbouring rule, and the row carries no {single-polarity} marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1749,7 +1753,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC9012-13-4, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-13-5"><code>RFC9012-13-5</code></a></h3>
 <p>If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized TLV MUST remain in the attribute. (§13)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: dropping the unrecognized TLV when the route is propagated. The positive is ParseTunnelEncap then WriteTo on test-built bytes, not the route distribution path. The negative (TestRFC9012UnrecognizedTLVRemovalIsObservable) compares two byte strings the test built, which exercises no Ze behaviour. No {single-polarity} marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1773,7 +1777,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC9012-13-6, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-13-7"><code>RFC9012-13-7</code></a></h3>
 <p>If a Tunnel TLV has more than one of any of these sub-TLVs, all but the first occurrence of each such sub-TLV type MUST be disregarded. (§13)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. the RFC sentence covers the seven RFC 9012 single-instance sub-TLVs (Tunnel Egress Endpoint, Encapsulation, DS, UDP Destination Port, Embedded Label Handling, MPLS Label Stack, Prefix-SID); TestRFC9012DuplicateSingleInstanceSubTLVs duplicates the RFC 9830 Preference sub-TLV (type 12), which is not in that list, and ze decodes none of the seven (TunnelTLV.Preference in internal/core/bgp/attribute/tunnel_encap.go is the only sub-TLV reader). The assertions are correct evidence for RFC9830-2.4-1, which the same lines also tag, not for this row</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1792,8 +1796,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc9012-13-8"><code>RFC9012-13-8</code></a></h3>
-<p>A Tunnel TLV carrying duplicate single-instance sub-TLVs MUST NOT be considered malformed (§13)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>However, the Tunnel TLV containing them MUST NOT be considered to be malformed (§13)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. positive duplicates the RFC 9830 Preference sub-TLV, not one of the RFC 9012 single-instance types the sentence names; ParseTunnelEncap and SubTLVs are type-blind so the behavior likely holds, but no buffer with a duplicated listed type (e.g. two Tunnel Egress Endpoint sub-TLVs) is asserted. The negative (stray trailing octet refused) violates the TLV framing rule, not this one</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1812,8 +1816,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc9012-13-9"><code>RFC9012-13-9</code></a></h3>
-<p>All the sub-TLVs MUST be propagated if the route carrying the attribute is propagated (§13)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>all the sub-TLVs MUST be propagated if the route carrying the Tunnel Encapsulation attribute is propagated. (§13)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the sentence is the duplicate-sub-TLV paragraph&#39;s propagation clause; TestRFC9012AllSubTLVsPropagate round-trips one Preference and two unknown sub-TLVs with no duplicate, so an implementation that dropped second occurrences on propagation would pass this unit (duplicate round-trip is asserted only in the 13-8/13-7 unit, with a non-listed type)</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1833,7 +1837,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc9012-13-10"><code>RFC9012-13-10</code></a></h3>
 <p>If a TLV of a Tunnel Encapsulation attribute contains a sub-TLV that is not recognized by a particular BGP speaker, the BGP speaker MUST process that TLV as if the unrecognized sub-TLV had not been present. (§13)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: an unrecognized sub-TLV changing how the TLV is processed. The units assert on TunnelTLV.Preference, whose only non-test caller is internal/test/decode (the test display decoder): no product path processes any sub-TLV, so the assertion proves a reader Ze never uses. What Ze does with the TLV (parse and carry) is covered by 13-11.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1853,7 +1857,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc9012-13-11"><code>RFC9012-13-11</code></a></h3>
 <p>If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized sub-TLV MUST remain in the attribute. (§13)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: dropping an unrecognized sub-TLV when the route is propagated. TestRFC9012AllSubTLVsPropagate proves ParseTunnelEncap then WriteTo keeps both sub-TLVs, not the route distribution path; the negative compares against an attribute the test built without them, which exercises no Ze behaviour. No {single-polarity} marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1873,7 +1877,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc9012-13-12"><code>RFC9012-13-12</code></a></h3>
 <p>In general, if a TLV contains a sub-TLV that is malformed, the sub- TLV MUST be treated as if it were an unrecognized sub-TLV. (§13)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: a malformed sub-TLV handled other than as unrecognized. The units assert that TunnelTLV.Preference skips a wrong-length Preference; Preference&#39;s only non-test caller is internal/test/decode (the test display decoder), so no product path processes the sub-TLV and the assertion proves a reader Ze never uses. The carry half (still enumerated and round-tripped) is ParseTunnelEncap then WriteTo, not the distribution path.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1892,11 +1896,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc9012-13-13"><code>RFC9012-13-13</code></a></h3>
-<p>A TLV containing a malformed Tunnel Egress Endpoint sub-TLV MUST be ignored in its entirety (§13)</p>
+<p>if a TLV contains a malformed Tunnel Egress Endpoint sub-TLV (as defined in Section 3.1), the entire TLV MUST be ignored (§13)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-13-13, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-13-14"><code>RFC9012-13-14</code></a></h3>
-<p>A TLV containing a malformed Tunnel Egress Endpoint sub-TLV MUST be removed from the attribute before the route is distributed (§13)</p>
+<p>if a TLV contains a malformed Tunnel Egress Endpoint sub-TLV (as defined in Section 3.1), the entire TLV MUST be ignored and MUST be removed from the Tunnel Encapsulation attribute before the route carrying that attribute is distributed. (§13)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-13-14, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-13-15"><code>RFC9012-13-15</code></a></h3>
@@ -1904,8 +1908,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-13-15, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-13-16"><code>RFC9012-13-16</code></a></h3>
-<p>A sub-TLV that is meaningless for the identified tunnel type MUST be disregarded (§13)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>A TLV identifying a particular tunnel type may contain a sub-TLV that is meaningless for that tunnel type. For example, perhaps the TLV contains a UDP Destination Port sub-TLV, but the identified tunnel type does not use UDP encapsulation at all, or a tunnel of the form &#34;X-in-Y&#34; contains a Protocol Type sub-TLV that specifies something other than &#34;X&#34;. Sub-TLVs of this sort MUST be disregarded. (§13)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: acting on a sub-TLV meaningless for the tunnel type. The units assert TunnelTLV.Preference is unchanged by a VXLAN Encapsulation sub-TLV in a type-15 TLV; Preference&#39;s only non-test caller is internal/test/decode (the test display decoder), so no product path processes sub-TLVs and the assertion proves a reader Ze never uses.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1928,8 +1932,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-13-17, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-13-18"><code>RFC9012-13-18</code></a></h3>
-<p>A meaningless sub-TLV MUST NOT be considered malformed (§13)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>However, the sub-TLV MUST NOT be considered to be malformed (§13)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: calling a TLV with a meaningless sub-TLV malformed. The positive enforces it: the attribute holding a VXLAN Encapsulation sub-TLV in a type-15 TLV parses and both sub-TLVs enumerate. The negative (truncated TLV header refused) is a framing rule, a neighbouring one, and the row carries no {single-polarity} marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1948,8 +1952,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc9012-13-19"><code>RFC9012-13-19</code></a></h3>
-<p>A meaningless sub-TLV MUST NOT be removed from the TLV before the route is distributed (§13)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>the sub-TLV MUST NOT be considered to be malformed and MUST NOT be removed from the TLV before the route carrying the Tunnel Encapsulation attribute is distributed. (§13)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Clauses: the meaningless sub-TLV is not malformed, and is not removed before distribution. The positive is ParseTunnelEncap then WriteTo on test-built bytes, not the route distribution path. The negative compares two byte strings the test built (with and without the sub-TLV), which exercises no Ze behaviour. No {single-polarity} marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2478,7 +2482,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

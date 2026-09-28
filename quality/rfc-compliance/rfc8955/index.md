@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 30 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 30 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 23 | of 30 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 30 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 30 |
 | Not applicable, so out of scope | 2 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 69 |
 | Tagged units | 69 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 23 |
 | Discrimination records | 9 |
 | Summary | `rfc/short/rfc8955.md` |
 | Requirement shard | `rfc/requirements/rfc8955.md` |
@@ -110,52 +119,52 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 | `RFC8955-4-4` | Network Address of the Next-Hop field MUST be ignored (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L477). **negative:** `unit/verify` [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L478) |
 | `RFC8955-4.2-1` | Components MUST follow strict type ordering by increasing numerical order (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1228). **positive:** `unit/verify` [`TestFlowSpecJoinsRepeatedTypeIntoOneComponent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1270). **negative:** `unit/verify` [`TestAddComponentRefusesASecondPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1387). **negative:** `unit/verify` [`TestParseFlowSpecRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1307). **negative:** `unit/verify` [`TestParseFlowSpecVPNRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1367) |
 | `RFC8955-4.2-2` | If present, it MUST precede any component of higher numeric type value. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1229). **negative:** `unit/verify` [`TestParseFlowSpecRefusesDescendingComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1335) |
-| `RFC8955-4.2.1.1-1` | In the first operator octet of a sequence, the AND bit MUST be encoded as unset (§4.2.1.1) | MUST | 4.2.1.1 | **positive:** `unit/verify` [`TestRFC8955FirstOperatorAndBitEncodedUnset`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1542). **negative:** no negative test. **{single-polarity}:** parseFlowMatches derives the AND bit purely from the position inside a '&'-joined expression (isAnd := i > 0), so the first operator-value pair is always encoded with the AND bit clear and no input sets it (internal/component/bgp/plugins/nlri/flowspec/config_builder.go:220,:252) |
-| `RFC8955-4.2.1.1-2` | First operator AND bit MUST be treated as always unset on decoding (§4.2.1.1) | MUST | 4.2.1.1 | **positive:** `unit/verify` [`TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1573). **negative:** `unit/verify` [`TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1577) |
-| `RFC8955-4.2.1.1-3` | Numeric operator reserved bit (bit 4) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.1) | MUST | 4.2.1.1 | **positive:** `unit/verify` [`TestFlowSpecNumericReservedAndEightOctetOperand`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L42). **negative:** `unit/verify` [`TestFlowSpecNumericReservedAndEightOctetOperand`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L43) |
-| `RFC8955-4.2.1.2-1` | Bitmask operator reserved bits (bits 4-5) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.2) | MUST | 4.2.1.2 | **positive:** `unit/verify` [`TestFlowSpecBitmaskOperatorReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1450). **negative:** `unit/verify` [`TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1611) |
-| `RFC8955-4.2.2.9-1` | Type 9 component bitmasks MUST be encoded as 1- or 2-octet bitmask (bitmask_op len=00 or len=01). (§4.2.2.9) | MUST | 4.2.2.9 | **positive:** `unit/verify` [`TestRFC8955TCPFlagsBitmaskSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1671). **negative:** no negative test. **{single-polarity}:** parseFlowTCPFlagMatches resolves flag names to 8-bit values and numericComponent.Bytes() selects the 1-octet length code for any value <= 0xFF, so an emitted Type-9 bitmask is always 1 octet and no over-long bitmask can be produced to reject (internal/component/bgp/plugins/nlri/flowspec/config_builder.go:414-446, types_numeric.go:47-55) |
-| `RFC8955-4.2.2.11-1` | Type 11 component values MUST be encoded as single octet (numeric_op len=00). (§4.2.2.11) | MUST | 4.2.2.11 | **positive:** `unit/verify` [`TestRFC8955DSCPValueSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1699). **negative:** no negative test. **{single-polarity}:** parseFlowOctets parses DSCP values as uint8 and NewFlowDSCPComponent stores them, so numericComponent.Bytes() always selects the 1-octet length code and no multi-octet DSCP encoding exists to reject (internal/component/bgp/plugins/nlri/flowspec/config_builder.go:261-273, types_numeric.go:473-479) |
-| `RFC8955-4.2.2.12-1` | The Type 12 component bitmask MUST be encoded as single octet bitmask (bitmask_op len=00). (§4.2.2.12) | MUST | 4.2.2.12 | **positive:** `unit/verify` [`TestRFC8955FragmentBitmaskSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1726). **negative:** no negative test. **{single-polarity}:** fragment values come from the four low-nibble FlowFragmentFlag constants, so numericComponent.Bytes() always selects the 1-octet length code and no multi-octet fragment bitmask can be produced to reject (internal/component/bgp/plugins/nlri/flowspec/types.go:201-206, types_numeric.go:481-491) |
-| `RFC8955-4.2.2.12-2` | 0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.2.12) | MUST | 4.2.2.12 | **positive:** `unit/verify` [`TestFlowSpecFragmentReservedHighNibbleZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1479). **negative:** `unit/verify` [`TestRFC8955FragmentReservedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1644) |
-| `RFC8955-6-1` | Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all validation conditions are true (§6, updated by RFC 9117 §4.1) | MUST | 6 | **positive:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L126). **negative:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L127) |
-| `RFC8955-6-2` | The leftmost AS_SEQUENCE ASN of a Flow Specification route received via eBGP MUST match the leftmost AS_SEQUENCE ASN of the best-match unicast route for its destination prefix (§6, replaced by RFC 9117 §4.2) | MUST | 6 | **positive:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L128). **negative:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L129) |
+| `RFC8955-4.2.1.1-1` | In the first operator octet of a sequence, it MUST be encoded as unset (§4.2.1.1) | MUST | 4.2.1.1 | **positive:** `unit/verify` [`TestRFC8955FirstOperatorAndBitEncodedUnset`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1539). **negative:** no negative test. **{single-polarity}:** parseFlowMatches derives the AND bit purely from the position inside a '&'-joined expression (isAnd := i > 0), so the first operator-value pair is always encoded with the AND bit clear and no input sets it (internal/component/bgp/plugins/nlri/flowspec/config_builder.go:220,:252) |
+| `RFC8955-4.2.1.1-2` | In the first operator octet of a sequence, it MUST be encoded as unset and MUST be treated as always unset on decoding. (§4.2.1.1) | MUST | 4.2.1.1 | **positive:** `unit/verify` [`TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1570). **negative:** `unit/verify` [`TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1574) |
+| `RFC8955-4.2.1.1-3` | 0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.1) | MUST | 4.2.1.1 | **positive:** `unit/verify` [`TestFlowSpecNumericReservedAndEightOctetOperand`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L42). **negative:** `unit/verify` [`TestFlowSpecNumericReservedAndEightOctetOperand`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L43) |
+| `RFC8955-4.2.1.2-1` | 0 (all 0 bits): MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.2) | MUST | 4.2.1.2 | **positive:** `unit/verify` [`TestFlowSpecBitmaskOperatorReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1448). **negative:** `unit/verify` [`TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1608) |
+| `RFC8955-4.2.2.9-1` | Type 9 component bitmasks MUST be encoded as 1- or 2-octet bitmask (bitmask_op len=00 or len=01). (§4.2.2.9) | MUST | 4.2.2.9 | **positive:** `unit/verify` [`TestRFC8955TCPFlagsBitmaskSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1668). **negative:** no negative test. **{single-polarity}:** parseFlowTCPFlagMatches resolves flag names to 8-bit values and numericComponent.Bytes() selects the 1-octet length code for any value <= 0xFF, so an emitted Type-9 bitmask is always 1 octet and no over-long bitmask can be produced to reject (internal/component/bgp/plugins/nlri/flowspec/config_builder.go:414-446, types_numeric.go:47-55) |
+| `RFC8955-4.2.2.11-1` | Type 11 component values MUST be encoded as single octet (numeric_op len=00). (§4.2.2.11) | MUST | 4.2.2.11 | **positive:** `unit/verify` [`TestRFC8955DSCPValueSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1696). **negative:** no negative test. **{single-polarity}:** parseFlowOctets parses DSCP values as uint8 and NewFlowDSCPComponent stores them, so numericComponent.Bytes() always selects the 1-octet length code and no multi-octet DSCP encoding exists to reject (internal/component/bgp/plugins/nlri/flowspec/config_builder.go:261-273, types_numeric.go:473-479) |
+| `RFC8955-4.2.2.12-1` | The Type 12 component bitmask MUST be encoded as single octet bitmask (bitmask_op len=00). (§4.2.2.12) | MUST | 4.2.2.12 | **positive:** `unit/verify` [`TestRFC8955FragmentBitmaskSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1723). **negative:** no negative test. **{single-polarity}:** fragment values come from the four low-nibble FlowFragmentFlag constants, so numericComponent.Bytes() always selects the 1-octet length code and no multi-octet fragment bitmask can be produced to reject (internal/component/bgp/plugins/nlri/flowspec/types.go:201-206, types_numeric.go:481-491) |
+| `RFC8955-4.2.2.12-2` | 0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.2.12) | MUST | 4.2.2.12 | **positive:** `unit/verify` [`TestFlowSpecFragmentReservedHighNibbleZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1476). **negative:** `unit/verify` [`TestRFC8955FragmentReservedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1641) |
+| `RFC8955-6-1` | In the absence of explicit configuration, a Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all of the conditions below are true: (§6, updated by RFC 9117 §4.1) | MUST | 6 | **positive:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L126). **negative:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L127) |
+| `RFC8955-6-2` | BGP implementations MUST also enforce that the AS_PATH attribute of a route received via the External Border Gateway Protocol (eBGP) contains the neighboring AS in the left-most position of the AS_PATH attribute. (§6, replaced by RFC 9117 §4.2) | MUST | 6 | **positive:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L128). **negative:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L129) |
 | `RFC8955-6-3` | Therefore, a revalidation of the Flow Specification NLRI MUST be performed whenever unicast routes change. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestFlowSpecUnicastLifecycleRevalidatesRetainedRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L203). **negative:** `unit/verify` [`TestFlowSpecUnicastLifecycleRevalidatesRetainedRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L204) |
 | `RFC8955-7.1-1` | On encoding, the traffic-rate MUST NOT be negative. (§7.1, §7.2) | MUST NOT | 7.1 | **positive:** `unit/verify` [`TestParseExtendedCommunitiesTrafficRatePackets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/route/route_parse_test.go#L1239). **negative:** `unit/verify` [`TestParseExtendedCommunitiesTrafficRatePackets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/route/route_parse_test.go#L1240) |
 | `RFC8955-7.1-2` | On decoding, negative values MUST be treated as zero (discard all traffic). (§7.1, §7.2) | MUST | 7.1 | **positive:** `unit/verify` [`TestRFC8955TrafficRateNegativeDecodesAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1465). **negative:** `unit/verify` [`TestRFC8955TrafficRateNegativeDecodesAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1473) |
 | `RFC8955-7.3-1` | These bits MUST be set to 0 on encoding and MUST be ignored during decoding. (§7.3) | MUST | 7.3 | **positive:** `unit/verify` [`TestRFC8955TrafficActionBitsDecoded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L243). **positive:** `unit/verify` [`TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1510). **positive:** `unit/verify` [`TestRFC8955TrafficActionUnusedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L209). **negative:** `unit/verify` [`TestRFC8955TrafficActionBitsDecoded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L257). **negative:** `unit/verify` [`TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1517). **positive:** `functional/verify` [`community-attributes-json.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L16). **negative:** `functional/verify` [`community-attributes-json.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L17) |
 | `RFC8955-7.5-1` | reserved (r): MUST be set to 0 on encoding and MUST be ignored during decoding (§7.5) | MUST | 7.5 | **positive:** `unit/verify` [`TestEncodeRouteEmitsZeroValuedActions`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/encode_test.go#L53). **positive:** `unit/verify` [`TestEncodeRouteMarkKeepsReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/encode_test.go#L86). **positive:** `unit/verify` [`TestParseExtendedCommunityMarkDSCPBound`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_flowspec_test.go#L34). **positive:** `unit/verify` [`TestRFC8955TrafficMarkingReservedBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L209). **negative:** `unit/verify` [`TestEncodeRouteMarkKeepsReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/encode_test.go#L92). **negative:** `unit/verify` [`TestParseExtendedCommunityMarkDSCPBound`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_flowspec_test.go#L56). **negative:** `unit/verify` [`TestRFC8955TrafficMarkingReservedBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L216). **positive:** `functional/verify` [`community-attributes-json.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L14). **negative:** `functional/verify` [`community-attributes-json.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L15) |
 | `RFC8955-12-1` | Specifications relaxing the validation restrictions MUST contain security considerations that provide details on the required additional filtering. (§12) | MUST | 12 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze publishes no specification introducing a validation relaxation. The implemented RFC 9117 rules are standards-defined; flowSpecAuthorized in internal/component/bgp/plugins/rib/rib_flowspec_validation.go still requires a valid destination and covering unicast reachability, with no configurable destination bypass |
-| `RFC8955-5.1-1` | "This ordering function is such that it does not depend on the arrival order of the Flow Specification via BGP and thus is consistent in the network" (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L9). **negative:** `unit/verify` [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L10) |
-| `RFC8955-5.1-2` | The relative order of two Flow Specifications is determined by comparing their components from the left-most (lowest component type value): the Flow Specification with the lowest numeric type value has higher precedence; for IP destination or source prefix values the more specific prefix has higher precedence and otherwise the lowest IP value does; for all other component types the data is compared as a binary string with memcmp(), the lowest string wins at equal lengths, and at different lengths the common prefix decides with the longest string winning when that prefix is equal (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L11). **positive:** `unit/verify` [`TestSelectedFlowSpecKernelPacketSemantics`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/selected_integration_linux_test.go#L23). **negative:** `unit/verify` [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L12). **negative:** `unit/verify` [`TestSelectedFlowSpecKernelPacketSemantics`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/selected_integration_linux_test.go#L24) |
-| `RFC8955-8-1` | The VPNv4 Flow Specification NLRI "consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2)" (§8) | MUST | 8 | **positive:** `unit/verify` [`TestRFC8955VPNNLRIStructure`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go#L27). **negative:** `unit/verify` [`TestRFC8955VPNNLRIStructure`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go#L28) |
+| `RFC8955-5.1-1` | This ordering function is such that it does not depend on the arrival order of the Flow Specification via BGP and thus is consistent in the network. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L9). **negative:** `unit/verify` [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L10) |
+| `RFC8955-5.1-2` | The relative order of two Flow Specifications is determined by comparing their respective components. The algorithm starts by comparing the left-most components (lowest component type value) of the Flow Specifications. If the types differ, the Flow Specification with lowest numeric type value has higher precedence (and thus will match before) than the Flow Specification that doesn't contain that component type. If the component types are the same, then a type- specific comparison is performed (see below). If the types are equal, the algorithm continues with the next component. For IP prefix values (IP destination or source prefix), if one of the two prefixes to compare is a more specific prefix of the other, the more specific prefix has higher precedence. Otherwise, the one with the lowest IP value has higher precedence. For all other component types, unless otherwise specified, the comparison is performed by comparing the component data as a binary string using the memcmp() function as defined by [ISO_IEC_9899]. For strings with equal lengths, the lowest string (memcmp) has higher precedence. For strings of different lengths, the common prefix is compared. If the common prefix is not equal, the string with the lowest prefix has higher precedence. If the common prefix is equal, the longest string is considered to have higher precedence than the shorter one. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L11). **positive:** `unit/verify` [`TestSelectedFlowSpecKernelPacketSemantics`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/selected_integration_linux_test.go#L23). **negative:** `unit/verify` [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L12). **negative:** `unit/verify` [`TestSelectedFlowSpecKernelPacketSemantics`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/selected_integration_linux_test.go#L24) |
+| `RFC8955-8-1` | The NLRI format for this address family consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2). (§8) | MUST | 8 | **positive:** `unit/verify` [`TestRFC8955VPNNLRIStructure`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go#L27). **negative:** `unit/verify` [`TestRFC8955VPNNLRIStructure`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go#L28) |
 | `RFC8955-8-2` | The NLRI length field shall include both the 8 octets of the Route Distinguisher as well as the subsequent Flow Specification NLRI value. (§8) | MUST | 8 | **positive:** `unit/verify` [`TestRFC8955VPNLengthCoversRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go#L56). **negative:** `unit/verify` [`TestRFC8955VPNLengthCoversRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go#L57) |
 | `RFC8955-3-1` | Standard BGP policy mechanisms, such as UPDATE filtering by NLRI prefix as well as community matching, must apply to the Flow specification defined NLRI-type. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestPrefixPolicyFiltersFlowSpecDestination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/flowspec_test.go#L12). **negative:** `unit/verify` [`TestPrefixPolicyFiltersFlowSpecDestination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/flowspec_test.go#L13) |
 | `RFC8955-6-5` | Although the forwarding attributes of two routes for the same Flow Specification prefix may be the same, BGP is still required to perform its path selection algorithm in order to select the correct set of attributes to advertise. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L79). **negative:** `unit/verify` [`TestRFC8955FlowSpecLosingPathIsNeverPublished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L159) |
-| `RFC8955-7.3-2` | Where the Terminal Action bit is set and the evaluation continues to the next Flow Specification, "all the Traffic Filtering Actions from these Flow Specifications shall be collected and applied" (§7.3) | MUST | 7.3 | **positive:** `unit/verify` [`TestSelectedFlowSpecKernelPacketSemantics`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/selected_integration_linux_test.go#L25). **negative:** `unit/verify` [`TestSelectedFlowSpecKernelPacketSemantics`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/selected_integration_linux_test.go#L26) |
-| `RFC8955-12-2` | Where the rule-a validation relaxation is used, "for a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty" (§12) | MUST | 12 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** conditional on an absent feature. flowSpecDestination and flowSpecAuthorized in internal/component/bgp/plugins/rib/rib_flowspec_validation.go require a valid destination, including offset zero for IPv6, and no configuration bypasses that guard. The owner explicitly retained strict destination validation |
-| `RFC8955-4.2.2.3-1` | Type 3 (IP Protocol) values SHOULD be encoded as single octet (§4.2.2.3) | SHOULD | 4.2.2.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-4.2.2.4-1` | Type 4-6, 10 (Port, Dst Port, Src Port, Packet Length) values SHOULD be encoded as 1- or 2-octet quantities (§4.2.2.4-6, §4.2.2.10) | SHOULD | 4.2.2.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-4.2.2.7-1` | Type 7-8 (ICMP Type, ICMP Code) values SHOULD be encoded as single octet (§4.2.2.7-8) | SHOULD | 4.2.2.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-4.2.2.11-2` | DSCP extra bits SHOULD be treated as 0 (§4.2.2.11) | SHOULD | 4.2.2.11 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-7-1` | Multiple Traffic Filtering Actions present for a single Flow Specification SHOULD be applied to the traffic flow (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-7.1-3` | The 2-octet AS id in traffic-rate-bytes/packets is purely informational and SHOULD NOT be interpreted by the implementation (§7.1) | SHOULD NOT | 7.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-4.2-3` | Impossible combinations (e.g., ICMP Type AND Port) SHOULD NOT be propagated by BGP (§4.2) | SHOULD NOT | 4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-9-1` | Implementations SHOULD provide a mechanism to log the packet header of filtered traffic (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-9-2` | Implementations SHOULD provide a mechanism to count the number of matches for a given Flow Specification rule (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-7.7-1` | Implementors SHOULD document the behavior of their implementation for interfering Traffic Filtering Actions (§7.7) | SHOULD | 7.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-7-2` | "Any additional definition of Traffic Filtering Actions SHOULD specify the action to take if those Traffic Filtering Actions interfere (also with existing Traffic Filtering Actions)" (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-7.1-4` | "A traffic-rate of 0 should result on all traffic for the particular flow to be discarded", and "a traffic-rate-packets of 0 should result in all traffic for the particular flow to be discarded" (§7.1, §7.2) | SHOULD | 7.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-7.6-1` | "Implementations should provide mechanisms that map an arbitrary BGP community value (normal or extended) to Traffic Filtering Actions that require different mappings on different systems in the network" (§7.6) | SHOULD | 7.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-6-4` | Rule a (destination prefix requirement) MAY be relaxed by explicit configuration; if so, rules b and c MUST be disregarded (§6) | MAY | 6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-4.2-4` | A given component type MAY appear exactly once (§4.2) | MAY | 4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-7.3-2` | The use of the Terminal Action (bit 47) may result in more than one Flow Specification matching a particular traffic flow. All the Traffic Filtering Actions from these Flow Specifications shall be collected and applied. (§7.3) | MUST | 7.3 | **positive:** `unit/verify` [`TestSelectedFlowSpecKernelPacketSemantics`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/selected_integration_linux_test.go#L25). **negative:** `unit/verify` [`TestSelectedFlowSpecKernelPacketSemantics`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/selected_integration_linux_test.go#L26) |
+| `RFC8955-12-2` | For a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty. (§12) | MUST | 12 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** conditional on an absent feature. flowSpecDestination and flowSpecAuthorized in internal/component/bgp/plugins/rib/rib_flowspec_validation.go require a valid destination, including offset zero for IPv6, and no configuration bypasses that guard. The owner explicitly retained strict destination validation |
+| `RFC8955-4.2.2.3-1` | Type 3 component values SHOULD be encoded as single octet (numeric_op len=00). (§4.2.2.3) | SHOULD | 4.2.2.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-4.2.2.4-1` | Type 4 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.4) | SHOULD | 4.2.2.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-4.2.2.7-1` | Type 7 component values SHOULD be encoded as single octet (numeric_op len=00). (§4.2.2.7) | SHOULD | 4.2.2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-4.2.2.11-2` | The six least significant bits contain the DSCP value. All other bits SHOULD be treated as 0. (§4.2.2.11) | SHOULD | 4.2.2.11 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-7-1` | Multiple Traffic Filtering Actions defined in this document may be present for a single Flow Specification and SHOULD be applied to the traffic flow (for example, traffic-rate-bytes and rt-redirect can be applied to packets at the same time). (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-7.1-3` | The first two octets carry the 2-octet id, which can be assigned from a 2-octet AS number. When a 4-octet AS number is locally present, the 2 least significant octets of such an AS number can be used. This value is purely informational and SHOULD NOT be interpreted by the implementation. (§7.1) | SHOULD NOT | 7.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-4.2-3` | All combinations of components within a single Flow Specification are allowed. However, some combinations cannot match any packets (e.g., "ICMP Type AND Port" will never match any packets) and thus SHOULD NOT be propagated by BGP. (§4.2) | SHOULD NOT | 4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-9-1` | While this is an implementation specific choice, implementations SHOULD provide: * A mechanism to log the packet header of filtered traffic. (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-9-2` | While this is an implementation specific choice, implementations SHOULD provide: * A mechanism to log the packet header of filtered traffic. * A mechanism to count the number of matches for a given Flow Specification rule. (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-7.7-1` | If a Flow Specification associated with interfering Traffic Filtering Actions is selected for packet forwarding, it is an implementation decision which of the interfering Traffic Filtering Actions are selected. Implementors of this specification SHOULD document the behavior of their implementation in such cases. (§7.7) | SHOULD | 7.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-7-2` | Any additional definition of Traffic Filtering Actions SHOULD specify the action to take if those Traffic Filtering Actions interfere (also with existing Traffic Filtering Actions). (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-7.1-4` | A traffic-rate of 0 should result on all traffic for the particular flow to be discarded. (§7.1, §7.2) | SHOULD | 7.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-7.6-1` | Implementations should provide mechanisms that map an arbitrary BGP community value (normal or extended) to Traffic Filtering Actions that require different mappings on different systems in the network. (§7.6) | SHOULD | 7.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-6-4` | However, rule a MAY be relaxed by explicit configuration, permitting Flow Specifications that include no destination prefix component. If such is the case, rules b and c are moot and MUST be disregarded. (§6) | MAY | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-4.2-4` | A given component type MAY (exactly once) be present in the Flow Specification. (§4.2) | MAY | 4.2 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC8955-12-1`](#rfc8955-12-1) Specifications relaxing the validation restrictions MUST contain security considerations that provide details on the required additional filtering. (§12) | no test | no test carries this requirement id; annotated {not-applicable}: ze publishes no specification introducing a validation relaxation. The implemented RFC 9117 rules are standards-defined; flowSpecAuthorized in internal/component/bgp/plugins/rib/rib_flowspec_validation.go still requires a valid destination and covering unicast reachability, with no configurable destination bypass |
-| [`RFC8955-12-2`](#rfc8955-12-2) Where the rule-a validation relaxation is used, "for a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty" (§12) | no test | no test carries this requirement id; annotated {not-applicable}: conditional on an absent feature. flowSpecDestination and flowSpecAuthorized in internal/component/bgp/plugins/rib/rib_flowspec_validation.go require a valid destination, including offset zero for IPv6, and no configuration bypasses that guard. The owner explicitly retained strict destination validation |
+| [`RFC8955-12-2`](#rfc8955-12-2) For a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty. (§12) | no test | no test carries this requirement id; annotated {not-applicable}: conditional on an absent feature. flowSpecDestination and flowSpecAuthorized in internal/component/bgp/plugins/rib/rib_flowspec_validation.go require a valid destination, including offset zero for IPv6, and no configuration bypasses that guard. The owner explicitly retained strict destination validation |
 
 ## Proof state
 
@@ -223,7 +232,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If present, it MUST precede any component of higher numeric type value. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. positive re-parses an out-of-order build and pins the exact emitted order 1,3,5,12; negative feeds a descending 5-then-3 NLRI and asserts ErrFlowSpecTypeOrder, with the same components ascending accepted, so the refusal is isolated to order
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -232,30 +241,30 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8955-4.2.1.1-1`](#rfc8955-4.2.1.1-1)
 
-In the first operator octet of a sequence, the AND bit MUST be encoded as unset (§4.2.1.1)
+In the first operator octet of a sequence, it MUST be encoded as unset (§4.2.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity positive: a config range '>8080&<8088' encodes two ops and the test asserts the first carries AND clear (0x40) while the second carries it set, so an encoder setting AND on the first operator goes red
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC8955FirstOperatorAndBitEncodedUnset`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1542) | unit/verify | unproven |
+| positive | [`TestRFC8955FirstOperatorAndBitEncodedUnset`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1539) | unit/verify | unproven |
 
 ### [`RFC8955-4.2.1.1-2`](#rfc8955-4.2.1.1-2)
 
-First operator AND bit MUST be treated as always unset on decoding (§4.2.1.1)
+In the first operator octet of a sequence, it MUST be encoded as unset and MUST be treated as always unset on decoding. (§4.2.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. decodes the same OR list with the first operator's AND bit clear and set and asserts the identical [[=80],[=22]] structure. The parser guard (types_numeric.go And: len(matches) > 0) is backed by consumer guards (plugin_decode.go andGroup, types_numeric.go i > 0), so breaking the parser guard alone stays green; the assertion is on the end-to-end decode, which is what the sentence obliges. Test comment misquotes the encode half as SHOULD
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1577) | unit/verify | unproven |
-| positive | [`TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1573) | unit/verify | unproven |
+| negative | [`TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1574) | unit/verify | unproven |
+| positive | [`TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1570) | unit/verify | unproven |
 
 ### [`RFC8955-4.2.1.1-3`](#rfc8955-4.2.1.1-3)
 
-Numeric operator reserved bit (bit 4) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.1)
+0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. wire op 0xf9 carries the reserved bit (0x08) and a leading AND; positive asserts the exact decoded FlowMatch{Op: FlowOpEqual} (reserved bit ignored), negative asserts the re-encoded op is 0xb1 (reserved and AND cleared on encoding)
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -264,61 +273,61 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8955-4.2.1.2-1`](#rfc8955-4.2.1.2-1)
 
-Bitmask operator reserved bits (bits 4-5) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.2)
+0 (all 0 bits): MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27 after J078 deleted the retired RFC5575-4-6 tag and reworded one comment inside TestFlowSpecBitmaskOperatorReservedBitsZero; no assertion changed. Encode: a bitmask operator with 0x0C set on the wire is forbidden; assert.Zero(op&0x0C) over every emitted TCP-flags operator (MATCH, NOT, AND/END) goes red on it. Decode: reading meaning into 0x0C is forbidden; TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode decodes op 0x8D and assert.Equal against the 0x81 render goes red if the bits change the match, with the clean render pinned first. The decode proof is at the rendered match, not at the firewall lowering.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1611) | unit/verify | unproven |
-| positive | [`TestFlowSpecBitmaskOperatorReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1450) | unit/verify | unproven |
+| negative | [`TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1608) | unit/verify | unproven |
+| positive | [`TestFlowSpecBitmaskOperatorReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1448) | unit/verify | unproven |
 
 ### [`RFC8955-4.2.2.9-1`](#rfc8955-4.2.2.9-1)
 
 Type 9 component bitmasks MUST be encoded as 1- or 2-octet bitmask (bitmask_op len=00 or len=01). (§4.2.2.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity positive: every emitted tcp-flags bitmask from a config with AND/NOT/OR terms is asserted non-empty and at most 2 octets
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC8955TCPFlagsBitmaskSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1671) | unit/verify | unproven |
+| positive | [`TestRFC8955TCPFlagsBitmaskSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1668) | unit/verify | unproven |
 
 ### [`RFC8955-4.2.2.11-1`](#rfc8955-4.2.2.11-1)
 
 Type 11 component values MUST be encoded as single octet (numeric_op len=00). (§4.2.2.11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity positive: DSCP 46, 0 and 63 each encode as exactly one octet
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC8955DSCPValueSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1699) | unit/verify | unproven |
+| positive | [`TestRFC8955DSCPValueSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1696) | unit/verify | unproven |
 
 ### [`RFC8955-4.2.2.12-1`](#rfc8955-4.2.2.12-1)
 
 The Type 12 component bitmask MUST be encoded as single octet bitmask (bitmask_op len=00). (§4.2.2.12)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity positive: all four fragment flags encode as exactly one-octet bitmasks
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC8955FragmentBitmaskSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1726) | unit/verify | unproven |
+| positive | [`TestRFC8955FragmentBitmaskSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1723) | unit/verify | unproven |
 
 ### [`RFC8955-4.2.2.12-2`](#rfc8955-4.2.2.12-2)
 
 0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.2.12)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27 after J078 deleted the retired RFC5575-4-7 tag and reworded one comment inside TestFlowSpecFragmentReservedHighNibbleZero; no assertion changed. Encode: a fragment value with any 0xF0 bit set is forbidden; assert.Zero(v[0]&0xF0) over each emitted value goes red on it. Decode: reading meaning into the high nibble is forbidden; TestRFC8955FragmentReservedBitsIgnoredOnDecode decodes 0xF2 and assert.Equal against the 0x02 render goes red if it changes the match, with the clean render pinned first. The decode proof is at the rendered match, not at the firewall lowering.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8955FragmentReservedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1644) | unit/verify | unproven |
-| positive | [`TestFlowSpecFragmentReservedHighNibbleZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1479) | unit/verify | unproven |
+| negative | [`TestRFC8955FragmentReservedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1641) | unit/verify | unproven |
+| positive | [`TestFlowSpecFragmentReservedHighNibbleZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1476) | unit/verify | unproven |
 
 ### [`RFC8955-6-1`](#rfc8955-6-1)
 
-Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all validation conditions are true (§6, updated by RFC 9117 §4.1)
+In the absence of explicit configuration, a Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all of the conditions below are true: (§6, updated by RFC 9117 §4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. table over the received-UPDATE path asserts eligibility, candidate availability and the selected install event for each of rules a, b and c (missing destination, missing covering unicast, originator mismatch, foreign more-specific) and for the feasible cases, including the RFC 9117 updates
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -327,9 +336,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8955-6-2`](#rfc8955-6-2)
 
-The leftmost AS_SEQUENCE ASN of a Flow Specification route received via eBGP MUST match the leftmost AS_SEQUENCE ASN of the best-match unicast route for its destination prefix (§6, replaced by RFC 9117 §4.2)
+BGP implementations MUST also enforce that the AS_PATH attribute of a route received via the External Border Gateway Protocol (eBGP) contains the neighboring AS in the left-most position of the AS_PATH attribute. (§6, replaced by RFC 9117 §4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. the row now quotes RFC 8955 Section 6 itself: an eBGP route's AS_PATH must carry the neighbouring AS (the peer's ASN) in the left-most position. The tagged unit TestFlowSpecAuthorizationFromReceivedUpdates proves the neighbouring rule RFC 9117 Section 4.2 put in its place (the rule's leftmost AS_SEQUENCE ASN equals the covering unicast route's), and its case 'external authorized through route server' (peerAS 65100, leftmost ASN 65001, want true) asserts acceptance of exactly the input the RFC 8955 sentence forbids. No tagged assertion goes red when an eBGP FlowSpec route lacks the peer AS leftmost. The tags belong on an RFC 9117 Section 4.2 row, which no summary in rfc/short holds
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -340,7 +349,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Therefore, a revalidation of the Flow Specification NLRI MUST be performed whenever unicast routes change. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. drives unicast add of a foreign more-specific, its withdraw, loss and return of the covering route, validation eligibility flips and session down, asserting a withdraw or reinstall event for the retained rule at each step without a new FlowSpec UPDATE
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -351,7 +360,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 On encoding, the traffic-rate MUST NOT be negative. (§7.1, §7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. positive pins the exact IEEE 754 bits for byte and packet rates; negative asserts '-1 packets' is refused. The negative input is packets only, but both subtypes share the one guard in flowspec_encode.go (rate < 0). Test doc names parseFlowSpecTrafficRateBits in route_community.go, which does not exist
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -362,7 +371,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 On decoding, negative values MUST be treated as zero (discard all traffic). (§7.1, §7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. positive decodes 1000.0 to rate-limit:1000; negative decodes -1000.0 to rate-limit:0 for both subtype 0x06 and 0x0c
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -373,7 +382,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 These bits MUST be set to 0 on encoding and MUST be ignored during decoding. (§7.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. encode: config actions leave octets 2-6 zero and only 0x03 in the last octet; decode: every reserved bit set renders the same as clear for all four S/T combinations, and a pair differing only in S changes the render, so a renderer reading no bit fails; the .ci repeats it end to end to a plugin
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -389,7 +398,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 reserved (r): MUST be set to 0 on encoding and MUST be ignored during decoding (§7.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. encode through config and EncodeRoute pins every reserved octet and the two reserved bits zero for DSCP 0, 46, 63, and refuses 64 and above; decode renders 0xEE as mark:46 and 0x40 as mark:0; the .ci carries the reserved-bit community to a plugin
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -413,9 +422,9 @@ No test carries RFC8955-12-1, so no unit is bound to it.
 
 ### [`RFC8955-5.1-1`](#rfc8955-5.1-1)
 
-"This ordering function is such that it does not depend on the arrival order of the Flow Specification via BGP and thus is consistent in the network" (§5.1)
+This ordering function is such that it does not depend on the arrival order of the Flow Specification via BGP and thus is consistent in the network. (§5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Compare is asserted antisymmetric (a<b, b>a, a==a) over type, prefix, operator-byte and width pairs, so the order is a function of the two NLRIs alone; the arrival-order claim in the negative tag rests on that, and the kernel arrival-order case sits under 5.1-2
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -424,9 +433,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8955-5.1-2`](#rfc8955-5.1-2)
 
-The relative order of two Flow Specifications is determined by comparing their components from the left-most (lowest component type value): the Flow Specification with the lowest numeric type value has higher precedence; for IP destination or source prefix values the more specific prefix has higher precedence and otherwise the lowest IP value does; for all other component types the data is compared as a binary string with memcmp(), the lowest string wins at equal lengths, and at different lengths the common prefix decides with the longest string winning when that prefix is equal (§5.1)
+The relative order of two Flow Specifications is determined by comparing their respective components. The algorithm starts by comparing the left-most components (lowest component type value) of the Flow Specifications. If the types differ, the Flow Specification with lowest numeric type value has higher precedence (and thus will match before) than the Flow Specification that doesn't contain that component type. If the component types are the same, then a type- specific comparison is performed (see below). If the types are equal, the algorithm continues with the next component. For IP prefix values (IP destination or source prefix), if one of the two prefixes to compare is a more specific prefix of the other, the more specific prefix has higher precedence. Otherwise, the one with the lowest IP value has higher precedence. For all other component types, unless otherwise specified, the comparison is performed by comparing the component data as a binary string using the memcmp() function as defined by [ISO_IEC_9899]. For strings with equal lengths, the lowest string (memcmp) has higher precedence. For strings of different lengths, the common prefix is compared. If the common prefix is not equal, the string with the lowest prefix has higher precedence. If the common prefix is equal, the longest string is considered to have higher precedence than the shorter one. (§5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. comparator cases cover lower type first, missing component, more-specific overlapping prefix, lower disjoint prefix, memcmp of operator bytes and received width; the integration test installs the covering discard first and shows the more-specific terminal rule still applies in the kernel
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -437,9 +446,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8955-8-1`](#rfc8955-8-1)
 
-The VPNv4 Flow Specification NLRI "consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2)" (§8)
+The NLRI format for this address family consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2). (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. positive decodes RD 100:100 from the 8 octets after the length and the destination component after them, and re-encodes the exact wire; negative refuses a length too short to hold the RD with ErrFlowSpecTruncated
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -450,7 +459,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The NLRI length field shall include both the 8 octets of the Route Distinguisher as well as the subsequent Flow Specification NLRI value. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. positive asserts Len and the encoded length octet count RD plus value (its first assertion checks the fixture against itself, the WriteTo one is the real check); negative refuses a length that counts only the value
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -461,7 +470,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Standard BGP policy mechanisms, such as UPDATE filtering by NLRI prefix as well as community matching, must apply to the Flow specification defined NLRI-type. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the test proves UPDATE filtering by NLRI prefix applies to FlowSpec destinations (accept, reject, missing, mixed); the sentence also names community matching, and no tagged test shows a community policy applying to a FlowSpec route
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -472,7 +481,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Although the forwarding attributes of two routes for the same Flow Specification prefix may be the same, BGP is still required to perform its path selection algorithm in order to select the correct set of attributes to advertise. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. positive: two peers' paths for one FlowSpec NLRI publish the lower-MED path as best and hand best back to the survivor on withdraw; negative: a higher-MED second path publishes no best-change and the best keeps MED 100
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -481,9 +490,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8955-7.3-2`](#rfc8955-7.3-2)
 
-Where the Terminal Action bit is set and the evaluation continues to the next Flow Specification, "all the Traffic Filtering Actions from these Flow Specifications shall be collected and applied" (§7.3)
+The use of the Terminal Action (bit 47) may result in more than one Flow Specification matching a particular traffic flow. All the Traffic Filtering Actions from these Flow Specifications shall be collected and applied. (§7.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the continuing case only pairs a marking with a later discard, so the test sees the discard and never the marking on the same packet; an implementation that skipped the first rule's actions when T is set would stay green. No case observes two actions from two matched rules applied together
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -492,7 +501,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8955-12-2`](#rfc8955-12-2)
 
-Where the rule-a validation relaxation is used, "for a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty" (§12)
+For a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty. (§12)
 
 Audit verdict: not audited: no reader has judged these tests
 

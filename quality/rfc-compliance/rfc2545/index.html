@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2545 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2545 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2545 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -121,6 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 28 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>4</strong><b>of 4 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -179,7 +180,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +211,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +227,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>28</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>4</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -353,7 +357,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L22" title="test/exabgp-compat/encoding/conf-llnh-update.ci" target="_blank" rel="noopener"><code>conf-llnh-update.ci</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-4-1">RFC2545-4-1</code></td><td colspan="3"><span class="rfc-subject">The BGP Identifier &#34;should be derived from an IPv4 address regardless of the network protocol(s) a particular BGP-4 instance is configured to convey at a given moment&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-4-1">RFC2545-4-1</code></td><td colspan="3"><span class="rfc-subject">should be derived from an IPv4 address regardless of the network protocol(s) a particular BGP-4 instance is configured to convey at a given moment. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4 - Transport</td>
@@ -362,7 +366,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-3-5">RFC2545-3-5</code></td><td colspan="3"><span class="rfc-subject">&#34;a BGP speaker that advertises a route to an internal peer may modify the Network Address of Next Hop field by removing the link-local IPv6 address of the next hop&#34; (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-3-5">RFC2545-3-5</code></td><td colspan="3"><span class="rfc-subject">a BGP speaker that advertises a route to an internal peer may modify the Network Address of Next Hop field by removing the link-local IPv6 address of the next hop. (§3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3 - Constructing the Next Hop field</td>
@@ -382,7 +386,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2545-3-1"><code>RFC2545-3-1</code></a></h3>
 <p>A BGP speaker shall advertise to its peer in the Network Address of Next Hop field the global IPv6 address of the next hop, potentially followed by the link-local IPv6 address of the next hop. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a Next Hop field whose first address is not the global next hop, a link-local second address placed first, a non-link-local second address, or a second address appended unconditionally. (b) conf-llnh-update.ci and adj-rib-in-replay-rfc2545-next-hop.ci pin global-then-link-local by exact wire hex (offset order); TestSendAnnounceRefusesUnusableIPv6NextHop requires ErrNextHopUnencodable and empty wire for an IPv4 or unset address in the global slot; TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress requires the same for a global second address; new-v6.ci pins the one-address form when no link-local exists.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -432,7 +436,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 </div>
 <h3><a href="#rfc2545-3-2"><code>RFC2545-3-2</code></a></h3>
 <p>The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a length octet other than 16 with only a global address, or other than 32 with a link-local also included. (b) new-v6.ci asserts 800E26 0002 01 10 with one 16-octet address; conf-llnh-update.ci and adj-rib-in-replay-rfc2545-next-hop.ci assert the 0x20 octet with both addresses by exact hex; TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress asserts no 32-octet field is written for a non-link-local second address.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -482,7 +486,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 </div>
 <h3><a href="#rfc2545-3-3"><code>RFC2545-3-3</code></a></h3>
 <p>The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: including the link-local address when either half of the condition fails, or omitting it when both hold. (b) conf-llnh-update.ci and TestSendAnnounceAppendsLinkLocalWhenSection3Holds assert the 32-octet form when both halves hold; conf-llnh-lla-only.ci asserts the 16-octet form when the global next hop is on no connected subnet (the config differs in that one variable); TestSendAnnounceOmitsLinkLocalWhenPeerOffLink asserts the 16-octet form and NotContains the 32-octet one when the peer half fails. Both halves are broken separately.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -532,7 +536,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 </div>
 <h3><a href="#rfc2545-3-4"><code>RFC2545-3-4</code></a></h3>
 <p>In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16). (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a second address or a length other than 16 when the inclusion condition does not hold. (b) TestSendAnnounceOmitsLinkLocalWhenPeerOffLink asserts the global-only form with length 0x10 and NotContains the 32-octet form; new-v6.ci pins 01 10 plus one address byte for byte; conf-llnh-update.ci is the negative, asserting the field is not reduced to 16 while the condition holds.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -733,7 +737,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 66.7% | 4 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 2 | of 6 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 6 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 4 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 6 |
 | Tagged units | 4 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 2 |
 | Discrimination records | 4 |
 | Summary | `rfc/short/rfc4684.md` |
 | Requirement shard | `rfc/requirements/rfc4684.md` |
@@ -110,23 +112,23 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC4684-3.2-1` | When advertising RT membership NLRI to a route-reflector client, the Originator attribute shall be set to the router-id of the advertiser, and the Next-hop attribute shall be set of the local address for that session. (Section 3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze implements RTC (Route Target Constraint) as a DECODE-ONLY NLRI codec for display/analysis (internal/component/bgp/plugins/nlri/rtc/rtc.go DecodeNLRIHex/RunDecode; there is no encode/origination path). It never advertises RT membership NLRI, so it implements none of the Section 3.2 advertisement Originator/Next-hop procedure. Disclosed in docs/features/rfc-status.md. |
-| `RFC4684-3.2-2` | When advertising RT membership NLRI to a non-client peer, if best path is from a non-client peer and an alternative client path exists, advertise the client path attributes (Section 3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not advertise RT membership NLRI at all (its RTC support is a decode-only NLRI codec, internal/component/bgp/plugins/nlri/rtc/rtc.go, with no origination path), so it implements none of the Section 3.2 best-path/client-path advertisement selection. Disclosed in docs/features/rfc-status.md. |
-| `RFC4684-3.2-3` | When processing RT membership NLRIs from internal iBGP peers, consider all available iBGP paths for a given RT prefix for building the outbound route filter, not just the best path (Section 3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze builds no outbound route filter from RT membership -- its RTC support is a decode-only NLRI codec (internal/component/bgp/plugins/nlri/rtc/rtc.go) with no ORF construction or RT-membership-driven VPN route filtering. Disclosed in docs/features/rfc-status.md. |
+| `RFC4684-3.2-2` | When advertising an RT membership NLRI to a non-client peer, if the best path as selected by the path selection procedure described in Section 9.1 of the base BGP specification [4] is a route received from a non-client peer, and if there is an alternative path to the same destination from a client, the attributes of the client path are advertised to the peer. (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not advertise RT membership NLRI at all (its RTC support is a decode-only NLRI codec, internal/component/bgp/plugins/nlri/rtc/rtc.go, with no origination path), so it implements none of the Section 3.2 best-path/client-path advertisement selection. Disclosed in docs/features/rfc-status.md. |
+| `RFC4684-3.2-3` | When processing RT membership NLRIs received from internal iBGP peers, it is necessary to consider all available iBGP paths for a given RT prefix, for building the outbound route filter, and not just the best path. (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze builds no outbound route filter from RT membership -- its RTC support is a decode-only NLRI codec (internal/component/bgp/plugins/nlri/rtc/rtc.go) with no ORF construction or RT-membership-driven VPN route filtering. Disclosed in docs/features/rfc-status.md. |
 | `RFC4684-6-1` | If a BGP speaker chooses to delay the advertisement of BGP VPN route updates until it receives this End-of-RIB marker, it MUST limit that delay to an upper bound. (Section 6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not gate VPN route advertisement on RT-membership state -- it has no RTC-driven VPN route distribution (the RTC codec is decode-only, internal/component/bgp/plugins/nlri/rtc/rtc.go), so there is no such End-of-RIB delay for Ze to bound. Disclosed in docs/features/rfc-status.md. |
 | `RFC4684-4-1` | The Next Hop field of MP_REACH_NLRI attribute shall be interpreted as an IPv4 address whenever the length of NextHop address is 4 octets, and as a IPv6 address whenever the length of the NextHop address is 16 octets. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC4684RTCNextHopByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go#L28). **negative:** `unit/verify` [`TestRFC4684RTCNextHopByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go#L29) |
 | `RFC4684-5-2` | A BGP speaker that wishes to exchange Route Target membership information must use the Multiprotocol Extensions Capability Code, as defined in RFC 2858 [5], to advertise the corresponding (AFI, SAFI) pair. (Section 5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC4684RTCFamilyIsAMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4684_rtc_test.go#L36). **negative:** `unit/verify` [`TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4684_rtc_test.go#L74) |
-| `RFC4684-6-2` | Implementations SHOULD generate an End-of-RIB marker for Route Target membership (AFI=1, SAFI=132) regardless of whether graceful-restart is enabled (Section 6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4684-6-3` | A BGP speaker should generate the minimum set of BGP VPN route updates necessary to transition between the previous and current state of the route distribution graph (Section 6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4684-8-1` | Implementations SHOULD provide means to filter RT membership information (Section 8) | SHOULD | 8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4684-5-1` | A BGP speaker MAY participate in distribution of Route Target information without using it for VPN NLRI output route filtering (Section 5) | MAY | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4684-6-2` | As a hint that initial RT membership exchange is complete, implementations SHOULD generate an End-of-RIB marker, as defined in [8], for the Route Target membership (afi, safi), regardless of whether graceful-restart is enabled on the BGP session. (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4684-6-3` | A BGP speaker should generate the minimum set of BGP VPN route updates (advertisements and/or withdrawls) necessary to transition between the previous and current state of the route distribution graph that is derived from Route Target membership information. (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4684-8-1` | Implementations SHOULD also provide means to filter RT membership information. (§8) | SHOULD | 8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4684-5-1` | A BGP speaker MAY participate in the distribution of Route Target information without using the learned information for purposes of VPN NLRI output route filtering, although this is discouraged. (§5) | MAY | 5 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC4684-3.2-1`](#rfc4684-3.2-1) When advertising RT membership NLRI to a route-reflector client, the Originator attribute shall be set to the router-id of the advertiser, and the Next-hop attribute shall be set of the local address for that session. (Section 3.2) | {gap}, no test | Ze implements RTC (Route Target Constraint) as a DECODE-ONLY NLRI codec for display/analysis (internal/component/bgp/plugins/nlri/rtc/rtc.go DecodeNLRIHex/RunDecode; there is no encode/origination path). It never advertises RT membership NLRI, so it implements none of the Section 3.2 advertisement Originator/Next-hop procedure. Disclosed in docs/features/rfc-status.md. |
-| [`RFC4684-3.2-2`](#rfc4684-3.2-2) When advertising RT membership NLRI to a non-client peer, if best path is from a non-client peer and an alternative client path exists, advertise the client path attributes (Section 3.2) | {gap}, no test | Ze does not advertise RT membership NLRI at all (its RTC support is a decode-only NLRI codec, internal/component/bgp/plugins/nlri/rtc/rtc.go, with no origination path), so it implements none of the Section 3.2 best-path/client-path advertisement selection. Disclosed in docs/features/rfc-status.md. |
-| [`RFC4684-3.2-3`](#rfc4684-3.2-3) When processing RT membership NLRIs from internal iBGP peers, consider all available iBGP paths for a given RT prefix for building the outbound route filter, not just the best path (Section 3.2) | {gap}, no test | Ze builds no outbound route filter from RT membership -- its RTC support is a decode-only NLRI codec (internal/component/bgp/plugins/nlri/rtc/rtc.go) with no ORF construction or RT-membership-driven VPN route filtering. Disclosed in docs/features/rfc-status.md. |
+| [`RFC4684-3.2-2`](#rfc4684-3.2-2) When advertising an RT membership NLRI to a non-client peer, if the best path as selected by the path selection procedure described in Section 9.1 of the base BGP specification [4] is a route received from a non-client peer, and if there is an alternative path to the same destination from a client, the attributes of the client path are advertised to the peer. (§3.2) | {gap}, no test | Ze does not advertise RT membership NLRI at all (its RTC support is a decode-only NLRI codec, internal/component/bgp/plugins/nlri/rtc/rtc.go, with no origination path), so it implements none of the Section 3.2 best-path/client-path advertisement selection. Disclosed in docs/features/rfc-status.md. |
+| [`RFC4684-3.2-3`](#rfc4684-3.2-3) When processing RT membership NLRIs received from internal iBGP peers, it is necessary to consider all available iBGP paths for a given RT prefix, for building the outbound route filter, and not just the best path. (§3.2) | {gap}, no test | Ze builds no outbound route filter from RT membership -- its RTC support is a decode-only NLRI codec (internal/component/bgp/plugins/nlri/rtc/rtc.go) with no ORF construction or RT-membership-driven VPN route filtering. Disclosed in docs/features/rfc-status.md. |
 | [`RFC4684-6-1`](#rfc4684-6-1) If a BGP speaker chooses to delay the advertisement of BGP VPN route updates until it receives this End-of-RIB marker, it MUST limit that delay to an upper bound. (Section 6) | {gap}, no test | Ze does not gate VPN route advertisement on RT-membership state -- it has no RTC-driven VPN route distribution (the RTC codec is decode-only, internal/component/bgp/plugins/nlri/rtc/rtc.go), so there is no such End-of-RIB delay for Ze to bound. Disclosed in docs/features/rfc-status.md. |
 
 ## Proof state
@@ -143,7 +145,7 @@ No test carries RFC4684-3.2-1, so no unit is bound to it.
 
 ### [`RFC4684-3.2-2`](#rfc4684-3.2-2)
 
-When advertising RT membership NLRI to a non-client peer, if best path is from a non-client peer and an alternative client path exists, advertise the client path attributes (Section 3.2)
+When advertising an RT membership NLRI to a non-client peer, if the best path as selected by the path selection procedure described in Section 9.1 of the base BGP specification [4] is a route received from a non-client peer, and if there is an alternative path to the same destination from a client, the attributes of the client path are advertised to the peer. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -151,7 +153,7 @@ No test carries RFC4684-3.2-2, so no unit is bound to it.
 
 ### [`RFC4684-3.2-3`](#rfc4684-3.2-3)
 
-When processing RT membership NLRIs from internal iBGP peers, consider all available iBGP paths for a given RT prefix for building the outbound route filter, not just the best path (Section 3.2)
+When processing RT membership NLRIs received from internal iBGP peers, it is necessary to consider all available iBGP paths for a given RT prefix, for building the outbound route filter, and not just the best path. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -169,7 +171,7 @@ No test carries RFC4684-6-1, so no unit is bound to it.
 
 The Next Hop field of MP_REACH_NLRI attribute shall be interpreted as an IPv4 address whenever the length of NextHop address is 4 octets, and as a IPv6 address whenever the length of the NextHop address is 16 octets. (Section 4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: a 4-octet RTC next hop read as anything but IPv4, or a 16-octet one read as anything but IPv6 (for instance by keying on AFI 1). (b) TestRFC4684RTCNextHopByLength builds MP_REACH_NLRI for AFI 1 SAFI 132 and t.Fatalf's unless MPReachWire.NextHop returns exactly 192.0.2.1 and not Is6 for 4 octets, and exactly 2001:db8::1 and not Is4 for 16 octets. Both clauses carry both polarities.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -180,7 +182,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A BGP speaker that wishes to exchange Route Target membership information must use the Multiprotocol Extensions Capability Code, as defined in RFC 2858 [5], to advertise the corresponding (AFI, SAFI) pair. (Section 5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: a speaker exchanging RT membership without advertising (1, 132) in the Multiprotocol Extensions capability. TestRFC4684RTCFamilyIsAMultiprotocolCapability proves the codec: a Multiprotocol value the test builds encodes as 01 04 00 01 00 84, and Negotiate supports the family from two capability lists the test builds. Nothing asserts that Ze's own OPEN carries MP(1,132) when ipv4/rtc is configured, which is the obligation. The negative (TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily: the pair under code 200 is not MP) proves the capability parser, a neighbouring rule.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

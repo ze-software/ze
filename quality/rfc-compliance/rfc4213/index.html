@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4213 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4213: Basic Transition Mechanisms for IPv6 Hosts and Routers. 23 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4213: Basic Transition Mechanisms for IPv6 Hosts and Routers. 23 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4213 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4213: Basic Transition Mechanisms for IPv6 Hosts and Routers. 23 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4213: Basic Transition Mechanisms for IPv6 Hosts and Routers. 23 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4213 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4213: Basic Transition Mechanisms for IPv6 Hosts and Routers. 23 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4213: Basic Transition Mechanisms for IPv6 Hosts and Routers. 23 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -305,7 +308,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is a routing daemon, not a host stub-resolver library that applications call for dual-stack connection establishment; its resolve component exposes distinct operator-facing A and AAAA query verbs (ResolveA/ResolveAAAA, internal/component/resolve/dns/resolver.go:224), not a merged getaddrinfo that returns both families unfiltered, so this resolver-library obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2-1">RFC4213-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Encapsulator MUST NOT treat the tunnel as having an MTU of 64 kilobytes; must use static or dynamic MTU determination (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2-1">RFC4213-3.2-1</code></td><td colspan="3"><span class="rfc-subject">the encapsulator MUST NOT treat the tunnel as an interface with an MTU of 64 kilobytes, but instead either use the fixed static MTU or OPTIONAL dynamic MTU determination based on the IPv4 path MTU to the tunnel endpoint. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2</td>
@@ -314,7 +317,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module owns the 6in4 datapath and ze runs no per-packet encapsulation/decapsulation code path (proof-of-absence: no 6in4 encap/decap producer outside the netlink config across internal/*.go), so this tunnel-MTU determination obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2-2">RFC4213-3.2-2</code></td><td colspan="3"><span class="rfc-subject">The naive scheme of viewing the tunnel as a very large MTU link MUST NOT be used (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2-2">RFC4213-3.2-2</code></td><td colspan="3"><span class="rfc-subject">Naively, the encapsulator could view encapsulation as IPv6 using IPv4 as a link layer with a very large MTU (65535-20 bytes at most; 20 bytes &#34;extra&#34; are needed for the encapsulating IPv4 header). The encapsulator would only need to report ICMPv6 &#34;packet too big&#34; errors back to the source for packets that exceed this MTU. However, such a scheme would be inefficient or non-interoperable for three reasons and therefore MUST NOT be used (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2</td>
@@ -323,7 +326,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module owns the 6in4 datapath and ze runs no per-packet encapsulation/decapsulation code path (proof-of-absence: no 6in4 encap/decap producer outside the netlink config across internal/*.go), so this tunnel-MTU determination obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.1-1">RFC4213-3.2.1-1</code></td><td colspan="3"><span class="rfc-subject">Static tunnel MTU: by default, the MTU MUST be between 1280 and 1480 bytes inclusive (§3.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.1-1">RFC4213-3.2.1-1</code></td><td colspan="3"><span class="rfc-subject">By default, the MTU MUST be between 1280 and 1480 bytes (inclusive) (§3.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.1</td>
@@ -359,7 +362,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41; the PMtuDisc flag is set at tunnel_linux.go:234-238 but the DF bit on the wire is written by the kernel sit datapath). VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). ze runs no per-packet encapsulation code path, so this outer-header DF obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2-3">RFC4213-3.2-3</code></td><td colspan="3"><span class="rfc-subject">Encapsulator MUST NOT treat the tunnel as an interface with an MTU of 64 kilobytes (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2-3">RFC4213-3.2-3</code></td><td colspan="3"><span class="rfc-subject">the encapsulator MUST NOT treat the tunnel as an interface with an MTU of 64 kilobytes (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2</td>
@@ -404,7 +407,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath owns IPv4 reassembly on the tunnel; ze runs no per-packet decapsulation code path, so this reassembly obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-5">RFC4213-3.6-5</code></td><td colspan="3"><span class="rfc-subject">Tunnel reassembly buffer MUST NOT be set below the required minimum (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-5">RFC4213-3.6-5</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY have a configuration knob that can be used to set a larger value of the tunnel reassembly buffers than the above number, but it MUST NOT be set below the above number. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.6</td>
@@ -413,7 +416,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath sizes the tunnel reassembly buffer; ze exposes no such buffer and runs no per-packet decapsulation code path, so this reassembly-buffer obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-6">RFC4213-3.6-6</code></td><td colspan="3"><span class="rfc-subject">When reconstructing the IPv6 packet, the length MUST be determined from the IPv6 payload length, not the IPv4 length (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-6">RFC4213-3.6-6</code></td><td colspan="3"><span class="rfc-subject">When reconstructing the IPv6 packet, the length MUST be determined from the IPv6 payload length since the IPv4 packet might be padded (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
@@ -476,7 +479,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath discards inner IPv6 packets with invalid source addresses; ze runs no per-packet decapsulation code path, so this source-filtering obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-5-3">RFC4213-5-3</code></td><td colspan="3"><span class="rfc-subject">An implementation MUST treat interfaces to different links as separate (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-5-3">RFC4213-5-3</code></td><td colspan="3"><span class="rfc-subject">an implementation MUST treat interfaces to different links as separate (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -485,7 +488,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs the sit tunnel as its own distinct netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, one link per configured tunnel); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel forwarding datapath keeps per-interface scope and treats the tunnel and native links as separate; ze runs no per-packet forwarding code path, so this per-interface separation obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-5-4">RFC4213-5-4</code></td><td colspan="3"><span class="rfc-subject">Packets failing tunnel source address verification MUST be discarded (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-5-4">RFC4213-5-4</code></td><td colspan="3"><span class="rfc-subject">When dropping packets due to failing to match the allowed IPv4 source addresses for a tunnel the node should not &#34;acknowledge&#34; the existence of a tunnel, otherwise this could be used to probe the acceptable tunnel endpoint addresses. For that reason, the specification says that such packets MUST be discarded (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -494,7 +497,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, setting the configured Remote endpoint); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath discards packets that fail outer-source verification; ze runs no per-packet decapsulation code path, so this discard obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.1-5">RFC4213-3.2.1-5</code></td><td colspan="3"><span class="rfc-subject">Static tunnel MTU SHOULD be 1280 bytes by default (§3.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.1-5">RFC4213-3.2.1-5</code></td><td colspan="3"><span class="rfc-subject">By default, the MTU MUST be between 1280 and 1480 bytes (inclusive), but it SHOULD be 1280 bytes. (§3.2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2.1</td>
@@ -503,7 +506,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2-4">RFC4213-3.2-4</code></td><td colspan="3"><span class="rfc-subject">If both static and dynamic MTU mechanisms are implemented, the choice SHOULD be configurable per tunnel endpoint (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2-4">RFC4213-3.2-4</code></td><td colspan="3"><span class="rfc-subject">If both the mechanisms are implemented, the decision of which to use SHOULD be configurable on a per-tunnel endpoint basis. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2</td>
@@ -512,7 +515,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.2-1">RFC4213-3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">If dynamic MTU is implemented, it SHOULD have the behavior described in the document (§3.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.2-1">RFC4213-3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">The dynamic MTU determination is OPTIONAL. However, if it is implemented, it SHOULD have the behavior described in this document. (§3.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2.2</td>
@@ -521,7 +524,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.2-2">RFC4213-3.2.2-2</code></td><td colspan="3"><span class="rfc-subject">The encapsulator SHOULD employ the specified algorithm for dynamic MTU determination (§3.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.2-2">RFC4213-3.2.2-2</code></td><td colspan="3"><span class="rfc-subject">The encapsulator SHOULD employ the following algorithm to determine when to forward an IPv6 packet that is larger than the tunnel&#39;s path MTU using IPv4 fragmentation, and when to return an ICMPv6 &#34;packet too big&#34; message (§3.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2.2</td>
@@ -530,7 +533,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.5-1">RFC4213-3.5-1</code></td><td colspan="3"><span class="rfc-subject">It SHOULD be possible to administratively specify the source address of a tunnel (§3.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.5-1">RFC4213-3.5-1</code></td><td colspan="3"><span class="rfc-subject">it SHOULD be possible to administratively specify the source address of a tunnel. (§3.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.5</td>
@@ -539,7 +542,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-8">RFC4213-3.6-8</code></td><td colspan="3"><span class="rfc-subject">An ICMP message SHOULD NOT be generated when discarding packets that fail source address verification (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-8">RFC4213-3.6-8</code></td><td colspan="3"><span class="rfc-subject">Packets for which the IPv4 source address does not match MUST be discarded and an ICMP message SHOULD NOT be generated (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>3.6</td>
@@ -548,7 +551,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-9">RFC4213-3.6-9</code></td><td colspan="3"><span class="rfc-subject">The list of invalid IPv6 source addresses SHOULD include at least multicast, loopback, IPv4-compatible, and IPv4-mapped addresses (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-9">RFC4213-3.6-9</code></td><td colspan="3"><span class="rfc-subject">The list of invalid source addresses SHOULD include at least: - all multicast addresses (FF00::/8) - the loopback address (::1) - all the IPv4-compatible IPv6 addresses [RFC3513] (::/96), excluding the unspecified address for Duplicate Address Detection (::/128) - all the IPv4-mapped IPv6 addresses (::ffff:0:0/96) (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.6</td>
@@ -557,7 +560,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.8-3">RFC4213-3.8-3</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD send NUD probe packets to detect tunnel failures (§3.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.8-3">RFC4213-3.8-3</code></td><td colspan="3"><span class="rfc-subject">The implementations SHOULD also send NUD probe packets to detect when the configured tunnel fails (§3.8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.8</td>
@@ -566,7 +569,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.8-4">RFC4213-3.8-4</code></td><td colspan="3"><span class="rfc-subject">The sender of Neighbor Discovery packets SHOULD NOT include Source/Target Link Layer Address options on the tunnel link (§3.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.8-4">RFC4213-3.8-4</code></td><td colspan="3"><span class="rfc-subject">the sender of Neighbor Discovery packets SHOULD NOT include Source Link Layer Address options or Target Link Layer Address options on the tunnel link. (§3.8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>3.8</td>
@@ -575,7 +578,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-5-5">RFC4213-5-5</code></td><td colspan="3"><span class="rfc-subject">An ICMP error message SHOULD NOT be generated for packets failing tunnel source verification (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-5-5">RFC4213-5-5</code></td><td colspan="3"><span class="rfc-subject">When dropping packets due to failing to match the allowed IPv4 source addresses for a tunnel the node should not &#34;acknowledge&#34; the existence of a tunnel, otherwise this could be used to probe the acceptable tunnel endpoint addresses. For that reason, the specification says that such packets MUST be discarded, and an ICMP error message SHOULD NOT be generated (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>5</td>
@@ -593,7 +596,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-10">RFC4213-3.6-10</code></td><td colspan="3"><span class="rfc-subject">Packets caught by optional RPF check SHOULD be discarded (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-10">RFC4213-3.6-10</code></td><td colspan="3"><span class="rfc-subject">the implementation MAY perform ingress filtering, i.e., check that the packet is arriving from the interface in the direction of the route toward the tunnel end-point, similar to a Strict Reverse Path Forwarding (RPF) check [RFC3704]. As this may cause problems on tunnels that are routed through multiple links, it is RECOMMENDED that this check, if done, is disabled by default. The packets caught by this check SHOULD be discarded (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.6</td>
@@ -602,7 +605,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-11">RFC4213-3.6-11</code></td><td colspan="3"><span class="rfc-subject">An ICMP message SHOULD NOT be generated for packets caught by the RPF check (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-11">RFC4213-3.6-11</code></td><td colspan="3"><span class="rfc-subject">the implementation MAY perform ingress filtering, i.e., check that the packet is arriving from the interface in the direction of the route toward the tunnel end-point, similar to a Strict Reverse Path Forwarding (RPF) check [RFC3704]. As this may cause problems on tunnels that are routed through multiple links, it is RECOMMENDED that this check, if done, is disabled by default. The packets caught by this check SHOULD be discarded; an ICMP message SHOULD NOT be generated by default. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>3.6</td>
@@ -611,7 +614,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-12">RFC4213-3.6-12</code></td><td colspan="3"><span class="rfc-subject">IPv4 ingress filtering (RPF check), if done, is RECOMMENDED to be disabled by default (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-12">RFC4213-3.6-12</code></td><td colspan="3"><span class="rfc-subject">the implementation MAY perform ingress filtering, i.e., check that the packet is arriving from the interface in the direction of the route toward the tunnel end-point, similar to a Strict Reverse Path Forwarding (RPF) check [RFC3704]. As this may cause problems on tunnels that are routed through multiple links, it is RECOMMENDED that this check, if done, is disabled by default. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>3.6</td>
@@ -620,7 +623,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-13">RFC4213-3.6-13</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD provide a single knob to enable strict ingress filtering toward edge networks (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-13">RFC4213-3.6-13</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED that the implementations provide a single knob to make it easier to for the administrators to enable strict ingress filtering toward edge networks. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>3.6</td>
@@ -638,7 +641,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-2.2-4">RFC4213-2.2-4</code></td><td colspan="3"><span class="rfc-subject">The resolver library MAY order results to influence IP version preference (§2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-2.2-4">RFC4213-2.2-4</code></td><td colspan="3"><span class="rfc-subject">when a query locates an AAAA record holding an IPv6 address, and an A record holding an IPv4 address, the resolver library MAY order the results returned to the application in order to influence the version of IP packets used to communicate with that specific node -- IPv6 first, or IPv4 first. (§2.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.2</td>
@@ -656,7 +659,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.4-1">RFC4213-3.4-1</code></td><td colspan="3"><span class="rfc-subject">Encapsulator MAY extract the encapsulated IPv6 packet to generate ICMPv6 errors (§3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.4-1">RFC4213-3.4-1</code></td><td colspan="3"><span class="rfc-subject">If sufficient data bytes from the offending packet are available, the encapsulator MAY extract the encapsulated IPv6 packet and use it to generate an ICMPv6 message directed back to the originating IPv6 node (§3.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.4</td>
@@ -665,7 +668,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.4-2">RFC4213-3.4-2</code></td><td colspan="3"><span class="rfc-subject">Originating node MAY send an ICMPv6 &#34;unreachable&#34; error to the IPv6 source (§3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.4-2">RFC4213-3.4-2</code></td><td colspan="3"><span class="rfc-subject">if sufficient headers are available, then the originating node MAY send an ICMPv6 error of type &#34;unreachable&#34; with code &#34;address unreachable&#34; to the IPv6 source. (§3.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.4</td>
@@ -674,7 +677,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-14">RFC4213-3.6-14</code></td><td colspan="3"><span class="rfc-subject">Implementation MAY perform IPv4 ingress filtering (RPF check) on tunnel packets (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-14">RFC4213-3.6-14</code></td><td colspan="3"><span class="rfc-subject">the implementation MAY perform ingress filtering, i.e., check that the packet is arriving from the interface in the direction of the route toward the tunnel end-point, similar to a Strict Reverse Path Forwarding (RPF) check [RFC3704]. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.6</td>
@@ -683,7 +686,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-15">RFC4213-3.6-15</code></td><td colspan="3"><span class="rfc-subject">Implementation MAY have a configuration knob to set larger tunnel reassembly buffers (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-15">RFC4213-3.6-15</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY have a configuration knob that can be used to set a larger value of the tunnel reassembly buffers than the above number (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.6</td>
@@ -692,7 +695,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-16">RFC4213-3.6-16</code></td><td colspan="3"><span class="rfc-subject">If the implementation normally sends ICMP for unknown protocols, such an error message MAY be sent (§3.6, §5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-16">RFC4213-3.6-16</code></td><td colspan="3"><span class="rfc-subject">however, if the implementation normally sends an ICMP message when receiving an unknown protocol packet, such an error message MAY be sent (e.g., ICMPv4 Protocol 41 Unreachable). (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.6</td>
@@ -701,9 +704,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.2-3">RFC4213-3.2.2-3</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY use dynamic MTU determination (§3.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.2-3">RFC4213-3.2.2-3</code></td><td colspan="3"><span class="rfc-subject">The dynamic MTU determination is OPTIONAL. (§3.2.2)</span></td></tr>
 <tr><td></td>
-<td>MAY</td>
+<td>OPTIONAL</td>
 <td>3.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4213-3.2.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
@@ -727,15 +730,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is a routing daemon, not a host stub-resolver library that applications call for dual-stack connection establishment; its resolve component exposes distinct operator-facing A and AAAA query verbs (ResolveA/ResolveAAAA, internal/component/resolve/dns/resolver.go:224), not a merged getaddrinfo that returns both families unfiltered, so this resolver-library obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.2-1"><code>RFC4213-3.2-1</code></a> Encapsulator MUST NOT treat the tunnel as having an MTU of 64 kilobytes; must use static or dynamic MTU determination (§3.2)</td>
+<tr><td><a href="#rfc4213-3.2-1"><code>RFC4213-3.2-1</code></a> the encapsulator MUST NOT treat the tunnel as an interface with an MTU of 64 kilobytes, but instead either use the fixed static MTU or OPTIONAL dynamic MTU determination based on the IPv4 path MTU to the tunnel endpoint. (§3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module owns the 6in4 datapath and ze runs no per-packet encapsulation/decapsulation code path (proof-of-absence: no 6in4 encap/decap producer outside the netlink config across internal/*.go), so this tunnel-MTU determination obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.2-2"><code>RFC4213-3.2-2</code></a> The naive scheme of viewing the tunnel as a very large MTU link MUST NOT be used (§3.2)</td>
+<tr><td><a href="#rfc4213-3.2-2"><code>RFC4213-3.2-2</code></a> Naively, the encapsulator could view encapsulation as IPv6 using IPv4 as a link layer with a very large MTU (65535-20 bytes at most; 20 bytes &#34;extra&#34; are needed for the encapsulating IPv4 header). The encapsulator would only need to report ICMPv6 &#34;packet too big&#34; errors back to the source for packets that exceed this MTU. However, such a scheme would be inefficient or non-interoperable for three reasons and therefore MUST NOT be used (§3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module owns the 6in4 datapath and ze runs no per-packet encapsulation/decapsulation code path (proof-of-absence: no 6in4 encap/decap producer outside the netlink config across internal/*.go), so this tunnel-MTU determination obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.2.1-1"><code>RFC4213-3.2.1-1</code></a> Static tunnel MTU: by default, the MTU MUST be between 1280 and 1480 bytes inclusive (§3.2.1)</td>
+<tr><td><a href="#rfc4213-3.2.1-1"><code>RFC4213-3.2.1-1</code></a> By default, the MTU MUST be between 1280 and 1480 bytes (inclusive) (§3.2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module derives and owns the static tunnel MTU; ze selects no tunnel MTU value and runs no per-packet encapsulation code path, so this static-MTU-range obligation has no ze code path</td>
 </tr>
@@ -751,7 +754,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41; the PMtuDisc flag is set at tunnel_linux.go:234-238 but the DF bit on the wire is written by the kernel sit datapath). VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). ze runs no per-packet encapsulation code path, so this outer-header DF obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.2-3"><code>RFC4213-3.2-3</code></a> Encapsulator MUST NOT treat the tunnel as an interface with an MTU of 64 kilobytes (§3.2)</td>
+<tr><td><a href="#rfc4213-3.2-3"><code>RFC4213-3.2-3</code></a> the encapsulator MUST NOT treat the tunnel as an interface with an MTU of 64 kilobytes (§3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module owns the 6in4 datapath and ze runs no per-packet encapsulation/decapsulation code path (proof-of-absence: no 6in4 encap/decap producer outside the netlink config across internal/*.go), so this tunnel-MTU determination obligation has no ze code path</td>
 </tr>
@@ -771,11 +774,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath owns IPv4 reassembly on the tunnel; ze runs no per-packet decapsulation code path, so this reassembly obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.6-5"><code>RFC4213-3.6-5</code></a> Tunnel reassembly buffer MUST NOT be set below the required minimum (§3.6)</td>
+<tr><td><a href="#rfc4213-3.6-5"><code>RFC4213-3.6-5</code></a> An implementation MAY have a configuration knob that can be used to set a larger value of the tunnel reassembly buffers than the above number, but it MUST NOT be set below the above number. (§3.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath sizes the tunnel reassembly buffer; ze exposes no such buffer and runs no per-packet decapsulation code path, so this reassembly-buffer obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.6-6"><code>RFC4213-3.6-6</code></a> When reconstructing the IPv6 packet, the length MUST be determined from the IPv6 payload length, not the IPv4 length (§3.6)</td>
+<tr><td><a href="#rfc4213-3.6-6"><code>RFC4213-3.6-6</code></a> When reconstructing the IPv6 packet, the length MUST be determined from the IPv6 payload length since the IPv4 packet might be padded (§3.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath reconstructs the inner IPv6 packet; ze runs no per-packet decapsulation code path, so this length-reconstruction obligation has no ze code path</td>
 </tr>
@@ -803,11 +806,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath discards inner IPv6 packets with invalid source addresses; ze runs no per-packet decapsulation code path, so this source-filtering obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-5-3"><code>RFC4213-5-3</code></a> An implementation MUST treat interfaces to different links as separate (§5)</td>
+<tr><td><a href="#rfc4213-5-3"><code>RFC4213-5-3</code></a> an implementation MUST treat interfaces to different links as separate (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs the sit tunnel as its own distinct netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, one link per configured tunnel); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel forwarding datapath keeps per-interface scope and treats the tunnel and native links as separate; ze runs no per-packet forwarding code path, so this per-interface separation obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-5-4"><code>RFC4213-5-4</code></a> Packets failing tunnel source address verification MUST be discarded (§5)</td>
+<tr><td><a href="#rfc4213-5-4"><code>RFC4213-5-4</code></a> When dropping packets due to failing to match the allowed IPv4 source addresses for a tunnel the node should not &#34;acknowledge&#34; the existence of a tunnel, otherwise this could be used to probe the acceptable tunnel endpoint addresses. For that reason, the specification says that such packets MUST be discarded (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, setting the configured Remote endpoint); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath discards packets that fail outer-source verification; ze runs no per-packet decapsulation code path, so this discard obligation has no ze code path</td>
 </tr>
@@ -826,15 +829,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-2.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.2-1"><code>RFC4213-3.2-1</code></a></h3>
-<p>Encapsulator MUST NOT treat the tunnel as having an MTU of 64 kilobytes; must use static or dynamic MTU determination (§3.2)</p>
+<p>the encapsulator MUST NOT treat the tunnel as an interface with an MTU of 64 kilobytes, but instead either use the fixed static MTU or OPTIONAL dynamic MTU determination based on the IPv4 path MTU to the tunnel endpoint. (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.2-2"><code>RFC4213-3.2-2</code></a></h3>
-<p>The naive scheme of viewing the tunnel as a very large MTU link MUST NOT be used (§3.2)</p>
+<p>Naively, the encapsulator could view encapsulation as IPv6 using IPv4 as a link layer with a very large MTU (65535-20 bytes at most; 20 bytes &#34;extra&#34; are needed for the encapsulating IPv4 header). The encapsulator would only need to report ICMPv6 &#34;packet too big&#34; errors back to the source for packets that exceed this MTU. However, such a scheme would be inefficient or non-interoperable for three reasons and therefore MUST NOT be used (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.2.1-1"><code>RFC4213-3.2.1-1</code></a></h3>
-<p>Static tunnel MTU: by default, the MTU MUST be between 1280 and 1480 bytes inclusive (§3.2.1)</p>
+<p>By default, the MTU MUST be between 1280 and 1480 bytes (inclusive) (§3.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.2.1-2"><code>RFC4213-3.2.1-2</code></a></h3>
@@ -850,7 +853,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.2.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.2-3"><code>RFC4213-3.2-3</code></a></h3>
-<p>Encapsulator MUST NOT treat the tunnel as an interface with an MTU of 64 kilobytes (§3.2)</p>
+<p>the encapsulator MUST NOT treat the tunnel as an interface with an MTU of 64 kilobytes (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.6-1"><code>RFC4213-3.6-1</code></a></h3>
@@ -870,11 +873,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.6-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.6-5"><code>RFC4213-3.6-5</code></a></h3>
-<p>Tunnel reassembly buffer MUST NOT be set below the required minimum (§3.6)</p>
+<p>An implementation MAY have a configuration knob that can be used to set a larger value of the tunnel reassembly buffers than the above number, but it MUST NOT be set below the above number. (§3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.6-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.6-6"><code>RFC4213-3.6-6</code></a></h3>
-<p>When reconstructing the IPv6 packet, the length MUST be determined from the IPv6 payload length, not the IPv4 length (§3.6)</p>
+<p>When reconstructing the IPv6 packet, the length MUST be determined from the IPv6 payload length since the IPv4 packet might be padded (§3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.6-6, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.6-7"><code>RFC4213-3.6-7</code></a></h3>
@@ -902,11 +905,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-5-3"><code>RFC4213-5-3</code></a></h3>
-<p>An implementation MUST treat interfaces to different links as separate (§5)</p>
+<p>an implementation MUST treat interfaces to different links as separate (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-5-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-5-4"><code>RFC4213-5-4</code></a></h3>
-<p>Packets failing tunnel source address verification MUST be discarded (§5)</p>
+<p>When dropping packets due to failing to match the allowed IPv4 source addresses for a tunnel the node should not &#34;acknowledge&#34; the existence of a tunnel, otherwise this could be used to probe the acceptable tunnel endpoint addresses. For that reason, the specification says that such packets MUST be discarded (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-5-4, so no unit is bound to it.</p>
 </section>
@@ -1151,7 +1154,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

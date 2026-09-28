@@ -63,6 +63,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 38 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 37 |
 | Nightly-only evidence | 0 |
 | Test tags | 2 |
@@ -75,7 +76,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): OSPFv3 Link State Advertisement (LSA) Extensibility. OUT OF SCOPE as a document by owner decision, 2026-09-01, marked for future development. The extraction is COMPLETE: the source text is at rfc/full/rfc8362.txt and this summary declares all 50 requirements, 38 of them MUST-level. What Ze has is a by-product of RFC 8666 Segment Routing rather than the framework this document defines: three of the seven Extended LSA types are originated, and only when segment routing is enabled (v6OriginateSR, internal/plugins/ospf/sr_origination_v6.go); receipt decoding is reached from one place and reads Prefix-SIDs alone (v6ReceivedPrefixSIDs, sr_reception_v6.go); no SPF calculation reads an Extended LSA, because the base Router-LSA remains the sole SPF vertex; and there is no RFC 8362 configuration surface and none of its Appendix A or B migration machinery. Nine MUST-level requirements are genuinely unmet and 20 more are met only because Ze performs no action on their subject. The most serious is RFC8362-2-1: the seven LS type constants carry the U-bit clear where Section 2 requires it set, which is recorded as a defect in plan/journal/declared-format-contradicts-payload.md and is a fix rather than a scope question. No {gap} annotation is written here, because the scope decision covers the document and the U-bit defect is tracked where a fix is owed.
+Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): OSPFv3 Link State Advertisement (LSA) Extensibility. OUT OF SCOPE as a document by owner decision, 2026-09-01, marked for future development. The extraction is COMPLETE: the source text is at rfc/full/rfc8362.txt and this summary declares all 50 requirements, 38 of them MUST-level. What Ze has is a by-product of RFC 8666 Segment Routing rather than the framework this document defines: three of the seven Extended LSA types are originated, and only when segment routing is enabled (v6OriginateSR, internal/plugins/ospf/sr_origination_v6.go); receipt decoding is reached from one place and reads Prefix-SIDs alone (v6ReceivedPrefixSIDs, sr_reception_v6.go); no SPF calculation reads an Extended LSA, because the base Router-LSA remains the sole SPF vertex; and there is no RFC 8362 configuration surface and none of its Appendix A or B migration machinery. Nine MUST-level requirements are genuinely unmet and 20 more are met only because Ze performs no action on their subject. RFC8362-2-1 was the most serious until a9d0b54387 (2026-09-20) set the U-bit on the Extended LS type constants (internal/plugins/ospf/v3/types/lsa.go, 0xA021 E-Router-LSA), as Section 2 requires; the tagged test does not yet check it on the E-Inter-Area-Prefix-LSA.
 
 ## What the public ledger says
 
@@ -87,7 +88,7 @@ Three of the seven Extended LSA types are framed and originated, and only under 
 
 **What the ledger says remains**
 
-Out of scope as a document by owner decision, 2026-09-01, and tracked for future development. Requirements bound per line in [`rfc/short/rfc8362.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc8362.md). E-Network, E-Inter-Area-Router, E-AS-External, E-Type-7 and E-Link have no producer, nothing validates an Extended LSA body before it is installed, and there is no migration or compatibility mode. The LS types Ze emits carry the U-bit clear where Section 2 requires it set, so they do not flood past an OSPFv3 router that does not support them; that one is a defect rather than a scope decision.
+Out of scope as a document by owner decision, 2026-09-01, and tracked for future development. Requirements bound per line in [`rfc/short/rfc8362.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc8362.md). E-Network, E-Inter-Area-Router, E-AS-External, E-Type-7 and E-Link have no producer, nothing validates an Extended LSA body before it is installed, and there is no migration or compatibility mode. The LS types Ze emits carry the U-bit Section 2 requires (fixed in a9d0b54387, 2026-09-20).
 
 ## Coverage
 
@@ -109,98 +110,98 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8362-2-1` | "For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them." (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC8362ExtendedLSAsSetUBitOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L66). **negative:** `unit/verify` [`TestRFC8362BaseLSAsKeepUBitClearOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L98) |
-| `RFC8362-3.1.1-1` | "If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored." (§3.1.1) | MUST | 3.1.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.2-1` | The Router-Link TLV is only applicable to the E-Router-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.3-1` | The Attached-Routers TLV is only applicable to the E-Network-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.4-1` | The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.4) | MUST | 3.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.5-1` | The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.5) | MUST | 3.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.6-1` | The External-Prefix TLV is only applicable to the E-AS-External-LSA and the E-NSSA-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.6) | MUST | 3.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.7-1` | The Intra-Area-Prefix TLV is only applicable to the E-Link-LSA and the E-Intra-Area-Prefix-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.7) | MUST | 3.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.8-1` | The IPv6 Link-Local Address TLV is only applicable to the E-Link-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.8) | MUST | 3.8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.9-1` | The IPv4 Link-Local Address TLV is only applicable to the E-Link-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.9) | MUST | 3.9 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.10-1` | Of the IPv6-Forwarding-Address sub-TLV, "the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored." (§3.10) | MUST | 3.10 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.10-2` | "The IPv6-Forwarding-Address TLV is to be used with IPv6 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families." (§3.10) | MUST | 3.10 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.11-1` | Of the IPv4-Forwarding-Address sub-TLV, "the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored." (§3.11) | MUST | 3.11 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.11-2` | "The IPv4-Forwarding-Address TLV is to be used with IPv4 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families." (§3.11) | MUST | 3.11 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.12-1` | Of the Route-Tag sub-TLV, "the first specified instance is used as the Route Tag as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored." (§3.12) | MUST | 3.12 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.2-1` | In the E-Network-LSA, "Instances of the Attached-Router TLV subsequent to the first MUST be ignored." (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.3-1` | "In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Prefix LSA MUST contain a single Inter-Area-Prefix TLV." (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.3-2` | In the E-Inter-Area-Prefix-LSA, "Instances of the Inter-Area-Prefix TLV subsequent to the first MUST be ignored." (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.4-1` | "In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Router-LSA MUST contain a single Inter-Area-Router TLV." (§4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.4-2` | In the E-Inter-Area-Router-LSA, "Instances of the Inter-Area-Router TLV subsequent to the first MUST be ignored." (§4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.5-1` | For the E-AS-External-LSA, "In order to retain compatibility and semantics with the current OSPFv3 specification, each LSA MUST contain a single External-Prefix TLV." (§4.5) | MUST | 4.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.5-2` | In the E-AS-External-LSA, "Instances of the External-Prefix TLV subsequent to the first MUST be ignored." (§4.5) | MUST | 4.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.7-1` | Of the IPv6 Link-Local Address TLV in the E-Link-LSA, "Instances following the first MUST be ignored." (§4.7) | MUST | 4.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.7-2` | Of the IPv6 Link-Local Address TLV, "For IPv4 address families as defined in [OSPFV3-AF], this TLV MUST be ignored." (§4.7) | MUST | 4.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.7-3` | Of the IPv4 Link-Local Address TLV in the E-Link-LSA, "Instances following the first MUST be ignored." (§4.7) | MUST | 4.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.8-1` | For the E-Intra-Area-Prefix-LSA, "The Referenced LS Type MUST be either an E-Router-LSA (0xA021) or an E-Network-LSA (0xA022)." (§4.8) | MUST | 4.8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-5-1` | "Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded." (§5) | MUST NOT | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-5-2` | "Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs." (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-6.2-1` | In sparse-mode, "if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5." (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-6.3-1` | All implementations MUST adhere to the TLV processing rules, of which rule 1 is: "Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs." (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-6.3-2` | "Whether or not partial deployment of a given TLV is supported MUST be specified." (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-6.3-3` | "If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV." (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-6.3-4` | "If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV." (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-6.3-5` | "Documents specifying future TLVs or Sub-TLVs MUST specify the requirements for usage of those TLVs or sub-TLVs." (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-8.1-1` | Top-level TLV types 32768-33023 are reserved for experimental use; "these will not be registered with IANA and MUST NOT be mentioned by RFCs." (§8.1) | MUST NOT | 8.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-8.1-2` | For top-level TLV types, "Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned." (§8.1) | MUST | 8.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-8.2-1` | Sub-TLV types 32768-33023 are reserved for experimental use; "these will not be registered with IANA and MUST NOT be mentioned by RFCs." (§8.2) | MUST NOT | 8.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-8.2-2` | For sub-TLV types, "Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned." (§8.2) | MUST | 8.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.1-1` | The applicability of the LA-bit is expanded, and "it SHOULD be set in Inter-Area-Prefix TLVs ... when the advertised host IPv6 address ... is an interface address." (§3.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.7-4` | "A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA." (§4.7) | SHOULD | 4.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.7-5` | "Similarly, only a single instance of the IPv4 Link-Local Address TLV (Section 3.9) SHOULD be included in the E-Link-LSA." (§4.7) | SHOULD | 4.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-4.7-6` | Of the IPv4 Link-Local Address TLV, "For OSPFv3 IPv6 address families as defined in [OSPFV3-AF], this TLV SHOULD be ignored." (§4.7) | SHOULD | 4.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-5-3` | "Reception of malformed LSAs SHOULD be counted and/or logged for examination by the administrator of the OSPFv3 routing domain." (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-6-1` | For future TLV-based OSPFv3 LSA extensions, "Both full and, if applicable, partial deployment SHOULD be specified". (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-6.3-6` | "If a TLV or sub-TLV is recognized but the length is less than the minimum, then the LSA should be considered malformed, and it SHOULD NOT be acknowledged." (§6.3) | SHOULD NOT | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-6.3-7` | "Additionally, the occurrence SHOULD be logged with enough information to identify the LSA by type, Link State ID, originator, and sequence number and identify the TLV or sub-TLV in error." (§6.3) | SHOULD | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-B-1` | "disabling AreaExtendedLSASupport for a regular OSPFv3 area (not a Stub or NSSA area) when ExtendedLSASupport is enabled is contradictory and SHOULD be prohibited by implementations." (§B) | SHOULD | B | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3-1` | "In general, TLVs and sub-TLVs MAY occur in any order, and the specification should define whether the TLV or sub-TLV is required and the behavior when there are multiple occurrences of the TLV or sub-TLV." (§3) | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.1-2` | The LA-bit "MAY be set in External-Prefix TLVs when the advertised host IPv6 address ... is an interface address." (§3.1) | MAY | 3.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.1.1-2` | "The advertising router MAY choose NOT to set the N-bit even when the above conditions are met." (§3.1.1) | MAY | 3.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-2-1` | For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC8362ExtendedLSAsSetUBitOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L66). **negative:** `unit/verify` [`TestRFC8362BaseLSAsKeepUBitClearOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L98) |
+| `RFC8362-3.1.1-1` | If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored. (§3.1.1) | MUST | 3.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.2-1` | The Router-Link TLV is only applicable to the E-Router-LSA (Section 4.1). Inclusion in other Extended LSAs MUST be ignored. (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.3-1` | The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). Inclusion in other Extended LSAs MUST be ignored. (§3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.4-1` | The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA (Section 4.3). Inclusion in other Extended LSAs MUST be ignored. (§3.4) | MUST | 3.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.5-1` | The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA (Section 4.4). Inclusion in other Extended LSAs MUST be ignored. (§3.5) | MUST | 3.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.6-1` | The External-Prefix TLV is only applicable to the E-AS-External-LSA (Section 4.5) and the E-NSSA-LSA (Section 4.6). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.6) | MUST | 3.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.7-1` | The Intra-Area-Prefix TLV is only applicable to the E-Link-LSA (Section 4.7) and the E-Intra-Area-Prefix-LSA (Section 4.8). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.7) | MUST | 3.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.8-1` | The IPv6 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.8) | MUST | 3.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.9-1` | The IPv4 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.9) | MUST | 3.9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.10-1` | The sub-TLV is optional and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.10) | MUST | 3.10 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.10-2` | The IPv6-Forwarding-Address TLV is to be used with IPv6 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.10) | MUST | 3.10 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.11-1` | The sub-TLV is optional, and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.11) | MUST | 3.11 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.11-2` | The IPv4-Forwarding-Address TLV is to be used with IPv4 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.11) | MUST | 3.11 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.12-1` | The sub-TLV is optional, and the first specified instance is used as the Route Tag as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.12) | MUST | 3.12 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.2-1` | Instances of the Attached-Router TLV subsequent to the first MUST be ignored. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.3-1` | In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Prefix LSA MUST contain a single Inter-Area-Prefix TLV. (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.3-2` | Instances of the Inter-Area-Prefix TLV subsequent to the first MUST be ignored. (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.4-1` | In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Router-LSA MUST contain a single Inter-Area-Router TLV. (§4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.4-2` | Instances of the Inter-Area-Router TLV subsequent to the first MUST be ignored. (§4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.5-1` | In order to retain compatibility and semantics with the current OSPFv3 specification, each LSA MUST contain a single External-Prefix TLV. (§4.5) | MUST | 4.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.5-2` | Instances of the External-Prefix TLV subsequent to the first MUST be ignored. (§4.5) | MUST | 4.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.7-1` | A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7) | MUST | 4.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.7-2` | A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. For IPv4 address families as defined in [OSPFV3-AF], this TLV MUST be ignored. (§4.7) | MUST | 4.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.7-3` | Similarly, only a single instance of the IPv4 Link-Local Address TLV (Section 3.9) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7) | MUST | 4.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.8-1` | The Referenced LS Type MUST be either an E-Router-LSA (0xA021) or an E-Network-LSA (0xA022). (§4.8) | MUST | 4.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-5-1` | Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded. (§5) | MUST NOT | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-5-2` | Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs. (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-6.2-1` | However, if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5. (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-6.3-1` | To ensure compatibility of future TLV-based LSA extensions, all implementations MUST adhere to these rules: 1. Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs. (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-6.3-2` | Whether or not partial deployment of a given TLV is supported MUST be specified. (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-6.3-3` | If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV. (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-6.3-4` | If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV. (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-6.3-5` | Documents specifying future TLVs or Sub-TLVs MUST specify the requirements for usage of those TLVs or sub-TLVs. (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-8.1-1` | Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.1) | MUST NOT | 8.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-8.1-2` | Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.1) | MUST | 8.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-8.2-1` | Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.2) | MUST NOT | 8.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-8.2-2` | Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.2) | MUST | 8.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.1-1` | The applicability of the LA-bit is expanded, and it SHOULD be set in Inter-Area-Prefix TLVs and MAY be set in External-Prefix TLVs when the advertised host IPv6 address, i.e., PrefixLength = 128 for the IPv6 Address Family or PrefixLength = 32 for the IPv4 Address Family [OSPFV3-AF], is an interface address. (§3.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.7-4` | A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. (§4.7) | SHOULD | 4.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.7-5` | Similarly, only a single instance of the IPv4 Link-Local Address TLV (Section 3.9) SHOULD be included in the E-Link-LSA. (§4.7) | SHOULD | 4.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-4.7-6` | Similarly, only a single instance of the IPv4 Link-Local Address TLV (Section 3.9) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. For OSPFv3 IPv6 address families as defined in [OSPFV3-AF], this TLV SHOULD be ignored. (§4.7) | SHOULD | 4.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-5-3` | Reception of malformed LSAs SHOULD be counted and/or logged for examination by the administrator of the OSPFv3 routing domain. (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-6-1` | Both full and, if applicable, partial deployment SHOULD be specified for future TLV- based OSPFv3 LSA extensions. (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-6.3-6` | If a TLV or sub-TLV is recognized but the length is less than the minimum, then the LSA should be considered malformed, and it SHOULD NOT be acknowledged. (§6.3) | SHOULD NOT | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-6.3-7` | Additionally, the occurrence SHOULD be logged with enough information to identify the LSA by type, Link State ID, originator, and sequence number and identify the TLV or sub-TLV in error. (§6.3) | SHOULD | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-B-1` | For regular areas, i.e., areas where AS-scoped LSAs are flooded, disabling AreaExtendedLSASupport for a regular OSPFv3 area (not a Stub or NSSA area) when ExtendedLSASupport is enabled is contradictory and SHOULD be prohibited by implementations. (§B) | SHOULD | B | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3-1` | In general, TLVs and sub-TLVs MAY occur in any order, and the specification should define whether the TLV or sub-TLV is required and the behavior when there are multiple occurrences of the TLV or sub-TLV. (§3) | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.1-2` | The applicability of the LA-bit is expanded, and it SHOULD be set in Inter-Area-Prefix TLVs and MAY be set in External-Prefix TLVs when the advertised host IPv6 address, i.e., PrefixLength = 128 for the IPv6 Address Family or PrefixLength = 32 for the IPv4 Address Family [OSPFV3-AF], is an interface address. (§3.1) | MAY | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.1.1-2` | The advertising router MAY choose NOT to set the N-bit even when the above conditions are met. (§3.1.1) | MAY | 3.1.1 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC8362-3.1.1-1`](#rfc8362-3.1.1-1) "If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored." (§3.1.1) | no test | no test carries this requirement id |
-| [`RFC8362-3.2-1`](#rfc8362-3.2-1) The Router-Link TLV is only applicable to the E-Router-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.2) | no test | no test carries this requirement id |
-| [`RFC8362-3.3-1`](#rfc8362-3.3-1) The Attached-Routers TLV is only applicable to the E-Network-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.3) | no test | no test carries this requirement id |
-| [`RFC8362-3.4-1`](#rfc8362-3.4-1) The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.4) | no test | no test carries this requirement id |
-| [`RFC8362-3.5-1`](#rfc8362-3.5-1) The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.5) | no test | no test carries this requirement id |
-| [`RFC8362-3.6-1`](#rfc8362-3.6-1) The External-Prefix TLV is only applicable to the E-AS-External-LSA and the E-NSSA-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.6) | no test | no test carries this requirement id |
-| [`RFC8362-3.7-1`](#rfc8362-3.7-1) The Intra-Area-Prefix TLV is only applicable to the E-Link-LSA and the E-Intra-Area-Prefix-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.7) | no test | no test carries this requirement id |
-| [`RFC8362-3.8-1`](#rfc8362-3.8-1) The IPv6 Link-Local Address TLV is only applicable to the E-Link-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.8) | no test | no test carries this requirement id |
-| [`RFC8362-3.9-1`](#rfc8362-3.9-1) The IPv4 Link-Local Address TLV is only applicable to the E-Link-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.9) | no test | no test carries this requirement id |
-| [`RFC8362-3.10-1`](#rfc8362-3.10-1) Of the IPv6-Forwarding-Address sub-TLV, "the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored." (§3.10) | no test | no test carries this requirement id |
-| [`RFC8362-3.10-2`](#rfc8362-3.10-2) "The IPv6-Forwarding-Address TLV is to be used with IPv6 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families." (§3.10) | no test | no test carries this requirement id |
-| [`RFC8362-3.11-1`](#rfc8362-3.11-1) Of the IPv4-Forwarding-Address sub-TLV, "the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored." (§3.11) | no test | no test carries this requirement id |
-| [`RFC8362-3.11-2`](#rfc8362-3.11-2) "The IPv4-Forwarding-Address TLV is to be used with IPv4 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families." (§3.11) | no test | no test carries this requirement id |
-| [`RFC8362-3.12-1`](#rfc8362-3.12-1) Of the Route-Tag sub-TLV, "the first specified instance is used as the Route Tag as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored." (§3.12) | no test | no test carries this requirement id |
-| [`RFC8362-4.2-1`](#rfc8362-4.2-1) In the E-Network-LSA, "Instances of the Attached-Router TLV subsequent to the first MUST be ignored." (§4.2) | no test | no test carries this requirement id |
-| [`RFC8362-4.3-1`](#rfc8362-4.3-1) "In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Prefix LSA MUST contain a single Inter-Area-Prefix TLV." (§4.3) | no test | no test carries this requirement id |
-| [`RFC8362-4.3-2`](#rfc8362-4.3-2) In the E-Inter-Area-Prefix-LSA, "Instances of the Inter-Area-Prefix TLV subsequent to the first MUST be ignored." (§4.3) | no test | no test carries this requirement id |
-| [`RFC8362-4.4-1`](#rfc8362-4.4-1) "In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Router-LSA MUST contain a single Inter-Area-Router TLV." (§4.4) | no test | no test carries this requirement id |
-| [`RFC8362-4.4-2`](#rfc8362-4.4-2) In the E-Inter-Area-Router-LSA, "Instances of the Inter-Area-Router TLV subsequent to the first MUST be ignored." (§4.4) | no test | no test carries this requirement id |
-| [`RFC8362-4.5-1`](#rfc8362-4.5-1) For the E-AS-External-LSA, "In order to retain compatibility and semantics with the current OSPFv3 specification, each LSA MUST contain a single External-Prefix TLV." (§4.5) | no test | no test carries this requirement id |
-| [`RFC8362-4.5-2`](#rfc8362-4.5-2) In the E-AS-External-LSA, "Instances of the External-Prefix TLV subsequent to the first MUST be ignored." (§4.5) | no test | no test carries this requirement id |
-| [`RFC8362-4.7-1`](#rfc8362-4.7-1) Of the IPv6 Link-Local Address TLV in the E-Link-LSA, "Instances following the first MUST be ignored." (§4.7) | no test | no test carries this requirement id |
-| [`RFC8362-4.7-2`](#rfc8362-4.7-2) Of the IPv6 Link-Local Address TLV, "For IPv4 address families as defined in [OSPFV3-AF], this TLV MUST be ignored." (§4.7) | no test | no test carries this requirement id |
-| [`RFC8362-4.7-3`](#rfc8362-4.7-3) Of the IPv4 Link-Local Address TLV in the E-Link-LSA, "Instances following the first MUST be ignored." (§4.7) | no test | no test carries this requirement id |
-| [`RFC8362-4.8-1`](#rfc8362-4.8-1) For the E-Intra-Area-Prefix-LSA, "The Referenced LS Type MUST be either an E-Router-LSA (0xA021) or an E-Network-LSA (0xA022)." (§4.8) | no test | no test carries this requirement id |
-| [`RFC8362-5-1`](#rfc8362-5-1) "Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded." (§5) | no test | no test carries this requirement id |
-| [`RFC8362-5-2`](#rfc8362-5-2) "Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs." (§5) | no test | no test carries this requirement id |
-| [`RFC8362-6.2-1`](#rfc8362-6.2-1) In sparse-mode, "if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5." (§6.2) | no test | no test carries this requirement id |
-| [`RFC8362-6.3-1`](#rfc8362-6.3-1) All implementations MUST adhere to the TLV processing rules, of which rule 1 is: "Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs." (§6.3) | no test | no test carries this requirement id |
-| [`RFC8362-6.3-2`](#rfc8362-6.3-2) "Whether or not partial deployment of a given TLV is supported MUST be specified." (§6.3) | no test | no test carries this requirement id |
-| [`RFC8362-6.3-3`](#rfc8362-6.3-3) "If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV." (§6.3) | no test | no test carries this requirement id |
-| [`RFC8362-6.3-4`](#rfc8362-6.3-4) "If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV." (§6.3) | no test | no test carries this requirement id |
-| [`RFC8362-6.3-5`](#rfc8362-6.3-5) "Documents specifying future TLVs or Sub-TLVs MUST specify the requirements for usage of those TLVs or sub-TLVs." (§6.3) | no test | no test carries this requirement id |
-| [`RFC8362-8.1-1`](#rfc8362-8.1-1) Top-level TLV types 32768-33023 are reserved for experimental use; "these will not be registered with IANA and MUST NOT be mentioned by RFCs." (§8.1) | no test | no test carries this requirement id |
-| [`RFC8362-8.1-2`](#rfc8362-8.1-2) For top-level TLV types, "Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned." (§8.1) | no test | no test carries this requirement id |
-| [`RFC8362-8.2-1`](#rfc8362-8.2-1) Sub-TLV types 32768-33023 are reserved for experimental use; "these will not be registered with IANA and MUST NOT be mentioned by RFCs." (§8.2) | no test | no test carries this requirement id |
-| [`RFC8362-8.2-2`](#rfc8362-8.2-2) For sub-TLV types, "Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned." (§8.2) | no test | no test carries this requirement id |
+| [`RFC8362-3.1.1-1`](#rfc8362-3.1.1-1) If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored. (§3.1.1) | no test | no test carries this requirement id |
+| [`RFC8362-3.2-1`](#rfc8362-3.2-1) The Router-Link TLV is only applicable to the E-Router-LSA (Section 4.1). Inclusion in other Extended LSAs MUST be ignored. (§3.2) | no test | no test carries this requirement id |
+| [`RFC8362-3.3-1`](#rfc8362-3.3-1) The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). Inclusion in other Extended LSAs MUST be ignored. (§3.3) | no test | no test carries this requirement id |
+| [`RFC8362-3.4-1`](#rfc8362-3.4-1) The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA (Section 4.3). Inclusion in other Extended LSAs MUST be ignored. (§3.4) | no test | no test carries this requirement id |
+| [`RFC8362-3.5-1`](#rfc8362-3.5-1) The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA (Section 4.4). Inclusion in other Extended LSAs MUST be ignored. (§3.5) | no test | no test carries this requirement id |
+| [`RFC8362-3.6-1`](#rfc8362-3.6-1) The External-Prefix TLV is only applicable to the E-AS-External-LSA (Section 4.5) and the E-NSSA-LSA (Section 4.6). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.6) | no test | no test carries this requirement id |
+| [`RFC8362-3.7-1`](#rfc8362-3.7-1) The Intra-Area-Prefix TLV is only applicable to the E-Link-LSA (Section 4.7) and the E-Intra-Area-Prefix-LSA (Section 4.8). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.7) | no test | no test carries this requirement id |
+| [`RFC8362-3.8-1`](#rfc8362-3.8-1) The IPv6 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.8) | no test | no test carries this requirement id |
+| [`RFC8362-3.9-1`](#rfc8362-3.9-1) The IPv4 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.9) | no test | no test carries this requirement id |
+| [`RFC8362-3.10-1`](#rfc8362-3.10-1) The sub-TLV is optional and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.10) | no test | no test carries this requirement id |
+| [`RFC8362-3.10-2`](#rfc8362-3.10-2) The IPv6-Forwarding-Address TLV is to be used with IPv6 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.10) | no test | no test carries this requirement id |
+| [`RFC8362-3.11-1`](#rfc8362-3.11-1) The sub-TLV is optional, and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.11) | no test | no test carries this requirement id |
+| [`RFC8362-3.11-2`](#rfc8362-3.11-2) The IPv4-Forwarding-Address TLV is to be used with IPv4 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.11) | no test | no test carries this requirement id |
+| [`RFC8362-3.12-1`](#rfc8362-3.12-1) The sub-TLV is optional, and the first specified instance is used as the Route Tag as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.12) | no test | no test carries this requirement id |
+| [`RFC8362-4.2-1`](#rfc8362-4.2-1) Instances of the Attached-Router TLV subsequent to the first MUST be ignored. (§4.2) | no test | no test carries this requirement id |
+| [`RFC8362-4.3-1`](#rfc8362-4.3-1) In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Prefix LSA MUST contain a single Inter-Area-Prefix TLV. (§4.3) | no test | no test carries this requirement id |
+| [`RFC8362-4.3-2`](#rfc8362-4.3-2) Instances of the Inter-Area-Prefix TLV subsequent to the first MUST be ignored. (§4.3) | no test | no test carries this requirement id |
+| [`RFC8362-4.4-1`](#rfc8362-4.4-1) In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Router-LSA MUST contain a single Inter-Area-Router TLV. (§4.4) | no test | no test carries this requirement id |
+| [`RFC8362-4.4-2`](#rfc8362-4.4-2) Instances of the Inter-Area-Router TLV subsequent to the first MUST be ignored. (§4.4) | no test | no test carries this requirement id |
+| [`RFC8362-4.5-1`](#rfc8362-4.5-1) In order to retain compatibility and semantics with the current OSPFv3 specification, each LSA MUST contain a single External-Prefix TLV. (§4.5) | no test | no test carries this requirement id |
+| [`RFC8362-4.5-2`](#rfc8362-4.5-2) Instances of the External-Prefix TLV subsequent to the first MUST be ignored. (§4.5) | no test | no test carries this requirement id |
+| [`RFC8362-4.7-1`](#rfc8362-4.7-1) A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7) | no test | no test carries this requirement id |
+| [`RFC8362-4.7-2`](#rfc8362-4.7-2) A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. For IPv4 address families as defined in [OSPFV3-AF], this TLV MUST be ignored. (§4.7) | no test | no test carries this requirement id |
+| [`RFC8362-4.7-3`](#rfc8362-4.7-3) Similarly, only a single instance of the IPv4 Link-Local Address TLV (Section 3.9) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7) | no test | no test carries this requirement id |
+| [`RFC8362-4.8-1`](#rfc8362-4.8-1) The Referenced LS Type MUST be either an E-Router-LSA (0xA021) or an E-Network-LSA (0xA022). (§4.8) | no test | no test carries this requirement id |
+| [`RFC8362-5-1`](#rfc8362-5-1) Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded. (§5) | no test | no test carries this requirement id |
+| [`RFC8362-5-2`](#rfc8362-5-2) Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs. (§5) | no test | no test carries this requirement id |
+| [`RFC8362-6.2-1`](#rfc8362-6.2-1) However, if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5. (§6.2) | no test | no test carries this requirement id |
+| [`RFC8362-6.3-1`](#rfc8362-6.3-1) To ensure compatibility of future TLV-based LSA extensions, all implementations MUST adhere to these rules: 1. Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs. (§6.3) | no test | no test carries this requirement id |
+| [`RFC8362-6.3-2`](#rfc8362-6.3-2) Whether or not partial deployment of a given TLV is supported MUST be specified. (§6.3) | no test | no test carries this requirement id |
+| [`RFC8362-6.3-3`](#rfc8362-6.3-3) If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV. (§6.3) | no test | no test carries this requirement id |
+| [`RFC8362-6.3-4`](#rfc8362-6.3-4) If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV. (§6.3) | no test | no test carries this requirement id |
+| [`RFC8362-6.3-5`](#rfc8362-6.3-5) Documents specifying future TLVs or Sub-TLVs MUST specify the requirements for usage of those TLVs or sub-TLVs. (§6.3) | no test | no test carries this requirement id |
+| [`RFC8362-8.1-1`](#rfc8362-8.1-1) Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.1) | no test | no test carries this requirement id |
+| [`RFC8362-8.1-2`](#rfc8362-8.1-2) Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.1) | no test | no test carries this requirement id |
+| [`RFC8362-8.2-1`](#rfc8362-8.2-1) Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.2) | no test | no test carries this requirement id |
+| [`RFC8362-8.2-2`](#rfc8362-8.2-2) Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.2) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -208,7 +209,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC8362-2-1`](#rfc8362-2-1)
 
-"For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them." (§2)
+For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them. (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -219,7 +220,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8362-3.1.1-1`](#rfc8362-3.1.1-1)
 
-"If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored." (§3.1.1)
+If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored. (§3.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -227,7 +228,7 @@ No test carries RFC8362-3.1.1-1, so no unit is bound to it.
 
 ### [`RFC8362-3.2-1`](#rfc8362-3.2-1)
 
-The Router-Link TLV is only applicable to the E-Router-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.2)
+The Router-Link TLV is only applicable to the E-Router-LSA (Section 4.1). Inclusion in other Extended LSAs MUST be ignored. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -235,7 +236,7 @@ No test carries RFC8362-3.2-1, so no unit is bound to it.
 
 ### [`RFC8362-3.3-1`](#rfc8362-3.3-1)
 
-The Attached-Routers TLV is only applicable to the E-Network-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.3)
+The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). Inclusion in other Extended LSAs MUST be ignored. (§3.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -243,7 +244,7 @@ No test carries RFC8362-3.3-1, so no unit is bound to it.
 
 ### [`RFC8362-3.4-1`](#rfc8362-3.4-1)
 
-The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.4)
+The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA (Section 4.3). Inclusion in other Extended LSAs MUST be ignored. (§3.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -251,7 +252,7 @@ No test carries RFC8362-3.4-1, so no unit is bound to it.
 
 ### [`RFC8362-3.5-1`](#rfc8362-3.5-1)
 
-The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.5)
+The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA (Section 4.4). Inclusion in other Extended LSAs MUST be ignored. (§3.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -259,7 +260,7 @@ No test carries RFC8362-3.5-1, so no unit is bound to it.
 
 ### [`RFC8362-3.6-1`](#rfc8362-3.6-1)
 
-The External-Prefix TLV is only applicable to the E-AS-External-LSA and the E-NSSA-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.6)
+The External-Prefix TLV is only applicable to the E-AS-External-LSA (Section 4.5) and the E-NSSA-LSA (Section 4.6). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -267,7 +268,7 @@ No test carries RFC8362-3.6-1, so no unit is bound to it.
 
 ### [`RFC8362-3.7-1`](#rfc8362-3.7-1)
 
-The Intra-Area-Prefix TLV is only applicable to the E-Link-LSA and the E-Intra-Area-Prefix-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.7)
+The Intra-Area-Prefix TLV is only applicable to the E-Link-LSA (Section 4.7) and the E-Intra-Area-Prefix-LSA (Section 4.8). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -275,7 +276,7 @@ No test carries RFC8362-3.7-1, so no unit is bound to it.
 
 ### [`RFC8362-3.8-1`](#rfc8362-3.8-1)
 
-The IPv6 Link-Local Address TLV is only applicable to the E-Link-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.8)
+The IPv6 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.8)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -283,7 +284,7 @@ No test carries RFC8362-3.8-1, so no unit is bound to it.
 
 ### [`RFC8362-3.9-1`](#rfc8362-3.9-1)
 
-The IPv4 Link-Local Address TLV is only applicable to the E-Link-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.9)
+The IPv4 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.9)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -291,7 +292,7 @@ No test carries RFC8362-3.9-1, so no unit is bound to it.
 
 ### [`RFC8362-3.10-1`](#rfc8362-3.10-1)
 
-Of the IPv6-Forwarding-Address sub-TLV, "the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored." (§3.10)
+The sub-TLV is optional and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.10)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -299,7 +300,7 @@ No test carries RFC8362-3.10-1, so no unit is bound to it.
 
 ### [`RFC8362-3.10-2`](#rfc8362-3.10-2)
 
-"The IPv6-Forwarding-Address TLV is to be used with IPv6 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families." (§3.10)
+The IPv6-Forwarding-Address TLV is to be used with IPv6 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.10)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -307,7 +308,7 @@ No test carries RFC8362-3.10-2, so no unit is bound to it.
 
 ### [`RFC8362-3.11-1`](#rfc8362-3.11-1)
 
-Of the IPv4-Forwarding-Address sub-TLV, "the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored." (§3.11)
+The sub-TLV is optional, and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.11)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -315,7 +316,7 @@ No test carries RFC8362-3.11-1, so no unit is bound to it.
 
 ### [`RFC8362-3.11-2`](#rfc8362-3.11-2)
 
-"The IPv4-Forwarding-Address TLV is to be used with IPv4 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families." (§3.11)
+The IPv4-Forwarding-Address TLV is to be used with IPv4 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.11)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -323,7 +324,7 @@ No test carries RFC8362-3.11-2, so no unit is bound to it.
 
 ### [`RFC8362-3.12-1`](#rfc8362-3.12-1)
 
-Of the Route-Tag sub-TLV, "the first specified instance is used as the Route Tag as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored." (§3.12)
+The sub-TLV is optional, and the first specified instance is used as the Route Tag as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.12)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -331,7 +332,7 @@ No test carries RFC8362-3.12-1, so no unit is bound to it.
 
 ### [`RFC8362-4.2-1`](#rfc8362-4.2-1)
 
-In the E-Network-LSA, "Instances of the Attached-Router TLV subsequent to the first MUST be ignored." (§4.2)
+Instances of the Attached-Router TLV subsequent to the first MUST be ignored. (§4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -339,7 +340,7 @@ No test carries RFC8362-4.2-1, so no unit is bound to it.
 
 ### [`RFC8362-4.3-1`](#rfc8362-4.3-1)
 
-"In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Prefix LSA MUST contain a single Inter-Area-Prefix TLV." (§4.3)
+In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Prefix LSA MUST contain a single Inter-Area-Prefix TLV. (§4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -347,7 +348,7 @@ No test carries RFC8362-4.3-1, so no unit is bound to it.
 
 ### [`RFC8362-4.3-2`](#rfc8362-4.3-2)
 
-In the E-Inter-Area-Prefix-LSA, "Instances of the Inter-Area-Prefix TLV subsequent to the first MUST be ignored." (§4.3)
+Instances of the Inter-Area-Prefix TLV subsequent to the first MUST be ignored. (§4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -355,7 +356,7 @@ No test carries RFC8362-4.3-2, so no unit is bound to it.
 
 ### [`RFC8362-4.4-1`](#rfc8362-4.4-1)
 
-"In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Router-LSA MUST contain a single Inter-Area-Router TLV." (§4.4)
+In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Router-LSA MUST contain a single Inter-Area-Router TLV. (§4.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -363,7 +364,7 @@ No test carries RFC8362-4.4-1, so no unit is bound to it.
 
 ### [`RFC8362-4.4-2`](#rfc8362-4.4-2)
 
-In the E-Inter-Area-Router-LSA, "Instances of the Inter-Area-Router TLV subsequent to the first MUST be ignored." (§4.4)
+Instances of the Inter-Area-Router TLV subsequent to the first MUST be ignored. (§4.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -371,7 +372,7 @@ No test carries RFC8362-4.4-2, so no unit is bound to it.
 
 ### [`RFC8362-4.5-1`](#rfc8362-4.5-1)
 
-For the E-AS-External-LSA, "In order to retain compatibility and semantics with the current OSPFv3 specification, each LSA MUST contain a single External-Prefix TLV." (§4.5)
+In order to retain compatibility and semantics with the current OSPFv3 specification, each LSA MUST contain a single External-Prefix TLV. (§4.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -379,7 +380,7 @@ No test carries RFC8362-4.5-1, so no unit is bound to it.
 
 ### [`RFC8362-4.5-2`](#rfc8362-4.5-2)
 
-In the E-AS-External-LSA, "Instances of the External-Prefix TLV subsequent to the first MUST be ignored." (§4.5)
+Instances of the External-Prefix TLV subsequent to the first MUST be ignored. (§4.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -387,7 +388,7 @@ No test carries RFC8362-4.5-2, so no unit is bound to it.
 
 ### [`RFC8362-4.7-1`](#rfc8362-4.7-1)
 
-Of the IPv6 Link-Local Address TLV in the E-Link-LSA, "Instances following the first MUST be ignored." (§4.7)
+A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -395,7 +396,7 @@ No test carries RFC8362-4.7-1, so no unit is bound to it.
 
 ### [`RFC8362-4.7-2`](#rfc8362-4.7-2)
 
-Of the IPv6 Link-Local Address TLV, "For IPv4 address families as defined in [OSPFV3-AF], this TLV MUST be ignored." (§4.7)
+A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. For IPv4 address families as defined in [OSPFV3-AF], this TLV MUST be ignored. (§4.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -403,7 +404,7 @@ No test carries RFC8362-4.7-2, so no unit is bound to it.
 
 ### [`RFC8362-4.7-3`](#rfc8362-4.7-3)
 
-Of the IPv4 Link-Local Address TLV in the E-Link-LSA, "Instances following the first MUST be ignored." (§4.7)
+Similarly, only a single instance of the IPv4 Link-Local Address TLV (Section 3.9) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -411,7 +412,7 @@ No test carries RFC8362-4.7-3, so no unit is bound to it.
 
 ### [`RFC8362-4.8-1`](#rfc8362-4.8-1)
 
-For the E-Intra-Area-Prefix-LSA, "The Referenced LS Type MUST be either an E-Router-LSA (0xA021) or an E-Network-LSA (0xA022)." (§4.8)
+The Referenced LS Type MUST be either an E-Router-LSA (0xA021) or an E-Network-LSA (0xA022). (§4.8)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -419,7 +420,7 @@ No test carries RFC8362-4.8-1, so no unit is bound to it.
 
 ### [`RFC8362-5-1`](#rfc8362-5-1)
 
-"Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded." (§5)
+Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -427,7 +428,7 @@ No test carries RFC8362-5-1, so no unit is bound to it.
 
 ### [`RFC8362-5-2`](#rfc8362-5-2)
 
-"Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs." (§5)
+Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -435,7 +436,7 @@ No test carries RFC8362-5-2, so no unit is bound to it.
 
 ### [`RFC8362-6.2-1`](#rfc8362-6.2-1)
 
-In sparse-mode, "if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5." (§6.2)
+However, if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5. (§6.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -443,7 +444,7 @@ No test carries RFC8362-6.2-1, so no unit is bound to it.
 
 ### [`RFC8362-6.3-1`](#rfc8362-6.3-1)
 
-All implementations MUST adhere to the TLV processing rules, of which rule 1 is: "Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs." (§6.3)
+To ensure compatibility of future TLV-based LSA extensions, all implementations MUST adhere to these rules: 1. Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -451,7 +452,7 @@ No test carries RFC8362-6.3-1, so no unit is bound to it.
 
 ### [`RFC8362-6.3-2`](#rfc8362-6.3-2)
 
-"Whether or not partial deployment of a given TLV is supported MUST be specified." (§6.3)
+Whether or not partial deployment of a given TLV is supported MUST be specified. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -459,7 +460,7 @@ No test carries RFC8362-6.3-2, so no unit is bound to it.
 
 ### [`RFC8362-6.3-3`](#rfc8362-6.3-3)
 
-"If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV." (§6.3)
+If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -467,7 +468,7 @@ No test carries RFC8362-6.3-3, so no unit is bound to it.
 
 ### [`RFC8362-6.3-4`](#rfc8362-6.3-4)
 
-"If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV." (§6.3)
+If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -475,7 +476,7 @@ No test carries RFC8362-6.3-4, so no unit is bound to it.
 
 ### [`RFC8362-6.3-5`](#rfc8362-6.3-5)
 
-"Documents specifying future TLVs or Sub-TLVs MUST specify the requirements for usage of those TLVs or sub-TLVs." (§6.3)
+Documents specifying future TLVs or Sub-TLVs MUST specify the requirements for usage of those TLVs or sub-TLVs. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -483,7 +484,7 @@ No test carries RFC8362-6.3-5, so no unit is bound to it.
 
 ### [`RFC8362-8.1-1`](#rfc8362-8.1-1)
 
-Top-level TLV types 32768-33023 are reserved for experimental use; "these will not be registered with IANA and MUST NOT be mentioned by RFCs." (§8.1)
+Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -491,7 +492,7 @@ No test carries RFC8362-8.1-1, so no unit is bound to it.
 
 ### [`RFC8362-8.1-2`](#rfc8362-8.1-2)
 
-For top-level TLV types, "Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned." (§8.1)
+Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -499,7 +500,7 @@ No test carries RFC8362-8.1-2, so no unit is bound to it.
 
 ### [`RFC8362-8.2-1`](#rfc8362-8.2-1)
 
-Sub-TLV types 32768-33023 are reserved for experimental use; "these will not be registered with IANA and MUST NOT be mentioned by RFCs." (§8.2)
+Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -507,7 +508,7 @@ No test carries RFC8362-8.2-1, so no unit is bound to it.
 
 ### [`RFC8362-8.2-2`](#rfc8362-8.2-2)
 
-For sub-TLV types, "Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned." (§8.2)
+Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.2)
 
 Audit verdict: not audited: no reader has judged these tests
 

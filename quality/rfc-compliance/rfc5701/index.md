@@ -63,11 +63,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 4 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 1 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 6 |
 | Tagged units | 6 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 3 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc5701.md` |
 | Requirement shard | `rfc/requirements/rfc5701.md` |
@@ -109,18 +110,18 @@ One MUST gap, gated in [`rfc/short/rfc5701.md`](https://github.com/ze-software/z
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5701-2-1` | Attribute is optional, transitive (O=1 T=1) per BGP-4 attribute handling (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC5701IPv6ExtCommunityFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L14). **negative:** `unit/verify` [`TestRFC5701IPv6ExtCommunityFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L19) |
-| `RFC5701-2-2` | Each community is encoded as exactly 20 octets (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC5701IPv6ExtCommunityTwentyOctets`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L46). **negative:** `unit/verify` [`TestRFC5701IPv6ExtCommunityTwentyOctets`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L50) |
-| `RFC5701-2-3` | Attribute length must be a multiple of 20 octets (§2, Validation) | MUST | 2 | **positive:** `unit/verify` [`TestRFC5701IPv6ExtCommunityLengthMultipleOf20`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L80). **negative:** `unit/verify` [`TestRFC5701IPv6ExtCommunityLengthMultipleOf20`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L83) |
-| `RFC5701-4-1` | Follow RFC 4271 transitive attribute handling for malformed optional transitive attributes (§4, referencing OPT_TRANS/RFC 7606) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not apply RFC 7606 malformed-attribute handling (treat-as-withdraw) to a malformed IPv6 Address Specific Extended Community (attribute code 25). The RFC 7606 structural validation pass has no per-attribute validator for code 25 (internal/component/bgp/message/rfc7606.go attrValidators[25] is unset), so a code-25 attribute whose length is not a multiple of 20 passes structural validation instead of being treat-as-withdrawn. The lazy value parser ParseIPv6ExtendedCommunities (internal/core/bgp/attribute/community.go:515) does reject a bad length with ErrInvalidLength, but only when the attribute is later accessed, which is not the RFC 4271/7606-mandated optional-transitive treat-as-withdraw at ingest. This is the same code-25 omission already disclosed under RFC 7606 (§7.15). Disclosed in docs/features/rfc-status.md |
-| `RFC5701-2-4` | Non-transitive communities (Type=0x40) should not be propagated to external peers (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5701-2-5` | Organization assigned the IPv6 address can encode any information in Local Administrator field (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5701-2-1` | The IPv6 Address Specific Extended Community Attribute is a transitive, optional BGP attribute [BGP-4]. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC5701IPv6ExtCommunityFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L14). **negative:** `unit/verify` [`TestRFC5701IPv6ExtCommunityFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L19) |
+| `RFC5701-2-2` | Each IPv6 Address Specific extended community is encoded as a 20-octet quantity (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC5701IPv6ExtCommunityTwentyOctets`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L46). **negative:** `unit/verify` [`TestRFC5701IPv6ExtCommunityTwentyOctets`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L50) |
+| `RFC5701-2-3` | The attribute consists of a set of "IPv6 Address Specific extended communities". All routes with the IPv6 Address Specific Extended Community attribute belong to the communities listed in the attribute. Just like all other BGP Extended Communities, the IPv6 Address Specific Extended Community supports multiple sub-types. Each IPv6 Address Specific extended community is encoded as a 20-octet quantity (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC5701IPv6ExtCommunityLengthMultipleOf20`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L80). **negative:** `unit/verify` [`TestRFC5701IPv6ExtCommunityLengthMultipleOf20`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L83) |
+| `RFC5701-4-1` | There is a potential serious issue if a malformed, optional, transitive attribute is received. This issue and the steps to avoid it are discussed in [OPT_TRANS]. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not apply RFC 7606 malformed-attribute handling (treat-as-withdraw) to a malformed IPv6 Address Specific Extended Community (attribute code 25). The RFC 7606 structural validation pass has no per-attribute validator for code 25 (internal/component/bgp/message/rfc7606.go attrValidators[25] is unset), so a code-25 attribute whose length is not a multiple of 20 passes structural validation instead of being treat-as-withdrawn. The lazy value parser ParseIPv6ExtendedCommunities (internal/core/bgp/attribute/community.go:515) does reject a bad length with ErrInvalidLength, but only when the attribute is later accessed, which is not the RFC 4271/7606-mandated optional-transitive treat-as-withdraw at ingest. This is the same code-25 omission already disclosed under RFC 7606 (§7.15). Disclosed in docs/features/rfc-status.md |
+| `RFC5701-2-4` | The first high-order octet indicates whether a particular sub-type of this community is transitive across Autonomous Systems (ASes) (0x00), or not (0x40). (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5701-2-5` | The organization that has been assigned the IPv6 address in the Global Administrator field can encode any information in this field. (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5701-4-1`](#rfc5701-4-1) Follow RFC 4271 transitive attribute handling for malformed optional transitive attributes (§4, referencing OPT_TRANS/RFC 7606) | {gap}, no test | Ze does not apply RFC 7606 malformed-attribute handling (treat-as-withdraw) to a malformed IPv6 Address Specific Extended Community (attribute code 25). The RFC 7606 structural validation pass has no per-attribute validator for code 25 (internal/component/bgp/message/rfc7606.go attrValidators[25] is unset), so a code-25 attribute whose length is not a multiple of 20 passes structural validation instead of being treat-as-withdrawn. The lazy value parser ParseIPv6ExtendedCommunities (internal/core/bgp/attribute/community.go:515) does reject a bad length with ErrInvalidLength, but only when the attribute is later accessed, which is not the RFC 4271/7606-mandated optional-transitive treat-as-withdraw at ingest. This is the same code-25 omission already disclosed under RFC 7606 (§7.15). Disclosed in docs/features/rfc-status.md |
+| [`RFC5701-4-1`](#rfc5701-4-1) There is a potential serious issue if a malformed, optional, transitive attribute is received. This issue and the steps to avoid it are discussed in [OPT_TRANS]. (§4) | {gap}, no test | Ze does not apply RFC 7606 malformed-attribute handling (treat-as-withdraw) to a malformed IPv6 Address Specific Extended Community (attribute code 25). The RFC 7606 structural validation pass has no per-attribute validator for code 25 (internal/component/bgp/message/rfc7606.go attrValidators[25] is unset), so a code-25 attribute whose length is not a multiple of 20 passes structural validation instead of being treat-as-withdrawn. The lazy value parser ParseIPv6ExtendedCommunities (internal/core/bgp/attribute/community.go:515) does reject a bad length with ErrInvalidLength, but only when the attribute is later accessed, which is not the RFC 4271/7606-mandated optional-transitive treat-as-withdraw at ingest. This is the same code-25 omission already disclosed under RFC 7606 (§7.15). Disclosed in docs/features/rfc-status.md |
 
 ## Proof state
 
@@ -128,9 +129,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC5701-2-1`](#rfc5701-2-1)
 
-Attribute is optional, transitive (O=1 T=1) per BGP-4 attribute handling (§2)
+The IPv6 Address Specific Extended Community Attribute is a transitive, optional BGP attribute [BGP-4]. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: flagging code 25 as anything but optional transitive (0x80 non-transitive, 0x40 well-known, partial on origination). TestRFC5701IPv6ExtCommunityFlags asserts IsOptional, IsTransitive, f != FlagOptional, !IsPartial and f == FlagOptional|FlagTransitive, each red on the corresponding wrong flag byte from Flags() (community.go). Both polarities.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -139,9 +140,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5701-2-2`](#rfc5701-2-2)
 
-Each community is encoded as exactly 20 octets (§2)
+Each IPv6 Address Specific extended community is encoded as a 20-octet quantity (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: encoding a community on any stride but 20 octets (e.g. the 8-octet RFC 4360 stride). TestRFC5701IPv6ExtCommunityTwentyOctets asserts Len() == 40 and WriteTo n == 40 for two communities, and buf[20] == 0xBB with buf[8], buf[16] != 0xBB, red on any other per-community size. Both polarities.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -150,9 +151,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5701-2-3`](#rfc5701-2-3)
 
-Attribute length must be a multiple of 20 octets (§2, Validation)
+The attribute consists of a set of "IPv6 Address Specific extended communities". All routes with the IPv6 Address Specific Extended Community attribute belong to the communities listed in the attribute. Just like all other BGP Extended Communities, the IPv6 Address Specific Extended Community supports multiple sub-types. Each IPv6 Address Specific extended community is encoded as a 20-octet quantity (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. The span states the attribute is a set of 20-octet communities, so a value whose length is not a multiple of 20 is not such a set. Forbidden: parsing a non-multiple length as communities (truncating). TestRFC5701IPv6ExtCommunityLengthMultipleOf20 asserts ParseIPv6ExtendedCommunities accepts 40 octets as exactly 2, and returns ErrInvalidLength for 19, 21, 8, 39 and 41, red on truncation or acceptance. Both polarities. The zero-length and treat-as-withdraw handling is RFC 7606 Section 7.15, row RFC7606-7.15-1.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -161,7 +162,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5701-4-1`](#rfc5701-4-1)
 
-Follow RFC 4271 transitive attribute handling for malformed optional transitive attributes (§4, referencing OPT_TRANS/RFC 7606)
+There is a potential serious issue if a malformed, optional, transitive attribute is received. This issue and the steps to avoid it are discussed in [OPT_TRANS]. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 

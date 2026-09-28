@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5072 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5072: IP Version 6 over PPP. 16 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5072: IP Version 6 over PPP. 16 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5072 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5072: IP Version 6 over PPP. 16 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5072: IP Version 6 over PPP. 16 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5072 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5072: IP Version 6 over PPP. 16 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5072: IP Version 6 over PPP. 16 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>18.8%</strong><b>3 of 16 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>11</strong><b>of 16 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>3</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>19</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>11</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>8</td>
@@ -297,13 +301,13 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-3-1">RFC5072-3-1</code></td><td colspan="3"><span class="rfc-subject">IPV6CP packets MUST NOT be exchanged until PPP has reached the network-layer protocol phase (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-3-1">RFC5072-3-1</code></td><td colspan="3"><span class="rfc-subject">IPV6CP packets may not be exchanged until PPP has reached the network-layer protocol phase. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5072-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L414" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPOpenedEmitsAssigned</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L669" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNoResponseBeforeNetworkPhase</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L405" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPOpenedEmitsAssigned</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L660" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNoResponseBeforeNetworkPhase</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-2-1">RFC5072-2-1</code></td><td colspan="3"><span class="rfc-subject">Before any IPv6 packets may be communicated, PPP MUST reach the network-layer protocol phase, and the IPv6 Control Protocol MUST reach the Opened state. (§2)</span></td></tr>
@@ -311,7 +315,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5072-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L460" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6ServiceStartsOnlyAfterIPv6CPOpened</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L451" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6ServiceStartsOnlyAfterIPv6CPOpened</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze starts its IPv6 service (Router Advertisements) only after IPV6CP reaches Opened, and there is no ze code path that emits an IPv6 packet before Opened to negatively exercise (internal/component/l2tp/ppp/session_run.go:482)</p></td>
 </tr>
@@ -330,8 +334,8 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5072-4.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ipv6cp_test.go#L123" title="internal/component/l2tp/ppp/ipv6cp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPProposesInterfaceID</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1076" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPDuplicateIdentifierOptionIsNotAcked</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1008" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPRequestWithoutIdentifierIsNotAcked</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1067" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPDuplicateIdentifierOptionIsNotAcked</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L999" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPRequestWithoutIdentifierIsNotAcked</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-2">RFC5072-4.1-2</code></td><td colspan="3"><span class="rfc-subject">The interface identifier MUST be unique within the PPP link (§4.1)</span></td></tr>
@@ -339,8 +343,8 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5072-4.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L701" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPInterfaceIDsDiffer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L750" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNaksCollidingInterfaceID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L692" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPInterfaceIDsDiffer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L741" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNaksCollidingInterfaceID</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-3">RFC5072-4.1-3</code></td><td colspan="3"><span class="rfc-subject">If the two interface identifiers are different and the received interface identifier is not zero, the interface identifier MUST be acknowledged, i.e., a Configure-Ack is sent with the requested interface identifier, meaning that the responding peer agrees with the interface identifier requested. (§4.1)</span></td></tr>
@@ -348,16 +352,16 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5072-4.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L787" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPAcksDifferentNonZeroInterfaceID</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L826" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNaksZeroInterfaceID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L778" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPAcksDifferentNonZeroInterfaceID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L817" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNaksZeroInterfaceID</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-4">RFC5072-4.1-4</code></td><td colspan="3"><span class="rfc-subject">If the two interface identifiers are equal and non-zero, Configure-Nak MUST be sent specifying a different non-zero interface-identifier (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-4">RFC5072-4.1-4</code></td><td colspan="3"><span class="rfc-subject">If the two interface identifiers are equal and are not zero, Configure-Nak MUST be sent specifying a different non-zero interface-identifier value suggested for use by the remote peer. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5072-4.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1235" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNakOnEqualNonZeroIdentifiers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1226" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNakOnEqualNonZeroIdentifiers</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Nak&#39;s suggestion is drawn by suggestIPv6CPInterfaceID (ipv6cp.go) and rejects a redraw equal to s.localInterfaceID, so the value ze sends is never the identifier ze holds; the negative shape (an Ack, or a Nak echoing the collision) is what evalIPv6CPRequest&#39;s own unacceptable verdict already forecloses, both-polarity proven under RFC5072-4.1-2&#39;s negative test (TestIPv6CPNaksCollidingInterfaceID)</p></td>
 </tr>
@@ -366,16 +370,16 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5072-4.1-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1279" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPSuggestionDiffersFromLocalIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1270" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPSuggestionDiffersFromLocalIdentifier</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> suggestIPv6CPInterfaceID (ipv6cp.go) rejects and redraws any value equal to s.localInterfaceID, which is the identifier of ze&#39;s own last-sent (or about-to-resend) Configure-Request (see the doc comment on pppSession.localInterfaceID, session.go); TestIPv6CPSuggestionDiffersFromLocalIdentifier exhausts the draw loop rather than exercising a negative case there is no code path to produce</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-6">RFC5072-4.1-6</code></td><td colspan="3"><span class="rfc-subject">If both interface identifiers are zero, negotiation MUST be terminated by transmitting Configure-Reject with IID=0 (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-6">RFC5072-4.1-6</code></td><td colspan="3"><span class="rfc-subject">If the two interface identifiers are equal to zero, the interface identifier&#39;s negotiation MUST be terminated by transmitting the Configure-Reject with the interface-identifier value set to zero. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5072-4.1-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1148" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPBothZeroIsRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1139" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPBothZeroIsRejected</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the negative case -- a zero received identifier that does NOT equal ze&#39;s own zero-if-forced-so local one -- is the ordinary differing-and-zero fork, already both-polarity proven under RFC5072-4.1-3&#39;s negative test (TestIPv6CPNaksZeroInterfaceID), which shows Nak fires rather than Reject; a second test here would re-exercise that same fork rather than a distinct one</p></td>
 </tr>
@@ -384,8 +388,8 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5072-4.1-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L860" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPResendsCRWithNakSuggestedID</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L896" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNakInvalidSuggestionNotAdopted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L851" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPResendsCRWithNakSuggestedID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L887" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNakInvalidSuggestionNotAdopted</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-8">RFC5072-4.1-8</code></td><td colspan="3"><span class="rfc-subject">But if the received interface identifier is equal to the one sent in the last Configure-Nak, a new interface identifier MUST be chosen. (§4.1)</span></td></tr>
@@ -406,7 +410,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> suggestIPv6CPInterfaceID (ipv6cp.go) clears octet 0&#39;s bit 0x02 (canonical bit 6) on every draw; ze never derives a suggestion from a globally unique EUI-48/EUI-64 identifier loaned to the peer, so the exception this MUST carves out is never taken and there is no code path to negatively exercise. Distinct from RFC5072-4.1-11, which is the u bit of ze&#39;s own TENTATIVE identifier (requestIPv6CPInterfaceID&#39;s call to generateIPv6CPInterfaceID) rather than the SUGGESTED one this row and suggestIPv6CPInterfaceID govern -- that row&#39;s gap stands, unchanged by this phase</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-10">RFC5072-4.1-10</code></td><td colspan="3"><span class="rfc-subject">When uniqueness source is link-layer addresses or serial numbers, the &#34;u&#34; bit MUST be set to zero (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-10">RFC5072-4.1-10</code></td><td colspan="3"><span class="rfc-subject">If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the &#34;u&#34; bit of the interface identifier MUST be set to zero (0). (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -429,11 +433,11 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <td>MUST NOT</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5072-4.1-12">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L941" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPInterfaceIDRejectIsFatal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L965" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPUnknownOptionRejectNotFatal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L932" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPInterfaceIDRejectIsFatal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L956" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPUnknownOptionRejectNotFatal</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-3-2">RFC5072-3-2</code></td><td colspan="3"><span class="rfc-subject">Codes other than 1-7 should result in Code-Rejects (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-3-2">RFC5072-3-2</code></td><td colspan="3"><span class="rfc-subject">Only Codes 1 through 7 (Configure-Request, Configure-Ack, Configure-Nak, Configure-Reject, Terminate-Request, Terminate- Ack and Code-Reject) are used. Other Codes should be treated as unrecognized and should result in Code-Rejects. (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3</td>
@@ -442,7 +446,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-3-3">RFC5072-3-3</code></td><td colspan="3"><span class="rfc-subject">IPV6CP packets received before network-layer phase should be silently discarded (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-3-3">RFC5072-3-3</code></td><td colspan="3"><span class="rfc-subject">IPV6CP packets that are received before this phase is reached should be silently discarded. (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3</td>
@@ -451,7 +455,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-13">RFC5072-4.1-13</code></td><td colspan="3"><span class="rfc-subject">The non-zero tentative interface identifier SHOULD be unique to the link and preferably consistently reproducible across initializations (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-13">RFC5072-4.1-13</code></td><td colspan="3"><span class="rfc-subject">The non-zero value of the tentative interface identifier SHOULD be chosen such that the value is unique to the link and, preferably, consistently reproducible across initializations of the IPV6CP finite state machine (administrative Close and reOpen, reboots, etc.). (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -460,16 +464,16 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-14">RFC5072-4.1-14</code></td><td colspan="3"><span class="rfc-subject">A new Configure-Request SHOULD NOT be sent until normal processing would cause it (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-14">RFC5072-4.1-14</code></td><td colspan="3"><span class="rfc-subject">A new Configure-Request SHOULD NOT be sent to the peer until normal processing would cause it to be sent (that is, until a Configure-Nak is received or the Restart timer runs out [1]). (§4.1)</span></td></tr>
 <tr><td></td>
-<td>SHOULD</td>
+<td>SHOULD NOT</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5072-4.1-14">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-15">RFC5072-4.1-15</code></td><td colspan="3"><span class="rfc-subject">A new Configure-Request SHOULD be sent with the new tentative interface identifier when peer&#39;s Nak proposed local value back (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-15">RFC5072-4.1-15</code></td><td colspan="3"><span class="rfc-subject">But if the received interface identifier is equal to the one sent in the last Configure-Nak, a new interface identifier MUST be chosen. In this case, a new Configure- Request SHOULD be sent with the new tentative interface identifier. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -478,7 +482,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-16">RFC5072-4.1-16</code></td><td colspan="3"><span class="rfc-subject">If negotiation is required and peer did not provide the option, it SHOULD be appended to a Configure-Nak (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-16">RFC5072-4.1-16</code></td><td colspan="3"><span class="rfc-subject">If negotiation of the interface identifier is required, and the peer did not provide the option in its Configure-Request, the option SHOULD be appended to a Configure-Nak. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -487,7 +491,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-17">RFC5072-4.1-17</code></td><td colspan="3"><span class="rfc-subject">An implementation SHOULD attempt to negotiate the interface identifier for its end of the PPP connection (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-17">RFC5072-4.1-17</code></td><td colspan="3"><span class="rfc-subject">By default, an implementation SHOULD attempt to negotiate the interface identifier for its end of the PPP connection. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -496,7 +500,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-5-1">RFC5072-5-1</code></td><td colspan="3"><span class="rfc-subject">The interface identifier of IPv6 unicast addresses of a PPP interface SHOULD be negotiated in the IPV6CP phase (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-5-1">RFC5072-5-1</code></td><td colspan="3"><span class="rfc-subject">The interface identifier of IPv6 unicast addresses [5] of a PPP interface SHOULD be negotiated in the IPV6CP phase of the PPP connection setup (see Section 4.1). (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -505,7 +509,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-5-2">RFC5072-5-2</code></td><td colspan="3"><span class="rfc-subject">It SHOULD NOT be assumed that the same interface identifier is used for global unicast addresses via SLAAC (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-5-2">RFC5072-5-2</code></td><td colspan="3"><span class="rfc-subject">However, it SHOULD NOT be assumed that the same interface identifier is used in configuring global unicast addresses for the PPP interface using IPv6 stateless address autoconfiguration [3]. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>5</td>
@@ -514,7 +518,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-5-3">RFC5072-5-3</code></td><td colspan="3"><span class="rfc-subject">Default DupAddrDetectTransmits SHOULD be zero when IPV6CP negotiated unique identifiers on an exclusive-prefix PPP link (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-5-3">RFC5072-5-3</code></td><td colspan="3"><span class="rfc-subject">Therefore, it is RECOMMENDED that for PPP links with the IPV6CP interface-identifier option enabled and satisfying the aforementioned two conditions, the default value of the DupAddrDetectTransmits autoconfiguration variable [3] is set to zero by the system management. (§5)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>5</td>
@@ -523,7 +527,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-5-4">RFC5072-5-4</code></td><td colspan="3"><span class="rfc-subject">The PPP peer MAY generate interface identifiers using RFC 4941 methods to autoconfigure global unicast addresses (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-5-4">RFC5072-5-4</code></td><td colspan="3"><span class="rfc-subject">The PPP peer MAY generate one or more interface identifiers, for instance, using a method described in [8], to autoconfigure one or more global unicast addresses. (§5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5</td>
@@ -532,7 +536,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-18">RFC5072-4.1-18</code></td><td colspan="3"><span class="rfc-subject">If no usable identifier can be produced, it MAY send zero to request the peer to supply one (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-18">RFC5072-4.1-18</code></td><td colspan="3"><span class="rfc-subject">If neither a unique number nor a random number can be generated, it is recommended that a zero value be used for the interface identifier transmitted in the Configure-Request. In this case, the PPP peer may provide a valid non-zero interface identifier in its response as described below. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.1</td>
@@ -541,12 +545,12 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-19">RFC5072-4.1-19</code></td><td colspan="3"><span class="rfc-subject">Having Configure-Naked a Configure-Request that omitted the interface-identifier option once, an implementation MUST NOT Configure-Nak a further Configure-Request that also omits it (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5072-4.1-19">RFC5072-4.1-19</code></td><td colspan="3"><span class="rfc-subject">If the next Configure-Request does not include this option, the peer MUST NOT send another Configure-Nak with this option included. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5072-4.1-19">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1039" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPMissingOptionIsNakedOnce</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1030" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPMissingOptionIsNakedOnce</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the violating shape (Naking the option-less request a second time) is exactly the pre-fix defect this MUST NOT closes, and TestIPv6CPMissingOptionIsNakedOnce proves both halves of the single-session sequence -- Nak the first time, Ack rather than Nak the second -- inside one test rather than a separate negative one</p></td>
 </tr>
@@ -567,7 +571,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <td>{gap}, no test</td>
 <td>absorbIPv6CPNak adopts the peer&#39;s suggestion unconditionally; ze keeps no record of the IID it suggested in its own last Nak and never regenerates on oscillation (internal/component/l2tp/ppp/ncp.go:479-487)</td>
 </tr>
-<tr><td><a href="#rfc5072-4.1-10"><code>RFC5072-4.1-10</code></a> When uniqueness source is link-layer addresses or serial numbers, the &#34;u&#34; bit MUST be set to zero (§4.1)</td>
+<tr><td><a href="#rfc5072-4.1-10"><code>RFC5072-4.1-10</code></a> If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the &#34;u&#34; bit of the interface identifier MUST be set to zero (0). (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s sole interface-identifier source is crypto/rand; it never derives an identifier from a link-layer address or serial number, so this source-specific clause binds a code path ze does not have (internal/component/l2tp/ppp/ipv6cp.go:133)</td>
 </tr>
@@ -582,19 +586,19 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5072-3-1"><code>RFC5072-3-1</code></a></h3>
-<p>IPV6CP packets MUST NOT be exchanged until PPP has reached the network-layer protocol phase (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>IPV6CP packets may not be exchanged until PPP has reached the network-layer protocol phase. (§3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: IPV6CP exchanged before the network-layer phase, in either direction. Receive half enforced: TestIPv6CPNoResponseBeforeNetworkPhase fails on chanFile.Len() != 0 when a pre-network Configure-Request is answered. Send half unproven: TestIPv6CPOpenedEmitsAssigned (positive) asserts only EventSessionIPAssigned family/InterfaceID and no AddAddressP2P call; nothing goes red if ze emitted its own IPV6CP Configure-Request before LCP/authentication completed (startNCP called before runNCPPhase).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L669" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNoResponseBeforeNetworkPhase</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L660" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNoResponseBeforeNetworkPhase</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L414" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPOpenedEmitsAssigned</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L405" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPOpenedEmitsAssigned</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -603,13 +607,13 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 </div>
 <h3><a href="#rfc5072-2-1"><code>RFC5072-2-1</code></a></h3>
 <p>Before any IPv6 packets may be communicated, PPP MUST reach the network-layer protocol phase, and the IPv6 Control Protocol MUST reach the Opened state. (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: ze originating IPv6 packets (RA/DHCPv6 via startIPv6Service) before IPV6CP reaches Opened or before the network phase. TestIPv6ServiceStartsOnlyAfterIPv6CPOpened&#39;s control subtest goes red only when the service starts with IPV6CP disabled entirely (state Initial); a regression guarding on any non-Initial IPV6CP state (ReqSent/AckRcvd) or starting the service before Opened in an IPv6CP-enabled session passes both subtests, and the opened subtest only checks the start happened by EventSessionUp, not that it did not happen earlier. No assertion pins the Opened state specifically.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L460" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6ServiceStartsOnlyAfterIPv6CPOpened</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L451" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6ServiceStartsOnlyAfterIPv6CPOpened</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -622,18 +626,18 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <p>No test carries RFC5072-2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5072-4.1-1"><code>RFC5072-4.1-1</code></a></h3>
 <p>A Configure- Request MUST contain exactly one instance of the interface-identifier option [1]. (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Configure-Request with zero or more than one interface-identifier option. Sent side: TestIPv6CPProposesInterfaceID counts type-1 options in ze&#39;s raw initial CR and fails on iidCount != 1 (red on zero or two). Received side: TestIPv6CPRequestWithoutIdentifierIsNotAcked fails when a zero-option CR is ncpRequestAcceptable; TestIPv6CPDuplicateIdentifierOptionIsNotAcked fails when a two-option CR is Acked. Both polarities, both counts covered.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1076" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPDuplicateIdentifierOptionIsNotAcked</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1067" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPDuplicateIdentifierOptionIsNotAcked</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1008" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPRequestWithoutIdentifierIsNotAcked</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L999" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPRequestWithoutIdentifierIsNotAcked</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -653,12 +657,12 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L750" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNaksCollidingInterfaceID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L741" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNaksCollidingInterfaceID</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L701" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPInterfaceIDsDiffer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L692" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPInterfaceIDsDiffer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -667,18 +671,18 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 </div>
 <h3><a href="#rfc5072-4.1-3"><code>RFC5072-4.1-3</code></a></h3>
 <p>If the two interface identifiers are different and the received interface identifier is not zero, the interface identifier MUST be acknowledged, i.e., a Configure-Ack is sent with the requested interface identifier, meaning that the responding peer agrees with the interface identifier requested. (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: Nak/Reject of a different non-zero identifier, or an Ack carrying a value other than the requested one. TestIPv6CPAcksDifferentNonZeroInterfaceID fails on response code != Configure-Ack and on ackOpts.InterfaceID != the requested ipv6cpTestPeerID. Negative TestIPv6CPNaksZeroInterfaceID fails when a zero identifier is Acked, bounding the non-zero condition.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L826" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNaksZeroInterfaceID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L817" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNaksZeroInterfaceID</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L787" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPAcksDifferentNonZeroInterfaceID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L778" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPAcksDifferentNonZeroInterfaceID</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -686,14 +690,14 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 </table>
 </div>
 <h3><a href="#rfc5072-4.1-4"><code>RFC5072-4.1-4</code></a></h3>
-<p>If the two interface identifiers are equal and non-zero, Configure-Nak MUST be sent specifying a different non-zero interface-identifier (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the two interface identifiers are equal and are not zero, Configure-Nak MUST be sent specifying a different non-zero interface-identifier value suggested for use by the remote peer. (§4.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: answering equal non-zero identifiers with Ack or Reject, or a Nak whose suggestion equals the colliding value or is zero. TestIPv6CPNakOnEqualNonZeroIdentifiers fails on verdict != unacceptable, code != Configure-Nak, opts.InterfaceID == local (not different) and opts.InterfaceID == zero (not non-zero). Every clause asserted; single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1235" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNakOnEqualNonZeroIdentifiers</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1226" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNakOnEqualNonZeroIdentifiers</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -702,13 +706,13 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 </div>
 <h3><a href="#rfc5072-4.1-5"><code>RFC5072-4.1-5</code></a></h3>
 <p>Such a suggested interface identifier MUST be different from the interface identifier of the last Configure-Request sent to the peer. (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a Nak suggestion equal to the identifier of ze&#39;s last Configure-Request. TestIPv6CPSuggestionDiffersFromLocalIdentifier asserts suggestion != local over 64 draws, but suggestIPv6CPInterfaceID draws from real crypto/rand, so deleting the `id == local` rejection in suggestIPv6CPInterfaceID (ipv6cp.go) leaves the test green (a 64-bit random collision never happens); the marker&#39;s claim that the test exhausts the draw loop is not what the body does. No injected reader forces a colliding draw. Also nothing asserts buildNakOrReject passes s.localInterfaceID rather than another value.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1279" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPSuggestionDiffersFromLocalIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1270" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPSuggestionDiffersFromLocalIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -716,14 +720,14 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 </table>
 </div>
 <h3><a href="#rfc5072-4.1-6"><code>RFC5072-4.1-6</code></a></h3>
-<p>If both interface identifiers are zero, negotiation MUST be terminated by transmitting Configure-Reject with IID=0 (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the two interface identifiers are equal to zero, the interface identifier&#39;s negotiation MUST be terminated by transmitting the Configure-Reject with the interface-identifier value set to zero. (§4.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: answering equal-zero identifiers with a Nak/Ack, or a Reject not carrying the zero identifier. TestIPv6CPBothZeroIsRejected fails on code != Configure-Reject, a Reject missing the Interface-Identifier option, and opts.InterfaceID != zero. The sentence defines termination as transmitting that Reject, which is asserted. Single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1148" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPBothZeroIsRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1139" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPBothZeroIsRejected</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -732,18 +736,18 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 </div>
 <h3><a href="#rfc5072-4.1-7"><code>RFC5072-4.1-7</code></a></h3>
 <p>In this case, a new Configure-Request MUST be sent with the identifier value suggested in the last Configure-Nak from the peer. (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: after a peer Nak with a suggestion, resending the old identifier or none. TestIPv6CPResendsCRWithNakSuggestedID fails when the resent CR lacks the option or opts.InterfaceID != suggested. Negative TestIPv6CPNakInvalidSuggestionNotAdopted fails if an all-zero suggestion is adopted, bounding the rule to usable suggestions.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L896" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNakInvalidSuggestionNotAdopted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L887" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPNakInvalidSuggestionNotAdopted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L860" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPResendsCRWithNakSuggestedID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L851" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPResendsCRWithNakSuggestedID</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -756,7 +760,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <p>No test carries RFC5072-4.1-8, so no unit is bound to it.</p>
 <h3><a href="#rfc5072-4.1-9"><code>RFC5072-4.1-9</code></a></h3>
 <p>The &#34;u&#34; (universal/local) bit of the suggested identifier MUST be set to zero (0) regardless of its source unless the globally unique EUI-48/EUI-64 derived identifier is provided for the exclusive use by the remote peer. (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a suggested identifier with the u bit (canonical bit 6, octet 0 mask 0x02) set. TestIPv6CPSuggestionHasUniversalBitClear fails when suggestion[0]&amp;ipv6cpUniversalLocalBitMask != 0 over 64 random draws; deleting the `&amp;^=` clear in suggestIPv6CPInterfaceID turns it red with probability 1-2^-64. suggestIPv6CPInterfaceID is the only source of buildNakOrReject&#39;s IPv6 Nak value (ncp.go). The EUI exception is never taken by ze; single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -770,7 +774,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 </table>
 </div>
 <h3><a href="#rfc5072-4.1-10"><code>RFC5072-4.1-10</code></a></h3>
-<p>When uniqueness source is link-layer addresses or serial numbers, the &#34;u&#34; bit MUST be set to zero (§4.1)</p>
+<p>If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the &#34;u&#34; bit of the interface identifier MUST be set to zero (0). (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5072-4.1-10, so no unit is bound to it.</p>
 <h3><a href="#rfc5072-4.1-11"><code>RFC5072-4.1-11</code></a></h3>
@@ -779,18 +783,18 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <p>No test carries RFC5072-4.1-11, so no unit is bound to it.</p>
 <h3><a href="#rfc5072-4.1-12"><code>RFC5072-4.1-12</code></a></h3>
 <p>A new Configure-Request MUST NOT contain the interface-identifier option if a valid Interface-Identifier Configure-Reject is received. (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a further Configure-Request carrying the interface-identifier option after a valid Interface-Identifier Configure-Reject. TestIPv6CPInterfaceIDRejectIsFatal fails when no EventSessionDown follows the Reject (absorbIPv6CPReject returns ncpReplyFatal, so no new CR is ever sent); a regression that absorbs and resends keeps the session up and goes red. Negative TestIPv6CPUnknownOptionRejectNotFatal fails if a Reject of an unrequested option stops negotiation.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L965" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPUnknownOptionRejectNotFatal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L956" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPUnknownOptionRejectNotFatal</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L941" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPInterfaceIDRejectIsFatal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L932" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPInterfaceIDRejectIsFatal</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -798,14 +802,14 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 </table>
 </div>
 <h3><a href="#rfc5072-4.1-19"><code>RFC5072-4.1-19</code></a></h3>
-<p>Having Configure-Naked a Configure-Request that omitted the interface-identifier option once, an implementation MUST NOT Configure-Nak a further Configure-Request that also omits it (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the next Configure-Request does not include this option, the peer MUST NOT send another Configure-Nak with this option included. (§4.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: Naking a second option-less Configure-Request after having Naked the first. TestIPv6CPMissingOptionIsNakedOnce fails when the second evalIPv6CPRequest verdict is not ncpRequestAcceptable (i.e. a second Nak). The first-call assertion bounds it. Single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1039" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPMissingOptionIsNakedOnce</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1030" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPv6CPMissingOptionIsNakedOnce</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -822,7 +826,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-09-27</td>
 </tr>
 <tr><td>Register</td>
 <td>rfc2119</td>
@@ -940,6 +944,18 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
 <td>walked</td>
 <td>not stated</td>
 </tr>
+<tr><td><code>A</code></td>
+<td>Appendix A</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix A. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>B</code></td>
+<td>Appendix B</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix B. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -994,7 +1010,7 @@ Gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.m
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

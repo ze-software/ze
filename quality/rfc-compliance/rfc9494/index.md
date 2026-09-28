@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 20.0% | 5 of 25 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 19 | of 25 gated MUSTs judged | 8 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 25 |
 | Not applicable, so out of scope | 2 |
 | Declared gaps | 5 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 42 |
 | Tagged units | 42 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 19 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc9494.md` |
 | Requirement shard | `rfc/requirements/rfc9494.md` |
@@ -120,13 +122,13 @@ Five MUST gaps annotated in [`rfc/short/rfc9494.md`](https://github.com/ze-softw
 | `RFC9494-4.2-5` | * If any of the routes from the peer have been marked with the NO_LLGR community, either as sent by the peer or as the result of a configured policy, they MUST NOT be retained and MUST be removed as per the normal operation of [RFC4271]. (§4.2) | MUST NOT | 4.2 | **positive:** `unit/verify` [`TestDeleteWithCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_gr_test.go#L659). **negative:** `unit/verify` [`TestRFC9494_StaleRouteWithoutNoLLGRRetained`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L63) |
 | `RFC9494-4.2-6` | * The helper router MUST perform the procedures listed in Section 4.3. (§4.2, §4.3) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC9494_LLGRStaleRouteIsLeastPreferred`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L137). **negative:** `unit/verify` [`TestRFC9494_RouteWithoutLLGRStaleNotLeastPreferred`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L175) |
 | `RFC9494-4.2-7` | However, in the case of consecutive restarts, the previously marked stale routes MUST NOT be deleted before the timer for the Long-Lived Stale Time expires. (§4.2) | MUST NOT | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze applies the RFC 4724 Section 4.2 consecutive-restart rule unconditionally, including during an LLGR period -- every activation of a session-down dispatches "request bgp rib purge-stale <peer>" as its first step (internal/component/bgp/plugins/gr/gr.go:362, internal/component/bgp/plugins/gr/gr.go:532), and onSessionDown clears the prior peer state through clearPeerLocked (internal/component/bgp/plugins/gr/gr_state.go:125), so routes marked stale in the previous cycle are deleted at the new session drop rather than kept until their LLST timer expires |
-| `RFC9494-4.2-8` | Once LLGR period begins, helper MUST immediately remove all stale routes if F bit is not set, AFI/SAFI is not listed, or LLGR+GR capabilities are not received in re-established session (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestOnSessionReestablished_DuringLLGR_NoCaps`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L732). **negative:** `unit/verify` [`TestOnSessionReestablished_DuringLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L682) |
+| `RFC9494-4.2-8` | Similar to [RFC4724], once the LLGR Period begins, the Helper MUST immediately remove all the stale routes from the peer that it is retaining for that address family if any of the following occur: * the F bit for a specific address family is not set in the newly received LLGR Capability, or * a specific address family is not included in the newly received LLGR Capability, or * the LLGR and accompanying GR Capability are not received in the re-established session at all. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestOnSessionReestablished_DuringLLGR_NoCaps`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L732). **negative:** `unit/verify` [`TestOnSessionReestablished_DuringLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L682) |
 | `RFC9494-4.2-9` | If a Long-Lived Stale Time timer is running for routes with a given AFI/SAFI received from a peer, it MUST NOT be updated (other than by manual operator intervention) until the peer has established and synchronized a new session. (§4.2) | MUST NOT | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** a consecutive session drop while the peer is already in LLGR replaces the running timer -- onSessionDown calls clearPeerLocked, which stops every LLST timer via stopLLSTTimersLocked (internal/component/bgp/plugins/gr/gr_state.go:125, :457-465, :476-481), and enterLLGRLocked then arms a fresh time.AfterFunc for the family's full LLST (internal/component/bgp/plugins/gr/gr_state.go:384-387), so the remaining Long-Lived Stale Time is reset before the peer has established and synchronized a new session |
-| `RFC9494-4.3-1` | A BGP speaker that advertised LLGR Capability MUST treat LLGR_STALE routes as least preferred in route selection (§4.3, §4.4) | MUST | 4.3 | **positive:** `unit/verify` [`TestComparePair_LLGRStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L812). **negative:** `unit/verify` [`TestComparePair_GRStaleCompetesNormally`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L844) |
+| `RFC9494-4.3-1` | A BGP speaker that has advertised the Long-Lived Graceful Restart Capability to a neighbor MUST perform the following upon receiving a route from that neighbor with the LLGR_STALE community or upon attaching the LLGR_STALE community itself per Section 4.2: * Treat the route as the least preferred in route selection (see below). (§4.3, §4.4) | MUST | 4.3 | **positive:** `unit/verify` [`TestComparePair_LLGRStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L812). **negative:** `unit/verify` [`TestComparePair_GRStaleCompetesNormally`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L844) |
 | `RFC9494-4.3-2` | The LLGR_STALE community MUST NOT be removed when the route is further advertised (§4.3) | MUST NOT | 4.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** two egress paths strip the whole COMMUNITIES attribute with no LLGR_STALE (0xFFFF0006) exemption. applyFactsSendCommunity emits a whole-attribute suppress for code 8 whenever the peer's `send-community` is `none` or omits `standard` (internal/component/bgp/reactor/peer_forward_facts.go:249, mask set at :195-223), and it runs on both readvertise rails (internal/component/bgp/reactor/reactor_api_forward.go:516, internal/component/bgp/reactor/forward_rs.go:343). A `community-remove ffff0006` filter reaches the same attribute through AttrModRemove (internal/component/bgp/reactor/filter_delta.go:270), and removeValues drops every matching 4-octet value without checking which community it is (internal/component/bgp/plugins/filter_community/handler.go:120-131). The RIB-side attach path only appends (internal/component/bgp/plugins/rib/rib_commands_community.go:222-236), but that is not the path on which the community is lost |
 | `RFC9494-4.4-1` | A least preferred route MUST be treated as less preferred than any other route that is not also least preferred. (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestSelectBest_LLGRStaleDepreference`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L743). **negative:** `unit/verify` [`TestSelectBest_BothLLGRStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L771) |
-| `RFC9494-4.5-1` | If LLGR Capability is received without accompanying GR Capability, the LLGR Capability MUST be ignored (§4.5) | MUST | 4.5 | **positive:** `unit/verify` [`TestHandleEventOpenLLGR_NoGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_event_test.go#L327). **negative:** `unit/verify` [`TestHandleEventOpenLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_event_test.go#L288) |
-| `RFC9494-4.6-1` | For partial deployment, neighbors receiving stale routes MUST be internal (IBGP or Confederation) neighbors (§4.6) | MUST | 4.6 | **positive:** `unit/verify` [`TestLLGREgressFilter_IBGPPartial`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L430). **negative:** `unit/verify` [`TestLLGREgressFilter_EBGPNonLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L400) |
+| `RFC9494-4.5-1` | If the LLGR Capability is received without an accompanying GR Capability, the LLGR Capability MUST be ignored, that is, the implementation MUST behave as though no LLGR Capability has been received. (§4.5) | MUST | 4.5 | **positive:** `unit/verify` [`TestHandleEventOpenLLGR_NoGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_event_test.go#L327). **negative:** `unit/verify` [`TestHandleEventOpenLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_event_test.go#L288) |
+| `RFC9494-4.6-1` | The neighbors MUST be internal (Internal BGP (IBGP) or Confederation) neighbors. (§4.6) | MUST | 4.6 | **positive:** `unit/verify` [`TestLLGREgressFilter_IBGPPartial`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L430). **negative:** `unit/verify` [`TestLLGREgressFilter_EBGPNonLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L400) |
 | `RFC9494-4.6-2` | * The NO_EXPORT community [RFC1997] MUST be attached to the stale routes. (§4.6) | MUST | 4.6 | **positive:** `unit/verify` [`TestLLGREgressFilter_IBGPPartial`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L434). **positive:** `unit/verify` [`TestLLGREgressFilter_NilStateDepreferencesIBGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L183). **negative:** `unit/verify` [`TestLLGREgressFilter_LLGRPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L370) |
 | `RFC9494-4.6-3` | * The stale routes MUST have their LOCAL_PREF set to zero. (§4.6) | MUST | 4.6 | **positive:** `unit/verify` [`TestLLGREgressFilter_IBGPPartial`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L437). **positive:** `unit/verify` [`TestLLGREgressFilter_NilStateDepreferencesIBGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L187). **negative:** `unit/verify` [`TestLLGREgressFilter_LLGRPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L374) |
 | `RFC9494-4.7.2-1` | In addition to including the path attributes derived from the ATTR_SET attribute in the advertised route as per [RFC6368], the PE router MUST also include the LLGR_STALE community if it is present in the path attributes of the imported route, even if it is not present in the ATTR_SET attribute. (§4.7.2) | MUST | 4.7.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze has no ATTR_SET attribute and no RFC 6368 iBGP PE-CE model -- the path attribute code table stops at code 40 plus the provisional 252 and contains no code 128 (internal/core/bgp/attribute/attribute.go:46-66), `grep -rni "attr_set\\\|attrset" internal/core/` returns nothing, and `grep -rln "vrf" --include=*.go internal/component/bgp/` returns no file, so there is no PE that imports a VPN route into a CE session |
@@ -134,17 +136,17 @@ Five MUST gaps annotated in [`rfc/short/rfc9494.md`](https://github.com/ze-softw
 | `RFC9494-5-1` | Implementations MUST NOT enable these procedures by default. (§5) | MUST NOT | 5 | **positive:** `unit/verify` [`TestRFC9494_LLGRNotEnabledByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L123). **negative:** `unit/verify` [`TestRFC9494_LLGREnabledByExplicitConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L148) |
 | `RFC9494-5-2` | They MUST require affirmative configuration per AFI/SAFI in order to enable them. (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze requires affirmative configuration, but its granularity is the peer, not the AFI/SAFI -- parseLLGRCapValue reads a single long-lived-stale-time from the peer's (or group's) graceful-restart container and stamps that same LLST onto every negotiated family (internal/component/bgp/plugins/gr/gr_llgr.go:130-171), and the YANG leaf sits in the per-peer capability container with the description "Applied to all negotiated address families for the peer" (internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang), so an operator cannot enable LLGR for one address family and leave another off |
 | `RFC9494-4.2-10` | If the session subsequently resets prior to becoming synchronized, any remaining routes (for the AFI/SAFI whose LLST timer expired) MUST be removed immediately. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze holds no record of an LLST that elapsed during synchronization, because no LLST timer runs then -- onSessionReestablished stops every LLST timer and clears state.inLLGR the moment the session comes back (internal/component/bgp/plugins/gr/gr_state.go:194, :231, :476-481), so the expiry this requirement keys on cannot be observed and the next session reset starts an ordinary GR cycle with a full restart timer (internal/component/bgp/plugins/gr/gr_state.go:153-156) instead of removing the family's remaining routes immediately |
-| `RFC9494-4.2-11` | The LLST timers received SHOULD be modifiable by local configuration (§4.2) | SHOULD | 4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9494-4.3-3` | LLGR_STALE routes SHOULD NOT be advertised to any neighbor from which the LLGR Capability has not been received (§4.3) | SHOULD NOT | 4.3 | **positive:** `unit/verify` [`TestLLGREgressFilter_NilStateWithdrawsEBGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L157). **negative:** `unit/verify` [`TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L341). **positive:** `functional/verify` [`llgr-egress-state-unloaded.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/llgr-egress-state-unloaded.ci#L18) |
-| `RFC9494-4.7.1-1` | When advertising stale routes over PE-CE EBGP session, implementation SHOULD by default attach NO_EXPORT community (§4.7.1) | SHOULD | 4.7.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9494-3.2-1` | An implementation MAY allow users to configure policies for LLGR_STALE community (§3.2) | MAY | 3.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9494-3.3-1` | An implementation MAY allow users to configure policies for NO_LLGR community (§3.3) | MAY | 3.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9494-4.2-12` | The value of LLST received from a neighbor MAY be reduced by local configuration (§4.2) | MAY | 4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9494-4.6-4` | For partial deployment, stale routes MAY be advertised to IBGP neighbors without LLGR Capability (§4.6) | MAY | 4.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9494-4.7.1-2` | An implementation MAY advertise stale routes over a PE-CE session when explicitly configured (§4.7.1) | MAY | 4.7.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9494-4.7.1-3` | The second rule of Section 4.3 MAY be disregarded for PE-CE VPN sessions (§4.7.1) | MAY | 4.7.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9494-4.7.1-4` | Attachment of NO_EXPORT community MAY be disabled by explicit configuration for PE-CE (§4.7.1) | MAY | 4.7.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9494-4.7.2-3` | For IBGP PE-CE when CE does not support LLGR, optional procedures of Section 4.6 MAY be followed, overriding LOCAL_PREF from ATTR_SET (§4.7.2) | MAY | 4.7.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9494-4.2-11` | The timers received in the Long-Lived Graceful Restart Capability SHOULD be modifiable by local configuration, which may impose an upper bound, a lower bound, or both on their respective values. (§4.2) | SHOULD | 4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9494-4.3-3` | The route SHOULD NOT be advertised to any neighbor from which the Long-Lived Graceful Restart Capability has not been received. The exception is described in Section 4.6. (§4.3) | SHOULD NOT | 4.3 | **positive:** `unit/verify` [`TestLLGREgressFilter_NilStateWithdrawsEBGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L157). **negative:** `unit/verify` [`TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L341). **positive:** `functional/verify` [`llgr-egress-state-unloaded.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/llgr-egress-state-unloaded.ci#L18) |
+| `RFC9494-4.7.1-1` | Finally, if this exception is used, the implementation SHOULD, by default, attach the NO_EXPORT community to the routes in question, as an additional protection against stale routes spreading without limit. (§4.7.1) | SHOULD | 4.7.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9494-3.2-1` | An implementation MAY allow users to configure policies that accept, reject, or modify routes based on the presence or absence of this community. (§3.2) | MAY | 3.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9494-3.3-1` | An implementation MAY allow users to configure policies that accept, reject, or modify routes based on the presence or absence of this community. (§3.3) | MAY | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9494-4.2-12` | The value of a Long-Lived Stale Time in the capability received from a neighbor MAY be reduced by local configuration. (§4.2) | MAY | 4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9494-4.6-4` | However, to facilitate incremental deployment, stale routes MAY be advertised to neighbors that have not advertised the Long-Lived Graceful Restart Capability under the following conditions: * The neighbors MUST be internal (Internal BGP (IBGP) or Confederation) neighbors. (§4.6) | MAY | 4.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9494-4.7.1-2` | For this reason, an implementation MAY advertise stale routes over a PE-CE session, when explicitly configured to do so. (§4.7.1) | MAY | 4.7.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9494-4.7.1-3` | an implementation MAY advertise stale routes over a PE-CE session, when explicitly configured to do so. That is, the second rule listed in Section 4.3 MAY be disregarded in such cases. (§4.7.1) | MAY | 4.7.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9494-4.7.1-4` | Attachment of the NO_EXPORT community MAY be disabled by explicit configuration in order to accommodate exceptional cases. (§4.7.1) | MAY | 4.7.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9494-4.7.2-3` | If the CE router does not support the procedures of this document: Then the optional procedures of Section 4.6 MAY be followed, attaching the NO_EXPORT community and setting the value of LOCAL_PREF to zero, overriding the value found in the ATTR_SET. (§4.7.2) | MAY | 4.7.2 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -166,7 +168,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 If the LLGR capability is advertised, the Graceful Restart capability [RFC4724] MUST also be advertised; see Section 4.1. (§3.1, §4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: declaring code 71 without code 64. TestRFC9494_LLGRCapDeclaredWithGRCap fails unless extractGRCapabilities returns one code-64 declaration for the same peer as the code-71 one (require.Len grCaps 1, Code 64, same Peers). Negative: TestRFC9494_NoLLGRCapWithoutGRContainer places long-lived-stale-time outside the graceful-restart container and fails if either code 71 or code 64 is declared, so no config shape yields 71 alone.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -177,7 +179,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If it is not so advertised, the LLGR Capability MUST be disregarded. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: honouring code 71 received without code 64. TestHandleStructuredOpenLLGRNoGR sends an OPEN with only code 71 and fails if peerLLGRCaps holds the peer (assert.False llgrOK), which is the map onSessionDown reads. Negative: TestHandleStructuredOpenGRPlusLLGR keeps both capabilities when code 64 is present, with families, F bits and LLST 7200/3600 asserted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -188,7 +190,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Two clauses, both asserted. Sender: TestRFC9494_FlagsReservedBitsZeroOnSend fails unless the encoded Flags octet is exactly 0x80 (any reserved bit set goes red). Receiver: TestRFC9494_FlagsReservedBitsIgnoredOnReceive fails if a 0xFF Flags octet errors or decodes differently from 0x80, and if 0x7F leaks into the F bit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -199,7 +201,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If a BGP speaker is configured to support the procedures of this document, it MUST use BGP Capabilities Advertisement [RFC5492] to advertise the Long-Lived Graceful Restart Capability. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a peer configured for LLGR whose capability declaration lacks code 71. TestExtractLLGRCapabilities_Basic fails unless extractLLGRCapabilities emits one Code 71 hex declaration for the peer whose payload decodes to LLST 3600. Negative: TestExtractLLGRCapabilities_NoLLGR asserts no declaration without long-lived-stale-time. Proven at the plugin's capability-declaration boundary; the hand-off to the OPEN is not asserted in these units.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -210,7 +212,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 After the session goes down, and before the session is re- established, the stale routes for an AFI/SAFI MUST be retained. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: purging the stale routes before re-establishment while the Restart Time plus LLST have not elapsed. TestLLSTTimerExpiry_LastFamily only waits (Eventually) for onLLGRComplete and then asserts the peer inactive: a manager that completed at once on session down would satisfy the Eventually on its first poll, so no assertion checks the peer is still retained during the window (the comment claims it, the body does not). The negative TestOnTimerExpired_WithoutLLGR proves a GR-only purge happens, not retention.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -221,7 +223,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 * For each AFI/SAFI for which it has received a nonzero Long-Lived Stale Time, the helper router MUST start a timer for that Long- Lived Stale Time. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: no LLST timer for a family with a nonzero LLST. TestOnTimerExpired_WithLLGR asserts onLLGREnter fired for ipv4/unicast, no purge, peer still active; it ignores the llst argument and nothing asserts a timer is armed or its duration, so an enterLLGRLocked that never arms the timer (routes retained forever) stays green. The expiry itself is asserted only under RFC9494-4.2-3 tags. Negative (LLST 0 leaves no LLGR state) is asserted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -232,7 +234,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the timer for the Long-Lived Stale Time for a given AFI/SAFI expires before the session is re-established, the helper MUST delete all stale routes of that AFI/SAFI from the neighbor that it is retaining. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: keeping a family's stale routes after its LLST elapsed with the session down. TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes runs the production callbacks and fails unless 'request bgp rib purge-stale <peer> ipv4/unicast' is dispatched, and fails if the ipv6 purge (LLST 3600) is; TestLLSTTimerExpiry_SingleFamily asserts the per-family expiry with ipv6 still active. Negative: TestRFC9494_NoLLSTExpiryAfterReestablish fails if a family expiry fires after re-establishment. The purge command's own deletion is proven by TestRIBPurgeStaleFamilyCommand, which carries no tag for this row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -244,7 +246,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 * The helper router MUST attach the LLGR_STALE community to the stale routes being retained. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The rib half is asserted: TestAttachCommunity fails unless attach-community appends the community to the stale route and raises StaleLevel, TestRFC9494_FreshRoutesDoNotGetLLGRStale fails if a fresh route gains it. No tagged unit asserts that entering the LLGR period dispatches 'request bgp rib attach-community <peer> <family> ffff0006' (gr.go): emptying that dispatch leaves every tagged unit green, which is the exact hole TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes closed for RFC9494-4.2-3.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -255,7 +257,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 * If any of the routes from the peer have been marked with the NO_LLGR community, either as sent by the peer or as the result of a configured policy, they MUST NOT be retained and MUST be removed as per the normal operation of [RFC4271]. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The rib command is asserted: TestDeleteWithCommunity fails unless delete-with-community ffff0007 removes the stale route, TestRFC9494_StaleRouteWithoutNoLLGRRetained fails if a route without NO_LLGR is removed. Not asserted: that LLGR entry dispatches the NO_LLGR sweep at all (gr.go), the 'result of a configured policy' clause, and removal 'as per the normal operation of RFC4271' (the withdrawal propagated downstream).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -266,7 +268,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 * The helper router MUST perform the procedures listed in Section 4.3. (§4.2, §4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The row obliges every Section 4.3 procedure. The tagged units prove one: TestRFC9494_LLGRStaleRouteIsLeastPreferred fails unless attach-community raises StaleLevel to the depreference threshold and the stale LOCAL_PREF 500 candidate loses to a fresh LOCAL_PREF 100; the negative keeps an unmarked route competing normally. The other Section 4.3 procedures (LLGR_STALE on receipt from the peer, NO_LLGR handling, advertisement restrictions) have no assertion in these units.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -283,9 +285,9 @@ No test carries RFC9494-4.2-7, so no unit is bound to it.
 
 ### [`RFC9494-4.2-8`](#rfc9494-4.2-8)
 
-Once LLGR period begins, helper MUST immediately remove all stale routes if F bit is not set, AFI/SAFI is not listed, or LLGR+GR capabilities are not received in re-established session (§4.2)
+Similar to [RFC4724], once the LLGR Period begins, the Helper MUST immediately remove all the stale routes from the peer that it is retaining for that address family if any of the following occur: * the F bit for a specific address family is not set in the newly received LLGR Capability, or * a specific address family is not included in the newly received LLGR Capability, or * the LLGR and accompanying GR Capability are not received in the re-established session at all. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Three listed cases. Only the third (neither GR nor LLGR received) is asserted: onSessionReestablished(nil,nil) returns IPv4Unicast for purge and the peer leaves LLGR. The negative (F=1 in both caps, nothing purged) is the control. Neither the F bit clear for a family in the new LLGR capability nor a family absent from it has an assertion.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -302,9 +304,9 @@ No test carries RFC9494-4.2-9, so no unit is bound to it.
 
 ### [`RFC9494-4.3-1`](#rfc9494-4.3-1)
 
-A BGP speaker that advertised LLGR Capability MUST treat LLGR_STALE routes as least preferred in route selection (§4.3, §4.4)
+A BGP speaker that has advertised the Long-Lived Graceful Restart Capability to a neighbor MUST perform the following upon receiving a route from that neighbor with the LLGR_STALE community or upon attaching the LLGR_STALE community itself per Section 4.2: * Treat the route as the least preferred in route selection (see below). (§4.3, §4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestComparePair_LLGRStale does not isolate the rule: normal (10.0.0.1) and stale (10.0.0.2) have equal LOCAL_PREF, so the lower peer address wins on the final tie-break with or without the Step-0 stale comparison, and both ComparePair assertions stay green if it is removed (the third assertion in the same unit shows the lower-address tie-break). Neither the receive path (a route arriving with LLGR_STALE gets StaleLevel 2) nor the self-attached path is asserted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -323,7 +325,7 @@ No test carries RFC9494-4.3-2, so no unit is bound to it.
 
 A least preferred route MUST be treated as less preferred than any other route that is not also least preferred. (§4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a least-preferred route beating one that is not. TestSelectBest_LLGRStaleDepreference gives the stale candidate LOCAL_PREF 300 against 100 and fails, in both input orders, unless the normal route wins, so removing Step 0 goes red. Negative: TestSelectBest_BothLLGRStale fails unless two stale candidates fall through to LOCAL_PREF, so the rule orders only across the least-preferred boundary.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -332,9 +334,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9494-4.5-1`](#rfc9494-4.5-1)
 
-If LLGR Capability is received without accompanying GR Capability, the LLGR Capability MUST be ignored (§4.5)
+If the LLGR Capability is received without an accompanying GR Capability, the LLGR Capability MUST be ignored, that is, the implementation MUST behave as though no LLGR Capability has been received. (§4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: honouring an LLGR capability that arrives without GR. TestHandleEventOpenLLGR_NoGR sends an OPEN with code 71 and no code 64 and fails if peerLLGRCaps holds the peer (assert.False llgrOK). Negative: the same OPEN with code 64 keeps the decoded LLGR capability (Families, F bit, LLST 3600 asserted), so the removal is conditional on GR being absent.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -343,9 +345,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9494-4.6-1`](#rfc9494-4.6-1)
 
-For partial deployment, neighbors receiving stale routes MUST be internal (IBGP or Confederation) neighbors (§4.6)
+The neighbors MUST be internal (Internal BGP (IBGP) or Confederation) neighbors. (§4.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: applying the partial-deployment delivery to a non-internal neighbor. TestLLGREgressFilter_EBGPNonLLGR (PeerAS!=LocalAS, no LLGR) fails unless mods.IsWithdraw(). Positive: the internal neighbor (PeerAS==LocalAS) keeps the announce with NO_EXPORT 0xFFFFFF01 added and LOCAL_PREF set to 0, each value asserted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -356,7 +358,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 * The NO_EXPORT community [RFC1997] MUST be attached to the stale routes. (§4.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a stale route delivered on the partial-deployment branch without NO_EXPORT. TestLLGREgressFilter_IBGPPartial and TestLLGREgressFilter_NilStateDepreferencesIBGP fail unless a COMMUNITIES AttrModAdd with value 0xFFFFFF01 is emitted for an internal non-LLGR neighbor (hasCommunityAdd asserted). Negative: TestLLGREgressFilter_LLGRPeer fails if any modification is emitted for an LLGR-capable neighbor.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -368,7 +370,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 * The stale routes MUST have their LOCAL_PREF set to zero. (§4.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a stale route delivered on the partial-deployment branch with its LOCAL_PREF kept. TestLLGREgressFilter_IBGPPartial and TestLLGREgressFilter_NilStateDepreferencesIBGP fail unless a LOCAL_PREF AttrModSet with value 0 is emitted (hasLocalPrefSet asserted). Negative: TestLLGREgressFilter_LLGRPeer fails if an LLGR-capable neighbor receives any modification.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -396,7 +398,7 @@ No test carries RFC9494-4.7.2-2, so no unit is bound to it.
 
 Implementations MUST NOT enable these procedures by default. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The speaker side is asserted: TestRFC9494_LLGRNotEnabledByDefault fails if GR-only config declares code 71 or if the YANG leaf long-lived-stale-time carries a default; TestRFC9494_LLGREnabledByExplicitConfig shows explicit config emits it. The helper side is not: the Section 4.2 procedures run on any received code 71 (gr.go stores it in peerLLGRCaps and hands it to onSessionDown) with no tagged assertion that they stay off when the local peer has no long-lived-stale-time configured, i.e. when the capability was not exchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -421,9 +423,9 @@ No test carries RFC9494-4.2-10, so no unit is bound to it.
 
 ### [`RFC9494-4.3-3`](#rfc9494-4.3-3)
 
-LLGR_STALE routes SHOULD NOT be advertised to any neighbor from which the LLGR Capability has not been received (§4.3)
+The route SHOULD NOT be advertised to any neighbor from which the Long-Lived Graceful Restart Capability has not been received. The exception is described in Section 4.6. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: advertising the stale route to a neighbor whose LLGR capability was not received. TestLLGREgressFilter_NilStateWithdrawsEBGP fails unless mods.IsWithdraw() for an external destination with no capability recorded; llgr-egress-state-unloaded.ci proves the Section 4.6 exception in the daemon (the internal neighbor receives the route only with FFFFFF01). Negative: a destination in peerLLGRCaps gets no withdraw and zero mods.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

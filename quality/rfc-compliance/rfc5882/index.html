@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5882 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5882: Generic Application of Bidirectional Forwarding Detection (BFD). 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5882: Generic Application of Bidirectional Forwarding Detection (BFD). 3 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5882 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5882: Generic Application of Bidirectional Forwarding Detection (BFD). 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5882: Generic Application of Bidirectional Forwarding Detection (BFD). 3 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5882 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5882: Generic Application of Bidirectional Forwarding Detection (BFD). 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5882: Generic Application of Bidirectional Forwarding Detection (BFD). 3 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>2</strong><b>of 3 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>9</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>7</td>
@@ -311,11 +319,11 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/api/session_identity_test.go#L150" title="internal/component/bfd/api/session_identity_test.go" target="_blank" rel="noopener"><code>TestCanonicalCollapsesMultiHopShapesOntoOneKey</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_shared_key_test.go#L16" title="internal/plugins/ospf/rfc5882_shared_key_test.go" target="_blank" rel="noopener"><code>TestOSPFNeighborRequestReachesTheSharedKey</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session_identity_test.go#L19" title="internal/component/bfd/session_identity_test.go" target="_blank" rel="noopener"><code>TestPinnedSessionReachesTheSharedKey</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L205" title="internal/component/bgp/reactor/config_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestStrictPeerRequestReachesTheSharedKey</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L206" title="internal/component/bgp/reactor/config_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestStrictPeerRequestReachesTheSharedKey</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L73" title="internal/component/bfd/engine/rfc5882_shared_session_test.go" target="_blank" rel="noopener"><code>TestBFDDistinctSessionsDifferentKey</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-10.1.3-1">RFC5882-10.1.3-1</code></td><td colspan="3"><span class="rfc-subject">OSPF Virtual Links: the multihop mechanism (RFC 5883) must be used (§10.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-10.1.3-1">RFC5882-10.1.3-1</code></td><td colspan="3"><span class="rfc-subject">If it is desired to use BFD for failure detection of OSPF Virtual Links, the mechanism described in [BFD-MULTI] MUST be used, since OSPF Virtual Links may traverse an arbitrary number of hops. (§10.1.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>10.1.3</td>
@@ -324,7 +332,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not run BFD on OSPF virtual links. The BFD-for-OSPF client opens a session only for a neighbor whose interface carries an explicit per-interface BFD config (internal/plugins/ospf/bfd_client.go:136-148, interfaceBFDConfig(snap.Interface) must be present and Enabled) and requests a single-hop session (bfd_client.go:132). A virtual link is a synthetic backbone link keyed by (transit area, neighbor) (internal/plugins/ospf/instance.go:62-67), not a configured interface, so a virtual-link neighbor never matches an interfaceBFDConfig entry and never gets a BFD session. With no OSPF-vlink BFD session to originate, the &#34;must use the RFC 5883 multihop mechanism&#34; requirement has no applicable code path in Ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-2-1">RFC5882-2-1</code></td><td colspan="3"><span class="rfc-subject">Only a single BFD session should be established per data protocol path, regardless of number of applications (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-2-1">RFC5882-2-1</code></td><td colspan="3"><span class="rfc-subject">An implementation SHOULD establish only a single BFD session per data protocol path, regardless of the number of applications that wish to utilize it. (§2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2</td>
@@ -333,7 +341,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-3.1-1">RFC5882-3.1-1</code></td><td colspan="3"><span class="rfc-subject">If BFD session does not recover within the hysteresis window, the client must be notified (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-3.1-1">RFC5882-3.1-1</code></td><td colspan="3"><span class="rfc-subject">If the BFD session does not return to Up state within that time frame, the clients SHOULD be notified that a session failure has occurred. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1</td>
@@ -342,7 +350,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-3.2-1">RFC5882-3.2-1</code></td><td colspan="3"><span class="rfc-subject">System should not indicate a connectivity failure to a client if session transitions to AdminDown, provided the client has independent liveness detection (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-3.2-1">RFC5882-3.2-1</code></td><td colspan="3"><span class="rfc-subject">a system SHOULD NOT indicate a connectivity failure to a client if either the local session state or the remote session state (if known) transitions to AdminDown, so long as that client has independent means of liveness detection (typically, control protocols). (§3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>3.2</td>
@@ -351,7 +359,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-3.2-2">RFC5882-3.2-2</code></td><td colspan="3"><span class="rfc-subject">If a client has no independent liveness detection, system should indicate connectivity failure and assume Down semantics on AdminDown (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-3.2-2">RFC5882-3.2-2</code></td><td colspan="3"><span class="rfc-subject">If a client does not have any independent means of liveness detection, a system SHOULD indicate a connectivity failure to a client, and assume the semantics of Down state, if either the local or remote session state transitions to AdminDown. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2</td>
@@ -360,7 +368,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-3.3-1">RFC5882-3.3-1</code></td><td colspan="3"><span class="rfc-subject">BFD state machine transitions during bring-up should not cause connectivity failure notification to clients (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-3.3-1">RFC5882-3.3-1</code></td><td colspan="3"><span class="rfc-subject">The BFD state machine transitions that occur in the process of bringing up a BFD session in such situations SHOULD NOT cause a connectivity failure notification to the clients. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>3.3</td>
@@ -369,7 +377,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.1-2">RFC5882-4.1-2</code></td><td colspan="3"><span class="rfc-subject">Establishment of control protocol adjacencies should be blocked if both systems are willing to establish BFD but the session cannot be established (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.1-2">RFC5882-4.1-2</code></td><td colspan="3"><span class="rfc-subject">the establishment of control protocol adjacencies SHOULD be blocked if both systems are willing to establish a BFD session but a BFD session cannot be established. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -378,7 +386,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.1-3">RFC5882-4.1-3</code></td><td colspan="3"><span class="rfc-subject">Establishment of a control protocol adjacency should not be blocked if the peer is believed not to support BFD (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.1-3">RFC5882-4.1-3</code></td><td colspan="3"><span class="rfc-subject">If it is believed that the neighboring system does not support BFD, the establishment of a control protocol adjacency SHOULD NOT be blocked. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4.1</td>
@@ -387,7 +395,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.2-1">RFC5882-4.2-1</code></td><td colspan="3"><span class="rfc-subject">If BFD session transitions from Up to AdminDown, or Down due to remote AdminDown, clients should not take control protocol action (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.2-1">RFC5882-4.2-1</code></td><td colspan="3"><span class="rfc-subject">If a BFD session transitions from Up state to AdminDown, or the session transitions from Up to Down because the remote system is indicating that the session is in state AdminDown, clients SHOULD NOT take any control protocol action. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4.2</td>
@@ -396,7 +404,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_admindown_test.go#L97" title="internal/component/bfd/engine/rfc5882_admindown_test.go" target="_blank" rel="noopener"><code>TestRFC5882NeighborDownIsNotRemoteAdminDown</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.2.1-1">RFC5882-4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">When BFD session transitions from Up to Down, action should be taken in the control protocol to signal lack of connectivity (§4.2.1, §4.2.2.1, §4.2.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.2.1-1">RFC5882-4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">when a BFD session transitions from Up to Down, action SHOULD be taken in the control protocol to signal the lack of connectivity for the path over which BFD is running. (§4.2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.1</td>
@@ -405,7 +413,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.2.1-2">RFC5882-4.2.1-2</code></td><td colspan="3"><span class="rfc-subject">If control protocol has an explicit path-state mechanism, use it rather than impacting control protocol connectivity (§4.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.2.1-2">RFC5882-4.2.1-2</code></td><td colspan="3"><span class="rfc-subject">If the control protocol has an explicit mechanism for announcing path state, a system SHOULD use that mechanism rather than impacting the connectivity of the control protocol, particularly if the control protocol operates out-of-band from the failed data protocol. (§4.2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.1</td>
@@ -414,7 +422,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.2.1-3">RFC5882-4.2.1-3</code></td><td colspan="3"><span class="rfc-subject">If no explicit mechanism, emulate a control protocol timeout for the associated neighbor (§4.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.2.1-3">RFC5882-4.2.1-3</code></td><td colspan="3"><span class="rfc-subject">if such a mechanism is not available, a control protocol timeout SHOULD be emulated for the associated neighbor. (§4.2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.1</td>
@@ -423,7 +431,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.2.1-4">RFC5882-4.2.1-4</code></td><td colspan="3"><span class="rfc-subject">A control protocol tightly bound to a single failing data protocol should take action to ensure that data traffic is no longer directed to the failing path (§4.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.2.1-4">RFC5882-4.2.1-4</code></td><td colspan="3"><span class="rfc-subject">A control protocol that is tightly bound to a single failing data protocol SHOULD take action to ensure that data traffic is no longer directed to the failing path. (§4.2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.1</td>
@@ -432,7 +440,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.3.1-1">RFC5882-4.3.1-1</code></td><td colspan="3"><span class="rfc-subject">If BFD is fate-independent of control plane (C bit set both directions), Graceful Restart should be aborted on BFD session failure, and topology change should be signaled (§4.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.3.1-1">RFC5882-4.3.1-1</code></td><td colspan="3"><span class="rfc-subject">If BFD is implemented in the forwarding plane and does not share fate with the control plane on either system (the &#34;C&#34; bit is set in the BFD Control packets in both directions), control protocol restarts should not affect the BFD session. In this case, a BFD session failure implies that data can no longer be forwarded, so any Graceful Restart in progress at the time of the BFD session failure SHOULD be aborted in order to avoid black holes, and a topology change SHOULD be signaled in the control protocol. (§4.3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.3.1</td>
@@ -441,7 +449,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.3.2-1">RFC5882-4.3.2-1</code></td><td colspan="3"><span class="rfc-subject">If BFD shares fate with control plane (C bit clear), BFD session failures during restart should not abort the restart (§4.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.3.2-1">RFC5882-4.3.2-1</code></td><td colspan="3"><span class="rfc-subject">If BFD shares fate with the control plane on either system (the &#34;C&#34; bit is clear in either direction), a BFD session failure cannot be disentangled from other events taking place in the control plane. In many cases, the BFD session will fail as a side effect of the restart taking place. As such, it would be best to avoid aborting any Graceful Restart taking place, if possible (since otherwise BFD and Graceful Restart cannot coexist). (§4.3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4.3.2</td>
@@ -450,7 +458,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.3.2.1-1">RFC5882-4.3.2.1-1</code></td><td colspan="3"><span class="rfc-subject">During a planned restart with BFD fate-sharing, BFD session failure should not result in a topology change (§4.3.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.3.2.1-1">RFC5882-4.3.2.1-1</code></td><td colspan="3"><span class="rfc-subject">Some control protocols can signal a planned restart prior to the restart taking place. In this case, if a BFD session failure occurs during the restart, such a planned restart SHOULD NOT be aborted and the session failure SHOULD NOT result in a topology change being signaled in the control protocol. (§4.3.2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4.3.2.1</td>
@@ -459,7 +467,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.3.2.2-1">RFC5882-4.3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">For unplanned restarts without planned-restart signaling, if BFD session times out, topology change should be signaled (§4.3.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.3.2.2-1">RFC5882-4.3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Control protocols that cannot signal a planned restart depend on the recently restarted system to signal the Graceful Restart prior to the control protocol adjacency timeout. In most cases, whether the restart is planned or unplanned, it is likely that the BFD session will time out prior to the onset of Graceful Restart, in which case a topology change SHOULD be signaled in the control protocol as specified in Section 3.2. (§4.3.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.3.2.2</td>
@@ -468,7 +476,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.3.2.2-2">RFC5882-4.3.2.2-2</code></td><td colspan="3"><span class="rfc-subject">The restarting system should not send BFD Control packets until neighbors are likely aware of Graceful Restart (§4.3.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.3.2.2-2">RFC5882-4.3.2.2-2</code></td><td colspan="3"><span class="rfc-subject">The restarting system SHOULD NOT send any BFD Control packets until there is a high likelihood that its neighbors know a Graceful Restart is taking place (§4.3.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4.3.2.2</td>
@@ -477,7 +485,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-5-1">RFC5882-5-1</code></td><td colspan="3"><span class="rfc-subject">If peer is BFD capable and session is not Up, appropriate action should be taken (e.g., withdraw static route) (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-5-1">RFC5882-5-1</code></td><td colspan="3"><span class="rfc-subject">If it is known, or presumed, that the remote system is BFD capable and the BFD session is not in Up state, appropriate action SHOULD be taken (such as withdrawing a static route). (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -486,7 +494,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-5-2">RFC5882-5-2</code></td><td colspan="3"><span class="rfc-subject">If peer does not support BFD, action such as withdrawing a static route should not be taken (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-5-2">RFC5882-5-2</code></td><td colspan="3"><span class="rfc-subject">If it is known, or presumed, that the remote system does not support BFD, action such as withdrawing a static route SHOULD NOT be taken. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>5</td>
@@ -495,7 +503,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-8-1">RFC5882-8-1</code></td><td colspan="3"><span class="rfc-subject">Before a planned outage, take BFD session into AdminDown state for at least one Detection Time (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-8-1">RFC5882-8-1</code></td><td colspan="3"><span class="rfc-subject">If a planned outage is to take place on a path over which BFD is run, it is preferable to take down the BFD session by going into AdminDown state prior to the outage. The system asserting AdminDown SHOULD do so for at least one Detection Time in order to ensure that the remote system is aware of it. (§8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8</td>
@@ -504,7 +512,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-8-2">RFC5882-8-2</code></td><td colspan="3"><span class="rfc-subject">Before deconfiguring BFD, put session into AdminDown and maintain for at least one Detection Time (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-8-2">RFC5882-8-2</code></td><td colspan="3"><span class="rfc-subject">the system on which BFD is being deconfigured SHOULD put the session into AdminDown state and maintain this state for a Detection Time to ensure that the remote system is aware of it. (§8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8</td>
@@ -513,7 +521,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-10.1.3-2">RFC5882-10.1.3-2</code></td><td colspan="3"><span class="rfc-subject">BFD authentication should be used for OSPF Virtual Links and EBGP sessions (§10.1.3, §10.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-10.1.3-2">RFC5882-10.1.3-2</code></td><td colspan="3"><span class="rfc-subject">since OSPF Virtual Links may traverse an arbitrary number of hops. BFD authentication SHOULD be used and is strongly encouraged. (§10.1.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>10.1.3</td>
@@ -522,7 +530,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-3.1-2">RFC5882-3.1-2</code></td><td colspan="3"><span class="rfc-subject">A system may choose not to notify clients of rapid Up/Down/Up transitions if recovery occurs within a reasonable period (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-3.1-2">RFC5882-3.1-2</code></td><td colspan="3"><span class="rfc-subject">a system MAY choose not to notify clients if a BFD session transitions from Up to Down state, and returns to Up state, if it does so within a reasonable period of time (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1</td>
@@ -531,7 +539,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-3.3-2">RFC5882-3.3-2</code></td><td colspan="3"><span class="rfc-subject">A client capable of establishing state prior to BFD session configuration may do so (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-3.3-2">RFC5882-3.3-2</code></td><td colspan="3"><span class="rfc-subject">A client that is capable of establishing its state prior to the configuration or restarting of a BFD session MAY do so if appropriate. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.3</td>
@@ -540,7 +548,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.3.2.2-3">RFC5882-4.3.2.2-3</code></td><td colspan="3"><span class="rfc-subject">An implementation may adjust BFD timing parameters prior to a planned restart to extend Detection Time (§4.3.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.3.2.2-3">RFC5882-4.3.2.2-3</code></td><td colspan="3"><span class="rfc-subject">if the restart is in fact planned, an implementation MAY adjust the BFD session timing parameters prior to restarting in such a way that the Detection Time in each direction is longer than the restart period of the control protocol (§4.3.2.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.3.2.2</td>
@@ -562,7 +570,7 @@ Same BFD partial status.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze never conditions control-protocol adjacency establishment on BFD session state. The BFD client is attached only AFTER the adjacency is already up -- BGP starts it on StateEstablished (internal/component/bgp/reactor/peer_bfd.go:51-52,61-73) and OSPF opens the session only when a neighbor reaches Full (internal/plugins/ospf/bfd_client.go:124-138, onNeighborFull -&gt; bfdNeighborFull) -- and it is strictly additive: a failure detector, never a bring-up gate (peer_bfd.go:59-60, bfd_client.go:12-13). With no BFD-gated establishment path anywhere in Ze, a session in AdminDown (or any state) cannot block establishment, so this AdminDown carve-out to establishment-blocking has no applicable code path</td>
 </tr>
-<tr><td><a href="#rfc5882-10.1.3-1"><code>RFC5882-10.1.3-1</code></a> OSPF Virtual Links: the multihop mechanism (RFC 5883) must be used (§10.1.3)</td>
+<tr><td><a href="#rfc5882-10.1.3-1"><code>RFC5882-10.1.3-1</code></a> If it is desired to use BFD for failure detection of OSPF Virtual Links, the mechanism described in [BFD-MULTI] MUST be used, since OSPF Virtual Links may traverse an arbitrary number of hops. (§10.1.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze does not run BFD on OSPF virtual links. The BFD-for-OSPF client opens a session only for a neighbor whose interface carries an explicit per-interface BFD config (internal/plugins/ospf/bfd_client.go:136-148, interfaceBFDConfig(snap.Interface) must be present and Enabled) and requests a single-hop session (bfd_client.go:132). A virtual link is a synthetic backbone link keyed by (transit area, neighbor) (internal/plugins/ospf/instance.go:62-67), not a configured interface, so a virtual-link neighbor never matches an interfaceBFDConfig entry and never gets a BFD session. With no OSPF-vlink BFD session to originate, the &#34;must use the RFC 5883 multihop mechanism&#34; requirement has no applicable code path in Ze</td>
 </tr>
@@ -578,7 +586,7 @@ Same BFD partial status.
 <p>No test carries RFC5882-4.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5882-4.4-1"><code>RFC5882-4.4-1</code></a></h3>
 <p>If multiple control protocols wish to establish BFD sessions with the same remote system for the same data protocol, all MUST share a single BFD session. (§4.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: two control protocols wanting a session to the same remote system for the same data protocol end up on two BFD sessions. Red assertions: TestBFDSharedSessionSameKey len(snap)!=1 and Refcount!=2 (same request twice); TestCanonicalCollapsesEveryClientShapeOntoOneKey, TestCanonicalCollapsesMultiHopShapesOntoOneKey, TestStrictPeerRequestReachesTheSharedKey, TestOSPFNeighborRequestReachesTheSharedKey and TestPinnedSessionReachesTheSharedKey assert BGP/OSPF/pinned request shapes reduce to one api.Key when the link table resolves one link. Negative TestBFDDistinctSessionsDifferentKey pins that different remotes are not aliased. Not the whole MUST: in the configurations api.SessionRequest.Canonical refuses to derive (IPv6 link-local peer, two links on one subnet, off-link peer, no route, egress with zero or several same-family addresses, multi-hop in a non-default VRF, no interface backend) two clients for one remote get two sessions, no tagged unit goes red on that, and untagged TestCanonicalRefusesToGuessAnAmbiguousLink asserts the two-key behaviour. The summary&#39;s Enrolment reason already records this as PARTIALLY met.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -609,7 +617,7 @@ Same BFD partial status.
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L205" title="internal/component/bgp/reactor/config_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestStrictPeerRequestReachesTheSharedKey</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L206" title="internal/component/bgp/reactor/config_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestStrictPeerRequestReachesTheSharedKey</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -622,12 +630,12 @@ Same BFD partial status.
 </table>
 </div>
 <h3><a href="#rfc5882-10.1.3-1"><code>RFC5882-10.1.3-1</code></a></h3>
-<p>OSPF Virtual Links: the multihop mechanism (RFC 5883) must be used (§10.1.3)</p>
+<p>If it is desired to use BFD for failure detection of OSPF Virtual Links, the mechanism described in [BFD-MULTI] MUST be used, since OSPF Virtual Links may traverse an arbitrary number of hops. (§10.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5882-10.1.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5882-4.2-1"><code>RFC5882-4.2-1</code></a></h3>
-<p>If BFD session transitions from Up to AdminDown, or Down due to remote AdminDown, clients should not take control protocol action (§4.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If a BFD session transitions from Up state to AdminDown, or the session transitions from Up to Down because the remote system is indicating that the session is in state AdminDown, clients SHOULD NOT take any control protocol action. (§4.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence forbids a client taking control protocol action on (a) its own session going Up to AdminDown and (b) Up to Down caused by the remote&#39;s AdminDown. The tagged units TestRFC5882RemoteAdminDownIsDistinguished and TestRFC5882NeighborDownIsNotRemoteAdminDown (internal/component/bfd/engine/rfc5882_admindown_test.go) assert only what the BFD service PUBLISHES for clause (b) (State Down, RemoteAdminDown true vs false, same Diag); no tagged assertion goes red if a client tears down the BGP/OSPF adjacency on either clause, and clause (a) (local AdminDown) has no tagged assertion at all. The client-side behaviour is asserted by untagged TestBFDClientAdminDownDoesNotTeardown and TestBFDRemoteAdminDownDoesNotTeardown (internal/component/bgp/reactor/peer_bfd_test.go); tagging them would close this.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -973,7 +981,7 @@ Same BFD partial status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

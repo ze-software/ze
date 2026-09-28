@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 4 | of 6 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 6 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 13 |
 | Tagged units | 13 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 4 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc8950.md` |
 | Requirement shard | `rfc/requirements/rfc8950.md` |
@@ -107,9 +116,9 @@ No tracked gap in current source anchors.
 | `RFC8950-4-3` | The Capability Code field MUST be set to 5 (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestExtendedNextHopCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L537). **positive:** `unit/verify` [`TestExtendedNextHopRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L570). **negative:** no negative test. **{single-polarity}:** ze binds the Extended Next Hop Encoding capability to the constant CodeExtendedNextHop = 5 (internal/core/bgp/capability/capability.go:70); Code() returns it (capability.go:640) and WriteTo emits it (capability.go:644-646). The code is a fixed constant with no alternate-value code path, so there is no wrong-code case to reject as a negative |
 | `RFC8950-3-1` | The BGP speaker receiving the advertisement MUST use the Length of Next Hop Address field to determine which network-layer protocol the next-hop address belongs to (§3) | MUST | 3 | **positive:** `unit/verify` [`TestParseMPReachNLRI_ExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L338). **positive:** `unit/verify` [`TestParseMPReachNLRI_ExtendedNextHop_DualStack`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L442). **negative:** `unit/verify` [`TestParseMPReachNLRI_InvalidNextHopLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L488) |
 | `RFC8950-5-1` | When a next-hop address needs to be passed along unchanged (e.g., as a Route Reflector (RR) would do), its encoding MUST NOT be changed. (§5) | MUST NOT | 5 - Operations | **positive:** `unit/verify` [`TestReactorForwardRRPreservesExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L230). **negative:** no negative test. **{single-polarity}:** on the reflection path ze rewrites the next-hop only under an explicit next-hop-self/explicit override (nhMode != nhModeNone); the default nhModeNone leaves the next-hop untouched (internal/component/bgp/reactor/peer_forward_facts.go:226-229) and the MP re-encode changes an attribute only when the NLRI framing differs between encoding contexts (internal/component/bgp/reactor/forward_body.go:217), so a reflected next-hop is carried verbatim and there is no ze code path that rewrites an unchanged-passthrough next-hop to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRPreservesExtendedNextHop |
-| `RFC8950-3-2` | For VPN-IPv4 NLRI with IPv6 next hop, the Route Distinguisher in the next hop MUST be set to zero (8 zero bytes) (§3) | MUST | 3 | **positive:** `unit/verify` [`TestMPReachNLRI_RoundTrip_VPN`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L674). **positive:** `unit/verify` [`TestParseMPReachNLRI_VPNWithIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L576). **negative:** no negative test. **{single-polarity}:** on encode ze always writes an all-zero 8-byte Route Distinguisher before a VPN next-hop (internal/core/bgp/attribute/mpnlri.go:170-176) and on decode it skips the 8 RD bytes without validating their value (mpnlri.go:438-443), so ze never emits a nonzero RD and never rejects one -- there is no negative case |
-| `RFC8950-5-2` | If a BGP session is running over IPvx and the speaker is setting itself as next hop, the next-hop address SHOULD be specified as an IPvx address (§5) | SHOULD | 5 - Operations | **positive:** no positive test. **negative:** no negative test |
-| `RFC8950-5-3` | Default next-hop address family selection may be overridden by policy (§5) | MAY | 5 - Operations | **positive:** no positive test. **negative:** no negative test |
+| `RFC8950-3-2` | Next Hop Address = VPN-IPv6 address of a next hop with an 8-octet RD set to zero (potentially followed by the link-local VPN-IPv6 address of the next hop with an 8-octet RD set to zero). (§3) | MUST | 3 | **positive:** `unit/verify` [`TestMPReachNLRI_RoundTrip_VPN`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L674). **positive:** `unit/verify` [`TestParseMPReachNLRI_VPNWithIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L576). **negative:** no negative test. **{single-polarity}:** on encode ze always writes an all-zero 8-byte Route Distinguisher before a VPN next-hop (internal/core/bgp/attribute/mpnlri.go:170-176) and on decode it skips the 8 RD bytes without validating their value (mpnlri.go:438-443), so ze never emits a nonzero RD and never rejects one -- there is no negative case |
+| `RFC8950-5-2` | By default, if a particular BGP session is running over IPvx (where IPvx is IPv4 or IPv6) and if the BGP speaker sending an update is putting its own address in as the next hop, then the next-hop address SHOULD be specified as an IPvx address, using the encoding rules specified in the AFI/SAFI definition of the NLRI being updated. (§5) | SHOULD | 5 - Operations | **positive:** no positive test. **negative:** no negative test |
+| `RFC8950-5-3` | This default behavior may be overridden by policy. (§5) | MAY | 5 - Operations | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -123,7 +132,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 A BGP speaker MUST only advertise the IPv4 or VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker has first ascertained via the BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop once the peer supports ExtNH for the relevant AFI/SAFI pair. TestCanUseNextHopFor_* (reactor/peer_test.go) cover IPv4 unicast with the capability present, absent, and with a nil send context. No unit covers VPN-IPv4. No unit covers the pair-specific clause, where ExtNH is negotiated for another AFI/SAFI and not for the one advertised.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -135,7 +144,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A BGP speaker that wishes to advertise an IPv6 next hop for IPv4 NLRI or for VPN-IPv4 NLRI to a BGP peer as per this specification MUST use the Capability Advertisement procedures defined in [RFC5492] with the Extended Next Hop Encoding capability to determine whether its peer supports this for the NLRI AFI/SAFI pair(s) of interest. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. MUST determine peer support through Capability Advertisement for the pair(s) of interest. TestNegotiateExtendedNextHop and ...Mismatch (capability/negotiated_test.go) prove both-advertise and remote-absent. An implementation that treated any remote ExtNH capability as support for every pair passes both tagged units. The untagged TestNegotiateExtendedNextHopMultipleFamilies tests per-tuple negotiation and would close the clause if tagged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -169,7 +178,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 When a next-hop address needs to be passed along unchanged (e.g., as a Route Reflector (RR) would do), its encoding MUST NOT be changed. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. MUST NOT change the encoding of a next hop passed along unchanged. The non-compliant behaviour is the RR re-encoding the 16-byte IPv6 next hop. TestReactorForwardRRPreservesExtendedNextHop (reactor/forward_rr_test.go) asserts require.Equal(mpReach, attrs[14]) and the next-hop bytes 4:20, so any re-encoding goes red. Single-polarity positive per the row's marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -177,9 +186,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8950-3-2`](#rfc8950-3-2)
 
-For VPN-IPv4 NLRI with IPv6 next hop, the Route Distinguisher in the next hop MUST be set to zero (8 zero bytes) (§3)
+Next Hop Address = VPN-IPv6 address of a next hop with an 8-octet RD set to zero (potentially followed by the link-local VPN-IPv6 address of the next hop with an 8-octet RD set to zero). (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The next hop is the VPN-IPv6 address with an 8-octet RD set to zero. TestParseMPReachNLRI_VPNWithIPv6NextHop decodes a zero-RD 24-byte next hop, and a decoder that skips the RD would pass whatever the RD holds. TestMPReachNLRI_RoundTrip_VPN encodes an IPv4 next hop (the RFC 4364 12-byte form, a neighbouring rule) and asserts only NH_Len = 12, never that the 8 RD bytes are zero. A writer emitting a non-zero RD passes both units. The 48-byte link-local form is untested.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

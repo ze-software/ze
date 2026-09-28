@@ -57,6 +57,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 0 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
@@ -83,9 +84,9 @@ RFC 8195 declares no MUST-level requirement, so the gate counts nothing here.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8195-2-1` | Publicly publish and maintain documentation on supported Large Communities (§2, §5) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8195-2.2-1` | Publish the relative order in which Action Communities are processed in routing policy (§2.2) | SHOULD | 2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8195-4.3.3-1` | Take care with LOCAL_PREF manipulation that crosses preference class boundaries to avoid BGP Wedgies per RFC 4264 (§4.3.3) | SHOULD | 4.3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8195-2-1` | Operators are encouraged to publicly publish and maintain documentation on the purpose of each BGP Large Community, both Informational and Action, that they support or that are visible in BGP RIBs. (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8195-2.2-1` | Operators are recommended to publish the relative order in which Action Communities (both BGP Communities and BGP Large Communities) are processed in their routing policy. (§2.2) | SHOULD | 2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8195-4.3.3-1` | Operators should take special care when using Action Communities that decrease the LOCAL_PREF value, and the degree of preference, to a value below that of another route class. Some of the unintended BGP states that might arise as a result of these traffic-engineering decisions are described as "BGP Wedgies" in [RFC4264]. (§4.3.3) | SHOULD | 4.3.3 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 

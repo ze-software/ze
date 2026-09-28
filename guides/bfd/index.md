@@ -78,7 +78,7 @@ every interval in microseconds. A future release may add `-ms` aliases.
 | `desired-min-tx-us` | 1 – 4 294 967 295 | 300 000 | Local target transmit rate. RFC §6.8.3 enforces a 1 000 000 µs floor while the session is not Up. |
 | `required-min-rx-us` | 0 – 4 294 967 295 | 300 000 | Minimum inter-packet gap the local end can handle. Zero means "do not send me periodic control packets." |
 | `detect-multiplier` | 1 – 255 | 3 | Number of consecutive missed packets that trigger a Down transition. |
-| `passive` | boolean | false | Active sessions transmit from creation. Passive waits for the peer's first packet. See RFC 5883 §4.3 for the unidirectional-link use case. |
+| `passive` | boolean | false | Active sessions transmit from creation. Passive waits for the peer's first packet. See RFC 5883 §4.3 for the unidirectional-link use case. A single-hop session that uses a passive profile is refused: a configured session at load, and a BGP peer or static next-hop that names the profile at commit. RFC 5881 §3 requires both ends of a single-hop session to be Active. |
 | `auth { type key-id secret }` | see below | none | RFC 5880 §6.7 cryptographic authentication (Stage 5). |
 | `echo { desired-min-echo-tx-us }` | see below | none | RFC 5880 §6.4 Echo mode (single-hop only). |
 
@@ -86,10 +86,11 @@ every interval in microseconds. A future release may add `-ms` aliases.
 
 Profiles may carry an `echo { desired-min-echo-tx-us N }` block
 that opts sessions into RFC 5880 §6.4 Echo mode. The block is
-valid only on single-hop sessions -- RFC 5883 §4 prohibits
-multi-hop echo, and the parser rejects the combination with a
-descriptive error.
-<!-- source: internal/component/bfd/config.go — parseEchoConfig + validate -->
+valid only on single-hop sessions -- RFC 5883 §3 prohibits
+multi-hop echo. A configured multi-hop session that uses an echo
+profile is refused at load, and a multi-hop BGP peer that names one
+is refused at commit, each with a descriptive error.
+<!-- source: internal/component/bfd/config.go — parseEchoConfig + profileConfig.permitsMode -->
 <!-- source: internal/component/bfd/packet/echo.go — ZEEC 16-byte envelope -->
 <!-- source: internal/component/bfd/session/timers.go — EchoEnabled, EchoInterval -->
 
@@ -136,10 +137,26 @@ Number, so a captured packet can be replayed. Use a keyed type wherever
 the path is not already trusted. The password must be 1 to 16 bytes: the
 Auth Len field holds the password length plus three, so a longer password
 has no wire encoding and the parser refuses it.
+
+A keyed secret is at most 16 bytes for `keyed-md5` and
+`meticulous-keyed-md5` (RFC 5880 §6.7.3) and at most 20 bytes for
+`keyed-sha1` and `meticulous-keyed-sha1` (§6.7.4), the size of the slot the
+key is padded into. The parser refuses a longer secret rather than
+truncating it. A received Sequence Number must lie within 3 × Detect Mult
+ahead of the last one accepted, and strictly ahead of it for the meticulous
+types; a packet outside that window is discarded as a replay. The first
+packet of a session sets that floor from its Sequence Number before its
+digest is checked, in the order RFC 5880 §6.7.3 gives, so a first packet that
+fails authentication is discarded and has still set the floor. Ze does not
+yet clear the floor after two Detection Times without a packet (RFC 5880
+§6.8.1), so such a floor stays until the session is recreated.
 <!-- source: internal/component/bfd/auth/signer.go — Signer/Verifier + Settings -->
 <!-- source: internal/component/bfd/auth/sha1.go — digestSigner/digestVerifier -->
 <!-- source: internal/component/bfd/auth/simple.go — simpleSigner/simpleVerifier -->
-<!-- source: internal/component/bfd/config.go — parseAuthConfig bounds the simple-password secret -->
+<!-- source: internal/component/bfd/config.go — parseAuthConfig bounds the simple-password and keyed secrets -->
+<!-- source: internal/component/bfd/auth/meticulous.go — SeqState.Check replay window -->
+<!-- source: internal/component/bfd/auth/sha1.go — digestVerifier.Verify seeds bfd.RcvAuthSeq before the digest step -->
+<!-- source: internal/component/bfd/config.go — profileConfig.permitsMode refuses a passive single-hop session -->
 
 ```
 bfd {
@@ -230,9 +247,29 @@ has YANG `presence`: its mere existence opts in, and `enabled false`
 suspends the opt-in without removing the config (useful during
 maintenance). The profile name references a profile defined under the
 top-level `bfd { profile ... }` block; the BFD plugin resolves it when
-it receives `EnsureSession`. If the BFD plugin is not loaded at all,
+it receives `EnsureSession`, so the session runs at the profile's timers,
+role and authentication. The running daemon checks the name against the
+`bfd` block at startup, at a commit and at a SIGHUP reload alike: a
+profile that is not defined, a passive profile on a single-hop peer,
+and an echo profile on a multi-hop peer are each refused there, naming
+the peer. An edit that touches only the `bfd` block is checked too, so
+deleting a profile a peer still names is refused. At startup the check
+stops the daemon, so a file whose peer names an undefined profile never
+boots. `ze config validate`
+does not run this check for a BGP peer: it reports such a file valid,
+and only the daemon refuses it. A static next-hop's `bfd-profile` is
+checked by both. If the session is still refused at
+start (BFD disabled, for example), the peer logs the refusal and runs
+without BFD unless it is in strict mode, where it stays down. If the BFD plugin is not loaded at all,
 the BGP peer starts without BFD and logs a warning -- BGP is not
-blocked by a missing BFD plugin.
+blocked by a missing BFD plugin. A peer that names a `profile` is the
+exception: in a build that carries no BFD, nothing can check the name,
+so the daemon refuses to start, the same answer a commit gives, rather
+than run a peer whose operator asked for a profile without BFD at all.
+<!-- source: internal/component/bgp/reactor/peer_bfd.go — verifyPeerBFDProfiles -->
+<!-- source: internal/component/bfd/api/profile_check.go — CheckProfile refuses when no BFD registered a checker -->
+<!-- source: internal/component/config/plugin_verify.go — VerifyPluginConfigMapTransition runs only a registration's InProcessConfigVerifier, which BGP does not set -->
+<!-- source: internal/component/plugin/server/reload_compensation.go — reloadConfigSections -->
 <!-- source: internal/component/bfd/api/registry.go — SetService / GetService -->
 
 ### Multi-hop

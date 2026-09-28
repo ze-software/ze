@@ -57,6 +57,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 0 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
@@ -93,7 +94,7 @@ DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY declares no MUST-level requirement, so the 
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1` | "The FQDN Capability SHOULD only be used for displaying the hostname and/or domain name of a speaker in order to make troubleshooting easier" (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
+| `DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1` | The FQDN Capability SHOULD only be used for displaying the hostname and/or domain name of a speaker in order to make troubleshooting easier. (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5838 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 8 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 8 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5838 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 8 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 8 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5838 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 8 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 8 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>50.0%</strong><b>8 of 16 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 16 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>8</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>10</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>6</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -301,7 +305,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.2-1">RFC5838-2.2-1</code></td><td colspan="3"><span class="rfc-subject">A router supporting AFs &#34;MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs&#34; (§2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.2-1">RFC5838-2.2-1</code></td><td colspan="3"><span class="rfc-subject">When an OSPFv3 router is supporting AFs as described in this specification, it MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs. (§2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.2</td>
@@ -310,7 +314,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the AF-bit is set in Hello and DD Options only; LSA origination never sets it -- encoder_v6.go:33 applies SetAF to the Hello/DD path only, and origination_v6.go:254 with origination_v6_link.go:51 build Router/Network/Link-LSA Options via neutralToV6Options, which omits OptAF</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.3-1">RFC5838-2.3-1</code></td><td colspan="3"><span class="rfc-subject">Prefixes that don&#39;t conform to an instance&#39;s AF &#34;MUST NOT be used in the route computation for that instance&#34; (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.3-1">RFC5838-2.3-1</code></td><td colspan="3"><span class="rfc-subject">Prefixes that don&#39;t conform to the AF of an OSPFv3 instance MUST NOT be used in the route computation for that instance. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.3</td>
@@ -319,7 +323,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L256" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6PrefixToNetipAFWidth</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.4-1">RFC5838-2.4-1</code></td><td colspan="3"><span class="rfc-subject">A router participating in an AF (AF-bit set) &#34;MUST discard Hello packets having the AF-bit clear in the Options field&#34; (§2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.4-1">RFC5838-2.4-1</code></td><td colspan="3"><span class="rfc-subject">When an OSPFv3 router participates in an AF (sets the AF-bit in the Options field), it MUST discard Hello packets having the AF- bit clear in the Options field. (§2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.4</td>
@@ -328,7 +332,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L155" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.4-2">RFC5838-2.4-2</code></td><td colspan="3"><span class="rfc-subject">For the Base IPv6 unicast AF the AF-bit check &#34;MUST NOT be done (for backward compatibility)&#34; (§2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.4-2">RFC5838-2.4-2</code></td><td colspan="3"><span class="rfc-subject">The only exception is the Base IPv6 unicast AF, where this check MUST NOT be done (for backward compatibility). (§2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.4</td>
@@ -337,7 +341,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the default IPv6-unicast AF has no reject path -- afBitAccepted at multiaf.go:181 returns true immediately for e.af.isDefault, so a base-AF Hello is never dropped for a missing AF-bit and there is no negative behavior to exercise</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.5-1">RFC5838-2.5-1</code></td><td colspan="3"><span class="rfc-subject">After placing the link&#39;s IPv4 address in the first 32 bits of the Link-LSA &#34;link local address&#34; field, &#34;The remaining bits MUST be set to zero&#34; (§2.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.5-1">RFC5838-2.5-1</code></td><td colspan="3"><span class="rfc-subject">the link&#39;s IPv4 address will be advertised in the &#34;link local address&#34; field of the IPv4 instance&#39;s Link-LSA. This address is placed in the first 32 bits of the &#34;link local address&#34; field and is used for IPv4 next-hop calculations. The remaining bits MUST be set to zero. (§2.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.5</td>
@@ -346,7 +350,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> v6OriginateLinkLSA at origination_v6_link.go:42-48 always encodes an IPv6 link-local address in the Link-LSA link-local field and returns false without one, so an IPv4-AF Link-LSA never carries the interface IPv4 address in the leading 32 bits</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.6-1">RFC5838-2.6-1</code></td><td colspan="3"><span class="rfc-subject">For IPv4 unicast and IPv4 multicast AFs &#34;the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address&#34; (§2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.6-1">RFC5838-2.6-1</code></td><td colspan="3"><span class="rfc-subject">For IPv4 unicast and IPv4 multicast AFs, the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address. (§2.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.6</td>
@@ -355,7 +359,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L337" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.6-2">RFC5838-2.6-2</code></td><td colspan="3"><span class="rfc-subject">After placing the IPv4 Forwarding Address in the first 32 bits of the Forwarding Address field, &#34;The remaining bits MUST be set to zero&#34; (§2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.6-2">RFC5838-2.6-2</code></td><td colspan="3"><span class="rfc-subject">the IPv4 Forwarding Address is advertised by placing it in the first 32 bits of the Forwarding Address field in AS-external-LSAs and NSSA-LSAs. The remaining bits MUST be set to zero. (§2.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.6</td>
@@ -364,7 +368,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> forwardingAddressForAF at origination_v6_nssa.go:29-31 zero-initialises the 16-byte field and writes only the leading 4 IPv4 octets, so the remaining bits are structurally zero and no non-zero-trailing path exists to reject</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-1">RFC5838-2.7-1</code></td><td colspan="3"><span class="rfc-subject">For non-IPv6 AFs &#34;both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-1">RFC5838-2.7-1</code></td><td colspan="3"><span class="rfc-subject">For address families other than IPv6, both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered. (§2.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.7</td>
@@ -382,7 +386,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the Database Description always carries the single cfg.InterfaceMTU at neighbor/dd.go:170 with no per-address-family MTU, so for a non-IPv6 AF whose MTU differs the DD does not carry the AF-specific MTU</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-3">RFC5838-2.7-3</code></td><td colspan="3"><span class="rfc-subject">For an IPv4-address-family instance &#34;the IPv4 MTU for the interface MUST be specified in the interface MTU field&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-3">RFC5838-2.7-3</code></td><td colspan="3"><span class="rfc-subject">For example, if the instance corresponds to an IPv4 address family, the IPv4 MTU for the interface MUST be specified in the interface MTU field. (§2.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.7</td>
@@ -409,7 +413,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no M6-bit -- a grep for m6 across internal/plugins/ospf returns nothing -- so the DD encoder at encoder_v6.go:90 never sets it for a non-IPv6 AF</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-11">RFC5838-2.7-11</code></td><td colspan="3"><span class="rfc-subject">If the M6-bit is set in a received DD packet for a non-IPv6 AF, &#34;the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface&#39;s IPv6 MTU&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-11">RFC5838-2.7-11</code></td><td colspan="3"><span class="rfc-subject">If the M6-bit is set in a received Database Description packet for a non-IPv6 address family, the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface&#39;s IPv6 MTU. (§2.7)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.7</td>
@@ -418,7 +422,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze neither sets nor reads the M6-bit and performs only the single-MTU check at neighbor/dd.go:45, so the M6-conditioned suppression of an IPv6-MTU comparison is unimplemented</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.8-1">RFC5838-2.8-1</code></td><td colspan="3"><span class="rfc-subject">For a virtual link &#34;there MUST be a global IPv6 address associated with the virtual link so that OSPFv3 control packets are forwarded correctly by the intermediate hops&#34; (§2.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.8-1">RFC5838-2.8-1</code></td><td colspan="3"><span class="rfc-subject">there MUST be a global IPv6 address associated with the virtual link so that OSPFv3 control packets are forwarded correctly by the intermediate hops between virtual link endpoints. (§2.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.8</td>
@@ -427,7 +431,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L554" title="internal/plugins/ospf/virtual_link_test.go" target="_blank" rel="noopener"><code>TestV6VirtualEndpointRequiresGlobalAddress</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-4-1">RFC5838-4-1</code></td><td colspan="3"><span class="rfc-subject">When multiple OSPFv3 instances use the same interface &#34;they all MUST use the same Security Association (SA)&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-4-1">RFC5838-4-1</code></td><td colspan="3"><span class="rfc-subject">When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID). (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -436,7 +440,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs OSPFv3 IPsec on the default IPv6-unicast AF only -- validateConfigAF at config.go:907-909 rejects an ipsec block on any non-IPv6 family -- so multiple AF instances never share an interface SA and the requirement&#39;s precondition never arises</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-5-3">RFC5838-5-3</code></td><td colspan="3"><span class="rfc-subject">Before assignments in the 128-255 range &#34;there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned&#34; (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-5-3">RFC5838-5-3</code></td><td colspan="3"><span class="rfc-subject">Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -445,7 +449,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this binds the IANA registration process, not an implementation; ze has no code path that assigns AF Instance IDs and it rejects Instance IDs above 127 for AF use at multiaf.go:71 and via ErrInstanceIDRange in config.go</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.5-2">RFC5838-2.5-2</code></td><td colspan="3"><span class="rfc-subject">&#34;An implementation SHOULD resolve layer 3 to layer 2 mappings via the Address Resolution Protocol (ARP) or Neighbor Discovery (ND) for a DIA even if the IPv4 address is not on the same subnet as the router&#39;s interface IP address&#34; (§2.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.5-2">RFC5838-2.5-2</code></td><td colspan="3"><span class="rfc-subject">An implementation SHOULD resolve layer 3 to layer 2 mappings via the Address Resolution Protocol (ARP) [ARP] or Neighbor Discovery (ND) [ND] for a DIA even if the IPv4 address is not on the same subnet as the router&#39;s interface IP address. (§2.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.5</td>
@@ -454,7 +458,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-5">RFC5838-2.7-5</code></td><td colspan="3"><span class="rfc-subject">&#34;If the M6-bit is clear, the specified MTU SHOULD also be checked against the IPv6 MTU&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-5">RFC5838-2.7-5</code></td><td colspan="3"><span class="rfc-subject">If the M6-bit is clear, the specified MTU SHOULD also be checked against the IPv6 MTU (§2.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.7</td>
@@ -463,7 +467,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-6">RFC5838-2.7-6</code></td><td colspan="3"><span class="rfc-subject">When the M6-bit is clear, &#34;the Database Description packet SHOULD be rejected if the MTU is larger than the receiving interface&#39;s IPv6 MTU&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-6">RFC5838-2.7-6</code></td><td colspan="3"><span class="rfc-subject">If the M6-bit is clear, the specified MTU SHOULD also be checked against the IPv6 MTU, and the Database Description packet SHOULD be rejected if the MTU is larger than the receiving interface&#39;s IPv6 MTU. (§2.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.7</td>
@@ -472,7 +476,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-7">RFC5838-2.7-7</code></td><td colspan="3"><span class="rfc-subject">&#34;An OSPFv3 router SHOULD NOT set the M6-bit if its IPv6 MTU and address family specific MTU are the same&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-7">RFC5838-2.7-7</code></td><td colspan="3"><span class="rfc-subject">An OSPFv3 router SHOULD NOT set the M6-bit if its IPv6 MTU and address family specific MTU are the same. (§2.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>2.7</td>
@@ -481,7 +485,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-9">RFC5838-2.7-9</code></td><td colspan="3"><span class="rfc-subject">When the IPv6 MTU TLV is present, it carries the IPv6 MTU &#34;that SHOULD be compared with the local IPv6 MTU&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-9">RFC5838-2.7-9</code></td><td colspan="3"><span class="rfc-subject">If this TLV is present, it carries the IPv6 MTU that SHOULD be compared with the local IPv6 MTU. (§2.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.7</td>
@@ -490,7 +494,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-10">RFC5838-2.7-10</code></td><td colspan="3"><span class="rfc-subject">When the IPv6 MTU TLV is absent, &#34;the minimum IPv6 MTU of 1280 octets SHOULD be used for the comparison&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-10">RFC5838-2.7-10</code></td><td colspan="3"><span class="rfc-subject">If this TLV is absent, the minimum IPv6 MTU of 1280 octets SHOULD be used for the comparison (§2.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.7</td>
@@ -499,7 +503,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-12">RFC5838-2.7-12</code></td><td colspan="3"><span class="rfc-subject">&#34;The Interface MTU SHOULD be set to 0 in Database Description packets sent over virtual links&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-12">RFC5838-2.7-12</code></td><td colspan="3"><span class="rfc-subject">The Interface MTU SHOULD be set to 0 in Database Description packets sent over virtual links. (§2.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.7</td>
@@ -508,7 +512,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-14">RFC5838-2.7-14</code></td><td colspan="3"><span class="rfc-subject">For IPv6 MTU TLV instances subsequent to the first, &#34;the LLS inconsistency SHOULD be logged&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-14">RFC5838-2.7-14</code></td><td colspan="3"><span class="rfc-subject">Instances subsequent to the first are not processed, and the LLS inconsistency SHOULD be logged. (§2.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.7</td>
@@ -517,7 +521,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-5-2">RFC5838-5-2</code></td><td colspan="3"><span class="rfc-subject">When the Instance ID field is used for address families &#34;the assignments herein SHOULD be honored&#34; (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-5-2">RFC5838-5-2</code></td><td colspan="3"><span class="rfc-subject">However, if it is being used for address families as described in this specification, the assignments herein SHOULD be honored. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -526,7 +530,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-13">RFC5838-2.7-13</code></td><td colspan="3"><span class="rfc-subject">&#34;Only one instance of the IPv6 MTU TLV MAY appear in the LLS block&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-13">RFC5838-2.7-13</code></td><td colspan="3"><span class="rfc-subject">Only one instance of the IPv6 MTU TLV MAY appear in the LLS block. (§2.7)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.7</td>
@@ -535,7 +539,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-5-1">RFC5838-5-1</code></td><td colspan="3"><span class="rfc-subject">&#34;the Instance ID field MAY be used for applications other than the support of multiple address families&#34; (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-5-1">RFC5838-5-1</code></td><td colspan="3"><span class="rfc-subject">Note that the Instance ID field MAY be used for applications other than the support of multiple address families. (§5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5</td>
@@ -553,15 +557,15 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc5838-2.2-1"><code>RFC5838-2.2-1</code></a> A router supporting AFs &#34;MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs&#34; (§2.2)</td>
+<tr><td><a href="#rfc5838-2.2-1"><code>RFC5838-2.2-1</code></a> When an OSPFv3 router is supporting AFs as described in this specification, it MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs. (§2.2)</td>
 <td>{gap}, no test</td>
 <td>the AF-bit is set in Hello and DD Options only; LSA origination never sets it -- encoder_v6.go:33 applies SetAF to the Hello/DD path only, and origination_v6.go:254 with origination_v6_link.go:51 build Router/Network/Link-LSA Options via neutralToV6Options, which omits OptAF</td>
 </tr>
-<tr><td><a href="#rfc5838-2.5-1"><code>RFC5838-2.5-1</code></a> After placing the link&#39;s IPv4 address in the first 32 bits of the Link-LSA &#34;link local address&#34; field, &#34;The remaining bits MUST be set to zero&#34; (§2.5)</td>
+<tr><td><a href="#rfc5838-2.5-1"><code>RFC5838-2.5-1</code></a> the link&#39;s IPv4 address will be advertised in the &#34;link local address&#34; field of the IPv4 instance&#39;s Link-LSA. This address is placed in the first 32 bits of the &#34;link local address&#34; field and is used for IPv4 next-hop calculations. The remaining bits MUST be set to zero. (§2.5)</td>
 <td>{gap}, no test</td>
 <td>v6OriginateLinkLSA at origination_v6_link.go:42-48 always encodes an IPv6 link-local address in the Link-LSA link-local field and returns false without one, so an IPv4-AF Link-LSA never carries the interface IPv4 address in the leading 32 bits</td>
 </tr>
-<tr><td><a href="#rfc5838-2.7-1"><code>RFC5838-2.7-1</code></a> For non-IPv6 AFs &#34;both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered&#34; (§2.7)</td>
+<tr><td><a href="#rfc5838-2.7-1"><code>RFC5838-2.7-1</code></a> For address families other than IPv6, both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered. (§2.7)</td>
 <td>{gap}, no test</td>
 <td>ze tracks a single per-interface MTU -- neighbor/dd.go:170 sends cfg.InterfaceMTU and neighbor/dd.go:45 checks it -- with no separate address-family MTU versus IPv6 MTU, so the two are not considered independently</td>
 </tr>
@@ -569,7 +573,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>{gap}, no test</td>
 <td>the Database Description always carries the single cfg.InterfaceMTU at neighbor/dd.go:170 with no per-address-family MTU, so for a non-IPv6 AF whose MTU differs the DD does not carry the AF-specific MTU</td>
 </tr>
-<tr><td><a href="#rfc5838-2.7-3"><code>RFC5838-2.7-3</code></a> For an IPv4-address-family instance &#34;the IPv4 MTU for the interface MUST be specified in the interface MTU field&#34; (§2.7)</td>
+<tr><td><a href="#rfc5838-2.7-3"><code>RFC5838-2.7-3</code></a> For example, if the instance corresponds to an IPv4 address family, the IPv4 MTU for the interface MUST be specified in the interface MTU field. (§2.7)</td>
 <td>{gap}, no test</td>
 <td>ze has no IPv4-address-family interface MTU; the DD MTU is the one configured interface MTU at neighbor/dd.go:170, never an IPv4-specific value</td>
 </tr>
@@ -581,15 +585,15 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>{gap}, no test</td>
 <td>ze implements no M6-bit -- a grep for m6 across internal/plugins/ospf returns nothing -- so the DD encoder at encoder_v6.go:90 never sets it for a non-IPv6 AF</td>
 </tr>
-<tr><td><a href="#rfc5838-2.7-11"><code>RFC5838-2.7-11</code></a> If the M6-bit is set in a received DD packet for a non-IPv6 AF, &#34;the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface&#39;s IPv6 MTU&#34; (§2.7)</td>
+<tr><td><a href="#rfc5838-2.7-11"><code>RFC5838-2.7-11</code></a> If the M6-bit is set in a received Database Description packet for a non-IPv6 address family, the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface&#39;s IPv6 MTU. (§2.7)</td>
 <td>{gap}, no test</td>
 <td>ze neither sets nor reads the M6-bit and performs only the single-MTU check at neighbor/dd.go:45, so the M6-conditioned suppression of an IPv6-MTU comparison is unimplemented</td>
 </tr>
-<tr><td><a href="#rfc5838-4-1"><code>RFC5838-4-1</code></a> When multiple OSPFv3 instances use the same interface &#34;they all MUST use the same Security Association (SA)&#34; (§4)</td>
+<tr><td><a href="#rfc5838-4-1"><code>RFC5838-4-1</code></a> When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID). (§4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs OSPFv3 IPsec on the default IPv6-unicast AF only -- validateConfigAF at config.go:907-909 rejects an ipsec block on any non-IPv6 family -- so multiple AF instances never share an interface SA and the requirement&#39;s precondition never arises</td>
 </tr>
-<tr><td><a href="#rfc5838-5-3"><code>RFC5838-5-3</code></a> Before assignments in the 128-255 range &#34;there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned&#34; (§5)</td>
+<tr><td><a href="#rfc5838-5-3"><code>RFC5838-5-3</code></a> Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this binds the IANA registration process, not an implementation; ze has no code path that assigns AF Instance IDs and it rejects Instance IDs above 127 for AF use at multiaf.go:71 and via ErrInstanceIDRange in config.go</td>
 </tr>
@@ -600,12 +604,12 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5838-2.2-1"><code>RFC5838-2.2-1</code></a></h3>
-<p>A router supporting AFs &#34;MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs&#34; (§2.2)</p>
+<p>When an OSPFv3 router is supporting AFs as described in this specification, it MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs. (§2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.3-1"><code>RFC5838-2.3-1</code></a></h3>
-<p>Prefixes that don&#39;t conform to an instance&#39;s AF &#34;MUST NOT be used in the route computation for that instance&#34; (§2.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Prefixes that don&#39;t conform to the AF of an OSPFv3 instance MUST NOT be used in the route computation for that instance. (§2.3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a prefix not conforming to the instance AF (e.g. length &gt; 32 under IPv4) used in the route computation. The negative in TestV6PrefixToNetipAFWidth asserts only the converter v6PrefixToNetip returns ok=false for a 64-bit prefix under an IPv4 AF; no tagged unit feeds a non-conforming prefix through v6BuildRoutes and asserts it yields no route, so a route builder that ignored the ok flag keeps both units green. The positive (TestIPv4OverV3BuildRoutes) does go through v6BuildRoutes.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -624,8 +628,8 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5838-2.4-1"><code>RFC5838-2.4-1</code></a></h3>
-<p>A router participating in an AF (AF-bit set) &#34;MUST discard Hello packets having the AF-bit clear in the Options field&#34; (§2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>When an OSPFv3 router participates in an AF (sets the AF-bit in the Options field), it MUST discard Hello packets having the AF- bit clear in the Options field. (§2.4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour (a): a non-default-AF instance accepting a Hello with the AF-bit clear. (b) TestAFBitGatesFullNonDefault dispatches that Hello on an IPv4-unicast instance and asserts neighborSnapshot() is empty (a processed Hello would create an Init neighbor), then the same Hello with SetAF() yields one neighbor, isolating the AF-bit as the only difference.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -644,8 +648,8 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5838-2.4-2"><code>RFC5838-2.4-2</code></a></h3>
-<p>For the Base IPv6 unicast AF the AF-bit check &#34;MUST NOT be done (for backward compatibility)&#34; (§2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The only exception is the Base IPv6 unicast AF, where this check MUST NOT be done (for backward compatibility). (§2.4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour (a): the base IPv6-unicast AF discarding a Hello whose AF-bit is clear. (b) TestAFBitIgnoredDefaultAF dispatches an AF-bit-less Hello to the default IPv6-unicast engine and asserts neighborSnapshot() has one row, so an applied AF-bit check goes red. Single-polarity marker holds (the base AF has no reject path).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -659,12 +663,12 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5838-2.5-1"><code>RFC5838-2.5-1</code></a></h3>
-<p>After placing the link&#39;s IPv4 address in the first 32 bits of the Link-LSA &#34;link local address&#34; field, &#34;The remaining bits MUST be set to zero&#34; (§2.5)</p>
+<p>the link&#39;s IPv4 address will be advertised in the &#34;link local address&#34; field of the IPv4 instance&#39;s Link-LSA. This address is placed in the first 32 bits of the &#34;link local address&#34; field and is used for IPv4 next-hop calculations. The remaining bits MUST be set to zero. (§2.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-2.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.6-1"><code>RFC5838-2.6-1</code></a></h3>
-<p>For IPv4 unicast and IPv4 multicast AFs &#34;the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address&#34; (§2.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>For IPv4 unicast and IPv4 multicast AFs, the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address. (§2.6)</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The MUST binds the originator: the Forwarding Address in AS-external and NSSA LSAs of an IPv4 AF must encode an IPv4 address. TestV6ForwardingAddrAFWidth tests v6ForwardingAddr, the RECEIVE-side renderer, and never encodes an LSA; the producer forwardingAddressForAF (origination_v6_nssa.go) is untested by these tags. The IPv4 multicast AF is not covered either.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -683,8 +687,8 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5838-2.6-2"><code>RFC5838-2.6-2</code></a></h3>
-<p>After placing the IPv4 Forwarding Address in the first 32 bits of the Forwarding Address field, &#34;The remaining bits MUST be set to zero&#34; (§2.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>the IPv4 Forwarding Address is advertised by placing it in the first 32 bits of the Forwarding Address field in AS-external-LSAs and NSSA-LSAs. The remaining bits MUST be set to zero. (§2.6)</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The MUST is that the originator sets the bits after the leading 32 to zero. The tagged unit asserts the receiver renders 192.0.2.7 even when trailing octets are 0xff, i.e. it proves receive-side tolerance of non-zero bits, a neighbouring property; the producer forwardingAddressForAF (origination_v6_nssa.go) is never exercised.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -698,7 +702,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5838-2.7-1"><code>RFC5838-2.7-1</code></a></h3>
-<p>For non-IPv6 AFs &#34;both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered&#34; (§2.7)</p>
+<p>For address families other than IPv6, both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered. (§2.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-2.7-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.7-2"><code>RFC5838-2.7-2</code></a></h3>
@@ -706,7 +710,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-2.7-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.7-3"><code>RFC5838-2.7-3</code></a></h3>
-<p>For an IPv4-address-family instance &#34;the IPv4 MTU for the interface MUST be specified in the interface MTU field&#34; (§2.7)</p>
+<p>For example, if the instance corresponds to an IPv4 address family, the IPv4 MTU for the interface MUST be specified in the interface MTU field. (§2.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-2.7-3, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.7-4"><code>RFC5838-2.7-4</code></a></h3>
@@ -718,12 +722,12 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-2.7-8, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.7-11"><code>RFC5838-2.7-11</code></a></h3>
-<p>If the M6-bit is set in a received DD packet for a non-IPv6 AF, &#34;the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface&#39;s IPv6 MTU&#34; (§2.7)</p>
+<p>If the M6-bit is set in a received Database Description packet for a non-IPv6 address family, the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface&#39;s IPv6 MTU. (§2.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-2.7-11, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.8-1"><code>RFC5838-2.8-1</code></a></h3>
-<p>For a virtual link &#34;there MUST be a global IPv6 address associated with the virtual link so that OSPFv3 control packets are forwarded correctly by the intermediate hops&#34; (§2.8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>there MUST be a global IPv6 address associated with the virtual link so that OSPFv3 control packets are forwarded correctly by the intermediate hops between virtual link endpoints. (§2.8)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a virtual link formed without a global IPv6 address. The negative TestV6VirtualEndpointRequiresGlobalAddress covers only the neighbor side (neighbor advertises only fe80::2, resolution fails). No tagged unit removes THIS router&#39;s global address and asserts resolution fails, so v6ResolveVirtualEndpointLocked falling back to a link-local local source keeps both units green (the positive asserts src only when a global exists).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -742,11 +746,11 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5838-4-1"><code>RFC5838-4-1</code></a></h3>
-<p>When multiple OSPFv3 instances use the same interface &#34;they all MUST use the same Security Association (SA)&#34; (§4)</p>
+<p>When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID). (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-5-3"><code>RFC5838-5-3</code></a></h3>
-<p>Before assignments in the 128-255 range &#34;there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned&#34; (§5)</p>
+<p>Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-5-3, so no unit is bound to it.</p>
 </section>
@@ -951,7 +955,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

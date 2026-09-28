@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2784 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2784: Generic Routing Encapsulation (GRE). 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 2784: Generic Routing Encapsulation (GRE). 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2784 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2784: Generic Routing Encapsulation (GRE). 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 2784: Generic Routing Encapsulation (GRE). 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2784 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2784: Generic Routing Encapsulation (GRE). 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 2784: Generic Routing Encapsulation (GRE). 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -296,7 +299,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this receive-side obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-2.3-1">RFC2784-2.3-1</code></td><td colspan="3"><span class="rfc-subject">Receiver MUST discard a packet where any of bits 1-5 of Reserved0 are non-zero, unless the receiver implements RFC 1701 (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-2.3-1">RFC2784-2.3-1</code></td><td colspan="3"><span class="rfc-subject">A receiver MUST discard a packet where any of bits 1-5 are non-zero, unless that receiver implements RFC 1701. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3</td>
@@ -305,7 +308,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this receive-side obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-2.3-2">RFC2784-2.3-2</code></td><td colspan="3"><span class="rfc-subject">Reserved0 bits 6-12 MUST be sent as zero (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-2.3-2">RFC2784-2.3-2</code></td><td colspan="3"><span class="rfc-subject">Bits 6-12 are reserved for future use. These bits MUST be sent as zero (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3</td>
@@ -314,7 +317,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this header-construction obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-2.3-3">RFC2784-2.3-3</code></td><td colspan="3"><span class="rfc-subject">Reserved0 bits 6-12 MUST be ignored on receipt (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-2.3-3">RFC2784-2.3-3</code></td><td colspan="3"><span class="rfc-subject">Bits 6-12 are reserved for future use. These bits MUST be sent as zero and MUST be ignored on receipt. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3</td>
@@ -341,7 +344,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this header-construction obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-3-1">RFC2784-3-1</code></td><td colspan="3"><span class="rfc-subject">When IPv4 is the payload, Protocol Type field MUST be set to 0x0800 (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-3-1">RFC2784-3-1</code></td><td colspan="3"><span class="rfc-subject">When IPv4 is being carried as the GRE payload, the Protocol Type field MUST be set to 0x800. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -350,7 +353,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this header-construction obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-3.1-1">RFC2784-3.1-1</code></td><td colspan="3"><span class="rfc-subject">When decapsulating IPv4 payload, the destination address in the IPv4 payload header MUST be used to forward the packet (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-3.1-1">RFC2784-3.1-1</code></td><td colspan="3"><span class="rfc-subject">When a tunnel endpoint decapsulates a GRE packet which has an IPv4 packet as the payload, the destination address in the IPv4 payload packet header MUST be used to forward the packet (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -359,7 +362,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this packet-forwarding/decapsulation obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-3.1-2">RFC2784-3.1-2</code></td><td colspan="3"><span class="rfc-subject">TTL of the decapsulated IPv4 payload packet MUST be decremented (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-3.1-2">RFC2784-3.1-2</code></td><td colspan="3"><span class="rfc-subject">When a tunnel endpoint decapsulates a GRE packet which has an IPv4 packet as the payload, the destination address in the IPv4 payload packet header MUST be used to forward the packet and the TTL of the payload packet MUST be decremented. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -368,7 +371,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this packet-forwarding/decapsulation obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-3.1-3">RFC2784-3.1-3</code></td><td colspan="3"><span class="rfc-subject">If decapsulated IPv4 payload destination address is the encapsulator (loop detected), the packet MUST be discarded (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-3.1-3">RFC2784-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Care should be taken when forwarding such a packet, since if the destination address of the payload packet is the encapsulator of the packet (i.e., the other end of the tunnel), looping can occur. In this case, the packet MUST be discarded. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -386,7 +389,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this receive-side obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-2.4-1">RFC2784-2.4-1</code></td><td colspan="3"><span class="rfc-subject">An implementation receiving a Protocol Type not listed in RFC 1700 or ETYPES SHOULD discard the packet (§2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-2.4-1">RFC2784-2.4-1</code></td><td colspan="3"><span class="rfc-subject">An implementation receiving a packet containing a Protocol Type which is not listed in [RFC1700] or [ETYPES] SHOULD discard the packet. (§2.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.4</td>
@@ -395,7 +398,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-3.1-4">RFC2784-3.1-4</code></td><td colspan="3"><span class="rfc-subject">Care should be taken when forwarding decapsulated payload to avoid routing loops (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-3.1-4">RFC2784-3.1-4</code></td><td colspan="3"><span class="rfc-subject">Care should be taken when forwarding such a packet, since if the destination address of the payload packet is the encapsulator of the packet (i.e., the other end of the tunnel), looping can occur. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1</td>
@@ -417,15 +420,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this receive-side obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2784-2.3-1"><code>RFC2784-2.3-1</code></a> Receiver MUST discard a packet where any of bits 1-5 of Reserved0 are non-zero, unless the receiver implements RFC 1701 (§2.3)</td>
+<tr><td><a href="#rfc2784-2.3-1"><code>RFC2784-2.3-1</code></a> A receiver MUST discard a packet where any of bits 1-5 are non-zero, unless that receiver implements RFC 1701. (§2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this receive-side obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2784-2.3-2"><code>RFC2784-2.3-2</code></a> Reserved0 bits 6-12 MUST be sent as zero (§2.3)</td>
+<tr><td><a href="#rfc2784-2.3-2"><code>RFC2784-2.3-2</code></a> Bits 6-12 are reserved for future use. These bits MUST be sent as zero (§2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this header-construction obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2784-2.3-3"><code>RFC2784-2.3-3</code></a> Reserved0 bits 6-12 MUST be ignored on receipt (§2.3)</td>
+<tr><td><a href="#rfc2784-2.3-3"><code>RFC2784-2.3-3</code></a> Bits 6-12 are reserved for future use. These bits MUST be sent as zero and MUST be ignored on receipt. (§2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this receive-side obligation has no ze code path</td>
 </tr>
@@ -437,19 +440,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this header-construction obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2784-3-1"><code>RFC2784-3-1</code></a> When IPv4 is the payload, Protocol Type field MUST be set to 0x0800 (§3)</td>
+<tr><td><a href="#rfc2784-3-1"><code>RFC2784-3-1</code></a> When IPv4 is being carried as the GRE payload, the Protocol Type field MUST be set to 0x800. (§3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this header-construction obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2784-3.1-1"><code>RFC2784-3.1-1</code></a> When decapsulating IPv4 payload, the destination address in the IPv4 payload header MUST be used to forward the packet (§3.1)</td>
+<tr><td><a href="#rfc2784-3.1-1"><code>RFC2784-3.1-1</code></a> When a tunnel endpoint decapsulates a GRE packet which has an IPv4 packet as the payload, the destination address in the IPv4 payload packet header MUST be used to forward the packet (§3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this packet-forwarding/decapsulation obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2784-3.1-2"><code>RFC2784-3.1-2</code></a> TTL of the decapsulated IPv4 payload packet MUST be decremented (§3.1)</td>
+<tr><td><a href="#rfc2784-3.1-2"><code>RFC2784-3.1-2</code></a> When a tunnel endpoint decapsulates a GRE packet which has an IPv4 packet as the payload, the destination address in the IPv4 payload packet header MUST be used to forward the packet and the TTL of the payload packet MUST be decremented. (§3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this packet-forwarding/decapsulation obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2784-3.1-3"><code>RFC2784-3.1-3</code></a> If decapsulated IPv4 payload destination address is the encapsulator (loop detected), the packet MUST be discarded (§3.1)</td>
+<tr><td><a href="#rfc2784-3.1-3"><code>RFC2784-3.1-3</code></a> Care should be taken when forwarding such a packet, since if the destination address of the payload packet is the encapsulator of the packet (i.e., the other end of the tunnel), looping can occur. In this case, the packet MUST be discarded. (§3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this packet-forwarding/decapsulation obligation has no ze code path</td>
 </tr>
@@ -468,15 +471,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2784-2.3-1"><code>RFC2784-2.3-1</code></a></h3>
-<p>Receiver MUST discard a packet where any of bits 1-5 of Reserved0 are non-zero, unless the receiver implements RFC 1701 (§2.3)</p>
+<p>A receiver MUST discard a packet where any of bits 1-5 are non-zero, unless that receiver implements RFC 1701. (§2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-2.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2784-2.3-2"><code>RFC2784-2.3-2</code></a></h3>
-<p>Reserved0 bits 6-12 MUST be sent as zero (§2.3)</p>
+<p>Bits 6-12 are reserved for future use. These bits MUST be sent as zero (§2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-2.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2784-2.3-3"><code>RFC2784-2.3-3</code></a></h3>
-<p>Reserved0 bits 6-12 MUST be ignored on receipt (§2.3)</p>
+<p>Bits 6-12 are reserved for future use. These bits MUST be sent as zero and MUST be ignored on receipt. (§2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-2.3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2784-2.3.1-1"><code>RFC2784-2.3.1-1</code></a></h3>
@@ -488,19 +491,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-2.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2784-3-1"><code>RFC2784-3-1</code></a></h3>
-<p>When IPv4 is the payload, Protocol Type field MUST be set to 0x0800 (§3)</p>
+<p>When IPv4 is being carried as the GRE payload, the Protocol Type field MUST be set to 0x800. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2784-3.1-1"><code>RFC2784-3.1-1</code></a></h3>
-<p>When decapsulating IPv4 payload, the destination address in the IPv4 payload header MUST be used to forward the packet (§3.1)</p>
+<p>When a tunnel endpoint decapsulates a GRE packet which has an IPv4 packet as the payload, the destination address in the IPv4 payload packet header MUST be used to forward the packet (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2784-3.1-2"><code>RFC2784-3.1-2</code></a></h3>
-<p>TTL of the decapsulated IPv4 payload packet MUST be decremented (§3.1)</p>
+<p>When a tunnel endpoint decapsulates a GRE packet which has an IPv4 packet as the payload, the destination address in the IPv4 payload packet header MUST be used to forward the packet and the TTL of the payload packet MUST be decremented. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-3.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2784-3.1-3"><code>RFC2784-3.1-3</code></a></h3>
-<p>If decapsulated IPv4 payload destination address is the encapsulator (loop detected), the packet MUST be discarded (§3.1)</p>
+<p>Care should be taken when forwarding such a packet, since if the destination address of the payload packet is the encapsulator of the packet (i.e., the other end of the tunnel), looping can occur. In this case, the packet MUST be discarded. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-3.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2784-5.2-1"><code>RFC2784-5.2-1</code></a></h3>
@@ -755,7 +758,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

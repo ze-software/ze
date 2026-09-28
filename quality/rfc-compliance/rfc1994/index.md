@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 17.6% | 3 of 17 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 14 | of 17 gated MUSTs judged | 8 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 17 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 17 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 3 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 24 |
 | Tagged units | 24 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 14 |
 | Discrimination records | 1 |
 | Summary | `rfc/short/rfc1994.md` |
 | Requirement shard | `rfc/requirements/rfc1994.md` |
@@ -114,35 +116,35 @@ Three MUST gaps in [`rfc/short/rfc1994.md`](https://github.com/ze-software/ze/bl
 | `RFC1994-4.1-2` | Additional Challenge packets MUST be sent until a valid Response packet is received, or an optional retry counter expires. (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze sends exactly one Challenge and, on Response timeout, fails the session closed rather than retransmitting the same Identifier/Value (internal/component/l2tp/ppp/chap.go:257-263 single send; internal/component/l2tp/ppp/auth.go:328-337 timeout calls s.fail with no retransmit) |
 | `RFC1994-4.1-3` | Based on this comparison, the authenticator MUST send a Success or Failure packet (described below). (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/chap_test.go#L386). **negative:** `unit/verify` [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/chap_test.go#L521) |
 | `RFC1994-4.2-1` | If the Value received in a Response is equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 3 (Success). (Section 4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/chap_test.go#L387). **positive:** `unit/verify` [`TestLocalAuthCHAPMD5Accept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/auth_test.go#L46). **negative:** `unit/verify` [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/chap_test.go#L522). **negative:** `unit/verify` [`TestLocalAuthCHAPMD5Reject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/auth_test.go#L81) |
-| `RFC1994-4.2-2` | If Response Value does not equal expected value, must transmit Failure (Code=4) (Section 4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/chap_test.go#L523). **positive:** `unit/verify` [`TestLocalAuthCHAPMD5Reject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/auth_test.go#L83). **negative:** `unit/verify` [`TestLocalAuthCHAPMD5Accept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/auth_test.go#L49) |
+| `RFC1994-4.2-2` | If the Value received in a Response is not equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 4 (Failure) (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/chap_test.go#L523). **positive:** `unit/verify` [`TestLocalAuthCHAPMD5Reject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/auth_test.go#L83). **negative:** `unit/verify` [`TestLocalAuthCHAPMD5Accept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/auth_test.go#L49) |
 | `RFC1994-4.1-4` | Whenever a Challenge packet is received, the peer MUST transmit a CHAP packet with the Code field set to 2 (Response). (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestBuildCHAPResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L22). **negative:** `unit/verify` [`TestBuildCHAPResponseMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L60) |
 | `RFC1994-4.1-5` | The Identifier field MUST be changed each time a Challenge is sent. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPIdentifierMonotonic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/chap_test.go#L835). **positive:** `unit/verify` [`TestCHAPIdentifierWraps`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/chap_test.go#L880). **negative:** no negative test. **{single-polarity}:** each runCHAPAuthPhase increments the per-session chapIdentifier before sending, so every new Challenge carries a distinct Identifier, and ze never retransmits a Challenge to form a reuse negative (internal/component/l2tp/ppp/chap.go:254-255) |
 | `RFC1994-4.1-6` | The Response Identifier MUST be copied from the Identifier field of the Challenge which caused the Response. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestBuildCHAPResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L24). **negative:** no negative test. **{single-polarity}:** the peer copies the received Challenge's Identifier byte into the Response header, asserted directly with no rejecting counterpart (internal/component/l2tp/pppoeclient/session.go:400) |
 | `RFC1994-4.1-7` | The Challenge Value MUST be changed each time a Challenge is sent. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPChallengeRandom`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/chap_test.go#L952). **negative:** no negative test. **{single-polarity}:** runCHAPAuthPhase draws a fresh 16-octet value from crypto/rand for every Challenge (internal/component/l2tp/ppp/chap.go:219-225, :248-249) |
 | `RFC1994-4.2-3` | The Identifier field MUST be copied from the Identifier field of the Response which caused this reply. (Section 4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/chap_test.go#L388). **negative:** no negative test. **{single-polarity}:** waitCHAPResponse only returns a Response whose Identifier equals the outstanding Challenge Identifier, and runCHAPAuthPhase writes Success/Failure with that same Identifier (internal/component/l2tp/ppp/chap.go:296-298, auth.go:318-323) |
 | `RFC1994-4.1-8` | Implementation Notes: Because the Success might be lost, the authenticator MUST allow repeated Response packets during the Network-Layer Protocol phase after completing the Authentication phase. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/chap_reauth_test.go#L407). **negative:** no negative test. **{single-polarity}:** a CHAP Response arriving in the main loop after auth completes hits the frame-dispatch default and is dropped without terminating the session, so repeated Responses are tolerated (internal/component/l2tp/ppp/session_run.go:681-683) |
-| `RFC1994-4.1-9` | Response with current Challenge Identifier must return same reply Code as previously (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze caches no per-Challenge reply Code and does not re-send the prior Success/Failure for a repeated Response; it silently drops it (internal/component/l2tp/ppp/session_run.go:681-683; no reply-Code cache in runCHAPAuthPhase) |
+| `RFC1994-4.1-9` | To prevent discovery of alternative Names and Secrets, any Response packets received having the current Challenge Identifier MUST return the same reply Code previously returned for that specific Challenge (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze caches no per-Challenge reply Code and does not re-send the prior Success/Failure for a repeated Response; it silently drops it (internal/component/l2tp/ppp/session_run.go:681-683; no reply-Code cache in runCHAPAuthPhase) |
 | `RFC1994-4.1-10` | Any Response packets received during any other phase MUST be silently discarded. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPIdentifierMismatchSilentDiscard`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/chap_reauth_test.go#L151). **negative:** no negative test. **{single-polarity}:** outside an active auth-wait a CHAP Response is silently dropped by the frame-dispatch default, and during a wait a Response whose Identifier does not match is silently discarded and the wait continues (internal/component/l2tp/ppp/session_run.go:681-683, auth.go:318-322) |
 | `RFC1994-2.3-1` | The CHAP algorithm requires that the length of the secret MUST be at least 1 octet. (Section 2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the CHAP shared secret (authlocal user password) has no minimum-length constraint, so an empty password is accepted and fed to the MD5 hash without rejection (internal/component/l2tp/plugins/authlocal/auth.go:94-99; empty password stored in register.go) |
 | `RFC1994-4.2-4` | It is intended to be human readable, and MUST NOT affect operation of the protocol. (Section 4.2) | MUST NOT | 4.2 | **positive:** `unit/verify` [`TestCHAPSuccessMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_chap_message_test.go#L39). **negative:** no negative test. **{single-polarity}:** the peer branches only on the Success/Failure Code (3 succeed, 4 fail) and never reads or acts on the Message field (internal/component/l2tp/pppoeclient/session.go:270-274) |
 | `RFC1994-1.1-1` | An implementation which does not include this option MUST be prepared to interoperate with another implementation which does include the option. (Section 1.1) | MUST | 1.1 | **positive:** `unit/verify` [`TestNegotiatePeerAuthProtoAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/lcp_options_test.go#L211). **positive:** `unit/verify` [`TestNegotiatePeerAuthProtoRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/lcp_options_test.go#L194). **negative:** no negative test. **{single-polarity}:** ze negotiates the Auth-Protocol option in both directions -- it accepts a peer-proposed option and handles the peer's Configure-Nak/Reject of it -- so it interoperates whether or not the option is used (internal/component/l2tp/ppp/lcp_options.go:174-183, auth.go:38-68) |
-| `RFC1994-2-1` | Connection should be terminated on authentication failure (Section 2, Section 4.2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC1994-4.1-11` | Peer should expect Challenge packets during Authentication and Network-Layer Protocol phases (Section 4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC1994-2.3-2` | Secret should be at least as large and unguessable as a well-chosen password (Section 2.3) | SHOULD | 2.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC1994-2.3-3` | Each challenge value should be unique, exhibit global and temporal uniqueness (Section 2.3) | SHOULD | 2.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC1994-2.3-4` | Each challenge value should be unpredictable (Section 2.3) | SHOULD | 2.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC1994-1.2-1` | Provide capability of logging silently discarded packets and record in statistics counter (Section 1.2) | SHOULD | 1.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC1994-x-1` | Secret should not be the same in both directions (Security Considerations) | SHOULD NOT | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC1994-4.1-12` | Challenge may be sent at any time during Network-Layer Protocol phase (Section 4.1) | MAY | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC1994-4.1-13` | Name may contain ASCII strings or ASN.1 identifiers (Section 4.1) | MAY | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC1994-4.1-14` | Success/Failure Message may differ between replies for the same Identifier (Section 4.1) | MAY | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1994-2-1` | If the values match, the authentication is acknowledged; otherwise the connection SHOULD be terminated. (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1994-4.1-11` | The peer SHOULD expect Challenge packets during the Authentication phase and the Network-Layer Protocol phase. (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1994-2.3-2` | The secret SHOULD be at least as large and unguessable as a well-chosen password. (§2.3) | SHOULD | 2.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1994-2.3-3` | Each challenge value SHOULD be unique, since repetition of a challenge value in conjunction with the same secret would permit an attacker to reply with a previously intercepted response. Since it is expected that the same secret MAY be used to authenticate with servers in disparate geographic regions, the challenge SHOULD exhibit global and temporal uniqueness. (§2.3) | SHOULD | 2.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1994-2.3-4` | Each challenge value SHOULD also be unpredictable, least an attacker trick a peer into responding to a predicted future challenge, and then use the response to masquerade as that peer to an authenticator. (§2.3) | SHOULD | 2.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1994-1.2-1` | The implementation SHOULD provide the capability of logging the error, including the contents of the silently discarded packet, and SHOULD record the event in a statistics counter. (§1.2) | SHOULD | 1.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1994-x-1` | The secret SHOULD NOT be the same in both directions. (§4.2) | SHOULD NOT | 4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1994-4.1-12` | A Challenge packet MAY also be transmitted at any time during the Network-Layer Protocol phase to ensure that the connection has not been altered. (§4.1) | MAY | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1994-4.1-13` | For example, it MAY contain ASCII character strings or globally unique identifiers in ASN.1 syntax. (§4.1) | MAY | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1994-4.1-14` | reply Code previously returned for that specific Challenge (the message portion MAY be different) (§4.1) | MAY | 4.1 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC1994-4.1-2`](#rfc1994-4.1-2) Additional Challenge packets MUST be sent until a valid Response packet is received, or an optional retry counter expires. (Section 4.1) | {gap}, no test | ze sends exactly one Challenge and, on Response timeout, fails the session closed rather than retransmitting the same Identifier/Value (internal/component/l2tp/ppp/chap.go:257-263 single send; internal/component/l2tp/ppp/auth.go:328-337 timeout calls s.fail with no retransmit) |
-| [`RFC1994-4.1-9`](#rfc1994-4.1-9) Response with current Challenge Identifier must return same reply Code as previously (Section 4.1) | {gap}, no test | ze caches no per-Challenge reply Code and does not re-send the prior Success/Failure for a repeated Response; it silently drops it (internal/component/l2tp/ppp/session_run.go:681-683; no reply-Code cache in runCHAPAuthPhase) |
+| [`RFC1994-4.1-9`](#rfc1994-4.1-9) To prevent discovery of alternative Names and Secrets, any Response packets received having the current Challenge Identifier MUST return the same reply Code previously returned for that specific Challenge (§4.1) | {gap}, no test | ze caches no per-Challenge reply Code and does not re-send the prior Success/Failure for a repeated Response; it silently drops it (internal/component/l2tp/ppp/session_run.go:681-683; no reply-Code cache in runCHAPAuthPhase) |
 | [`RFC1994-2.3-1`](#rfc1994-2.3-1) The CHAP algorithm requires that the length of the secret MUST be at least 1 octet. (Section 2.3) | {gap}, no test | the CHAP shared secret (authlocal user password) has no minimum-length constraint, so an empty password is accepted and fed to the MD5 hash without rejection (internal/component/l2tp/plugins/authlocal/auth.go:94-99; empty password stored in register.go) |
 
 ## Proof state
@@ -153,7 +155,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a CONFREQ that omits the Authentication-Protocol option while authentication is desired. TestLocalCONFREQAdvertisesAuthMethod starts a session with CHAP-MD5 configured and asserts the CONFREQ carries Auth-Protocol 0xC223 algorithm 0x05 (red if absent); TestAuthProtoRejectClearsMethod asserts that once the peer Configure-Rejects the option and the method becomes None, the resent CONFREQ omits it, over the same producer, so emission follows the desire.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -164,7 +166,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The authenticator MUST transmit a CHAP packet with the Code field set to 1 (Challenge). (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an authenticator that does not send a Challenge (Code 1). TestCHAPResponseEmitsEvent reads the first wire frame runCHAPAuthPhase writes and asserts protocol 0xC223 and Code CHAPCodeChallenge, red otherwise. Single-polarity marker: there is no must-not-challenge branch.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -182,7 +184,7 @@ No test carries RFC1994-4.1-2, so no unit is bound to it.
 
 Based on this comparison, the authenticator MUST send a Success or Failure packet (described below). (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: answering a Response with something other than Success or Failure chosen BY THE COMPARISON. TestCHAPResponseEmitsEvent and TestCHAPRejectWritesFailure inject the decision on s.authRespCh (accept true/false) and assert Code 3/4; the comparison of the received Value with the expected one is not in either unit. Inverting the verifier-to-authRespCh handoff leaves both green, the same two-half gap as RFC1994-4.2-1/4.2-2.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -193,7 +195,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the Value received in a Response is equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 3 (Success). (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Proven in two halves: authlocal TestLocalAuthCHAPMD5Accept/Reject prove verifyCHAPMD5 compares the Value, and ppp TestCHAPResponseEmitsEvent/TestCHAPRejectWritesFailure prove an accept/reject decision yields Code 3/4. No tagged unit drives a Response Value through to the wire Code, so inverting the result-to-authRespCh handoff would leave every tag green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -204,9 +206,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1994-4.2-2`](#rfc1994-4.2-2)
 
-If Response Value does not equal expected value, must transmit Failure (Code=4) (Section 4.2)
+If the Value received in a Response is not equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 4 (Failure) (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Same two-half proof as RFC1994-4.2-1: TestLocalAuthCHAPMD5Reject proves a mismatching Value is rejected and TestCHAPRejectWritesFailure proves a reject decision writes Code 4, but no unit carries a mismatching Response Value to a wire Failure frame.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -218,7 +220,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Whenever a Challenge packet is received, the peer MUST transmit a CHAP packet with the Code field set to 2 (Response). (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestBuildCHAPResponse proves buildCHAPResponse frames Code 2, but no tagged unit proves the peer TRANSMITS a Response when a Challenge arrives (runClientAuth, session.go). The negative TestBuildCHAPResponseMalformed tests malformed-Challenge rejection, a neighbouring rule, not a violation of this one.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -229,7 +231,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Identifier field MUST be changed each time a Challenge is sent. (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Challenge sent with the previous Challenge's Identifier. TestCHAPIdentifierMonotonic seeds the counter with the Identifier the first Challenge carried and asserts the next Challenge's differs (and is +1); TestCHAPIdentifierWraps asserts 0xFF moves to 0x00. A runCHAPAuthPhase that did not advance the counter turns both red. Single-polarity marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -240,7 +242,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Response Identifier MUST be copied from the Identifier field of the Challenge which caused the Response. (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Response whose Identifier is not the Challenge's. TestBuildCHAPResponse passes a Challenge with Identifier 0x42 and asserts resp[1] == 0x42, red on any other value; buildCHAPResponse is what session.go calls with the received Challenge. Single-polarity marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -250,7 +252,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Challenge Value MUST be changed each time a Challenge is sent. (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Challenge Value reused across Challenges. TestCHAPChallengeRandom runs runCHAPAuthPhase twice and asserts the two wire Values differ, red on a constant Value. Single-polarity marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -260,7 +262,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Identifier field MUST be copied from the Identifier field of the Response which caused this reply. (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Success or Failure whose Identifier is not the Response's. TestCHAPResponseEmitsEvent sends a Response carrying the Challenge Identifier and asserts the Success frame's Identifier equals it, red on any other Identifier. Single-polarity marker: waitCHAPResponse admits only a Response whose Identifier matches the outstanding Challenge.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -270,7 +272,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Implementation Notes: Because the Success might be lost, the authenticator MUST allow repeated Response packets during the Network-Layer Protocol phase after completing the Authentication phase. (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp sends a Response with Identifier 0x99 after Success, not a repeat of the Response that earned it (the current Challenge Identifier). It proves a stray Response is tolerated, not a genuinely repeated one.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -278,7 +280,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1994-4.1-9`](#rfc1994-4.1-9)
 
-Response with current Challenge Identifier must return same reply Code as previously (Section 4.1)
+To prevent discovery of alternative Names and Secrets, any Response packets received having the current Challenge Identifier MUST return the same reply Code previously returned for that specific Challenge (§4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -288,7 +290,7 @@ No test carries RFC1994-4.1-9, so no unit is bound to it.
 
 Any Response packets received during any other phase MUST be silently discarded. (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The only tagged unit, TestCHAPIdentifierMismatchSilentDiscard, sends mismatched-Identifier Responses DURING the Authentication phase. The requirement is about Responses received in any OTHER phase (outside Authentication and the post-auth Network-Layer phase, e.g. Link Establishment). No unit sends a Response in another phase.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -306,7 +308,7 @@ No test carries RFC1994-2.3-1, so no unit is bound to it.
 
 It is intended to be human readable, and MUST NOT affect operation of the protocol. (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestCHAPSuccessMessageDoesNotAffectOutcome proves two different Messages on a Success both complete authentication in runClientAuth. No case carries a Message on a Failure, so a Message that turned a Failure into success would pass.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -316,7 +318,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 An implementation which does not include this option MUST be prepared to interoperate with another implementation which does include the option. (Section 1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The sentence is RFC 1994 Section 1.1's definition of MAY (quoted there under 'MAY'): an implementation lacking an optional feature must interoperate with one that has it. It states no CHAP obligation, so the row should be retired with its two tags. Both tagged units (TestNegotiatePeerAuthProtoAccepted, TestNegotiatePeerAuthProtoRejected) read 'option' as the LCP Auth-Protocol option and exercise NegotiatePeerOptions with a PAP option, which is not what the sentence obliges.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

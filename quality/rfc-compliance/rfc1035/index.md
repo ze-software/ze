@@ -63,6 +63,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 27 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 2 |
 | Nightly-only evidence | 0 |
 | Test tags | 62 |
@@ -111,37 +112,37 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 |---|---|---|---|---|
 | `RFC1035-2.3.3-1` | For all parts of the DNS that are part of the official protocol, all comparisons between character strings (e.g., labels, domain names, etc.) are done in a case-insensitive manner (§2.3.3) | MUST | 2.3.3 - Character Case | **positive:** `unit/verify` [`TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L54). **negative:** `unit/verify` [`TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L97) |
 | `RFC1035-2.3.3-2` | Loss of case sensitive data must be minimized (§2.3.3) | MUST | 2.3.3 - Character Case | **positive:** `unit/verify` [`TestRFC1035_QueryNameCasePreservedInTheReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L133). **negative:** `unit/verify` [`TestRFC1035_QueryNameCasePreservedInTheReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L148) |
-| `RFC1035-2.3.4-1` | Size limit -- TTL: positive values of a signed 32 bit number (§2.3.4) | MUST | 2.3.4 - Size limits | **positive:** `unit/verify` [`TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L144). **negative:** `unit/verify` [`TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L159) |
-| `RFC1035-2.3.4-2` | Size limit -- UDP messages: 512 octets or less (§2.3.4) | MUST | 2.3.4 - Size limits | **positive:** `unit/verify` [`TestRFC1035_UDPReplyBoundedAndTruncated`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L102). **negative:** `unit/verify` [`TestRFC1035_UDPReplyBoundedAndTruncated`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L132) |
+| `RFC1035-2.3.4-1` | TTL positive values of a signed 32 bit number. (§2.3.4) | MUST | 2.3.4 - Size limits | **positive:** `unit/verify` [`TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L144). **negative:** `unit/verify` [`TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L159) |
+| `RFC1035-2.3.4-2` | UDP messages 512 octets or less (§2.3.4) | MUST | 2.3.4 - Size limits | **positive:** `unit/verify` [`TestRFC1035_UDPReplyBoundedAndTruncated`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L102). **negative:** `unit/verify` [`TestRFC1035_UDPReplyBoundedAndTruncated`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L132) |
 | `RFC1035-3.1-1` | Each label is represented as a one octet length field followed by that number of octets (§3.1) | MUST | 3.1 - Name space definitions: the wire form of a domain name | **positive:** `unit/verify` [`TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L179). **negative:** `unit/verify` [`TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L204) |
 | `RFC1035-3.1-2` | Since every domain name ends with the null label of the root, a domain name is terminated by a length byte of zero (§3.1) | MUST | 3.1 - Name space definitions: the wire form of a domain name | **positive:** `unit/verify` [`TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L186). **negative:** `unit/verify` [`TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L192) |
 | `RFC1035-3.1-3` | The high order two bits of every length octet must be zero, and the remaining six bits of the length field limit the label to 63 octets or less (§3.1) | MUST | 3.1 - Name space definitions: the wire form of a domain name | **positive:** `unit/verify` [`TestRFC1035_ConfiguredLabelBoundedTo63Octets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L57). **negative:** `unit/verify` [`TestRFC1035_ConfiguredLabelBoundedTo63Octets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L73). **positive:** `functional/verify` [`dns-name-too-long.ci`](https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L24). **negative:** `functional/verify` [`dns-name-too-long.ci`](https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L67) |
-| `RFC1035-3.1-4` | The total length of a domain name (i.e., label octets and label length octets) is restricted to 255 octets or less (§3.1) | MUST | 3.1 - Name space definitions: the wire form of a domain name | **positive:** `unit/verify` [`TestRFC1035_ConfiguredNameBoundedTo255WireOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L134). **negative:** `unit/verify` [`TestRFC1035_ConfiguredNameBoundedTo255WireOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L115). **positive:** `functional/verify` [`dns-name-too-long.ci`](https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L43). **negative:** `functional/verify` [`dns-name-too-long.ci`](https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L65) |
+| `RFC1035-3.1-4` | To simplify implementations, the total length of a domain name (i.e., label octets and label length octets) is restricted to 255 octets or less. (§3.1) | MUST | 3.1 - Name space definitions: the wire form of a domain name | **positive:** `unit/verify` [`TestRFC1035_ConfiguredNameBoundedTo255WireOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L134). **negative:** `unit/verify` [`TestRFC1035_ConfiguredNameBoundedTo255WireOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L115). **positive:** `functional/verify` [`dns-name-too-long.ci`](https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L43). **negative:** `functional/verify` [`dns-name-too-long.ci`](https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L65) |
 | `RFC1035-3.1-5` | Name servers and resolvers must compare labels in a case-insensitive manner (i.e., A=a), assuming ASCII with zero parity (§3.1) | MUST | 3.1 - Name space definitions: the wire form of a domain name | **positive:** `unit/verify` [`TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L59). **negative:** `unit/verify` [`TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L105) |
 | `RFC1035-3.1-6` | Non-alphabetic codes must match exactly (§3.1) | MUST | 3.1 - Name space definitions: the wire form of a domain name | **positive:** `unit/verify` [`TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L87). **negative:** `unit/verify` [`TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L110) |
 | `RFC1035-3.3.13-1` | Whenever a RR is sent in a response to a query, the TTL field is set to the maximum of the TTL field from the RR and the MINIMUM field in the appropriate SOA (§3.3.13) | MUST | 3.3.13 | **positive:** no positive test. **negative:** no negative test |
 | `RFC1035-4.1.1-1` | Must be zero in all queries and responses. (§4.1.1) | MUST | 4.1.1 - Header section format | **positive:** `unit/verify` [`TestRFC1035_ReservedZFieldIsZero`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L69). **negative:** `unit/verify` [`TestRFC1035_ReservedZFieldIsZero`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L102) |
-| `RFC1035-4.1.1-2` | AA (Authoritative Answer) is valid in responses and specifies that the responding name server is an authority for the domain name in question section (§4.1.1) | MUST | 4.1.1 - Header section format | **positive:** `unit/verify` [`TestRFC1035_AuthoritativeAnswerBitOnEveryReply`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L137). **negative:** `unit/verify` [`TestRFC1035_AuthoritativeAnswerBitOnEveryReply`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L162). **negative:** `unit/verify` [`TestRFC1035_ResponseCodeByNameAndClient`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L117). **negative:** `unit/verify` [`TestZoneAnswer_ResponseCodeByNamePosition`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L253) |
-| `RFC1035-4.1.1-3` | RCODE 3 (Name Error), meaningful only for responses from an authoritative name server, signifies that the domain name referenced in the query does not exist (§4.1.1) | MUST | 4.1.1 - Header section format | **positive:** `unit/verify` [`TestRFC1035_ResponseCodeByNameAndClient`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L102). **positive:** `unit/verify` [`TestZoneAnswer_ResponseCodeByNamePosition`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L237). **negative:** `unit/verify` [`TestRFC1035_ResponseCodeByNameAndClient`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L107). **negative:** `unit/verify` [`TestZoneAnswer_ResponseCodeByNamePosition`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L242) |
-| `RFC1035-4.1.3-1` | TTL is a 32 bit unsigned integer that specifies the time interval in seconds that the resource record may be cached (§4.1.3) | MUST | 4.1.3 - Resource record format | **positive:** `unit/verify` [`TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L109). **negative:** `unit/verify` [`TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L127) |
-| `RFC1035-4.1.3-2` | RDLENGTH is an unsigned 16 bit integer that specifies the length in octets of the RDATA field (§4.1.3) | MUST | 4.1.3 - Resource record format | **positive:** `unit/verify` [`TestRFC1035_RDLengthCountsTheRDataOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L181). **negative:** `unit/verify` [`TestRFC1035_RDLengthCountsTheRDataOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L201) |
+| `RFC1035-4.1.1-2` | AA Authoritative Answer - this bit is valid in responses, and specifies that the responding name server is an authority for the domain name in question section. (§4.1.1) | MUST | 4.1.1 - Header section format | **positive:** `unit/verify` [`TestRFC1035_AuthoritativeAnswerBitOnEveryReply`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L137). **negative:** `unit/verify` [`TestRFC1035_AuthoritativeAnswerBitOnEveryReply`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L162). **negative:** `unit/verify` [`TestRFC1035_ResponseCodeByNameAndClient`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L117). **negative:** `unit/verify` [`TestZoneAnswer_ResponseCodeByNamePosition`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L253) |
+| `RFC1035-4.1.1-3` | 3 Name Error - Meaningful only for responses from an authoritative name server, this code signifies that the domain name referenced in the query does not exist. (§4.1.1) | MUST | 4.1.1 - Header section format | **positive:** `unit/verify` [`TestRFC1035_ResponseCodeByNameAndClient`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L102). **positive:** `unit/verify` [`TestZoneAnswer_ResponseCodeByNamePosition`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L237). **negative:** `unit/verify` [`TestRFC1035_ResponseCodeByNameAndClient`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L107). **negative:** `unit/verify` [`TestZoneAnswer_ResponseCodeByNamePosition`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L242) |
+| `RFC1035-4.1.3-1` | TTL a 32 bit unsigned integer that specifies the time interval (in seconds) that the resource record may be cached before it should be discarded. (§4.1.3) | MUST | 4.1.3 - Resource record format | **positive:** `unit/verify` [`TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L109). **negative:** `unit/verify` [`TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L127) |
+| `RFC1035-4.1.3-2` | RDLENGTH an unsigned 16 bit integer that specifies the length in octets of the RDATA field. (§4.1.3) | MUST | 4.1.3 - Resource record format | **positive:** `unit/verify` [`TestRFC1035_RDLengthCountsTheRDataOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L181). **negative:** `unit/verify` [`TestRFC1035_RDLengthCountsTheRDataOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L201) |
 | `RFC1035-4.1.4-1` | This allows a pointer to be distinguished from a label, since the label must begin with two zero bits because labels are restricted to 63 octets or less. (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L150). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L225) |
-| `RFC1035-4.1.4-2` | The OFFSET field specifies an offset from the start of the message, i.e. the first octet of the ID field in the domain header (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L169). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L229) |
+| `RFC1035-4.1.4-2` | The OFFSET field specifies an offset from the start of the message (i.e., the first octet of the ID field in the domain header). (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L169). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L229) |
 | `RFC1035-4.1.4-3` | Pointers can only be used for occurances of a domain name where the format is not class specific (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L208). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L232) |
-| `RFC1035-4.1.4-4` | If a domain name is contained in a part of the message subject to a length field, such as the RDATA section of an RR, and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L184). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L235) |
+| `RFC1035-4.1.4-4` | If a domain name is contained in a part of the message subject to a length field (such as the RDATA section of an RR), and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name. (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L184). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L235) |
 | `RFC1035-4.1.4-5` | However all programs are required to understand arriving messages that contain pointers. (§4.1.4) | REQUIRED | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_InboundCompressionPointerUnderstood`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L345). **negative:** `unit/verify` [`TestRFC1035_InboundCompressionPointerUnderstood`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L365) |
 | `RFC1035-4.2-1` | Zone refresh activities must use virtual circuits because of the need for reliable transfer (§4.2) | MUST | 4.2 - Transport preamble | **positive:** no positive test. **negative:** no negative test |
-| `RFC1035-4.2.1-1` | Messages carried by UDP are restricted to 512 bytes, not counting the IP or UDP headers (§4.2.1) | MUST | 4.2.1 - UDP usage | **positive:** `unit/verify` [`TestRFC1035_UDPReplyBoundedAndTruncated`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L97). **positive:** `unit/verify` [`TestRFC1035_UDPTruncatedTCPWholeOverRealSockets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L81). **negative:** `unit/verify` [`TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L164) |
+| `RFC1035-4.2.1-1` | Messages carried by UDP are restricted to 512 bytes (not counting the IP or UDP headers). (§4.2.1) | MUST | 4.2.1 - UDP usage | **positive:** `unit/verify` [`TestRFC1035_UDPReplyBoundedAndTruncated`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L97). **positive:** `unit/verify` [`TestRFC1035_UDPTruncatedTCPWholeOverRealSockets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L81). **negative:** `unit/verify` [`TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L164) |
 | `RFC1035-4.2.1-2` | Longer messages are truncated and the TC bit is set in the header (§4.2.1) | MUST | 4.2.1 - UDP usage | **positive:** `unit/verify` [`TestRFC1035_UDPReplyBoundedAndTruncated`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L107). **positive:** `unit/verify` [`TestRFC1035_UDPTruncatedTCPWholeOverRealSockets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L90). **negative:** `unit/verify` [`TestRFC1035_StreamTransportNotTruncated`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L195). **negative:** `unit/verify` [`TestRFC1035_UDPReplyBoundedAndTruncated`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L127). **negative:** `unit/verify` [`TestRFC1035_UDPTruncatedTCPWholeOverRealSockets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L104) |
 | `RFC1035-4.2.1-3` | Messages sent using UDP user server port 53 (decimal) (§4.2.1) <!-- "user" is verbatim: RFC 1035 rfc/full/rfc1035.txt:1754 has a typo for "use", and the id contract pins the quoted text, so it is reproduced rather than silently corrected. Compare :1783, which reads "use server port 53" for TCP. --> | MUST | 4.2.1 - UDP usage | **positive:** `unit/verify` [`TestRFC1035_DNSTransportsUseServerPort53`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L26). **negative:** `unit/verify` [`TestRFC1035_DNSTransportsUseServerPort53`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L49) |
-| `RFC1035-4.2.2-1` | Messages sent over TCP connections use server port 53 decimal, and the message is prefixed with a two byte length field which gives the message length (§4.2.2) | MUST | 4.2.2 - TCP usage | **positive:** `unit/verify` [`TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L421). **negative:** `unit/verify` [`TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L445) |
+| `RFC1035-4.2.2-1` | Messages sent over TCP connections use server port 53 (decimal). The message is prefixed with a two byte length field which gives the message length, excluding the two byte length field. (§4.2.2) | MUST | 4.2.2 - TCP usage | **positive:** `unit/verify` [`TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L421). **negative:** `unit/verify` [`TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L445) |
 | `RFC1035-6.4-1` | While inverse query support is optional, all name servers must be at least able to return the error response (§6.4) | MUST | 6.4 - Inverse queries (Optional) | **positive:** `unit/verify` [`TestRFC1035_UnsupportedOpcodeReturnsNotImplemented`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L241). **negative:** `unit/verify` [`TestRFC1035_QueryOpcodeAnsweredNormally`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L290) |
-| `RFC1035-2.3.1-1` | Preferred name syntax: labels must start with a letter, end with a letter or digit, and have as interior characters only letters, digits, and hyphen (§2.3.1) | SHOULD | 2.3.1 - Preferred name syntax | **positive:** no positive test. **negative:** no negative test |
+| `RFC1035-2.3.1-1` | The labels must follow the rules for ARPANET host names. They must start with a letter, end with a letter or digit, and have as interior characters only letters, digits, and hyphen. (§2.3.1) | SHOULD | 2.3.1 - Preferred name syntax | **positive:** no positive test. **negative:** no negative test |
 | `RFC1035-2.3.3-3` | When data enters the domain system, its original case should be preserved whenever possible (§2.3.3) | SHOULD | 2.3.3 - Character Case | **positive:** no positive test. **negative:** no negative test |
-| `RFC1035-2.3.3-4` | Attempts to store domain names in 7-bit ASCII or use of special bytes to terminate labels, etc., should be avoided (§2.3.3) | SHOULD NOT | 2.3.3 - Character Case | **positive:** no positive test. **negative:** no negative test |
+| `RFC1035-2.3.3-4` | However, future additions beyond current usage may need to use the full binary octet capabilities in names, so attempts to store domain names in 7-bit ASCII or use of special bytes to terminate labels, etc., should be avoided. (§2.3.3) | SHOULD NOT | 2.3.3 - Character Case | **positive:** no positive test. **negative:** no negative test |
 | `RFC1035-3.1-7` | Although labels can contain any 8 bit values in octets that make up a label, it is strongly recommended that labels follow the preferred syntax described elsewhere in this memo (§3.1) | RECOMMENDED | 3.1 - Name space definitions: the wire form of a domain name | **positive:** no positive test. **negative:** no negative test |
-| `RFC1035-3.3.13-2` | This use of MINIMUM should occur when the RRs are copied into the response and not when the zone is loaded from a master file or via a zone transfer (§3.3.13) | SHOULD | 3.3.13 | **positive:** no positive test. **negative:** no negative test |
-| `RFC1035-4.1.3-3` | Zero TTL values are interpreted to mean that the RR can only be used for the transaction in progress, and should not be cached (§4.1.3) | SHOULD NOT | 4.1.3 - Resource record format | **positive:** no positive test. **negative:** no negative test |
+| `RFC1035-3.3.13-2` | Note that this use of MINIMUM should occur when the RRs are copied into the response and not when the zone is loaded from a master file or via a zone transfer. (§3.3.13) | SHOULD | 3.3.13 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1035-4.1.3-3` | Zero values are interpreted to mean that the RR can only be used for the transaction in progress, and should not be cached. (§4.1.3) | SHOULD NOT | 4.1.3 - Resource record format | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -178,7 +179,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1035-2.3.4-1`](#rfc1035-2.3.4-1)
 
-Size limit -- TTL: positive values of a signed 32 bit number (§2.3.4)
+TTL positive values of a signed 32 bit number. (§2.3.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -189,7 +190,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1035-2.3.4-2`](#rfc1035-2.3.4-2)
 
-Size limit -- UDP messages: 512 octets or less (§2.3.4)
+UDP messages 512 octets or less (§2.3.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -235,7 +236,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1035-3.1-4`](#rfc1035-3.1-4)
 
-The total length of a domain name (i.e., label octets and label length octets) is restricted to 255 octets or less (§3.1)
+To simplify implementations, the total length of a domain name (i.e., label octets and label length octets) is restricted to 255 octets or less. (§3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -289,7 +290,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1035-4.1.1-2`](#rfc1035-4.1.1-2)
 
-AA (Authoritative Answer) is valid in responses and specifies that the responding name server is an authority for the domain name in question section (§4.1.1)
+AA Authoritative Answer - this bit is valid in responses, and specifies that the responding name server is an authority for the domain name in question section. (§4.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -302,7 +303,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1035-4.1.1-3`](#rfc1035-4.1.1-3)
 
-RCODE 3 (Name Error), meaningful only for responses from an authoritative name server, signifies that the domain name referenced in the query does not exist (§4.1.1)
+3 Name Error - Meaningful only for responses from an authoritative name server, this code signifies that the domain name referenced in the query does not exist. (§4.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -315,7 +316,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1035-4.1.3-1`](#rfc1035-4.1.3-1)
 
-TTL is a 32 bit unsigned integer that specifies the time interval in seconds that the resource record may be cached (§4.1.3)
+TTL a 32 bit unsigned integer that specifies the time interval (in seconds) that the resource record may be cached before it should be discarded. (§4.1.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -326,7 +327,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1035-4.1.3-2`](#rfc1035-4.1.3-2)
 
-RDLENGTH is an unsigned 16 bit integer that specifies the length in octets of the RDATA field (§4.1.3)
+RDLENGTH an unsigned 16 bit integer that specifies the length in octets of the RDATA field. (§4.1.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -348,7 +349,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1035-4.1.4-2`](#rfc1035-4.1.4-2)
 
-The OFFSET field specifies an offset from the start of the message, i.e. the first octet of the ID field in the domain header (§4.1.4)
+The OFFSET field specifies an offset from the start of the message (i.e., the first octet of the ID field in the domain header). (§4.1.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -370,7 +371,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1035-4.1.4-4`](#rfc1035-4.1.4-4)
 
-If a domain name is contained in a part of the message subject to a length field, such as the RDATA section of an RR, and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name (§4.1.4)
+If a domain name is contained in a part of the message subject to a length field (such as the RDATA section of an RR), and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name. (§4.1.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -400,7 +401,7 @@ No test carries RFC1035-4.2-1, so no unit is bound to it.
 
 ### [`RFC1035-4.2.1-1`](#rfc1035-4.2.1-1)
 
-Messages carried by UDP are restricted to 512 bytes, not counting the IP or UDP headers (§4.2.1)
+Messages carried by UDP are restricted to 512 bytes (not counting the IP or UDP headers). (§4.2.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -437,7 +438,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1035-4.2.2-1`](#rfc1035-4.2.2-1)
 
-Messages sent over TCP connections use server port 53 decimal, and the message is prefixed with a two byte length field which gives the message length (§4.2.2)
+Messages sent over TCP connections use server port 53 (decimal). The message is prefixed with a two byte length field which gives the message length, excluding the two byte length field. (§4.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -512,7 +513,6 @@ Audit verdict: not audited: no reader has judged these tests
 | `3.4` | Internet specific RRs heading | 0 | walked | Internet specific RRs heading. |
 | `3.4.1` | A RDATA format: a single 32-bit address | 0 | walked | A RDATA format: a single 32-bit address. Ze emits A records. |
 | `3.4.2` | WKS RDATA format | 1 | walked | WKS RDATA format. Its one site is the bit-map alignment rule, excluded below because Ze emits no WKS record. |
-| `25` | not stated | 0 | walked | NOT A SECTION. The derivation's heading pattern over-matches a column-0 line inside section 3.4.2's WKS bit-map explanation ('25 (SMTP). If this bit is set, a SMTP server should be listening on TCP port 25'), which _SECTION_HEADING_RE documents as unavoidable by shape alone. It carries no site and no obligation; it is classified so the artifact stays complete against the derivation. |
 | `3.5` | IN-ADDR.ARPA domain | 1 | walked | IN-ADDR.ARPA domain. Its one site binds a host bootstrapping routing from DNS. |
 | `3.6` | Defining new types, classes, and special namespaces | 1 | walked | Defining new types, classes, and special namespaces. Its one site binds whoever defines a new TYPE or CLASS. |
 | `4` | MESSAGES heading | 0 | walked | MESSAGES heading. |

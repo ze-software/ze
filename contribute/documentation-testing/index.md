@@ -67,6 +67,27 @@ The full `./le doc check verify` remains the explicit documentation review targe
 command, inventory, and wiring checks for changed files.
 
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
+
+The change is the unpushed range. The base is the merge base of HEAD and the
+branch upstream, or of HEAD and `origin/main` when the branch tracks none, and
+the range runs from that base to the working tree. The gate is owed before a
+push, so a change committed without a run is still judged by the next run.
+The file set, the changed lines and every read of a file's earlier content
+come from that one base, so a change in the range is never missing from the
+file set. A file the change deleted is in the file set. A pure rename and a
+mode-only change are in the file set with no changed line, because the file
+set lists a rename as two paths and the line diff detects it. Neither hides a
+claim: a mode-only change touches no symbol, and a claim on a renamed file
+names the old path, which the change deleted, so that claim is unanswerable
+and counted. A failed read of a file's earlier content fails the run: it is
+never read as an empty file. A file named with
+`changed-file <path>` that holds no hunk in the range answers every line. The
+base reads refs only, so the detached worktree that `./le verify worktree`
+makes judges the same range. When no base resolves, the gate exits 2 and names
+why, and no check runs.
+
+<!-- source: internal/le/doc/wiring/docwiring.go -- Run -->
+<!-- source: internal/le/repo/changed/lines.go -- LinesSinceUpstream, PathsSince -->
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 ## How to interpret output
@@ -338,6 +359,46 @@ scope. A claim naming no resolvable symbol blocks nothing and is counted in the
 verdict line, because silence and "nothing to say" must not read alike.
 `ai/rules/documentation.md` states the obligation this enforces: the page edit
 belongs in the same work as the code edit.
+
+A change that preserves behavior leaves every claim about its symbol as true as
+it was. A branch swap, an early return and a split guard are examples. A page
+edit made only to satisfy the check is banned, so the reader who compared the
+claim with the change records a reviewed claim instead. The ledger is
+`plan/doc-reviewed/<session>.md`, one shard for each commit session, named after
+the eight-hex id `./le commit session` prints. Each shard holds one table:
+
+| Doc | Source | Symbol | Commit | Reason |
+|-----|--------|--------|--------|--------|
+| `docs/contributing/ze-go-style.md` | `internal/le/arch/compoundguard/compoundguard.go` | `Check` | `447c5c24da` | branch swap, same statements; the claim about which lines are judged is unaffected |
+
+The key is Doc, Source and Symbol, never a line number. Commit is the object id,
+7 to 40 lowercase hex digits: a ref such as `HEAD` moves, so the check refuses
+it. The check reads every shard, so a claim another session reviewed stays
+accepted. A flagged claim is covered only when both of these hold:
+
+- Every unpushed commit (between the upstream base and HEAD) that changed a
+  line of Symbol has a row for the claim's key.
+- The working tree does not change Symbol after HEAD.
+
+A claim that fails either stays a finding, and the finding names each commit
+with no row (`447c5c24da changed Documented and has no reviewed row`) or the
+working-tree edit. Each of these is a finding of its own, with the shard and
+the line: a shard with no table, a row with the wrong cell count or an empty
+cell, a Commit that is not an object id or that the repository does not hold, a
+key that matches no claim anchor, and an unpushed commit that did not change
+the row's Symbol. A row naming a pushed commit covers nothing. A merge commit
+that changed Symbol against its first parent needs a row of its own. When an
+unpushed commit renamed or copied a file into Source, no row covers any claim
+on that Source, because an edit made before the rename is not at Source and no
+row can name it. That claim needs a page edit. The ledger is judged on every
+run, including one with no changed Go. When rows cover claims, the verdict line
+counts them.
+
+A reviewed claim is only for a change that preserves behavior. A change to the
+behavior a claim states MUST edit the page, in the same work as the code
+(`ai/rules/documentation.md`). A row that accepts a false claim hides exactly
+the defect this check exists to find.
+<!-- source: internal/le/doc/wiring/reviewed.go -- ReviewedDir, readReviewLedger -->
 
 `internal/le/doc/check.Answer` walks the instruction corpus for paths,
 `// Design:` targets and hook names. Its last two checks do not use that

@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 7.1% | 1 of 14 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 4 | of 14 gated MUSTs judged | 4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 14 |
 | Not applicable, so out of scope | 9 |
 | Declared gaps | 1 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 8 |
 | Tagged units | 8 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 4 |
 | Discrimination records | 2 |
 | Summary | `rfc/short/rfc3954.md` |
 | Requirement shard | `rfc/requirements/rfc3954.md` |
@@ -111,47 +113,47 @@ Template refresh is time-interval-based only, with no packet-count-based refresh
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC3954-x-1` | Exporter MUST NOT send a Data FlowSet without having sent the corresponding Template FlowSet in a previous or the same export packet (Template Lifecycle) | MUST | x | **positive:** `unit/verify` [`TestWriteExportPacketWithTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/encoder_test.go#L69). **negative:** `unit/verify` [`TestExporterTemplateFailureRetriesBeforeData`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_lifecycle_test.go#L62) |
-| `RFC3954-x-2` | Exporter MUST periodically refresh templates using both time-based and packet-count-based intervals, both configurable (Template Lifecycle) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze refreshes NetFlow v9 templates on a time interval only (internal/plugins/flowexport/exporter.go:192-199, config template-refresh seconds); it has no packet-count-based template-refresh interval, so the conjoined time-and-packet-count refresh requirement is only partly met |
-| `RFC3954-x-3` | All binary integer values MUST be coded in network byte order (big-endian) (Encoding Rules) | MUST | x | **positive:** `unit/verify` [`TestNetflow9DataFlowSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/data_test.go#L10). **positive:** `unit/verify` [`TestNetflow9Header`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/encoder_test.go#L10). **negative:** no negative test. **{single-polarity}:** ze only ENCODES NetFlow v9 (exporter-only, internal/plugins/flowexport/netflow9); every multi-octet field is written big-endian via binary.BigEndian and there is no decode or wrong-endianness code path to reject, so only the positive can be tested |
-| `RFC3954-x-4` | Collector MUST use the FlowSet ID to find the correct template for decoding (Validation) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is a NetFlow v9 collector requirement (map a Data FlowSet ID to its template); ze is a v9 exporter only (internal/plugins/flowexport/netflow9) with no v9 decode/collect code path |
-| `RFC3954-x-5` | Collector MUST use the Length field to determine the position of the next FlowSet record (Encoding Rules) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** collector requirement (use FlowSet Length to find the next FlowSet); ze does not collect v9 |
-| `RFC3954-x-6` | Collector MUST accept padding in Data FlowSets and Options Template FlowSets (Validation) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** collector requirement (accept padding); ze does not collect v9 (its exporter does emit 4-octet padding at internal/plugins/flowexport/netflow9/data.go:38-44) |
-| `RFC3954-x-7` | Collector MUST override an existing template when a new definition arrives for the same Template ID (Template Lifecycle) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** collector requirement (override a template on redefinition); ze does not collect v9 |
-| `RFC3954-x-8` | Sequence Number MUST be a cumulative counter per observation domain (Wire Format) | MUST | x | **positive:** `unit/verify` [`TestNetflow9FlowSeqNumPerPacket`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/flow_adapter_test.go#L53). **negative:** `unit/verify` [`TestNetflow9SeqNumNotAdvancedOnSendError`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/adapter_test.go#L58) |
-| `RFC3954-x-9` | Template ID MUST remain constant for the life of the NetFlow process on the exporter (Template Lifecycle) | MUST | x | **positive:** `unit/verify` [`TestNetflow9FlowTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/flow_template_test.go#L8). **positive:** `unit/verify` [`TestNetflow9Template`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/template_test.go#L8). **negative:** no negative test. **{single-polarity}:** ze's NetFlow v9 template IDs are compile-time constants (CounterTemplateID=256 in internal/plugins/flowexport/netflow9/template.go, FlowTemplateID=257 and FlowTemplateID6=258 in flow_template.go) that are never reassigned for the life of the process, so there is no ID-change code path to test negatively |
-| `RFC3954-x-10` | Exporter SHOULD insert padding to 4-octet alignment using zeros (Encoding Rules) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC3954-x-11` | Exporter SHOULD send templates at an accelerated rate after configuration changes or clock changes (Template Lifecycle) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC3954-x-12` | Collector SHOULD use (exporter IP, Source ID) to separate different export streams (Wire Format) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC3954-x-13` | Collector SHOULD buffer data records when the matching template has not yet been received (Validation) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC3954-x-14` | Collector SHOULD use Sequence Number to detect missing packets (Wire Format) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC3954-x-15` | Exporter SHOULD NOT reuse a Template ID after configuration changes until the process restarts (Template Lifecycle) | SHOULD NOT | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC3954-x-16` | Export path SHOULD be a dedicated link or provisioned to handle burst rate without drops (Transport Considerations) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC3954-x-17` | Exporter MAY send template-only packets (no data) to pre-populate the collector (Template Lifecycle) | MAY | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC3954-x-18` | Exporter MAY export flows prematurely due to internal constraints (memory pressure, counter wrap) (Exporter Implementation) | MAY | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC3954-x-19` | Exporter MAY include multiple template records in a single Template FlowSet (Template FlowSet) | MAY | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC3954-x-20` | Exporter MAY send templates and data in the same packet (Template Lifecycle) | MAY | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC3954-x-21` | Exporters MAY use reserved field type IDs for vendor-specific fields (Reserved Fields) | MAY | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC3954-x-22` | The NetFlow Collector MUST store the Template Record to interpret the corresponding Flow Data Records that are received in subsequent data packets (Template Lifecycle) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
-| `RFC3954-x-23` | A NetFlow Collector that receives Export Packets from several Observation Domains from the same Exporter MUST be aware that the uniqueness of the Template ID is not guaranteed across Observation Domains (Template Lifecycle) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
-| `RFC3954-x-24` | A Collector device MUST NOT assume that the Data FlowSet and the associated Template FlowSet (or Options Template FlowSet) are exported in the same Export Packet (Validation) | MUST NOT | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
-| `RFC3954-x-25` | The Collector MUST NOT assume that one and only one Template FlowSet is present in an Export Packet (Validation) | MUST NOT | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
-| `RFC3954-x-26` | The Collector MUST NOT attempt to decode the Flow or Options Data Records with an expired Template (Validation) | MUST NOT | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
+| `RFC3954-x-1` | After a NetFlow process restarts, the Exporter MUST NOT send any Data FlowSet without sending the corresponding Template FlowSet and the required Options Template FlowSet in a previous packet or including it in the same Export Packet. (§7) | MUST NOT | 7 | **positive:** `unit/verify` [`TestWriteExportPacketWithTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/encoder_test.go#L69). **negative:** `unit/verify` [`TestExporterTemplateFailureRetriesBeforeData`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_lifecycle_test.go#L62) |
+| `RFC3954-x-2` | On a regular basis, the Exporter MUST send all the Template Records and Options Template Records to refresh the Collector. Template IDs have a limited lifetime at the Collector and MUST be periodically refreshed. Two approaches are taken to make sure that Templates get refreshed at the Collector: * Every N number of Export Packets. * On a time basis, so every N number of minutes. Both options MUST be configurable by the user on the Exporter. (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze refreshes NetFlow v9 templates on a time interval only (internal/plugins/flowexport/exporter.go:192-199, config template-refresh seconds); it has no packet-count-based template-refresh interval, so the conjoined time-and-packet-count refresh requirement is only partly met |
+| `RFC3954-x-3` | The Exporter MUST code all binary integers of the Packet Header and the different FlowSets in network byte order (also known as the big-endian byte ordering). (§4) | MUST | 4 | **positive:** `unit/verify` [`TestNetflow9DataFlowSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/data_test.go#L10). **positive:** `unit/verify` [`TestNetflow9Header`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/encoder_test.go#L10). **negative:** no negative test. **{single-polarity}:** ze only ENCODES NetFlow v9 (exporter-only, internal/plugins/flowexport/netflow9); every multi-octet field is written big-endian via binary.BigEndian and there is no decode or wrong-endianness code path to reject, so only the positive can be tested |
+| `RFC3954-x-4` | The Collector MUST use the FlowSet ID to find the corresponding Template Record and decode the Flow Records from the FlowSet. (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is a NetFlow v9 collector requirement (map a Data FlowSet ID to its template); ze is a v9 exporter only (internal/plugins/flowexport/netflow9) with no v9 decode/collect code path |
+| `RFC3954-x-5` | Because an individual Template FlowSet MAY contain multiple Template Records, the Length value MUST be used to determine the position of the next FlowSet record, which could be any type of FlowSet. (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** collector requirement (use FlowSet Length to find the next FlowSet); ze does not collect v9 |
+| `RFC3954-x-6` | Finally, note that the Collector MUST accept padding in the Data FlowSet and Options Template FlowSet, which means for the Flow Data Records, the Options Data Records and the Template Records. (§9) | MUST | 9 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** collector requirement (accept padding); ze does not collect v9 (its exporter does emit 4-octet padding at internal/plugins/flowexport/netflow9/data.go:38-44) |
+| `RFC3954-x-7` | If a Collector should receive a new definition for an already existing Template ID, it MUST discard the previous template definition and use the new one. (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** collector requirement (override a template on redefinition); ze does not collect v9 |
+| `RFC3954-x-8` | Incremental sequence counter of all Export Packets sent from the current Observation Domain by the Exporter. This value MUST be cumulative (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestNetflow9FlowSeqNumPerPacket`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/flow_adapter_test.go#L53). **negative:** `unit/verify` [`TestNetflow9SeqNumNotAdvancedOnSendError`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/adapter_test.go#L58) |
+| `RFC3954-x-9` | The Template IDs must remain constant for the life of the NetFlow process on the Exporter. (§7) | MUST | 7 | **positive:** `unit/verify` [`TestNetflow9FlowTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/flow_template_test.go#L8). **positive:** `unit/verify` [`TestNetflow9Template`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/template_test.go#L8). **negative:** no negative test. **{single-polarity}:** ze's NetFlow v9 template IDs are compile-time constants (CounterTemplateID=256 in internal/plugins/flowexport/netflow9/template.go, FlowTemplateID=257 and FlowTemplateID6=258 in flow_template.go) that are never reassigned for the life of the process, so there is no ID-change code path to test negatively |
+| `RFC3954-x-10` | The Exporter SHOULD insert some padding bytes so that the subsequent FlowSet starts at a 4-byte aligned boundary. It is important to note that the Length field includes the padding bytes. Padding SHOULD be using zeros. (§5.3) | SHOULD | 5.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-11` | In the event of configuration changes, the Exporter SHOULD send the new template definitions at an accelerated rate. In such a case, it MAY transmit the changed Template Record(s) and Options Template Record(s), without any data, in advance to help ensure that the Collector will have the correct template information before receiving the first data. 3. On a regular basis, the Exporter MUST send all the Template Records and Options Template Records to refresh the Collector. Template IDs have a limited lifetime at the Collector and MUST be periodically refreshed. Two approaches are taken to make sure that Templates get refreshed at the Collector: * Every N number of Export Packets. * On a time basis, so every N number of minutes. Both options MUST be configurable by the user on the Exporter. When one of these expiry conditions is met, the Exporter MUST send the Template FlowSet and Options Template. 4. In the event of a clock configuration change on the Exporter, the Exporter SHOULD send the template definitions at an accelerated rate. (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-12` | NetFlow Collectors SHOULD use the combination of the source IP address and the Source ID field to separate different export streams originating from the same Exporter. (§5.1) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-13` | If the Template Records have not been received at the time Flow Data Records (or Options Data Records) are received, the Collector SHOULD store the Flow Data Records (or Options Data Records) and decode them after the Template Records are received. (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-14` | This value MUST be cumulative, and SHOULD be used by the Collector to identify whether any Export Packets have been missed. (§5.1) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-15` | If the template configuration is changed, the current Template ID is abandoned and SHOULD NOT be reused until the NetFlow process or Exporter restarts. (§7) | SHOULD NOT | 7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-16` | UDP [RFC768] is a non congestion-aware protocol, so when deploying NetFlow version 9 in a congestion-sensitive environment, make the connection between Exporter and NetFlow Collector through a dedicated link. This ensures that any burstiness in the NetFlow traffic affects only this dedicated link. When the NetFlow Collector can not be placed within a one-hop distance from the Exporter or when the export path from the Exporter to the NetFlow Collector can not be exclusively used for the NetFlow Export Packets, the export path should be designed so that it can always sustain the maximum burstiness of NetFlow traffic from the Exporter. (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-17` | It MAY transmit the Template FlowSet and Options Template FlowSet, without any Data FlowSets, in advance to help ensure that the Collector will have the correct Template Record before receiving the first Flow or Options Data Record. (§7) | MAY | 7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-18` | If the Exporter experiences internal constraints, a Flow MAY be forced to expire prematurely; for example, counters wrapping or low memory. (§3.2) | MAY | 3.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-19` | Because an individual Template FlowSet MAY contain multiple Template Records (§5.2) | MAY | 5.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-20` | Flow Data records that correspond to a Template Record MAY appear in the same and/or subsequent Export Packets. (§7) | MAY | 7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-21` | The following value fields are reserved for proprietary field types: 25, 26, 43 to 45, 51 to 54, and 65 to 69. (§8) | MAY | 8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-22` | As such, the NetFlow Collector MUST store the Template Record to interpret the corresponding Flow Data Records that are received in subsequent data packets. (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
+| `RFC3954-x-23` | A NetFlow Collector that receives Export Packets from several Observation Domains from the same Exporter MUST be aware that the uniqueness of the Template ID is not guaranteed across Observation Domains. (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
+| `RFC3954-x-24` | A Collector device MUST NOT assume that the Data FlowSet and the associated Template FlowSet (or Options Template FlowSet) are exported in the same Export Packet. (§9) | MUST NOT | 9 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
+| `RFC3954-x-25` | The Collector MUST NOT assume that one and only one Template FlowSet is present in an Export Packet. (§9) | MUST NOT | 9 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
+| `RFC3954-x-26` | The Collector MUST NOT attempt to decode the Flow or Options Data Records with an expired Template. (§9) | MUST NOT | 9 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC3954-x-2`](#rfc3954-x-2) Exporter MUST periodically refresh templates using both time-based and packet-count-based intervals, both configurable (Template Lifecycle) | {gap}, no test | ze refreshes NetFlow v9 templates on a time interval only (internal/plugins/flowexport/exporter.go:192-199, config template-refresh seconds); it has no packet-count-based template-refresh interval, so the conjoined time-and-packet-count refresh requirement is only partly met |
-| [`RFC3954-x-4`](#rfc3954-x-4) Collector MUST use the FlowSet ID to find the correct template for decoding (Validation) | no test | no test carries this requirement id; annotated {not-applicable}: this is a NetFlow v9 collector requirement (map a Data FlowSet ID to its template); ze is a v9 exporter only (internal/plugins/flowexport/netflow9) with no v9 decode/collect code path |
-| [`RFC3954-x-5`](#rfc3954-x-5) Collector MUST use the Length field to determine the position of the next FlowSet record (Encoding Rules) | no test | no test carries this requirement id; annotated {not-applicable}: collector requirement (use FlowSet Length to find the next FlowSet); ze does not collect v9 |
-| [`RFC3954-x-6`](#rfc3954-x-6) Collector MUST accept padding in Data FlowSets and Options Template FlowSets (Validation) | no test | no test carries this requirement id; annotated {not-applicable}: collector requirement (accept padding); ze does not collect v9 (its exporter does emit 4-octet padding at internal/plugins/flowexport/netflow9/data.go:38-44) |
-| [`RFC3954-x-7`](#rfc3954-x-7) Collector MUST override an existing template when a new definition arrives for the same Template ID (Template Lifecycle) | no test | no test carries this requirement id; annotated {not-applicable}: collector requirement (override a template on redefinition); ze does not collect v9 |
-| [`RFC3954-x-22`](#rfc3954-x-22) The NetFlow Collector MUST store the Template Record to interpret the corresponding Flow Data Records that are received in subsequent data packets (Template Lifecycle) | no test | no test carries this requirement id; annotated {not-applicable}: a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
-| [`RFC3954-x-23`](#rfc3954-x-23) A NetFlow Collector that receives Export Packets from several Observation Domains from the same Exporter MUST be aware that the uniqueness of the Template ID is not guaranteed across Observation Domains (Template Lifecycle) | no test | no test carries this requirement id; annotated {not-applicable}: a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
-| [`RFC3954-x-24`](#rfc3954-x-24) A Collector device MUST NOT assume that the Data FlowSet and the associated Template FlowSet (or Options Template FlowSet) are exported in the same Export Packet (Validation) | no test | no test carries this requirement id; annotated {not-applicable}: a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
-| [`RFC3954-x-25`](#rfc3954-x-25) The Collector MUST NOT assume that one and only one Template FlowSet is present in an Export Packet (Validation) | no test | no test carries this requirement id; annotated {not-applicable}: a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
-| [`RFC3954-x-26`](#rfc3954-x-26) The Collector MUST NOT attempt to decode the Flow or Options Data Records with an expired Template (Validation) | no test | no test carries this requirement id; annotated {not-applicable}: a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
+| [`RFC3954-x-2`](#rfc3954-x-2) On a regular basis, the Exporter MUST send all the Template Records and Options Template Records to refresh the Collector. Template IDs have a limited lifetime at the Collector and MUST be periodically refreshed. Two approaches are taken to make sure that Templates get refreshed at the Collector: * Every N number of Export Packets. * On a time basis, so every N number of minutes. Both options MUST be configurable by the user on the Exporter. (§7) | {gap}, no test | ze refreshes NetFlow v9 templates on a time interval only (internal/plugins/flowexport/exporter.go:192-199, config template-refresh seconds); it has no packet-count-based template-refresh interval, so the conjoined time-and-packet-count refresh requirement is only partly met |
+| [`RFC3954-x-4`](#rfc3954-x-4) The Collector MUST use the FlowSet ID to find the corresponding Template Record and decode the Flow Records from the FlowSet. (§5.3) | no test | no test carries this requirement id; annotated {not-applicable}: this is a NetFlow v9 collector requirement (map a Data FlowSet ID to its template); ze is a v9 exporter only (internal/plugins/flowexport/netflow9) with no v9 decode/collect code path |
+| [`RFC3954-x-5`](#rfc3954-x-5) Because an individual Template FlowSet MAY contain multiple Template Records, the Length value MUST be used to determine the position of the next FlowSet record, which could be any type of FlowSet. (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: collector requirement (use FlowSet Length to find the next FlowSet); ze does not collect v9 |
+| [`RFC3954-x-6`](#rfc3954-x-6) Finally, note that the Collector MUST accept padding in the Data FlowSet and Options Template FlowSet, which means for the Flow Data Records, the Options Data Records and the Template Records. (§9) | no test | no test carries this requirement id; annotated {not-applicable}: collector requirement (accept padding); ze does not collect v9 (its exporter does emit 4-octet padding at internal/plugins/flowexport/netflow9/data.go:38-44) |
+| [`RFC3954-x-7`](#rfc3954-x-7) If a Collector should receive a new definition for an already existing Template ID, it MUST discard the previous template definition and use the new one. (§7) | no test | no test carries this requirement id; annotated {not-applicable}: collector requirement (override a template on redefinition); ze does not collect v9 |
+| [`RFC3954-x-22`](#rfc3954-x-22) As such, the NetFlow Collector MUST store the Template Record to interpret the corresponding Flow Data Records that are received in subsequent data packets. (§7) | no test | no test carries this requirement id; annotated {not-applicable}: a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
+| [`RFC3954-x-23`](#rfc3954-x-23) A NetFlow Collector that receives Export Packets from several Observation Domains from the same Exporter MUST be aware that the uniqueness of the Template ID is not guaranteed across Observation Domains. (§7) | no test | no test carries this requirement id; annotated {not-applicable}: a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
+| [`RFC3954-x-24`](#rfc3954-x-24) A Collector device MUST NOT assume that the Data FlowSet and the associated Template FlowSet (or Options Template FlowSet) are exported in the same Export Packet. (§9) | no test | no test carries this requirement id; annotated {not-applicable}: a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
+| [`RFC3954-x-25`](#rfc3954-x-25) The Collector MUST NOT assume that one and only one Template FlowSet is present in an Export Packet. (§9) | no test | no test carries this requirement id; annotated {not-applicable}: a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
+| [`RFC3954-x-26`](#rfc3954-x-26) The Collector MUST NOT attempt to decode the Flow or Options Data Records with an expired Template. (§9) | no test | no test carries this requirement id; annotated {not-applicable}: a NetFlow v9 Collector obligation, and ze fills only the Exporter role; internal/plugins/flowexport/sender.go::NewSender dials one connected UDP socket towards the collector, and the flowexport plugin opens no listening socket and decodes no v9 Export Packet |
 
 ## Proof state
 
@@ -159,9 +161,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC3954-x-1`](#rfc3954-x-1)
 
-Exporter MUST NOT send a Data FlowSet without having sent the corresponding Template FlowSet in a previous or the same export packet (Template Lifecycle)
+After a NetFlow process restarts, the Exporter MUST NOT send any Data FlowSet without sending the corresponding Template FlowSet and the required Options Template FlowSet in a previous packet or including it in the same Export Packet. (§7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Exporter clause: TestExporterTemplateFailureRetriesBeforeData goes red if data leaves after a failed template (datagrams-sent/bytes-sent) or the retry transcript is not template then data, but it drives the exporter with the fake templateFailureEncoder, so the real netflow9 encoders are outside it. 'The corresponding Template FlowSet': no tagged assertion goes red if the real CounterEncoder.EncodeTemplate or FlowEncoder.EncodeFlowTemplate sent a template other than the one the following data references (for example no IPv6 template 258 before IPv6 flow data). TestWriteExportPacketWithTemplate passes needTemplate=true itself and asserts only count==2, not that the Template FlowSet precedes the Data FlowSet or carries the data's template ID. The Options Template clause is vacuous (no Options Template or Options Data is emitted).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -170,7 +172,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3954-x-2`](#rfc3954-x-2)
 
-Exporter MUST periodically refresh templates using both time-based and packet-count-based intervals, both configurable (Template Lifecycle)
+On a regular basis, the Exporter MUST send all the Template Records and Options Template Records to refresh the Collector. Template IDs have a limited lifetime at the Collector and MUST be periodically refreshed. Two approaches are taken to make sure that Templates get refreshed at the Collector: * Every N number of Export Packets. * On a time basis, so every N number of minutes. Both options MUST be configurable by the user on the Exporter. (§7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -178,9 +180,9 @@ No test carries RFC3954-x-2, so no unit is bound to it.
 
 ### [`RFC3954-x-3`](#rfc3954-x-3)
 
-All binary integer values MUST be coded in network byte order (big-endian) (Encoding Rules)
+The Exporter MUST code all binary integers of the Packet Header and the different FlowSets in network byte order (also known as the big-endian byte ordering). (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. encoder_test.go TestNetflow9Header and data_test.go TestNetflow9DataFlowSet read the Packet Header and the counter Data FlowSet big-endian. The sentence covers "the different FlowSets": the Template FlowSet and the per-flow Data FlowSet integers have no assertion in an x-3 tagged unit (template_test.go/flow_template_test.go read them big-endian but are tagged x-9 only).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -189,7 +191,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3954-x-4`](#rfc3954-x-4)
 
-Collector MUST use the FlowSet ID to find the correct template for decoding (Validation)
+The Collector MUST use the FlowSet ID to find the corresponding Template Record and decode the Flow Records from the FlowSet. (§5.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -197,7 +199,7 @@ No test carries RFC3954-x-4, so no unit is bound to it.
 
 ### [`RFC3954-x-5`](#rfc3954-x-5)
 
-Collector MUST use the Length field to determine the position of the next FlowSet record (Encoding Rules)
+Because an individual Template FlowSet MAY contain multiple Template Records, the Length value MUST be used to determine the position of the next FlowSet record, which could be any type of FlowSet. (§5.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -205,7 +207,7 @@ No test carries RFC3954-x-5, so no unit is bound to it.
 
 ### [`RFC3954-x-6`](#rfc3954-x-6)
 
-Collector MUST accept padding in Data FlowSets and Options Template FlowSets (Validation)
+Finally, note that the Collector MUST accept padding in the Data FlowSet and Options Template FlowSet, which means for the Flow Data Records, the Options Data Records and the Template Records. (§9)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -213,7 +215,7 @@ No test carries RFC3954-x-6, so no unit is bound to it.
 
 ### [`RFC3954-x-7`](#rfc3954-x-7)
 
-Collector MUST override an existing template when a new definition arrives for the same Template ID (Template Lifecycle)
+If a Collector should receive a new definition for an already existing Template ID, it MUST discard the previous template definition and use the new one. (§7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -221,9 +223,9 @@ No test carries RFC3954-x-7, so no unit is bound to it.
 
 ### [`RFC3954-x-8`](#rfc3954-x-8)
 
-Sequence Number MUST be a cumulative counter per observation domain (Wire Format)
+Incremental sequence counter of all Export Packets sent from the current Observation Domain by the Exporter. This value MUST be cumulative (§5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. flow_adapter_test.go asserts two data packets from one FlowEncoder differ by exactly 1; adapter_test.go asserts a failed Send does not advance the counter. The sentence counts "all Export Packets" of the domain: template-only packets (flow_adapter.go writes one with sender.Sequence()) and counter plus flow packets on one sender are not shown counted by a tagged unit (exporter_lifecycle_test.go checks it but carries no x-8 tag).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -232,9 +234,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3954-x-9`](#rfc3954-x-9)
 
-Template ID MUST remain constant for the life of the NetFlow process on the exporter (Template Lifecycle)
+The Template IDs must remain constant for the life of the NetFlow process on the Exporter. (§7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. template_test.go and flow_template_test.go assert one build of the counter and IPv4 flow templates carries 256 and 257. No tagged unit shows the ID unchanged across two builds or a template refresh, which is the behaviour the sentence forbids, and the IPv6 template FlowTemplateID6=258 is not asserted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -243,7 +245,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3954-x-22`](#rfc3954-x-22)
 
-The NetFlow Collector MUST store the Template Record to interpret the corresponding Flow Data Records that are received in subsequent data packets (Template Lifecycle)
+As such, the NetFlow Collector MUST store the Template Record to interpret the corresponding Flow Data Records that are received in subsequent data packets. (§7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -251,7 +253,7 @@ No test carries RFC3954-x-22, so no unit is bound to it.
 
 ### [`RFC3954-x-23`](#rfc3954-x-23)
 
-A NetFlow Collector that receives Export Packets from several Observation Domains from the same Exporter MUST be aware that the uniqueness of the Template ID is not guaranteed across Observation Domains (Template Lifecycle)
+A NetFlow Collector that receives Export Packets from several Observation Domains from the same Exporter MUST be aware that the uniqueness of the Template ID is not guaranteed across Observation Domains. (§7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -259,7 +261,7 @@ No test carries RFC3954-x-23, so no unit is bound to it.
 
 ### [`RFC3954-x-24`](#rfc3954-x-24)
 
-A Collector device MUST NOT assume that the Data FlowSet and the associated Template FlowSet (or Options Template FlowSet) are exported in the same Export Packet (Validation)
+A Collector device MUST NOT assume that the Data FlowSet and the associated Template FlowSet (or Options Template FlowSet) are exported in the same Export Packet. (§9)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -267,7 +269,7 @@ No test carries RFC3954-x-24, so no unit is bound to it.
 
 ### [`RFC3954-x-25`](#rfc3954-x-25)
 
-The Collector MUST NOT assume that one and only one Template FlowSet is present in an Export Packet (Validation)
+The Collector MUST NOT assume that one and only one Template FlowSet is present in an Export Packet. (§9)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -275,7 +277,7 @@ No test carries RFC3954-x-25, so no unit is bound to it.
 
 ### [`RFC3954-x-26`](#rfc3954-x-26)
 
-The Collector MUST NOT attempt to decode the Flow or Options Data Records with an expired Template (Validation)
+The Collector MUST NOT attempt to decode the Flow or Options Data Records with an expired Template. (§9)
 
 Audit verdict: not audited: no reader has judged these tests
 

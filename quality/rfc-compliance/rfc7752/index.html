@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7752 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7752: North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP. 26 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7752: North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP. 26 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7752 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7752: North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP. 26 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7752: North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP. 26 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7752 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7752: North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP. 26 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7752: North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP. 26 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>15.4%</strong><b>4 of 26 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>11</strong><b>of 26 gated MUSTs judged</b><p>8 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 26 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>4</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>19</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>11</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -370,18 +374,18 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze assembles no BGP-LS attribute: every Ls*TLV struct is built only inside its own decode function (internal/component/bgp/plugins/nlri/ls/attr_node.go:179, internal/component/bgp/plugins/nlri/ls/attr_link.go:59) and a grep for composite-literal construction of lsIPv4RouterIDRemote, lsIPv4RouterIDLocal, lsIGPFlags and lsPrefixMetric outside _test.go finds only those decode functions, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode &#34;decode&#34; only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn &#34;NewBGPLSNode|NewBGPLSLink|NewBGPLSPrefixV&#34; --include=*.go outside _test.go returns only those four definitions</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.1.1-1">RFC7752-3.2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The same node must not be represented by two keys (Section 3.2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.1.1-1">RFC7752-3.2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The same node MUST NOT be represented by two keys (otherwise, one node will look like two nodes). (Section 3.2.1.1)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
+<td>MUST NOT</td>
 <td>3.2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7752-3.2.1.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze assigns no node keys. It builds no link-state topology from BGP-LS: received routes land in the non-CIDR opaque backend keyed by raw NLRI bytes (internal/component/bgp/plugins/rib/storage/familyrib.go:278) and grep -rn &#34;BGPLSNode&#34; --include=*.go outside internal/component/bgp/plugins/nlri/ls/ returns nothing, so no consumer turns a Node NLRI into a keyed topology object</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.1.1-2">RFC7752-3.2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">Two different nodes must not be represented by the same key (Section 3.2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.1.1-2">RFC7752-3.2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">Two different nodes MUST NOT be represented by the same key (otherwise, two nodes will look like one node). (Section 3.2.1.1)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
+<td>MUST NOT</td>
 <td>3.2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7752-3.2.1.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
@@ -442,7 +446,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze assembles no BGP-LS attribute: every Ls*TLV struct is built only inside its own decode function (internal/component/bgp/plugins/nlri/ls/attr_node.go:179, internal/component/bgp/plugins/nlri/ls/attr_link.go:59) and a grep for composite-literal construction of lsIPv4RouterIDRemote, lsIPv4RouterIDLocal, lsIGPFlags and lsPrefixMetric outside _test.go finds only those decode functions, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode &#34;decode&#34; only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn &#34;NewBGPLSNode|NewBGPLSLink|NewBGPLSPrefixV&#34; --include=*.go outside _test.go returns only those four definitions</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.3.2.2-1">RFC7752-3.3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">MPLS Protocol Mask TLV must not be included in NLRIs with Protocol-IDs 1-3, 6 (IS-IS, OSPF) (Section 3.3.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.3.2.2-1">RFC7752-3.3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">The MPLS Protocol Mask TLV MUST NOT be included in NLRIs with the other Protocol-IDs listed in Table 2. (Section 3.3.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.3.2.2</td>
@@ -487,7 +491,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the RFC 7606 validator table registers no entry for attribute code 29 (internal/component/bgp/message/rfc7606.go:414), so validateAttribute returns nil for a malformed BGP-LS attribute (internal/component/bgp/message/rfc7606.go:433) and the attribute rides through the UPDATE path instead of being discarded</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.2.2-2">RFC7752-6.2.2-2</code></td><td colspan="3"><span class="rfc-subject">Implementation must perform syntactic checks (TLV sum vs attribute length, fixed-length TLV sizes) (Section 6.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.2.2-2">RFC7752-6.2.2-2</code></td><td colspan="3"><span class="rfc-subject">An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed. o Does the sum of all TLVs found in the BGP-LS attribute correspond to the BGP-LS path attribute length? o Does the sum of all TLVs found in the BGP MP_REACH_NLRI attribute correspond to the BGP MP_REACH_NLRI length? o Does the sum of all TLVs found in the BGP MP_UNREACH_NLRI attribute correspond to the BGP MP_UNREACH_NLRI length? o Does the sum of all TLVs found in a Node, Link or Prefix Descriptor NLRI attribute correspond to the Total NLRI Length field of the Node, Link, or Prefix Descriptors? o Does any fixed-length TLV correspond to the TLV Length field in this document? (Section 6.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.2.2</td>
@@ -532,7 +536,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L266" title="internal/component/bgp/plugins/nlri/ls/rfc7752_test.go" target="_blank" rel="noopener"><code>TestRFC7752NonLinkStateFamilyRefused</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2-7">RFC7752-3.2-7</code></td><td colspan="3"><span class="rfc-subject">&#34;Direct&#34; and &#34;Static configuration&#34; protocol types should be used when BGP-LS is sourcing local information (Section 3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2-7">RFC7752-3.2-7</code></td><td colspan="3"><span class="rfc-subject">The &#39;Direct&#39; and &#39;Static configuration&#39; protocol types SHOULD be used when BGP-LS is sourcing local information. (Section 3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2</td>
@@ -541,7 +545,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2-8">RFC7752-3.2-8</code></td><td colspan="3"><span class="rfc-subject">If a given protocol does not support multiple routing universes, it should set the Identifier field to 0 (Section 3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2-8">RFC7752-3.2-8</code></td><td colspan="3"><span class="rfc-subject">If a given protocol does not support multiple routing universes, then it SHOULD set the Identifier field according to Table 3. (Section 3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2</td>
@@ -550,7 +554,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.1.4-4">RFC7752-3.2.1.4-4</code></td><td colspan="3"><span class="rfc-subject">BGP-LS speakers within the IGP domain should use the same ASN, BGP-LS ID tuple (Section 3.2.1.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.1.4-4">RFC7752-3.2.1.4-4</code></td><td colspan="3"><span class="rfc-subject">If an IGP domain consists of multiple flooding-sets, then all BGP-LS speakers within the IGP domain SHOULD use the same ASN, BGP-LS ID tuple. (Section 3.2.1.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2.1.4</td>
@@ -559,7 +563,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.1.5-2">RFC7752-3.2.1.5-2</code></td><td colspan="3"><span class="rfc-subject">Reserved bits in Multi-Topology ID should be set to 0 on origination and ignored on receipt (Section 3.2.1.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.1.5-2">RFC7752-3.2.1.5-2</code></td><td colspan="3"><span class="rfc-subject">Bits R are reserved and SHOULD be set to 0 when originated and ignored on receipt. (Section 3.2.1.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2.1.5</td>
@@ -568,7 +572,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.3.2-1">RFC7752-3.2.3.2-1</code></td><td colspan="3"><span class="rfc-subject">A router should advertise an IP Prefix NLRI for each of its BGP next hops (Section 3.2.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.3.2-1">RFC7752-3.2.3.2-1</code></td><td colspan="3"><span class="rfc-subject">A router SHOULD advertise an IP Prefix NLRI for each of its BGP next hops. (Section 3.2.3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2.3.2</td>
@@ -577,7 +581,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.3-2">RFC7752-3.3-2</code></td><td colspan="3"><span class="rfc-subject">BGP-LS attribute should only be included with Link-State NLRIs (Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.3-2">RFC7752-3.3-2</code></td><td colspan="3"><span class="rfc-subject">This attribute SHOULD only be included with Link-State NLRIs. (Section 3.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.3</td>
@@ -586,7 +590,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.3.1.3-1">RFC7752-3.3.1.3-1</code></td><td colspan="3"><span class="rfc-subject">FQDN or subset strongly recommended for Node Name and Link Name (Section 3.3.1.3, 3.3.2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.3.1.3-1">RFC7752-3.3.1.3-1</code></td><td colspan="3"><span class="rfc-subject">This symbolic name can be the Fully Qualified Domain Name (FQDN) for the router, it can be a subset of the FQDN (e.g., a hostname), or it can be any string operators want to use for the router. The use of FQDN or a subset of it is strongly RECOMMENDED. (Section 3.3.1.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.3.1.3</td>
@@ -595,7 +599,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.3.2.2-2">RFC7752-3.3.2.2-2</code></td><td colspan="3"><span class="rfc-subject">MPLS Protocol Mask TLV should only be used with Protocol-IDs 4 or 5 (Section 3.3.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.3.2.2-2">RFC7752-3.3.2.2-2</code></td><td colspan="3"><span class="rfc-subject">Generation of the MPLS Protocol Mask TLV is only valid for and SHOULD only be used with originators that have local link insight, for example, the Protocol-IDs &#39;Static configuration&#39; or &#39;Direct&#39; as per Table 2. (Section 3.3.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.3.2.2</td>
@@ -604,7 +608,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.3.3-2">RFC7752-3.3.3-2</code></td><td colspan="3"><span class="rfc-subject">Prefix Attribute TLVs should be used when advertising NLRI types 3 and 4 only (Section 3.3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.3.3-2">RFC7752-3.3.3-2</code></td><td colspan="3"><span class="rfc-subject">Prefix Attribute TLVs SHOULD be used when advertising NLRI types 3 and 4 only. (Section 3.3.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.3.3</td>
@@ -613,7 +617,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.4-2">RFC7752-3.4-2</code></td><td colspan="3"><span class="rfc-subject">Next hop in MP_REACH_NLRI should match BGP session address family (Section 3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.4-2">RFC7752-3.4-2</code></td><td colspan="3"><span class="rfc-subject">If an IPv4 BGP session is used, then the next hop in the MP_REACH_NLRI SHOULD be an IPv4 address. Similarly, if an IPv6 BGP session is used, then the next hop in the MP_REACH_NLRI SHOULD be an IPv6 address. (Section 3.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.4</td>
@@ -622,7 +626,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.5-1">RFC7752-3.5-1</code></td><td colspan="3"><span class="rfc-subject">Implementation should provide a means to inject inter-AS links into BGP-LS (Section 3.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.5-1">RFC7752-3.5-1</code></td><td colspan="3"><span class="rfc-subject">In other cases, an implementation SHOULD provide a means to inject inter-AS links into BGP-LS. (Section 3.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.5</td>
@@ -631,7 +635,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.1.2-1">RFC7752-6.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Configuration parameters should be initialized to default values (Section 6.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.1.2-1">RFC7752-6.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Configuration parameters defined in Section 6.2.3 SHOULD be initialized to the following default values: o The Link-State NLRI capability is turned off for all neighbors. o The maximum rate at which Link-State NLRIs will be advertised/ withdrawn from neighbors is set to 200 updates per second. (Section 6.1.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.2</td>
@@ -640,7 +644,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.1.5-1">RFC7752-6.1.5-1</code></td><td colspan="3"><span class="rfc-subject">Distribution of Link-State NLRIs should be limited to a single admin domain (Section 6.1.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.1.5-1">RFC7752-6.1.5-1</code></td><td colspan="3"><span class="rfc-subject">Distribution of Link-State NLRIs SHOULD be limited to a single admin domain, which can consist of multiple areas within an AS or multiple ASes. (Section 6.1.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.5</td>
@@ -649,7 +653,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.1.6-1">RFC7752-6.1.6-1</code></td><td colspan="3"><span class="rfc-subject">Implementation should allow operator to list neighbors exchanging Link-State NLRIs (Section 6.1.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.1.6-1">RFC7752-6.1.6-1</code></td><td colspan="3"><span class="rfc-subject">In addition, an implementation SHOULD allow an operator to: o List neighbors with whom the speaker is exchanging Link-State NLRIs. (Section 6.1.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.6</td>
@@ -658,7 +662,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.2.3-1">RFC7752-6.2.3-1</code></td><td colspan="3"><span class="rfc-subject">Implementation should allow operator to specify neighbors, max rate, max RIB entries, abstracted topologies, Instance-ID, ASN/BGP-LS ID (Section 6.2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.2.3-1">RFC7752-6.2.3-1</code></td><td colspan="3"><span class="rfc-subject">An implementation SHOULD allow the operator to specify neighbors to which Link-State NLRIs will be advertised and from which Link-State NLRIs will be accepted. An implementation SHOULD allow the operator to specify the maximum rate at which Link-State NLRIs will be advertised/withdrawn from neighbors. An implementation SHOULD allow the operator to specify the maximum number of Link-State NLRIs stored in a router&#39;s Routing Information Base (RIB). An implementation SHOULD allow the operator to create abstracted topologies that are advertised to neighbors and create different abstractions for different neighbors. An implementation SHOULD allow the operator to configure a 64-bit Instance-ID. An implementation SHOULD allow the operator to configure a pair of ASN and BGP-LS identifiers (Section 3.2.1.4) per flooding set in which the node participates. (Section 6.2.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.2.3</td>
@@ -667,7 +671,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.2.5-1">RFC7752-6.2.5-1</code></td><td colspan="3"><span class="rfc-subject">Implementation should provide statistics (total NLRIs sent/received, per-neighbor, errors, locally originated) (Section 6.2.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.2.5-1">RFC7752-6.2.5-1</code></td><td colspan="3"><span class="rfc-subject">An implementation SHOULD provide the following statistics: o Total number of Link-State NLRI updates sent/received o Number of Link-State NLRI updates sent/received, per neighbor o Number of errored received Link-State NLRI updates, per neighbor o Total number of locally originated Link-State NLRIs (Section 6.2.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.2.5</td>
@@ -676,7 +680,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.2.6-2">RFC7752-6.2.6-2</code></td><td colspan="3"><span class="rfc-subject">Operator should define an import policy to drop all updates from consumer peers (Section 6.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.2.6-2">RFC7752-6.2.6-2</code></td><td colspan="3"><span class="rfc-subject">An operator SHOULD define an import policy to limit inbound updates as follows: o Drop all updates from consumer peers. (Section 6.2.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.2.6</td>
@@ -685,7 +689,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-8-2">RFC7752-8-2</code></td><td colspan="3"><span class="rfc-subject">Operator should employ a mechanism to protect BGP speaker against DDoS attacks from consumers (Section 8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-8-2">RFC7752-8-2</code></td><td colspan="3"><span class="rfc-subject">An operator SHOULD employ a mechanism to protect a BGP speaker against DDoS attacks from consumers. (Section 8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8</td>
@@ -694,7 +698,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2-9">RFC7752-3.2-9</code></td><td colspan="3"><span class="rfc-subject">Implementation may make the Identifier configurable for a given protocol (Section 3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2-9">RFC7752-3.2-9</code></td><td colspan="3"><span class="rfc-subject">However, an implementation MAY make the &#39;Identifier&#39; configurable for a given protocol. (Section 3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.2</td>
@@ -703,7 +707,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2-10">RFC7752-3.2-10</code></td><td colspan="3"><span class="rfc-subject">OSPF and IS-IS may run multiple routing protocol instances over the same link (Section 3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2-10">RFC7752-3.2-10</code></td><td colspan="3"><span class="rfc-subject">Both OSPF and IS-IS MAY run multiple routing protocol instances over the same link. (Section 3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.2</td>
@@ -712,7 +716,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.2-1">RFC7752-3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Link local/remote identifiers may be included in the link attribute (Section 3.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.2-1">RFC7752-3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">The link local/remote identifiers MAY be included in the link attribute. (Section 3.2.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.2.2</td>
@@ -721,7 +725,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.1.5-3">RFC7752-3.2.1.5-3</code></td><td colspan="3"><span class="rfc-subject">The MT-ID TLV may be present in Link/Prefix Descriptor or Node NLRI attribute (Section 3.2.1.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.1.5-3">RFC7752-3.2.1.5-3</code></td><td colspan="3"><span class="rfc-subject">The MT-ID TLV MAY be present in a Link Descriptor, a Prefix Descriptor, or the BGP-LS attribute of a Node NLRI. (Section 3.2.1.5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.2.1.5</td>
@@ -730,7 +734,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.3.1-1">RFC7752-3.2.3.1-1</code></td><td colspan="3"><span class="rfc-subject">OSPF Route Type TLV is optional and may be present in Prefix NLRI (Section 3.2.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.2.3.1-1">RFC7752-3.2.3.1-1</code></td><td colspan="3"><span class="rfc-subject">The OSPF Route Type TLV is an optional TLV that MAY be present in Prefix NLRIs. (Section 3.2.3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.2.3.1</td>
@@ -739,7 +743,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.1.5-2">RFC7752-6.1.5-2</code></td><td colspan="3"><span class="rfc-subject">A network operator may use a dedicated Route-Reflector infrastructure (Section 6.1.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.1.5-2">RFC7752-6.1.5-2</code></td><td colspan="3"><span class="rfc-subject">A network operator MAY use a dedicated Route- Reflector infrastructure to distribute Link-State NLRIs. (Section 6.1.5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.1.5</td>
@@ -748,7 +752,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.2.5-2">RFC7752-6.2.5-2</code></td><td colspan="3"><span class="rfc-subject">Implementation may enhance statistics by recording peak per-second counts (Section 6.2.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-6.2.5-2">RFC7752-6.2.5-2</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY also enhance this information by recording peak per-second counts in each case. (Section 6.2.5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.2.5</td>
@@ -778,11 +782,11 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze assembles no BGP-LS attribute: every Ls*TLV struct is built only inside its own decode function (internal/component/bgp/plugins/nlri/ls/attr_node.go:179, internal/component/bgp/plugins/nlri/ls/attr_link.go:59) and a grep for composite-literal construction of lsIPv4RouterIDRemote, lsIPv4RouterIDLocal, lsIGPFlags and lsPrefixMetric outside _test.go finds only those decode functions, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode &#34;decode&#34; only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn &#34;NewBGPLSNode|NewBGPLSLink|NewBGPLSPrefixV&#34; --include=*.go outside _test.go returns only those four definitions</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2.1.1-1"><code>RFC7752-3.2.1.1-1</code></a> The same node must not be represented by two keys (Section 3.2.1.1)</td>
+<tr><td><a href="#rfc7752-3.2.1.1-1"><code>RFC7752-3.2.1.1-1</code></a> The same node MUST NOT be represented by two keys (otherwise, one node will look like two nodes). (Section 3.2.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze assigns no node keys. It builds no link-state topology from BGP-LS: received routes land in the non-CIDR opaque backend keyed by raw NLRI bytes (internal/component/bgp/plugins/rib/storage/familyrib.go:278) and grep -rn &#34;BGPLSNode&#34; --include=*.go outside internal/component/bgp/plugins/nlri/ls/ returns nothing, so no consumer turns a Node NLRI into a keyed topology object</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2.1.1-2"><code>RFC7752-3.2.1.1-2</code></a> Two different nodes must not be represented by the same key (Section 3.2.1.1)</td>
+<tr><td><a href="#rfc7752-3.2.1.1-2"><code>RFC7752-3.2.1.1-2</code></a> Two different nodes MUST NOT be represented by the same key (otherwise, two nodes will look like one node). (Section 3.2.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze assigns no node keys. It builds no link-state topology from BGP-LS: received routes land in the non-CIDR opaque backend keyed by raw NLRI bytes (internal/component/bgp/plugins/rib/storage/familyrib.go:278) and grep -rn &#34;BGPLSNode&#34; --include=*.go outside internal/component/bgp/plugins/nlri/ls/ returns nothing, so no consumer turns a Node NLRI into a keyed topology object</td>
 </tr>
@@ -806,7 +810,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze assembles no BGP-LS attribute: every Ls*TLV struct is built only inside its own decode function (internal/component/bgp/plugins/nlri/ls/attr_node.go:179, internal/component/bgp/plugins/nlri/ls/attr_link.go:59) and a grep for composite-literal construction of lsIPv4RouterIDRemote, lsIPv4RouterIDLocal, lsIGPFlags and lsPrefixMetric outside _test.go finds only those decode functions, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode &#34;decode&#34; only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn &#34;NewBGPLSNode|NewBGPLSLink|NewBGPLSPrefixV&#34; --include=*.go outside _test.go returns only those four definitions</td>
 </tr>
-<tr><td><a href="#rfc7752-3.3.2.2-1"><code>RFC7752-3.3.2.2-1</code></a> MPLS Protocol Mask TLV must not be included in NLRIs with Protocol-IDs 1-3, 6 (IS-IS, OSPF) (Section 3.3.2.2)</td>
+<tr><td><a href="#rfc7752-3.3.2.2-1"><code>RFC7752-3.3.2.2-1</code></a> The MPLS Protocol Mask TLV MUST NOT be included in NLRIs with the other Protocol-IDs listed in Table 2. (Section 3.3.2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze has no MPLS Protocol Mask TLV. TLV 1094 is neither encoded nor registered for decode: grep -rn &#34;1094&#34; over internal/component/bgp/plugins/nlri/ls/ returns nothing and register_attr.go (internal/component/bgp/plugins/nlri/ls/register_attr.go:5) registers no 1094 decoder, so no NLRI ze emits or reads carries the TLV this clause restricts</td>
 </tr>
@@ -834,7 +838,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7752-3.1-1"><code>RFC7752-3.1-1</code></a></h3>
 <p>Unrecognized types MUST be preserved and propagated. (Section 3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. NLRI half holds: TestRFC7752UnknownTLVPreservedAndPropagated fails unless a Node NLRI with an unknown sub-TLV re-encodes byte-identically. Attribute half is proven only by AttrTLVsToJSON keeping the bytes under a generic key, not by the attribute TLV reaching a forwarded UPDATE, so &#39;propagated&#39; is unasserted for the attribute. The negative TestRFC7752MalformedTLVNotPreserved exercises length-overrun framing (Section 6.2.2), a neighbouring rule, not this one. Same judgement as RFC9552-5.1-3.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -854,7 +858,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </div>
 <h3><a href="#rfc7752-3.1-2"><code>RFC7752-3.1-2</code></a></h3>
 <p>In order to compare NLRIs with unknown TLVs, all TLVs MUST be ordered in ascending order by TLV Type. (Section 3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The units drive only the nlri/ls LinkDescriptor/NodeDescriptor/PrefixDescriptor encoders (mixed-family link addresses emit 260 before 261; the sweep finds no descending pair). ze&#39;s native Link NLRI producer, ls_export export_encode.go encodeNativeLink, builds descriptors itself and no RFC7752-3.1-2 tag drives its output, so a descending pair on that path stays green. Same judgement as RFC9552-5.1-1.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -874,7 +878,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </div>
 <h3><a href="#rfc7752-3.1-3"><code>RFC7752-3.1-3</code></a></h3>
 <p>If there are more TLVs of the same type, then the TLVs MUST be ordered in ascending order of the TLV value within the TLVs with the same type by treating the entire Value field as an opaque hexadecimal string and comparing leftmost octets first, regardless of the length of the string. (Section 3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. RFC 7752 orders same-type TLVs by &#39;treating the entire Value field as an opaque hexadecimal string and comparing leftmost octets first, regardless of the length of the string&#39;. TestSRv6SIDOrderIsLengthBeforeValue asserts the opposite: a 2-octet ffff is emitted before a 16-octet all-zero value, which leftmost-octet comparison puts second. It proves the RFC 9552 Section 5.1 Length-then-Value rule, not this row&#39;s. Both units also place repeated sub-TLV 518 inside a Node Descriptor, which RFC9552-5.1-2 was judged wrong for.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -894,7 +898,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </div>
 <h3><a href="#rfc7752-3.2-1"><code>RFC7752-3.2-1</code></a></h3>
 <p>In order for two BGP speakers to exchange Link-State NLRI, they MUST use BGP Capabilities Advertisement to ensure that they are both capable of properly processing such NLRI. (Section 3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated asserts the (16388, 71) Multiprotocol capability encoding and that Negotiate marks the family supported when both sides carry it; the negative asserts Negotiate drops it when the peer is silent. Nothing drives the UPDATE send or receive path, so ze exchanging Link-State NLRI with a peer that did not negotiate the family leaves both units green. Same judgement as RFC9552-5.2-7.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -922,7 +926,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p>No test carries RFC7752-3.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7752-3.2-4"><code>RFC7752-3.2-4</code></a></h3>
 <p>NLRIs with different &#39;Identifier&#39; values MUST be considered to be from different routing universes. (Section 3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: merging NLRIs that differ only in Identifier. TestRFC7752DifferentIdentifierIsDifferentRoutingUniverse inserts two Node NLRIs identical except Identifier 0 and 1 and fails unless rib.Len() is 2, both are retrievable, and removing one leaves the other. Negative: TestRFC7752SameIdentifierIsOneRoutingUniverse fails unless a repeat with the same Identifier collapses to one route (Len 1), so the separation turns on the Identifier bytes.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -945,11 +949,11 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7752-3.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7752-3.2.1.1-1"><code>RFC7752-3.2.1.1-1</code></a></h3>
-<p>The same node must not be represented by two keys (Section 3.2.1.1)</p>
+<p>The same node MUST NOT be represented by two keys (otherwise, one node will look like two nodes). (Section 3.2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7752-3.2.1.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7752-3.2.1.1-2"><code>RFC7752-3.2.1.1-2</code></a></h3>
-<p>Two different nodes must not be represented by the same key (Section 3.2.1.1)</p>
+<p>Two different nodes MUST NOT be represented by the same key (otherwise, two nodes will look like one node). (Section 3.2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7752-3.2.1.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7752-3.2.1.4-1"><code>RFC7752-3.2.1.4-1</code></a></h3>
@@ -962,7 +966,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p>No test carries RFC7752-3.2.1.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7752-3.2.1.4-3"><code>RFC7752-3.2.1.4-3</code></a></h3>
 <p>The sub-TLVs within a Node Descriptor MUST be arranged in ascending order by sub-TLV type. (Section 3.2.1.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. {single-polarity: positive} carried on the row: the ordering duty is the sender&#39;s. Forbidden: node descriptor sub-TLVs out of ascending type order. TestRFC7752NodeDescriptorSubTLVsAscending fails unless NodeDescriptor.WriteTo emits exactly 512, 513, 514, 515, 516, 517 in that order. The native exporter builds its node descriptors through ls.NodeDescriptor (ls_export exportNodeID), so the asserted encoder is the one production uses.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -988,12 +992,12 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7752-3.3.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7752-3.3.2.2-1"><code>RFC7752-3.3.2.2-1</code></a></h3>
-<p>MPLS Protocol Mask TLV must not be included in NLRIs with Protocol-IDs 1-3, 6 (IS-IS, OSPF) (Section 3.3.2.2)</p>
+<p>The MPLS Protocol Mask TLV MUST NOT be included in NLRIs with the other Protocol-IDs listed in Table 2. (Section 3.3.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7752-3.3.2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7752-3.3.2.3-1"><code>RFC7752-3.3.2.3-1</code></a></h3>
 <p>If a source protocol uses a metric width of less than 32 bits, then the high- order bits of this field MUST be padded with zero. (Section 3.3.2.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC7752TEDefaultMetricZeroPadded drives lsTEDefaultMetric.WriteTo, whose input is already a uint32, so it cannot receive a narrower metric and the padding it asserts is the big-endian write of a small number. The place ze actually widens a narrow source metric is internal/plugins/isis/bgpls_export.go (the 3-octet IS-IS TE metric copied into v[1:] of a 4-octet value for TLV 1092), and ls_export originateAttributes writes that value verbatim; no tagged unit drives that path, so a producer copying into v[0:] stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1012,7 +1016,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p>No test carries RFC7752-3.3.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7752-3.4-1"><code>RFC7752-3.4-1</code></a></h3>
 <p>The next-hop address MUST be encoded as described in [RFC4760]. (Section 3.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. {single-polarity: positive} carried on the row. Forbidden: a BGP-LS MP_REACH_NLRI whose next hop departs from the RFC 4760 layout. TestRFC7752BGPLSNextHopFollowsRFC4760 fails unless, for AFI 16388 SAFI 71, the encoder emits AFI, SAFI, next-hop length 4 or 16, the address, a zero reserved octet and then the NLRI, and the parse round-trips; IPv4 and IPv6 next hops both asserted.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1030,8 +1034,8 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7752-6.2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7752-6.2.2-2"><code>RFC7752-6.2.2-2</code></a></h3>
-<p>Implementation must perform syntactic checks (TLV sum vs attribute length, fixed-length TLV sizes) (Section 6.2.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed. o Does the sum of all TLVs found in the BGP-LS attribute correspond to the BGP-LS path attribute length? o Does the sum of all TLVs found in the BGP MP_REACH_NLRI attribute correspond to the BGP MP_REACH_NLRI length? o Does the sum of all TLVs found in the BGP MP_UNREACH_NLRI attribute correspond to the BGP MP_UNREACH_NLRI length? o Does the sum of all TLVs found in a Node, Link or Prefix Descriptor NLRI attribute correspond to the Total NLRI Length field of the Node, Link, or Prefix Descriptors? o Does any fixed-length TLV correspond to the TLV Length field in this document? (Section 6.2.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Five listed checks. Asserted: a BGP-LS attribute TLV whose length overruns the attribute is refused (ErrBGPLSTruncated) and an exact-sum sequence is walked completely; a fixed-length TLV (1028 with 3 octets) is refused. The MP_REACH_NLRI sum, the MP_UNREACH_NLRI sum and the descriptor sum against Total NLRI Length have no assertion in either unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1059,7 +1063,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p>No test carries RFC7752-8-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7752-3.2-5"><code>RFC7752-3.2-5</code></a></h3>
 <p>All non-VPN link, node, and prefix information SHALL be encoded using AFI 16388 / SAFI 71. (Section 3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The positive asserts the BGPLSFamily constant is (16388, 71) and that a Node NLRI&#39;s Family() is that value; Link and Prefix NLRIs are not asserted, and no unit drives an encoded UPDATE from ze&#39;s producers (ls_export) to show the AFI/SAFI on the wire. The negative TestRFC7752NonLinkStateFamilyRefused refuses decoding under other families, a receive-side check, not the encoding obligation.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1079,7 +1083,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </div>
 <h3><a href="#rfc7752-3.2-6"><code>RFC7752-3.2-6</code></a></h3>
 <p>VPN link, node, and prefix information SHALL be encoded using AFI 16388 / SAFI 72. (Section 3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC7752VPNFamilyIsAFI16388SAFI72 asserts only the BGPLSVPNFamily constant (16388, 72) and its name; no VPN link, node or prefix NLRI is built and shown to carry SAFI 72. The negative refuses decoding under other family names, a receive-side check rather than the encoding obligation.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1625,12 +1629,12 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>RFC9552-5.2.1-1</td>
 <td>RFC 9552 Section 5.2.1 moves the obligation from the link attribute to the node attribute. Auxiliary TE Router-IDs (TLVs 1028 and 1029) MUST now be included in the node attribute, and RFC9552-5.2.1-2 lowers the link attribute to a MAY</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2.1.1-1"><code>RFC7752-3.2.1.1-1</code></a> The same node must not be represented by two keys (Section 3.2.1.1)</td>
+<tr><td><a href="#rfc7752-3.2.1.1-1"><code>RFC7752-3.2.1.1-1</code></a> The same node MUST NOT be represented by two keys (otherwise, one node will look like two nodes). (Section 3.2.1.1)</td>
 <td>unextracted</td>
 <td>§5.2.1.1</td>
 <td>RFC 9552 Section 5.2.1.1 states requirement (A) in the same words, that the same node MUST NOT be represented by two keys. rfc/short/rfc9552.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2.1.1-2"><code>RFC7752-3.2.1.1-2</code></a> Two different nodes must not be represented by the same key (Section 3.2.1.1)</td>
+<tr><td><a href="#rfc7752-3.2.1.1-2"><code>RFC7752-3.2.1.1-2</code></a> Two different nodes MUST NOT be represented by the same key (otherwise, two nodes will look like one node). (Section 3.2.1.1)</td>
 <td>unextracted</td>
 <td>§5.2.1.1</td>
 <td>RFC 9552 Section 5.2.1.1 states requirement (B) in the same words, that two different nodes MUST NOT be represented by the same key. rfc/short/rfc9552.md declares no row for it</td>
@@ -1665,7 +1669,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>RFC9552-5.3.2.1-1</td>
 <td>RFC 9552 Section 5.3.2.1 keeps the sentence unchanged, that all auxiliary Router-IDs of the local and the remote node MUST be included in the link attribute of each Link NLRI</td>
 </tr>
-<tr><td><a href="#rfc7752-3.3.2.2-1"><code>RFC7752-3.3.2.2-1</code></a> MPLS Protocol Mask TLV must not be included in NLRIs with Protocol-IDs 1-3, 6 (IS-IS, OSPF) (Section 3.3.2.2)</td>
+<tr><td><a href="#rfc7752-3.3.2.2-1"><code>RFC7752-3.3.2.2-1</code></a> The MPLS Protocol Mask TLV MUST NOT be included in NLRIs with the other Protocol-IDs listed in Table 2. (Section 3.3.2.2)</td>
 <td>restated</td>
 <td>RFC9552-5.3.2.2-1</td>
 <td>RFC 9552 Section 5.3.2.2 keeps the MPLS Protocol Mask TLV out of NLRIs with Protocol-IDs 1 to 3 and 6</td>
@@ -1690,7 +1694,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>RFC9552-8.2.2-6</td>
 <td>RFC 9552 Section 8.2.2 keeps Attribute Discard for a malformed BGP-LS Attribute the receiver can skip, and adds a session-reset path for the errors it cannot skip</td>
 </tr>
-<tr><td><a href="#rfc7752-6.2.2-2"><code>RFC7752-6.2.2-2</code></a> Implementation must perform syntactic checks (TLV sum vs attribute length, fixed-length TLV sizes) (Section 6.2.2)</td>
+<tr><td><a href="#rfc7752-6.2.2-2"><code>RFC7752-6.2.2-2</code></a> An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed. o Does the sum of all TLVs found in the BGP-LS attribute correspond to the BGP-LS path attribute length? o Does the sum of all TLVs found in the BGP MP_REACH_NLRI attribute correspond to the BGP MP_REACH_NLRI length? o Does the sum of all TLVs found in the BGP MP_UNREACH_NLRI attribute correspond to the BGP MP_UNREACH_NLRI length? o Does the sum of all TLVs found in a Node, Link or Prefix Descriptor NLRI attribute correspond to the Total NLRI Length field of the Node, Link, or Prefix Descriptors? o Does any fixed-length TLV correspond to the TLV Length field in this document? (Section 6.2.2)</td>
 <td>unextracted</td>
 <td>§8.2.2</td>
 <td>RFC 9552 Section 8.2.2 states the obligation twice and in more detail, as two lists of syntactic validation a BGP-LS Speaker MUST perform, one over the Link-State NLRI and one over the BGP-LS Attribute. rfc/short/rfc9552.md declares no row for either list</td>
@@ -1715,127 +1719,127 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>RFC9552-5.2-2</td>
 <td>RFC 9552 Section 5.2 keeps AFI 16388 / SAFI 72 for VPN link, node and prefix information</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2-7"><code>RFC7752-3.2-7</code></a> &#34;Direct&#34; and &#34;Static configuration&#34; protocol types should be used when BGP-LS is sourcing local information (Section 3.2)</td>
+<tr><td><a href="#rfc7752-3.2-7"><code>RFC7752-3.2-7</code></a> The &#39;Direct&#39; and &#39;Static configuration&#39; protocol types SHOULD be used when BGP-LS is sourcing local information. (Section 3.2)</td>
 <td>restated</td>
 <td>RFC9552-5.2-9</td>
 <td>RFC 9552 Section 5.2 keeps the Direct and Static configuration protocol types for locally sourced information</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2-8"><code>RFC7752-3.2-8</code></a> If a given protocol does not support multiple routing universes, it should set the Identifier field to 0 (Section 3.2)</td>
+<tr><td><a href="#rfc7752-3.2-8"><code>RFC7752-3.2-8</code></a> If a given protocol does not support multiple routing universes, then it SHOULD set the Identifier field according to Table 3. (Section 3.2)</td>
 <td>restated</td>
 <td>RFC9552-5.2-10</td>
 <td>RFC 9552 Section 5.2 restates the default as a RECOMMENDED rather than a SHOULD, and rewrites the condition from a protocol without multiple routing universes to a network with a single protocol instance</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2.1.4-4"><code>RFC7752-3.2.1.4-4</code></a> BGP-LS speakers within the IGP domain should use the same ASN, BGP-LS ID tuple (Section 3.2.1.4)</td>
+<tr><td><a href="#rfc7752-3.2.1.4-4"><code>RFC7752-3.2.1.4-4</code></a> If an IGP domain consists of multiple flooding-sets, then all BGP-LS speakers within the IGP domain SHOULD use the same ASN, BGP-LS ID tuple. (Section 3.2.1.4)</td>
 <td>dropped</td>
 <td>not stated</td>
 <td>same deprecation as RFC7752-3.2.1.4-1. With the BGP-LS Identifier sub-TLV deprecated, RFC 9552 states no obligation about a shared (ASN, BGP-LS ID) tuple across an IGP domain</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2.1.5-2"><code>RFC7752-3.2.1.5-2</code></a> Reserved bits in Multi-Topology ID should be set to 0 on origination and ignored on receipt (Section 3.2.1.5)</td>
+<tr><td><a href="#rfc7752-3.2.1.5-2"><code>RFC7752-3.2.1.5-2</code></a> Bits R are reserved and SHOULD be set to 0 when originated and ignored on receipt. (Section 3.2.1.5)</td>
 <td>unextracted</td>
 <td>§5.2.2.1</td>
 <td>RFC 9552 Section 5.2.2.1 raises the rule from SHOULD to MUST, that the reserved R bits are set to 0 when originated and ignored on receipt, and scopes it to a Link or Prefix Descriptor for IS-IS. rfc/short/rfc9552.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2.3.2-1"><code>RFC7752-3.2.3.2-1</code></a> A router should advertise an IP Prefix NLRI for each of its BGP next hops (Section 3.2.3.2)</td>
+<tr><td><a href="#rfc7752-3.2.3.2-1"><code>RFC7752-3.2.3.2-1</code></a> A router SHOULD advertise an IP Prefix NLRI for each of its BGP next hops. (Section 3.2.3.2)</td>
 <td>restated</td>
 <td>RFC9552-5.2.3.2-1</td>
 <td>RFC 9552 Section 5.2.3.2 keeps the recommendation that a router advertises an IP Prefix NLRI for each of its BGP next hops</td>
 </tr>
-<tr><td><a href="#rfc7752-3.3-2"><code>RFC7752-3.3-2</code></a> BGP-LS attribute should only be included with Link-State NLRIs (Section 3.3)</td>
+<tr><td><a href="#rfc7752-3.3-2"><code>RFC7752-3.3-2</code></a> This attribute SHOULD only be included with Link-State NLRIs. (Section 3.3)</td>
 <td>restated</td>
 <td>RFC9552-5.3-3</td>
 <td>RFC 9552 Section 5.3 keeps the sentence unchanged, that the BGP-LS Attribute SHOULD only be included with Link-State NLRIs</td>
 </tr>
-<tr><td><a href="#rfc7752-3.3.1.3-1"><code>RFC7752-3.3.1.3-1</code></a> FQDN or subset strongly recommended for Node Name and Link Name (Section 3.3.1.3, 3.3.2.7)</td>
+<tr><td><a href="#rfc7752-3.3.1.3-1"><code>RFC7752-3.3.1.3-1</code></a> This symbolic name can be the Fully Qualified Domain Name (FQDN) for the router, it can be a subset of the FQDN (e.g., a hostname), or it can be any string operators want to use for the router. The use of FQDN or a subset of it is strongly RECOMMENDED. (Section 3.3.1.3)</td>
 <td>restated</td>
 <td>RFC9552-5.3.1.3-1</td>
 <td>RFC 9552 Sections 5.3.1.3 and 5.3.2.7 keep the FQDN recommendation for the Node Name and Link Name TLVs</td>
 </tr>
-<tr><td><a href="#rfc7752-3.3.2.2-2"><code>RFC7752-3.3.2.2-2</code></a> MPLS Protocol Mask TLV should only be used with Protocol-IDs 4 or 5 (Section 3.3.2.2)</td>
+<tr><td><a href="#rfc7752-3.3.2.2-2"><code>RFC7752-3.3.2.2-2</code></a> Generation of the MPLS Protocol Mask TLV is only valid for and SHOULD only be used with originators that have local link insight, for example, the Protocol-IDs &#39;Static configuration&#39; or &#39;Direct&#39; as per Table 2. (Section 3.3.2.2)</td>
 <td>restated</td>
 <td>RFC9552-5.3.2.2-2</td>
 <td>RFC 9552 Section 5.3.2.2 keeps the MPLS Protocol Mask TLV scoped to Protocol-IDs 4 and 5</td>
 </tr>
-<tr><td><a href="#rfc7752-3.3.3-2"><code>RFC7752-3.3.3-2</code></a> Prefix Attribute TLVs should be used when advertising NLRI types 3 and 4 only (Section 3.3.3)</td>
+<tr><td><a href="#rfc7752-3.3.3-2"><code>RFC7752-3.3.3-2</code></a> Prefix Attribute TLVs SHOULD be used when advertising NLRI types 3 and 4 only. (Section 3.3.3)</td>
 <td>dropped</td>
 <td>not stated</td>
 <td>RFC 9552 Section 5.3.3 folds the sentence into its opening description and states no SHOULD. RFC 7752 wrote that Prefix Attribute TLVs SHOULD be used when advertising NLRI types 3 and 4 only; RFC 9552 writes that the IGP attributes are advertised with Prefix NLRI types 3 and 4</td>
 </tr>
-<tr><td><a href="#rfc7752-3.4-2"><code>RFC7752-3.4-2</code></a> Next hop in MP_REACH_NLRI should match BGP session address family (Section 3.4)</td>
+<tr><td><a href="#rfc7752-3.4-2"><code>RFC7752-3.4-2</code></a> If an IPv4 BGP session is used, then the next hop in the MP_REACH_NLRI SHOULD be an IPv4 address. Similarly, if an IPv6 BGP session is used, then the next hop in the MP_REACH_NLRI SHOULD be an IPv6 address. (Section 3.4)</td>
 <td>restated</td>
 <td>RFC9552-5.5-2</td>
 <td>RFC 9552 Section 5.5 keeps the recommendation that the MP_REACH_NLRI next hop matches the address family of the BGP session</td>
 </tr>
-<tr><td><a href="#rfc7752-3.5-1"><code>RFC7752-3.5-1</code></a> Implementation should provide a means to inject inter-AS links into BGP-LS (Section 3.5)</td>
+<tr><td><a href="#rfc7752-3.5-1"><code>RFC7752-3.5-1</code></a> In other cases, an implementation SHOULD provide a means to inject inter-AS links into BGP-LS. (Section 3.5)</td>
 <td>restated</td>
 <td>RFC9552-5.6-1</td>
 <td>RFC 9552 Section 5.6 keeps the recommendation that an implementation provides a means to inject inter-AS links into BGP-LS</td>
 </tr>
-<tr><td><a href="#rfc7752-6.1.2-1"><code>RFC7752-6.1.2-1</code></a> Configuration parameters should be initialized to default values (Section 6.1.2)</td>
+<tr><td><a href="#rfc7752-6.1.2-1"><code>RFC7752-6.1.2-1</code></a> Configuration parameters defined in Section 6.2.3 SHOULD be initialized to the following default values: o The Link-State NLRI capability is turned off for all neighbors. o The maximum rate at which Link-State NLRIs will be advertised/ withdrawn from neighbors is set to 200 updates per second. (Section 6.1.2)</td>
 <td>unextracted</td>
 <td>§8.1.2</td>
 <td>RFC 9552 Section 8.1.2 keeps the sentence and its two default values, that the Link-State NLRI capability is off for all neighbors and the advertisement rate is 200 updates per second. rfc/short/rfc9552.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc7752-6.1.5-1"><code>RFC7752-6.1.5-1</code></a> Distribution of Link-State NLRIs should be limited to a single admin domain (Section 6.1.5)</td>
+<tr><td><a href="#rfc7752-6.1.5-1"><code>RFC7752-6.1.5-1</code></a> Distribution of Link-State NLRIs SHOULD be limited to a single admin domain, which can consist of multiple areas within an AS or multiple ASes. (Section 6.1.5)</td>
 <td>restated</td>
 <td>RFC9552-8.1.5-1</td>
 <td>RFC 9552 Section 8.1.5 keeps the sentence unchanged, that distribution of Link-State NLRIs SHOULD be limited to a single administrative domain</td>
 </tr>
-<tr><td><a href="#rfc7752-6.1.6-1"><code>RFC7752-6.1.6-1</code></a> Implementation should allow operator to list neighbors exchanging Link-State NLRIs (Section 6.1.6)</td>
+<tr><td><a href="#rfc7752-6.1.6-1"><code>RFC7752-6.1.6-1</code></a> In addition, an implementation SHOULD allow an operator to: o List neighbors with whom the speaker is exchanging Link-State NLRIs. (Section 6.1.6)</td>
 <td>unextracted</td>
 <td>§8.1.6</td>
 <td>RFC 9552 Section 8.1.6 keeps the sentence, that an implementation SHOULD let an operator list the neighbors with which the speaker exchanges Link-State NLRIs. rfc/short/rfc9552.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc7752-6.2.3-1"><code>RFC7752-6.2.3-1</code></a> Implementation should allow operator to specify neighbors, max rate, max RIB entries, abstracted topologies, Instance-ID, ASN/BGP-LS ID (Section 6.2.3)</td>
+<tr><td><a href="#rfc7752-6.2.3-1"><code>RFC7752-6.2.3-1</code></a> An implementation SHOULD allow the operator to specify neighbors to which Link-State NLRIs will be advertised and from which Link-State NLRIs will be accepted. An implementation SHOULD allow the operator to specify the maximum rate at which Link-State NLRIs will be advertised/withdrawn from neighbors. An implementation SHOULD allow the operator to specify the maximum number of Link-State NLRIs stored in a router&#39;s Routing Information Base (RIB). An implementation SHOULD allow the operator to create abstracted topologies that are advertised to neighbors and create different abstractions for different neighbors. An implementation SHOULD allow the operator to configure a 64-bit Instance-ID. An implementation SHOULD allow the operator to configure a pair of ASN and BGP-LS identifiers (Section 3.2.1.4) per flooding set in which the node participates. (Section 6.2.3)</td>
 <td>unextracted</td>
 <td>§8.2.3</td>
 <td>RFC 9552 Section 8.2.3 keeps every knob and adds two, a MUST that the operator can configure the 8-octet BGP-LS Instance-ID and a SHOULD for a 4096-byte UPDATE size limit. rfc/short/rfc9552.md declares no row for any of them</td>
 </tr>
-<tr><td><a href="#rfc7752-6.2.5-1"><code>RFC7752-6.2.5-1</code></a> Implementation should provide statistics (total NLRIs sent/received, per-neighbor, errors, locally originated) (Section 6.2.5)</td>
+<tr><td><a href="#rfc7752-6.2.5-1"><code>RFC7752-6.2.5-1</code></a> An implementation SHOULD provide the following statistics: o Total number of Link-State NLRI updates sent/received o Number of Link-State NLRI updates sent/received, per neighbor o Number of errored received Link-State NLRI updates, per neighbor o Total number of locally originated Link-State NLRIs (Section 6.2.5)</td>
 <td>unextracted</td>
 <td>§8.2.5</td>
 <td>RFC 9552 Section 8.2.5 keeps the same four statistics and the rule that they are absolute counts since system or session start. rfc/short/rfc9552.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc7752-6.2.6-2"><code>RFC7752-6.2.6-2</code></a> Operator should define an import policy to drop all updates from consumer peers (Section 6.2.6)</td>
+<tr><td><a href="#rfc7752-6.2.6-2"><code>RFC7752-6.2.6-2</code></a> An operator SHOULD define an import policy to limit inbound updates as follows: o Drop all updates from consumer peers. (Section 6.2.6)</td>
 <td>unextracted</td>
 <td>§8.2.6</td>
 <td>RFC 9552 Section 8.2.6 raises the rule from SHOULD to MUST, that an operator defines an import policy which drops all updates from peers only serving BGP-LS Consumers. rfc/short/rfc9552.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc7752-8-2"><code>RFC7752-8-2</code></a> Operator should employ a mechanism to protect BGP speaker against DDoS attacks from consumers (Section 8)</td>
+<tr><td><a href="#rfc7752-8-2"><code>RFC7752-8-2</code></a> An operator SHOULD employ a mechanism to protect a BGP speaker against DDoS attacks from consumers. (Section 8)</td>
 <td>dropped</td>
 <td>not stated</td>
 <td>RFC 9552 Section 10 states no obligation about protecting a speaker from denial-of-service by its consumers. RFC 7752 Section 8 stated that an operator SHOULD employ such a mechanism and named rate limits; RFC 9552 replaces that paragraph with one about erroneous and tampered link-state information</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2-9"><code>RFC7752-3.2-9</code></a> Implementation may make the Identifier configurable for a given protocol (Section 3.2)</td>
+<tr><td><a href="#rfc7752-3.2-9"><code>RFC7752-3.2-9</code></a> However, an implementation MAY make the &#39;Identifier&#39; configurable for a given protocol. (Section 3.2)</td>
 <td>unextracted</td>
 <td>§8.2.3</td>
 <td>RFC 9552 raises the permission to an obligation and moves it. Its Section 8.2.3 states that an implementation MUST allow the operator to configure an 8-octet BGP-LS Instance-ID. rfc/short/rfc9552.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2-10"><code>RFC7752-3.2-10</code></a> OSPF and IS-IS may run multiple routing protocol instances over the same link (Section 3.2)</td>
+<tr><td><a href="#rfc7752-3.2-10"><code>RFC7752-3.2-10</code></a> Both OSPF and IS-IS MAY run multiple routing protocol instances over the same link. (Section 3.2)</td>
 <td>unextracted</td>
 <td>§5.2</td>
 <td>RFC 9552 Section 5.2 keeps the sentence, that OSPF and IS-IS may run multiple routing protocol instances over the same link, and cites RFC 8202 and RFC 6549 for it. rfc/short/rfc9552.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2.2-1"><code>RFC7752-3.2.2-1</code></a> Link local/remote identifiers may be included in the link attribute (Section 3.2.2)</td>
+<tr><td><a href="#rfc7752-3.2.2-1"><code>RFC7752-3.2.2-1</code></a> The link local/remote identifiers MAY be included in the link attribute. (Section 3.2.2)</td>
 <td>restated</td>
 <td>RFC9552-5.2.2-4</td>
 <td>RFC 9552 Section 5.2.2 raises the permission to an obligation. The Link Local/Remote Identifiers TLV MUST now be included when only link-local identifiers are available, and RFC9552-5.2.2-2 forbids it when interface addresses are present</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2.1.5-3"><code>RFC7752-3.2.1.5-3</code></a> The MT-ID TLV may be present in Link/Prefix Descriptor or Node NLRI attribute (Section 3.2.1.5)</td>
+<tr><td><a href="#rfc7752-3.2.1.5-3"><code>RFC7752-3.2.1.5-3</code></a> The MT-ID TLV MAY be present in a Link Descriptor, a Prefix Descriptor, or the BGP-LS attribute of a Node NLRI. (Section 3.2.1.5)</td>
 <td>unextracted</td>
 <td>§5.2.2.1</td>
 <td>RFC 9552 Section 5.2.2.1 keeps the same permission, that the MT-ID TLV MAY be included as a Link Descriptor, as a Prefix Descriptor, or in the BGP-LS Attribute of a Node NLRI. rfc/short/rfc9552.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc7752-3.2.3.1-1"><code>RFC7752-3.2.3.1-1</code></a> OSPF Route Type TLV is optional and may be present in Prefix NLRI (Section 3.2.3.1)</td>
+<tr><td><a href="#rfc7752-3.2.3.1-1"><code>RFC7752-3.2.3.1-1</code></a> The OSPF Route Type TLV is an optional TLV that MAY be present in Prefix NLRIs. (Section 3.2.3.1)</td>
 <td>restated</td>
 <td>RFC9552-5.2.3.1-1</td>
 <td>RFC 9552 Section 5.2.3.1 keeps the TLV optional and adds a MUST, that it is included when the route type is signaled in the underlying LSA or is determinable from another LSA for the same prefix</td>
 </tr>
-<tr><td><a href="#rfc7752-6.1.5-2"><code>RFC7752-6.1.5-2</code></a> A network operator may use a dedicated Route-Reflector infrastructure (Section 6.1.5)</td>
+<tr><td><a href="#rfc7752-6.1.5-2"><code>RFC7752-6.1.5-2</code></a> A network operator MAY use a dedicated Route- Reflector infrastructure to distribute Link-State NLRIs. (Section 6.1.5)</td>
 <td>restated</td>
 <td>RFC9552-8.1.1-2</td>
 <td>RFC 9552 raises the permission to a recommendation. Its Section 8.1.1 states that dedicated route reflectors SHOULD handle BGP-LS NLRI distribution, and names separate BGP instances or sessions as the alternative when none are available</td>
 </tr>
-<tr><td><a href="#rfc7752-6.2.5-2"><code>RFC7752-6.2.5-2</code></a> Implementation may enhance statistics by recording peak per-second counts (Section 6.2.5)</td>
+<tr><td><a href="#rfc7752-6.2.5-2"><code>RFC7752-6.2.5-2</code></a> An implementation MAY also enhance this information by recording peak per-second counts in each case. (Section 6.2.5)</td>
 <td>unextracted</td>
 <td>§8.2.5</td>
 <td>RFC 9552 Section 8.2.5 keeps the sentence, that an implementation MAY enhance the statistics by recording peak per-second counts. rfc/short/rfc9552.md declares no row for it</td>
@@ -1873,7 +1877,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

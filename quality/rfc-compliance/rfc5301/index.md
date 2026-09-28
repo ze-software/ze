@@ -56,11 +56,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 7 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 22 |
 | Tagged units | 22 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 1 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc5301.md` |
 | Requirement shard | `rfc/requirements/rfc5301.md` |
@@ -104,7 +105,7 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 | `RFC5301-3-5` | Length - total length of the value field (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L114). **negative:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L125) |
 | `RFC5301-3-6` | Value - a string of 1 to 255 bytes (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L118). **negative:** `unit/verify` [`TestISISHostnameEmptyOmitsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L162). **positive:** `functional/verify` [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L100). **positive:** `interop/nightly` [`checkISISDynamicHostname`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1137) |
 | `RFC5301-3-7` | The Value field is encoded in 7-bit ASCII (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameValidatorCharset`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L149). **positive:** `unit/verify` [`TestLoadConfigRefusesAnISISHostnameOutside7BitASCII`](https://github.com/ze-software/ze/blob/main/internal/component/config/cli/cmd_validate_startup_agreement_test.go#L43). **negative:** `unit/verify` [`TestISISHostnameValidatorCharset`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L153). **positive:** `functional/verify` [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L55). **positive:** `functional/verify` [`isis-hostname-startup-refused.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-startup-refused.ci#L16) |
-| `RFC5301-3-8` | The string is not null-terminated (Section 3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L121). **negative:** `unit/verify` [`TestISISHostnameTLVIsPrintableASCII`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L80) |
+| `RFC5301-3-8` | The string is not null- terminated. (Section 3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L121). **negative:** `unit/verify` [`TestISISHostnameTLVIsPrintableASCII`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L80) |
 | `RFC5301-3-9` | The content of this value is a domain name, see [RFC2181] (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameValidatorLabels`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L196). **negative:** `unit/verify` [`TestISISHostnameValidatorLabels`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L201). **positive:** `functional/verify` [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L73) |
 | `RFC5301-3-10` | If a user-interface for configuring or displaying this field permits Unicode characters, that user-interface is responsible for applying the ToASCII and/or ToUnicode algorithm as described in [RFC3490] to achieve the correct format for transmission or display (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameUnicodeRefusedNotConverted`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L260). **negative:** `unit/verify` [`TestISISHostnameTLVIsPrintableASCII`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L72). **positive:** `functional/verify` [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L56) |
 | `RFC5301-3-1` | The use of FQDN or a subset of it is strongly recommended (Section 3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
@@ -176,9 +177,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5301-3-8`](#rfc5301-3-8)
 
-The string is not null-terminated (Section 3)
+The string is not null- terminated. (Section 3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) a TLV 137 value carrying a NUL terminator; (b) TestISISHostnameTLVFraming: bytes.IndexByte(value,0)>=0 errors, len(value)!=len(name) errors, and the [137][len+1][name,0] run errors; TestISISHostnameTLVIsPrintableASCII rejects any octet outside 0x20..0x7e and requires exactly one [137][len][value] run.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

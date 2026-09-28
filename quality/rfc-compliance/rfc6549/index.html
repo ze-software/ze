@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 6549 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 6549: OSPFv2 Multi-Instance Extensions. 1 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 6549: OSPFv2 Multi-Instance Extensions. 1 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 6549 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 6549: OSPFv2 Multi-Instance Extensions. 1 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 6549: OSPFv2 Multi-Instance Extensions. 1 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 6549 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 6549: OSPFv2 Multi-Instance Extensions. 1 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 6549: OSPFv2 Multi-Instance Extensions. 1 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -121,6 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 1 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 1 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 2 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>1</strong><b>of 1 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -179,7 +180,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +211,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +227,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -287,7 +291,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6549-2-1">RFC6549-2-1</code></td><td colspan="3"><span class="rfc-subject">Received packets with an Instance ID not equal to one of the Instance IDs corresponding to one of the configured OSPFv2 Instances for the receiving interface MUST be discarded (§2, §3.1) -- `internal/plugins/ospf/dispatcher.go` (`h.InstanceID != instanceID` discard, before any handler), one engine per Instance ID (`internal/plugins/ospf/multi_instance.go`); spec-ospf-ext-12</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6549-2-1">RFC6549-2-1</code></td><td colspan="3"><span class="rfc-subject">Received packets with an Instance ID not equal to one of the Instance IDs corresponding to one of the configured OSPFv2 Instances for the receiving interface MUST be discarded. (§2, §3.1) -- `internal/plugins/ospf/dispatcher.go`: `h.InstanceID != instanceID` discard, before any handler; one engine per Instance ID in `internal/plugins/ospf/multi_instance.go`; spec-ospf-ext-12</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -296,7 +300,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L467" title="internal/plugins/ospf/instance_test.go" target="_blank" rel="noopener"><code>TestDispatchDropsMismatchedInstance</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6549-6-1">RFC6549-6-1</code></td><td colspan="3"><span class="rfc-subject">(&#34;recommended&#34;) Implementations of this specification and the OSPF MIB also implement SNMP Notification filtering as specified in Section 6 of RFC 3413 (§6) -- N/A: Ze has no OSPF SNMP MIB surface, so there is nothing to filter (recorded as a Known Limitation)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6549-6-1">RFC6549-6-1</code></td><td colspan="3"><span class="rfc-subject">Consequently, it is recommended that implementations that implement this specification and the OSPF MIB also implement SNMP Notification filtering as specified in Section 6 of [RFC3413]. (§6) -- N/A: Ze has no OSPF SNMP MIB surface, so there is nothing to filter; recorded as a Known Limitation</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6</td>
@@ -305,7 +309,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6549-5-1">RFC6549-5-1</code></td><td colspan="3"><span class="rfc-subject">OSPFv2 routers not supporting this specification should only support the default instance (§5) -- Ze at Instance ID 0 is bit-for-bit compatible with base OSPFv2 (`internal/plugins/ospf/packet/header.go`; `TestHeaderInstanceZeroUnchanged`)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6549-5-1">RFC6549-5-1</code></td><td colspan="3"><span class="rfc-subject">OSPFv2 routers not supporting this specification should only support the default instance (§5) -- Ze at Instance ID 0 is bit-for-bit compatible with base OSPFv2: `internal/plugins/ospf/packet/header.go`, `TestHeaderInstanceZeroUnchanged`</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -314,7 +318,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6549-3-1">RFC6549-3-1</code></td><td colspan="3"><span class="rfc-subject">Setting the OSPFv2 Interface Instance ID to a non-zero value may be accomplished through configuration (§3) -- the per-interface `instance-id` leaf-list (`internal/plugins/ospf/yang/ze-ospf-conf.yang`); spec-ospf-ext-12</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6549-3-1">RFC6549-3-1</code></td><td colspan="3"><span class="rfc-subject">The OSPFv2 Interface Instance ID has a default value of 0. Setting it to a non-zero value may be accomplished through configuration. (§3) -- the per-interface `instance-id` leaf-list in `internal/plugins/ospf/yang/ze-ospf-conf.yang`; spec-ospf-ext-12</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3</td>
@@ -333,8 +337,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc6549-2-1"><code>RFC6549-2-1</code></a></h3>
-<p>Received packets with an Instance ID not equal to one of the Instance IDs corresponding to one of the configured OSPFv2 Instances for the receiving interface MUST be discarded (§2, §3.1) -- `internal/plugins/ospf/dispatcher.go` (`h.InstanceID != instanceID` discard, before any handler), one engine per Instance ID (`internal/plugins/ospf/multi_instance.go`); spec-ospf-ext-12</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Received packets with an Instance ID not equal to one of the Instance IDs corresponding to one of the configured OSPFv2 Instances for the receiving interface MUST be discarded. (§2, §3.1) -- `internal/plugins/ospf/dispatcher.go`: `h.InstanceID != instanceID` discard, before any handler; one engine per Instance ID in `internal/plugins/ospf/multi_instance.go`; spec-ospf-ext-12</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) delivering a packet whose Instance ID differs from the engine&#39;s to a handler; (b) TestDispatchDropsMismatchedInstance: handled != 0 after IDs {0,1,4,6,255} to instance 5 fails; negative: the matching ID 5 reaches the handler (handled == 1). One engine per Instance ID covers several configured instances on one interface.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -541,7 +545,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

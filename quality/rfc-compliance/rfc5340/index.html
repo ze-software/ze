@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5340 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5340: OSPF for IPv6. 23 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5340: OSPF for IPv6. 23 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5340 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5340: OSPF for IPv6. 23 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5340: OSPF for IPv6. 23 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5340 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5340: OSPF for IPv6. 23 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5340: OSPF for IPv6. 23 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -119,7 +119,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>69.6%</strong><b>16 of 23 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>6.1%</strong><b>2 of 33 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>16.2%</strong><b>6 of 37 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>21.7%</strong><b>5 of 23 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>13</strong><b>of 23 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>5</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -221,16 +225,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>33</td>
+<td>37</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>33</td>
+<td>37</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>13</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>2</td>
+<td>6</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5340.md</code></td>
@@ -316,7 +320,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the ban holds for intra-area-prefix-LSAs on both origination paths (interfaceIPv6Prefixes, origination_v6.go:564; v6HostPrefixes, origination_v6.go:432; v6AggregatedLinkPrefixes, origination_v6_link.go:153), but the ABR summary path copies every prefix out of a received intra-area-prefix-LSA into an inter-area-prefix-LSA with no link-local filter (v6SummaryNetworks, origination_v6_summary.go:136-147), and the ASBR path wire-encodes a redistributed prefix with no link-local filter either (v6InjectExternal -&gt; netipToV6Prefix, origination_v6_external.go:55 and origination_v6.go:592), so a link-local supplied by a peer or by redistribution reaches an inter-area-prefix-LSA / AS-external-LSA / NSSA-LSA. Disclosed in docs/features/rfc-status.md RFC 5340 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-2.8-2">RFC5340-2.8-2</code></td><td colspan="3"><span class="rfc-subject">Receivers MUST concatenate all the router-LSAs originated by a given router, treating them as a single aggregate, when running the SPF calculation; reaffirmed in §4.8 and §4.8.1 (§2.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-2.8-2">RFC5340-2.8-2</code></td><td colspan="3"><span class="rfc-subject">Receivers MUST concatenate all the router-LSAs originated by a given router when running the SPF calculation. (§2.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.8</td>
@@ -325,7 +329,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the OSPFv3 graph build keys a router vertex by Advertising Router alone and ASSIGNS rather than concatenates, so a second Router-LSA from the same router (a different Link State ID) replaces the first instead of aggregating its links (v6Strategy.BuildGraph, afstrategy_v6.go:113-117). Disclosed in docs/features/rfc-status.md RFC 5340 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-2.8-3">RFC5340-2.8-3</code></td><td colspan="3"><span class="rfc-subject">A network-LSA MUST list all routers connected to the link (§2.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-2.8-3">RFC5340-2.8-3</code></td><td colspan="3"><span class="rfc-subject">a network-LSA MUST list all routers connected to the link (§2.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.8</td>
@@ -334,7 +338,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L186" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NetworkLSAListsAttachedRouters</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-2.8-4">RFC5340-2.8-4</code></td><td colspan="3"><span class="rfc-subject">A link-LSA MUST list all of a router&#39;s addresses on the link (§2.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-2.8-4">RFC5340-2.8-4</code></td><td colspan="3"><span class="rfc-subject">a link-LSA MUST list all of a router&#39;s addresses on the link (§2.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.8</td>
@@ -343,7 +347,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L225" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340LinkLSAListsLinkAddresses</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.1.2-2">RFC5340-4.1.2-2</code></td><td colspan="3"><span class="rfc-subject">A virtual link MUST use one of the router&#39;s own global-scope IPv6 addresses as its IP interface address, instead of a link-local address; also §4.7 (§4.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.1.2-2">RFC5340-4.1.2-2</code></td><td colspan="3"><span class="rfc-subject">For IPv6, the IPv6 address appearing in the source of OSPF packets sent on the interface is almost always a link-local address. The one exception is for virtual links that MUST use one of the router&#39;s own global IPv6 addresses as IP interface address. (§4.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.2</td>
@@ -352,7 +356,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_vlink_test.go#L14" title="internal/plugins/ospf/rfc5340_vlink_test.go" target="_blank" rel="noopener"><code>TestRFC5340VirtualLinkRefusesLocalLinkLocalInterfaceAddress</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.2.1.1-1">RFC5340-4.2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">o Before the Hello packet is sent on an interface, the interface&#39;s Interface ID MUST be copied into the Hello packet. (§4.2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.2.1.1-1">RFC5340-4.2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">Before the Hello packet is sent on an interface, the interface&#39;s Interface ID MUST be copied into the Hello packet. (§4.2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.1.1</td>
@@ -361,7 +365,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L80" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloCarriesInterfaceID</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.2.1.1-2">RFC5340-4.2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">The Options bits that MUST be set correctly in Hello packets are the E-bit (regular area), N-bit (NSSA area), and DC-bit (demand circuit) (§4.2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.2.1.1-2">RFC5340-4.2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">Those that MUST be set correctly in Hello packets are as follows. The E-bit is set if and only if the interface attaches to a regular area, i.e., not a stub or NSSA area. Similarly, the N-bit is set if and only if the interface attaches to an NSSA area (see [NSSA]). Finally, the DC-bit is set if and only if the router wishes to suppress the sending of future Hellos over the interface (see [DEMAND]). (§4.2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.1.1</td>
@@ -370,7 +374,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L123" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloOptionsBits</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.2.1.2-1">RFC5340-4.2.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Those that MUST be set correctly in Database Description packets are as follows. (§4.2.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.2.1.2-1">RFC5340-4.2.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Those that MUST be set correctly in Database Description packets are as follows. The DC-bit is set if and only if the router wishes to suppress the sending of Hellos over the interface (see [DEMAND]). (§4.2.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.1.2</td>
@@ -433,7 +437,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> there is no Active/Standby interface model to flush from -- grep for &#34;Standby&#34; over internal/plugins/ospf finds no producer. A link-local scope Link-LSA is flushed only with its own interface&#39;s link store (v6OriginateLinkLSA / OriginateLinkSelf, origination_v6_link.go:58), never re-flushed onto a sibling interface. Disclosed in docs/features/rfc-status.md RFC 5340 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.3.1-2">RFC5340-A.3.1-2</code></td><td colspan="3"><span class="rfc-subject">The reserved header fields MUST be ignored when receiving protocol packets (§A.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.3.1-2">RFC5340-A.3.1-2</code></td><td colspan="3"><span class="rfc-subject">These fields are reserved. They SHOULD be set to 0 when sending protocol packets and MUST be ignored when receiving protocol packets. (§A.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>A.3.1</td>
@@ -442,13 +446,15 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L371" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ReservedHeaderOctetIgnoredOnReceive</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.4.7-1">RFC5340-A.4.7-1</code></td><td colspan="3"><span class="rfc-subject">It MUST NOT be set to the IPv6 Unspecified Address (0:0:0:0:0:0:0:0) or an IPv6 Link-Local Address (Prefix FE80/10). (§A.4.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.4.7-1">RFC5340-A.4.7-1</code></td><td colspan="3"><span class="rfc-subject">Forwarding address A fully qualified IPv6 address (128 bits). Included in the LSA if and only if bit F has been set. If included, data traffic for the advertised destination will be forwarded to this address. It MUST NOT be set to the IPv6 Unspecified Address (0:0:0:0:0:0:0:0) or an IPv6 Link-Local Address (Prefix FE80/10). (§A.4.7)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>A.4.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-A.4.7-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L292" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L45" title="internal/plugins/ospf/rfc5340_nssa_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L294" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L56" title="internal/plugins/ospf/rfc5340_nssa_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.4.7-2">RFC5340-A.4.7-2</code></td><td colspan="3"><span class="rfc-subject">While OSPFv3 routes are normally installed with link-local addresses, an OSPFv3 implementation advertising a forwarding address MUST advertise a global IPv6 address. (§A.4.7)</span></td></tr>
@@ -457,7 +463,9 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>A.4.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-A.4.7-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L300" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L67" title="internal/plugins/ospf/rfc5340_nssa_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5340TranslatorAdvertisesGlobalForwarding</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L304" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L74" title="internal/plugins/ospf/rfc5340_nssa_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5340TranslatorAdvertisesGlobalForwarding</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.4.8-1">RFC5340-A.4.8-1</code></td><td colspan="3"><span class="rfc-subject">A global IPv6 address MUST be selected as forwarding address for NSSA-LSAs that are to be propagated by NSSA area border routers. (§A.4.8)</span></td></tr>
@@ -478,7 +486,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L427" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-c.3-2">RFC5340-C.3-2</code></td><td colspan="3"><span class="rfc-subject">It MUST be greater than 0. (§C.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-c.3-2">RFC5340-C.3-2</code></td><td colspan="3"><span class="rfc-subject">InfTransDelay The estimated number of seconds it takes to transmit a Link State Update packet over this interface. LSAs contained in the update packet must have their age incremented by this amount before transmission. This value should take into account the transmission and propagation delays of the interface. It MUST be greater than 0. (§C.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>C.3</td>
@@ -487,7 +495,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L433" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-c.3-3">RFC5340-C.3-3</code></td><td colspan="3"><span class="rfc-subject">It MUST be the same for all routers attached to a common link. (§C.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-c.3-3">RFC5340-C.3-3</code></td><td colspan="3"><span class="rfc-subject">HelloInterval The length of time, in seconds, between Hello packets that the router sends on the interface. This value is advertised in the router&#39;s Hello packets. It MUST be the same for all routers attached to a common link. (§C.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>C.3</td>
@@ -496,7 +504,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L469" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-c.3-4">RFC5340-C.3-4</code></td><td colspan="3"><span class="rfc-subject">This value again MUST be the same for all routers attached to a common link. (§C.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-c.3-4">RFC5340-C.3-4</code></td><td colspan="3"><span class="rfc-subject">RouterDeadInterval After ceasing to hear a router&#39;s Hello packets, the number of seconds before its neighbors declare the router down. This is also advertised in the router&#39;s Hello packets in their RouterDeadInterval field. This should be some multiple of the HelloInterval (e.g., 4). This value again MUST be the same for all routers attached to a common link. (§C.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>C.3</td>
@@ -505,7 +513,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L474" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-2.11-1">RFC5340-2.11-1</code></td><td colspan="3"><span class="rfc-subject">The Router ID of 0.0.0.0 is reserved and SHOULD NOT be used; restated in §C.1 (§2.11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-2.11-1">RFC5340-2.11-1</code></td><td colspan="3"><span class="rfc-subject">The Router ID of 0.0.0.0 is reserved and SHOULD NOT be used. (§2.11)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>2.11</td>
@@ -514,7 +522,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.2.2-4">RFC5340-4.2.2-4</code></td><td colspan="3"><span class="rfc-subject">If the OSPF header fields do not match those configured for the receiving OSPFv3 interface, the packet SHOULD be discarded (§4.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.2.2-4">RFC5340-4.2.2-4</code></td><td colspan="3"><span class="rfc-subject">The fields specified in the header must match those configured for the receiving OSPFv3 interface. If they do not, the packet SHOULD be discarded (§4.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.2</td>
@@ -523,7 +531,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.2.2-6">RFC5340-4.2.2-6</code></td><td colspan="3"><span class="rfc-subject">Locally originated packets SHOULD NOT be processed by OSPF, except in support of multiple interfaces attached to the same link per §4.9 (§4.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.2.2-6">RFC5340-4.2.2-6</code></td><td colspan="3"><span class="rfc-subject">Locally originated packets SHOULD NOT be processed by OSPF except for support of multiple interfaces attached to the same link as described in Section 4.9. (§4.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4.2.2</td>
@@ -532,16 +540,16 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.4.3.8-1">RFC5340-4.4.3.8-1</code></td><td colspan="3"><span class="rfc-subject">A link-LSA SHOULD NOT be originated for a virtual link, which has no link-local address or associated prefixes; also §4.7 (§4.4.3.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.4.3.8-1">RFC5340-4.4.3.8-1</code></td><td colspan="3"><span class="rfc-subject">Hence, a link-LSA SHOULD NOT be originated for a virtual link since the virtual link has no link-local address or associated prefixes. (§4.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
-<td>4.4.3.8</td>
+<td>4.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-4.4.3.8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.4.3.9-2">RFC5340-4.4.3.9-2</code></td><td colspan="3"><span class="rfc-subject">When building an intra-area-prefix-LSA, prefixes having the NU-bit and/or LA-bit set in their PrefixOptions SHOULD NOT be copied, nor should link-local addresses (§4.4.3.9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.4.3.9-2">RFC5340-4.4.3.9-2</code></td><td colspan="3"><span class="rfc-subject">Prefixes having the NU-bit and/or LA-bit set in their Options field SHOULD NOT be copied, nor should link-local addresses be copied. (§4.4.3.9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4.4.3.9</td>
@@ -550,7 +558,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.4.3.9-3">RFC5340-4.4.3.9-3</code></td><td colspan="3"><span class="rfc-subject">Prefixes that would normally have the LA-bit set SHOULD be advertised independent of whether the interface is advertised as a transit link (§4.4.3.9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.4.3.9-3">RFC5340-4.4.3.9-3</code></td><td colspan="3"><span class="rfc-subject">However, any prefixes that would normally have the LA-bit set SHOULD be advertised independent of whether or not the interface is advertised as a transit link. (§4.4.3.9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.4.3.9</td>
@@ -568,7 +576,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.9-3">RFC5340-4.9-3</code></td><td colspan="3"><span class="rfc-subject">When the Active Interface fails, the new Active Interface SHOULD form all new neighbor adjacencies with routers on the link (§4.9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.9-3">RFC5340-4.9-3</code></td><td colspan="3"><span class="rfc-subject">If the Active Interface fails, a new Active Interface will have to take over. The new Active Interface SHOULD form all new neighbor adjacencies with routers on the link. (§4.9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.9</td>
@@ -577,7 +585,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.1-1">RFC5340-A.1-1</code></td><td colspan="3"><span class="rfc-subject">The OSPF IP protocol number 89 SHOULD be inserted in the Next Header field of the encapsulating IPv6 header (§A.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.1-1">RFC5340-A.1-1</code></td><td colspan="3"><span class="rfc-subject">OSPF is IP protocol 89. This number SHOULD be inserted in the Next Header field of the encapsulating IPv6 header. (§A.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>A.1</td>
@@ -586,7 +594,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.1-2">RFC5340-A.1-2</code></td><td colspan="3"><span class="rfc-subject">Where the IPv6 Traffic Class is mapped to DSCP, OSPFv3 packets SHOULD be sent with their DSCP set to CS6 (§A.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.1-2">RFC5340-A.1-2</code></td><td colspan="3"><span class="rfc-subject">If routers in the OSPF routing domain map their IPv6 Traffic Class octet to the Differentiated Services Code Point (DSCP) as specified in [DIFF-SERV], then OSPFv3 packets SHOULD be sent with their DSCP set to CS6 (B&#39;110000&#39;), as specified in [SERV-CLASS]. (§A.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>A.1</td>
@@ -595,7 +603,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.3.1-1">RFC5340-A.3.1-1</code></td><td colspan="3"><span class="rfc-subject">The reserved header fields SHOULD be set to 0 when sending protocol packets (§A.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.3.1-1">RFC5340-A.3.1-1</code></td><td colspan="3"><span class="rfc-subject">These fields are reserved. They SHOULD be set to 0 when sending protocol packets (§A.3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>A.3.1</td>
@@ -604,7 +612,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-2.8-1">RFC5340-2.8-1</code></td><td colspan="3"><span class="rfc-subject">Router interface information MAY be spread across multiple router-LSAs (§2.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-2.8-1">RFC5340-2.8-1</code></td><td colspan="3"><span class="rfc-subject">Router interface information MAY be spread across multiple router- LSAs. (§2.8)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.8</td>
@@ -613,7 +621,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.1.2-1">RFC5340-4.1.2-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY use the MIB-II IfIndex as the Interface ID (§4.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.1.2-1">RFC5340-4.1.2-1</code></td><td colspan="3"><span class="rfc-subject">For example, some implementations MAY be able to use the MIB-II IfIndex ([INTFMIB]) as the Interface ID. (§4.1.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.1.2</td>
@@ -622,7 +630,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.4.3.2-1">RFC5340-4.4.3.2-1</code></td><td colspan="3"><span class="rfc-subject">A router MAY originate one or more router-LSAs for a given area (§4.4.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.4.3.2-1">RFC5340-4.4.3.2-1</code></td><td colspan="3"><span class="rfc-subject">A router MAY originate one or more router- LSAs for a given area. (§4.4.3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.4.3.2</td>
@@ -640,7 +648,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.4.4-1">RFC5340-4.4.4-1</code></td><td colspan="3"><span class="rfc-subject">Reachability validation for future non-SPF LSA types MAY be done less frequently than every SPF calculation (§4.4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.4.4-1">RFC5340-4.4.4-1</code></td><td colspan="3"><span class="rfc-subject">In general, the new information advertised in future LSAs should not be used unless the OSPFv3 router originating the LSA is reachable. However, depending on the application and the data advertised, this reachability validation MAY be done less frequently than every SPF calculation. (§4.4.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.4.4</td>
@@ -649,7 +657,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.5.2-1">RFC5340-4.5.2-1</code></td><td colspan="3"><span class="rfc-subject">All LS types MAY not be understood by all routers (§4.5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.5.2-1">RFC5340-4.5.2-1</code></td><td colspan="3"><span class="rfc-subject">However, all LS types MAY not be understood by all routers. (§4.5.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.5.2</td>
@@ -658,7 +666,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.5.2-2">RFC5340-4.5.2-2</code></td><td colspan="3"><span class="rfc-subject">A new LSA type with its U-bit set to 0 MAY only be understood by a subset of routers (§4.5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.5.2-2">RFC5340-4.5.2-2</code></td><td colspan="3"><span class="rfc-subject">For example, a new LSA type with its U-bit set to 0 MAY only be understood by a subset of routers. (§4.5.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.5.2</td>
@@ -685,7 +693,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.4.7-3">RFC5340-A.4.7-3</code></td><td colspan="3"><span class="rfc-subject">The External Route Tag is a 32-bit field that MAY be used to communicate additional information between AS boundary routers (§A.4.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.4.7-3">RFC5340-A.4.7-3</code></td><td colspan="3"><span class="rfc-subject">External Route Tag A 32-bit field that MAY be used to communicate additional information between AS boundary routers. (§A.4.7)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>A.4.7</td>
@@ -694,7 +702,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.4.7-4">RFC5340-A.4.7-4</code></td><td colspan="3"><span class="rfc-subject">All, none, or some of the Forwarding Address, External Route Tag, and Referenced Link State ID fields MAY be present in the AS-external-LSA (§A.4.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.4.7-4">RFC5340-A.4.7-4</code></td><td colspan="3"><span class="rfc-subject">All, none, or some of the fields labeled Forwarding address, External Route Tag, and Referenced Link State ID MAY be present in the AS- external-LSA (as indicated by the setting of bit F, bit T, and Referenced LS Type respectively). (§A.4.7)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>A.4.7</td>
@@ -703,7 +711,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-c.3-5">RFC5340-C.3-5</code></td><td colspan="3"><span class="rfc-subject">Future interface types MAY specify a different default for LinkLSASuppression (§C.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-c.3-5">RFC5340-C.3-5</code></td><td colspan="3"><span class="rfc-subject">The default value is &#34;disabled&#34; for interface types described in this specification. It is implicitly &#34;disabled&#34; if the interface type is broadcast or NBMA. Future interface types MAY specify a different default. (§C.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>C.3</td>
@@ -725,7 +733,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>{gap}, no test</td>
 <td>the ban holds for intra-area-prefix-LSAs on both origination paths (interfaceIPv6Prefixes, origination_v6.go:564; v6HostPrefixes, origination_v6.go:432; v6AggregatedLinkPrefixes, origination_v6_link.go:153), but the ABR summary path copies every prefix out of a received intra-area-prefix-LSA into an inter-area-prefix-LSA with no link-local filter (v6SummaryNetworks, origination_v6_summary.go:136-147), and the ASBR path wire-encodes a redistributed prefix with no link-local filter either (v6InjectExternal -&gt; netipToV6Prefix, origination_v6_external.go:55 and origination_v6.go:592), so a link-local supplied by a peer or by redistribution reaches an inter-area-prefix-LSA / AS-external-LSA / NSSA-LSA. Disclosed in docs/features/rfc-status.md RFC 5340 row</td>
 </tr>
-<tr><td><a href="#rfc5340-2.8-2"><code>RFC5340-2.8-2</code></a> Receivers MUST concatenate all the router-LSAs originated by a given router, treating them as a single aggregate, when running the SPF calculation; reaffirmed in §4.8 and §4.8.1 (§2.8)</td>
+<tr><td><a href="#rfc5340-2.8-2"><code>RFC5340-2.8-2</code></a> Receivers MUST concatenate all the router-LSAs originated by a given router when running the SPF calculation. (§2.8)</td>
 <td>{gap}, no test</td>
 <td>the OSPFv3 graph build keys a router vertex by Advertising Router alone and ASSIGNS rather than concatenates, so a second Router-LSA from the same router (a different Link State ID) replaces the first instead of aggregating its links (v6Strategy.BuildGraph, afstrategy_v6.go:113-117). Disclosed in docs/features/rfc-status.md RFC 5340 row</td>
 </tr>
@@ -776,12 +784,12 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5340-2.5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5340-2.8-2"><code>RFC5340-2.8-2</code></a></h3>
-<p>Receivers MUST concatenate all the router-LSAs originated by a given router, treating them as a single aggregate, when running the SPF calculation; reaffirmed in §4.8 and §4.8.1 (§2.8)</p>
+<p>Receivers MUST concatenate all the router-LSAs originated by a given router when running the SPF calculation. (§2.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5340-2.8-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5340-2.8-3"><code>RFC5340-2.8-3</code></a></h3>
-<p>A network-LSA MUST list all routers connected to the link (§2.8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>a network-LSA MUST list all routers connected to the link (§2.8)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Network-LSA that omits a router attached to the link. TestRFC5340NetworkLSAListsAttachedRouters drives v6OriginateNetwork, decodes the installed Network-LSA and asserts got[self] (the DR) and got[full] (a Full neighbor), each red on omission; got[twoWay] false and Len 2 bound the list to the routers RFC 2328 12.4.2 counts as attached (fully adjacent), which RFC 5340 leaves unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -800,8 +808,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5340-2.8-4"><code>RFC5340-2.8-4</code></a></h3>
-<p>A link-LSA MUST list all of a router&#39;s addresses on the link (§2.8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>a link-LSA MUST list all of a router&#39;s addresses on the link (§2.8)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Link-LSA that omits one of the router&#39;s addresses on the link. TestRFC5340LinkLSAListsLinkAddresses decodes the originated Link-LSA and asserts the link-local fe80::1 and both global prefixes 2001:db8:1::/64 and 2001:db8:2::/64, each red on omission; the eth1 half asserts each link&#39;s LSA carries its own link-local and prefix and not the other link&#39;s.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -820,8 +828,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5340-4.1.2-2"><code>RFC5340-4.1.2-2</code></a></h3>
-<p>A virtual link MUST use one of the router&#39;s own global-scope IPv6 addresses as its IP interface address, instead of a link-local address; also §4.7 (§4.1.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>For IPv6, the IPv6 address appearing in the source of OSPF packets sent on the interface is almost always a link-local address. The one exception is for virtual links that MUST use one of the router&#39;s own global IPv6 addresses as IP interface address. (§4.1.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a virtual link using anything but one of this router&#39;s own global IPv6 addresses as its IP interface address. TestV6VirtualEndpointResolvesGlobalAddress asserts v6ResolveVirtualEndpointLocked returns this router&#39;s global 2001:db8:1::1 as source (red on another address); TestRFC5340VirtualLinkRefusesLocalLinkLocalInterfaceAddress asserts that with only fe80::1 advertised the endpoint does not resolve (red if a link-local is adopted). The &#39;almost always a link-local&#39; sentence is descriptive and states no obligation.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -840,8 +848,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5340-4.2.1.1-1"><code>RFC5340-4.2.1.1-1</code></a></h3>
-<p>o Before the Hello packet is sent on an interface, the interface&#39;s Interface ID MUST be copied into the Hello packet. (§4.2.1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Before the Hello packet is sent on an interface, the interface&#39;s Interface ID MUST be copied into the Hello packet. (§4.2.1.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Hello sent without this interface&#39;s own Interface ID. TestRFC5340HelloCarriesInterfaceID sends real Hellos through SendHello and the v6 encoder and asserts Interface ID 42 on eth0 and 43 on eth1 (red on a missing or shared value), and after a neighbor Hello carrying 99 asserts the next sent Hello still carries 42 (red if the neighbor&#39;s value is copied in).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -860,8 +868,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5340-4.2.1.1-2"><code>RFC5340-4.2.1.1-2</code></a></h3>
-<p>The Options bits that MUST be set correctly in Hello packets are the E-bit (regular area), N-bit (NSSA area), and DC-bit (demand circuit) (§4.2.1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Those that MUST be set correctly in Hello packets are as follows. The E-bit is set if and only if the interface attaches to a regular area, i.e., not a stub or NSSA area. Similarly, the N-bit is set if and only if the interface attaches to an NSSA area (see [NSSA]). Finally, the DC-bit is set if and only if the router wishes to suppress the sending of future Hellos over the interface (see [DEMAND]). (§4.2.1.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Hello whose E, N or DC bit does not follow the area type or the wish to suppress Hellos. TestRFC5340HelloOptionsBits sends Hellos through the real send path and asserts E set and N clear for a regular area, N set and E clear for NSSA, both clear for stub (both directions of each &#39;if and only if&#39;), and DC zero in all three; ze has no demand-circuit support and never wishes to suppress Hellos, so DC clear is the only correct value.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -880,8 +888,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5340-4.2.1.2-1"><code>RFC5340-4.2.1.2-1</code></a></h3>
-<p>Those that MUST be set correctly in Database Description packets are as follows. (§4.2.1.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Those that MUST be set correctly in Database Description packets are as follows. The DC-bit is set if and only if the router wishes to suppress the sending of Hellos over the interface (see [DEMAND]). (§4.2.1.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence governs only the DC-bit in DD packets. TestRFC5340DBDescOptionsBits asserts DC stays clear, which is right since ze never suppresses Hellos, but its positive tag claims the E/V6/R bits, which this sentence does not govern, so the positive polarity proves nothing about this row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -951,8 +959,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5340-4.9-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5340-a.3.1-2"><code>RFC5340-A.3.1-2</code></a></h3>
-<p>The reserved header fields MUST be ignored when receiving protocol packets (§A.3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>These fields are reserved. They SHOULD be set to 0 when sending protocol packets and MUST be ignored when receiving protocol packets. (§A.3.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: acting on a non-zero Reserved octet on receive, and (SHOULD) sending a non-zero one. TestRFC5340ReservedHeaderOctetIgnoredOnReceive dispatches a Hello with Reserved=0xFF and asserts the neighbor forms (receive clause proven, Instance ID still honoured). The quoted send clause &#39;SHOULD be set to 0 when sending protocol packets&#39; has no assertion: no tagged unit reads the Reserved octet of a packet Ze encodes.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -971,16 +979,26 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5340-a.4.7-1"><code>RFC5340-A.4.7-1</code></a></h3>
-<p>It MUST NOT be set to the IPv6 Unspecified Address (0:0:0:0:0:0:0:0) or an IPv6 Link-Local Address (Prefix FE80/10). (§A.4.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Forwarding address A fully qualified IPv6 address (128 bits). Included in the LSA if and only if bit F has been set. If included, data traffic for the advertised destination will be forwarded to this address. It MUST NOT be set to the IPv6 Unspecified Address (0:0:0:0:0:0:0:0) or an IPv6 Link-Local Address (Prefix FE80/10). (§A.4.7)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Local origination: v6UsableForwardingAddress rejects fe80::1, ::, ::1, ff02::5 and v6OriginateNSSALSA drops an all-zero address. Translation: translateNSSAV6 (nssa.go) now refuses to translate a received NSSA-LSA whose forwarding address fails v6UsableForwardingAddress. TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding runs translateNSSA on an elected v6 NSSA ABR: a global forwarding address is carried into the Type-5 unchanged, and fe80::2 produces no Type-5. Re-read 2026-09-27 (DF-OSPF-B): translateNSSAV6 changed only in its RFC 3101 Section 3.2 yield test (equivalentType5V6); the A.4.7 forwarding-address gate is unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L56" title="internal/plugins/ospf/rfc5340_nssa_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L294" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L45" title="internal/plugins/ospf/rfc5340_nssa_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L292" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></td>
@@ -992,15 +1010,25 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </div>
 <h3><a href="#rfc5340-a.4.7-2"><code>RFC5340-A.4.7-2</code></a></h3>
 <p>While OSPFv3 routes are normally installed with link-local addresses, an OSPFv3 implementation advertising a forwarding address MUST advertise a global IPv6 address. (§A.4.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Origination selects only a global address (interfaceIPv6ForwardingAddress via v6UsableForwardingAddress). The translator now advertises only a forwarding address that passes the same rule: TestRFC5340TranslatorAdvertisesGlobalForwarding requires the translated Type-5 forwarding address to be global unicast, and requires no Type-5 for fe80::3. Re-read 2026-09-27 (DF-OSPF-B): translateNSSAV6 changed only in its RFC 3101 Section 3.2 yield test (equivalentType5V6); the A.4.7 forwarding-address gate is unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L74" title="internal/plugins/ospf/rfc5340_nssa_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5340TranslatorAdvertisesGlobalForwarding</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L304" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L67" title="internal/plugins/ospf/rfc5340_nssa_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5340TranslatorAdvertisesGlobalForwarding</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L300" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></td>
@@ -1012,7 +1040,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </div>
 <h3><a href="#rfc5340-a.4.8-1"><code>RFC5340-A.4.8-1</code></a></h3>
 <p>A global IPv6 address MUST be selected as forwarding address for NSSA-LSAs that are to be propagated by NSSA area border routers. (§A.4.8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: selecting a non-global (link-local, unspecified) address as the forwarding address of a P-bit NSSA-LSA. TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress passes the forwarding address straight into v6OriginateNSSALSA (a global, then a zero), so the SELECTION is not under test: forwardingAddressForAF / v6UsableForwardingAddress is not called, and no unit offers a link-local candidate. A selector that returned fe80:: would leave the unit green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1051,8 +1079,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5340-c.3-2"><code>RFC5340-C.3-2</code></a></h3>
-<p>It MUST be greater than 0. (§C.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>InfTransDelay The estimated number of seconds it takes to transmit a Link State Update packet over this interface. LSAs contained in the update packet must have their age incremented by this amount before transmission. This value should take into account the transmission and propagation delays of the interface. It MUST be greater than 0. (§C.3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an InfTransDelay of 0, and LSAs transmitted without their age incremented by InfTransDelay. TestRFC5340IPv6InterfaceCostAndTransmitDelay asserts validateConfig refuses transmit-delay 0 (ErrTransmitDelayZero) and accepts 1, which proves the &#39;greater than 0&#39; clause. The quoted clause &#39;LSAs contained in the update packet must have their age incremented by this amount before transmission&#39; has no assertion in any tagged unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1071,8 +1099,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5340-c.3-3"><code>RFC5340-C.3-3</code></a></h3>
-<p>It MUST be the same for all routers attached to a common link. (§C.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>HelloInterval The length of time, in seconds, between Hello packets that the router sends on the interface. This value is advertised in the router&#39;s Hello packets. It MUST be the same for all routers attached to a common link. (§C.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a neighbor whose HelloInterval differs on the common link. TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink asserts ReceiveDecodedHello accepts a matching HelloInterval (empty reason) and drops DefaultHelloInterval+1 with reason hello-interval; accepting the mismatch turns it red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1091,8 +1119,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5340-c.3-4"><code>RFC5340-C.3-4</code></a></h3>
-<p>This value again MUST be the same for all routers attached to a common link. (§C.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>RouterDeadInterval After ceasing to hear a router&#39;s Hello packets, the number of seconds before its neighbors declare the router down. This is also advertised in the router&#39;s Hello packets in their RouterDeadInterval field. This should be some multiple of the HelloInterval (e.g., 4). This value again MUST be the same for all routers attached to a common link. (§C.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a neighbor whose RouterDeadInterval differs on the common link. TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink asserts a matching RouterDeadInterval is accepted (empty reason) and DefaultDeadInterval+1 is dropped with reason dead-interval; accepting the mismatch turns it red. The &#39;multiple of the HelloInterval&#39; clause is a lower-case should.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1853,7 +1881,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

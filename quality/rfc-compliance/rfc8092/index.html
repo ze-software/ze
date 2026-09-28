@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8092 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8092: BGP Large Communities Attribute. 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8092: BGP Large Communities Attribute. 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8092 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8092: BGP Large Communities Attribute. 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8092: BGP Large Communities Attribute. 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8092 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8092: BGP Large Communities Attribute. 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8092: BGP Large Communities Attribute. 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 7 gated MUSTs judged</b><p>6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>11</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -310,7 +318,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L245" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesParse</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-5-1">RFC8092-5-1</code></td><td colspan="3"><span class="rfc-subject">Canonical representation numbers must not contain leading zeros; zero must be represented as a single &#34;0&#34; (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-5-1">RFC8092-5-1</code></td><td colspan="3"><span class="rfc-subject">Numbers MUST NOT contain leading zeros; a zero value MUST be represented with a single zero. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5 - Canonical Representation</td>
@@ -355,7 +363,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L39" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityValidReservedASN</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-3-3">RFC8092-3-3</code></td><td colspan="3"><span class="rfc-subject">Global Administrator field should be an ASN (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-3-3">RFC8092-3-3</code></td><td colspan="3"><span class="rfc-subject">The Global Administrator field is intended to allow different ASes to define BGP Large Communities without collision.  This field SHOULD be an ASN, in which case the Local Data Parts are to be interpreted as defined by the owner of the ASN. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3 - BGP Large Communities Attribute</td>
@@ -364,7 +372,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-5-2">RFC8092-5-2</code></td><td colspan="3"><span class="rfc-subject">BGP Large Communities should be represented in the canonical representation (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-5-2">RFC8092-5-2</code></td><td colspan="3"><span class="rfc-subject">BGP Large Communities SHOULD be represented in the canonical representation. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5 - Canonical Representation</td>
@@ -373,7 +381,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-4-1">RFC8092-4-1</code></td><td colspan="3"><span class="rfc-subject">Aggregated routes should contain the union of all BGP Large Communities from all aggregated routes (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-4-1">RFC8092-4-1</code></td><td colspan="3"><span class="rfc-subject">If a range of routes is aggregated, then the resulting aggregate should have a BGP Large Communities attribute that contains all of the BGP Large Communities attributes from all of the aggregated routes. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4 - Aggregation</td>
@@ -382,7 +390,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-3-4">RFC8092-3-4</code></td><td colspan="3"><span class="rfc-subject">Use of reserved ASNs (0, 65535, 4294967295) in Global Administrator is not recommended (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-3-4">RFC8092-3-4</code></td><td colspan="3"><span class="rfc-subject">The use of Reserved ASNs (0 [RFC7607], 65535 and 4294967295 [RFC7300]) is NOT RECOMMENDED. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>NOT RECOMMENDED</td>
 <td>3 - BGP Large Communities Attribute</td>
@@ -402,7 +410,7 @@ No tracked gap in current source anchors.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8092-3-1"><code>RFC8092-3-1</code></a></h3>
 <p>Duplicate BGP Large Community values MUST NOT be transmitted. (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a speaker transmitting a LARGE_COMMUNITY attribute that carries the same 12-octet value twice. TestLargeCommunitiesWriteToNoDuplicates asserts n == 24 for a three-entry list holding one duplicate, so it goes red if LargeCommunities.WriteTo stops deduplicating; TestLargeCommunities (negative) pins that distinct values are all emitted. Only the WriteTo producer is covered: the adj-rib-out replay encoder in internal/component/bgp/plugins/rib/ribout_entry.go (parseLargeCommunityWire then appendAttr) re-encodes the stored value without deduplication, and forward-unchanged raw attribute bytes are not asserted either, so a duplicate can reach the wire on a path no tagged unit exercises.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -422,7 +430,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc8092-3-2"><code>RFC8092-3-2</code></a></h3>
 <p>A receiving speaker MUST silently remove redundant BGP Large Community values from a BGP Large Community attribute. (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a receiving speaker keeping redundant values in the attribute, or reporting them as an error. TestLargeCommunitiesDeduplication asserts ParseLargeCommunities returns no error and exactly the two distinct values of a three-entry input, so the parser clause and &#39;silently&#39; are proven for that function; TestLargeCommunitiesParse (negative) pins no over-removal. The received attribute as Ze holds and re-advertises it is not asserted: the rib plugin&#39;s parseLargeCommunityWire (ribout_entry.go) keeps duplicates, and raw wire bytes forwarded unchanged keep them, so the sentence is proven for one decoder only.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -441,8 +449,8 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc8092-5-1"><code>RFC8092-5-1</code></a></h3>
-<p>Canonical representation numbers must not contain leading zeros; zero must be represented as a single &#34;0&#34; (Section 5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Numbers MUST NOT contain leading zeros; a zero value MUST be represented with a single zero. (Section 5)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a canonical rendering with a leading zero (e.g. 065001) or a zero rendered as anything but a single 0 (00, empty). TestAppendText_LargeCommunityElement asserts exact strings: {0,0,0} -&gt; 0:0:0 goes red on either zero-clause violation, and 65001:100:200 and the 4294967295 case go red on any padding. LargeCommunity.String derives from AppendText. Single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -457,7 +465,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc8092-6-1"><code>RFC8092-6-1</code></a></h3>
 <p>The BGP Large Communities Global Administrator field may contain any value, and a BGP Large Communities attribute MUST NOT be considered malformed if the Global Administrator field contains an unallocated, unassigned, or reserved ASN. (Section 6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: treating the attribute as malformed because its Global Administrator is an unallocated, unassigned or reserved ASN. TestRFC8092LargeCommunityValidReservedASN asserts RFC7606ActionNone for a length-12 attribute with Global Administrator 0, so the reserved case (ASN 0 only) is proven. The unallocated and unassigned cases, and the other reserved ASNs 65535 and 4294967295, have no assertion, so a validator that special-cased any of them would stay green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -472,7 +480,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc8092-6-2"><code>RFC8092-6-2</code></a></h3>
 <p>o A BGP Large Communities attribute SHALL be considered malformed if the length of the BGP Large Communities Attribute value, expressed in octets, is not a non-zero multiple of 12. (Section 6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: accepting a value whose length is not a non-zero multiple of 12, or flagging one that is. Positive TestRFC8092LargeCommunityMalformedLength asserts TreatAsWithdraw and AttrCode 32 for length 10; negative TestRFC8092LargeCommunityValidReservedASN asserts ActionNone for length 12. The non-zero clause has no assertion: a zero-length LARGE_COMMUNITY is never driven, although validateLargeCommunityAttr (rfc7606.go) does flag length 0, and ParseLargeCommunities accepts length 0 without error, so dropping the length == 0 test would stay green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -492,7 +500,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc8092-6-3"><code>RFC8092-6-3</code></a></h3>
 <p>o A BGP Large Communities attribute SHALL NOT be considered malformed due to presence of duplicate Large Community values. (Section 6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: the malformed-attribute check rejecting an attribute because it carries duplicate values. The tagged unit TestLargeCommunitiesDeduplication asserts only that ParseLargeCommunities returns no error on duplicates; the malformed determination Ze acts on is ValidateUpdateRFC7606 / validateLargeCommunityAttr, and no tagged unit drives that validator with duplicate values, so a duplicate check added there would stay green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -507,7 +515,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc8092-6-4"><code>RFC8092-6-4</code></a></h3>
 <p>o A BGP UPDATE message with a malformed BGP Large Communities attribute SHALL be handled using the approach of &#34;treat-as- withdraw&#34; as described in Section 2 of [RFC7606]. (Section 6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an UPDATE with a malformed LARGE_COMMUNITY handled other than by treat-as-withdraw (session reset, attribute discard, or accepting the routes). TestRFC8092LargeCommunityMalformedLength asserts the validator&#39;s classification RFC7606ActionTreatAsWithdraw and AttrCode 32, and the negative asserts ActionNone for a well-formed attribute. That proves the classification only: no tagged unit asserts that the UPDATE&#39;s routes are then withdrawn, which is what RFC 7606 Section 2 treat-as-withdraw requires.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -679,7 +687,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8097 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8097: BGP Prefix Origin Validation State Extended Community. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8097: BGP Prefix Origin Validation State Extended Community. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8097 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8097: BGP Prefix Origin Validation State Extended Community. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8097: BGP Prefix Origin Validation State Extended Community. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8097 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8097: BGP Prefix Origin Validation State Extended Community. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8097: BGP Prefix Origin Validation State Extended Community. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -287,7 +290,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-1">RFC8097-2-1</code></td><td colspan="3"><span class="rfc-subject">Reserved field (bytes 2-6) must be set to 0 on transmission (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-1">RFC8097-2-1</code></td><td colspan="3"><span class="rfc-subject">The Reserved field MUST be set to 0 (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -296,7 +299,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not implement the RFC 8097 BGP Prefix Origin Validation State Extended Community. It performs local RFC 6811 origin validation (internal/component/bgp/plugins/rpki/validate.go) but has no encoder for the origin-validation-state extended community (type 0x43); its extended-community codec is a generic opaque 8-octet carrier (internal/core/bgp/attribute/community.go:231 ExtendedCommunity [8]byte), so Ze never originates this community and has no Reserved field to zero.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-2">RFC8097-2-2</code></td><td colspan="3"><span class="rfc-subject">Reserved field must be ignored upon receipt (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-2">RFC8097-2-2</code></td><td colspan="3"><span class="rfc-subject">The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -332,7 +335,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not decode the origin-validation-state extended community&#39;s validation-state octet (community.go:275 keeps the 8-octet value opaque and never reads it as a validation state), so it has no code path that could observe a state value &gt; 2 to apply the RFC 7606 discard against.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-6">RFC8097-2-6</code></td><td colspan="3"><span class="rfc-subject">Attach the origin validation state extended community to BGP UPDATE messages sent to iBGP peers when configured to support this extension (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-6">RFC8097-2-6</code></td><td colspan="3"><span class="rfc-subject">If the router is configured to support the extensions defined in this document, it SHOULD attach the origin validation state extended community to BGP UPDATE messages sent to IBGP peers by mapping the computed validation state in the last octet of the extended community. (§2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2</td>
@@ -341,7 +344,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-7">RFC8097-2-7</code></td><td colspan="3"><span class="rfc-subject">Derive validation state from the extended community in absence of locally-computed validation state (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-7">RFC8097-2-7</code></td><td colspan="3"><span class="rfc-subject">Similarly, a receiving BGP speaker, in the absence of validation state set based on local data, SHOULD derive a validation state from the last octet of the extended community, if present. (§2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2</td>
@@ -350,7 +353,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-8">RFC8097-2-8</code></td><td colspan="3"><span class="rfc-subject">Send more than one instance of the origin validation state extended community (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-8">RFC8097-2-8</code></td><td colspan="3"><span class="rfc-subject">An implementation SHOULD NOT send more than one instance of the origin validation state extended community. (§2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>2</td>
@@ -359,7 +362,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-9">RFC8097-2-9</code></td><td colspan="3"><span class="rfc-subject">Send the community to EBGP peers by default (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-9">RFC8097-2-9</code></td><td colspan="3"><span class="rfc-subject">Similarly, by default, an implementation SHOULD NOT send the community to EBGP peers. (§2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>2</td>
@@ -368,7 +371,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-10">RFC8097-2-10</code></td><td colspan="3"><span class="rfc-subject">Be configurable to send or accept the community to/from EBGP peers when warranted (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-10">RFC8097-2-10</code></td><td colspan="3"><span class="rfc-subject">However, it SHOULD be possible to configure an implementation to send or accept the community when warranted. (§2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2</td>
@@ -386,11 +389,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc8097-2-1"><code>RFC8097-2-1</code></a> Reserved field (bytes 2-6) must be set to 0 on transmission (§2)</td>
+<tr><td><a href="#rfc8097-2-1"><code>RFC8097-2-1</code></a> The Reserved field MUST be set to 0 (§2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 8097 BGP Prefix Origin Validation State Extended Community. It performs local RFC 6811 origin validation (internal/component/bgp/plugins/rpki/validate.go) but has no encoder for the origin-validation-state extended community (type 0x43); its extended-community codec is a generic opaque 8-octet carrier (internal/core/bgp/attribute/community.go:231 ExtendedCommunity [8]byte), so Ze never originates this community and has no Reserved field to zero.</td>
 </tr>
-<tr><td><a href="#rfc8097-2-2"><code>RFC8097-2-2</code></a> Reserved field must be ignored upon receipt (§2)</td>
+<tr><td><a href="#rfc8097-2-2"><code>RFC8097-2-2</code></a> The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze does not decode the origin-validation-state extended community; ParseExtendedCommunities (internal/core/bgp/attribute/community.go:275) retains every extended community as an opaque 8-octet value and never interprets bytes 2-6 as a reserved field, so there is no RFC 8097 Reserved field for Ze to ignore.</td>
 </tr>
@@ -413,11 +416,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8097-2-1"><code>RFC8097-2-1</code></a></h3>
-<p>Reserved field (bytes 2-6) must be set to 0 on transmission (§2)</p>
+<p>The Reserved field MUST be set to 0 (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8097-2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8097-2-2"><code>RFC8097-2-2</code></a></h3>
-<p>Reserved field must be ignored upon receipt (§2)</p>
+<p>The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8097-2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8097-2-3"><code>RFC8097-2-3</code></a></h3>
@@ -585,7 +588,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

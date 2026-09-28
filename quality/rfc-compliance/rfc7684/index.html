@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7684 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7684: OSPFv2 Prefix/Link Attribute Advertisement. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7684: OSPFv2 Prefix/Link Attribute Advertisement. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7684 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7684: OSPFv2 Prefix/Link Attribute Advertisement. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7684: OSPFv2 Prefix/Link Attribute Advertisement. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7684 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7684: OSPFv2 Prefix/Link Attribute Advertisement. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7684: OSPFv2 Prefix/Link Attribute Advertisement. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 9 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>15</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -292,7 +300,7 @@ Same OSPF experimental status.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-5-3">RFC7684-5-3</code></td><td colspan="3"><span class="rfc-subject">Malformed LSAs (TLV/sub-TLV overruns subsuming LSA/TLV/sub-TLV, or trailing data smaller than a TLV header) MUST NOT be stored in the LSDB, acknowledged, or reflooded (§5). `opaque.go:wireOpaqueDelivery` installs `ext.go:validateExtLSA` through `lsdb.SetReceiveValidator`; `lsdb.ReceiveUpdate` invokes it before every scope, self-originated and MaxAge branch. `packet.ValidateExtLSABody` checks top-level and nested framing without allocating attributes, including duplicate containers. Rejection increments `ze_ospf_ext_malformed_total`. `TestExtIngressMalformedDiscard` and `TestExtIngressValidCarriage` exercise the router dispatcher, LSDB and emitted acknowledgement/flood packets. Unknown opaque applications retain carrier behaviour.</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-5-3">RFC7684-5-3</code></td><td colspan="3"><span class="rfc-subject">Malformed LSAs MUST NOT be stored in the Link State Database (LSDB), acknowledged, or reflooded. (§5). `opaque.go:wireOpaqueDelivery` installs `ext.go:validateExtLSA` through `lsdb.SetReceiveValidator`; `lsdb.ReceiveUpdate` invokes it before every scope, self-originated and MaxAge branch. `packet.ValidateExtLSABody` checks top-level and nested framing without allocating attributes, including duplicate containers. Rejection increments `ze_ospf_ext_malformed_total`. `TestExtIngressMalformedDiscard` and `TestExtIngressValidCarriage` exercise the router dispatcher, LSDB and emitted acknowledgement/flood packets. Unknown opaque applications retain carrier behaviour.</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5</td>
@@ -310,7 +318,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L66" title="internal/plugins/ospf/ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagIgnoredNonHost</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-2">RFC7684-2.1-2</code></td><td colspan="3"><span class="rfc-subject">Preserve the N-Flag when the Extended Prefix Opaque LSA is propagated between areas (§2.1) -- an ABR preserves N on the inter-area advertisement of a host prefix</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-2">RFC7684-2.1-2</code></td><td colspan="3"><span class="rfc-subject">The flag is preserved when the OSPFv2 Extended Prefix Opaque LSA is propagated between areas. (§2.1) -- an ABR preserves N on the inter-area advertisement of a host prefix</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -319,7 +327,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L150" title="internal/plugins/ospf/ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagNotSetNonHostInterArea</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-3">RFC7684-2.1-3</code></td><td colspan="3"><span class="rfc-subject">The Extended Prefix Opaque LSA flooding scope (LS Type 10/11) MUST satisfy the application-specific scope requirements for all prefixes in the LSA (§2.1) -- `extPrefixScope`: area for intra/inter, AS for external</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-3">RFC7684-2.1-3</code></td><td colspan="3"><span class="rfc-subject">However, since the Opaque LSA type defines the flooding scope, the LSA flooding scope MUST satisfy the application-specific requirements for all the prefixes included in a single OSPFv2 Extended Prefix Opaque LSA. (§2.1) -- `extPrefixScope`: area for intra/inter, AS for external</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -346,7 +354,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this directive binds downstream application specifications (e.g. RFC 8665 segment routing) that define the sub-TLVs these LSAs carry, not a ze wire behavior; ze originates backward-compatible empty Extended Prefix/Link containers per RFC 5250 (internal/plugins/ospf/ext_prefix.go:72-75, internal/plugins/ospf/ext_link.go:56-59)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-5-1">RFC7684-5-1</code></td><td colspan="3"><span class="rfc-subject">Detect malformed TLV and sub-TLV permutations so they cannot crash the router or routing process (§5) -- bound-checked decode returns an error, never panics; extended in the packet fuzz target</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-5-1">RFC7684-5-1</code></td><td colspan="3"><span class="rfc-subject">Additionally, implementations must assure that malformed TLV and sub- TLV permutations are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§5) -- bound-checked decode returns an error, never panics; extended in the packet fuzz target</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -358,7 +366,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L163" title="internal/plugins/ospf/ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixMalformedCounted</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-6.5-1">RFC7684-6.5-1</code></td><td colspan="3"><span class="rfc-subject">Experimental Use types (32768-33023) MUST NOT be mentioned by RFCs -- Extended Prefix Opaque LSA TLVs (§6.1), Extended Prefix TLV Sub-TLVs (§6.2), Extended Link Opaque LSA TLVs (§6.4), Extended Link TLV Sub-TLVs (§6.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-6.5-1">RFC7684-6.5-1</code></td><td colspan="3"><span class="rfc-subject">Types in the range 32768-33023 are for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.5</td>
@@ -367,7 +375,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this is an IANA registry documentation policy binding RFC authors, not a ze code or wire behavior; ze defines and emits no TLV or sub-TLV type in the 32768-33023 Experimental Use range</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-6.5-2">RFC7684-6.5-2</code></td><td colspan="3"><span class="rfc-subject">Before any assignment in the 33024-65535 range there MUST be an IETF specification specifying IANA considerations covering that range -- Extended Prefix Opaque LSA TLVs (§6.1), Extended Prefix TLV Sub-TLVs (§6.2), Extended Link Opaque LSA TLVs (§6.4), Extended Link TLV Sub-TLVs (§6.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-6.5-2">RFC7684-6.5-2</code></td><td colspan="3"><span class="rfc-subject">Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA considerations covering the range being assigned. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.5</td>
@@ -376,7 +384,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this is an IANA allocation policy binding IETF specifications, not a ze code or wire behavior; ze assigns and emits no TLV or sub-TLV type in the 33024-65535 range</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2-1">RFC7684-2-1</code></td><td colspan="3"><span class="rfc-subject">If multiple Extended Prefix Opaque LSAs include the same prefix, use the attributes from the LSA with the lowest Opaque ID (§2) -- `extReceiver.applyPrefix`</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2-1">RFC7684-2-1</code></td><td colspan="3"><span class="rfc-subject">If multiple OSPFv2 Extended Prefix Opaque LSAs include the same prefix, the attributes from the Opaque LSA with the lowest Opaque ID SHOULD be used. (§2) -- `extReceiver.applyPrefix`</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2</td>
@@ -385,7 +393,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-4">RFC7684-2.1-4</code></td><td colspan="3"><span class="rfc-subject">An ABR generating an Extended Prefix TLV for an inter-area prefix locally connected/attached in another connected area SHOULD set the A-Flag (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-4">RFC7684-2.1-4</code></td><td colspan="3"><span class="rfc-subject">A-Flag (Attach Flag): An Area Border Router (ABR) generating an OSPFv2 Extended Prefix TLV for an inter-area prefix that is locally connected or attached in another connected area SHOULD set this flag. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1</td>
@@ -394,7 +402,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-5">RFC7684-2.1-5</code></td><td colspan="3"><span class="rfc-subject">Duplicate Extended Prefix TLV for the same prefix in the same LSA: use only the first instance and log the situation as an error (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-5">RFC7684-2.1-5</code></td><td colspan="3"><span class="rfc-subject">If this TLV is advertised multiple times for the same prefix in the same OSPFv2 Extended Prefix Opaque LSA, only the first instance of the TLV is used by receiving OSPFv2 routers. This situation SHOULD be logged as an error. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1</td>
@@ -403,7 +411,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-3.1-2">RFC7684-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Duplicate Extended Link TLV in the same LSA: use only the first instance and log the situation as an error (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-3.1-2">RFC7684-3.1-2</code></td><td colspan="3"><span class="rfc-subject">If this TLV is advertised multiple times in the same OSPFv2 Extended Link Opaque LSA, only the first instance of the TLV is used by receiving OSPFv2 routers. This situation SHOULD be logged as an error. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1</td>
@@ -421,7 +429,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-6">RFC7684-2.1-6</code></td><td colspan="3"><span class="rfc-subject">Routers advertising Extended Prefix TLVs in different Extended Prefix Opaque LSAs re-originate these LSAs in ascending Opaque ID order to minimize disruption (§2.1) -- stable ascending Opaque-ID allocator</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-6">RFC7684-2.1-6</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED that OSPFv2 routers advertising OSPFv2 Extended Prefix TLVs in different OSPFv2 Extended Prefix Opaque LSAs re-originate these LSAs in ascending order of Opaque ID to minimize the disruption. (§2.1) -- stable ascending Opaque-ID allocator</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>2.1</td>
@@ -430,7 +438,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-3.1-3">RFC7684-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Routers advertising Extended Link TLVs in different Extended Link Opaque LSAs re-originate these LSAs in ascending Opaque ID order to minimize disruption (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-3.1-3">RFC7684-3.1-3</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED that OSPFv2 routers advertising OSPFv2 Extended Link TLVs in different OSPFv2 Extended Link Opaque LSAs re-originate these LSAs in ascending order of Opaque ID to minimize the disruption. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>3.1</td>
@@ -448,7 +456,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-8">RFC7684-2.1-8</code></td><td colspan="3"><span class="rfc-subject">The advertising router MAY choose not to set the N-Flag even when the host-loopback conditions are met (§2.1) -- Ze sets N on host /32 stub prefixes</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-8">RFC7684-2.1-8</code></td><td colspan="3"><span class="rfc-subject">N-Flag (Node Flag): Set when the prefix identifies the advertising router, i.e., the prefix is a host prefix advertising a globally reachable address typically associated with a loopback address. The advertising router MAY choose to not set this flag even when the above conditions are met. (§2.1) -- Ze sets N on host /32 stub prefixes</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.1</td>
@@ -457,7 +465,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-9">RFC7684-2.1-9</code></td><td colspan="3"><span class="rfc-subject">Duplicate Extended Prefix TLV for the same prefix across different LSAs from the same router (smallest Opaque ID used): the situation may be logged as a warning (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-9">RFC7684-2.1-9</code></td><td colspan="3"><span class="rfc-subject">If this TLV is advertised multiple times for the same prefix in different OSPFv2 Extended Prefix Opaque LSAs originated by the same OSPFv2 router, the OSPFv2 advertising router is re-originating OSPFv2 Extended Prefix Opaque LSAs for multiple prefixes and is most likely repacking Extended-Prefix-TLVs in OSPFv2 Extended Prefix Opaque LSAs. In this case, the Extended-Prefix-TLV in the OSPFv2 Extended Prefix Opaque LSA with the smallest Opaque ID is used by receiving OSPFv2 routers. This situation may be logged as a warning. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.1</td>
@@ -466,7 +474,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-3.1-4">RFC7684-3.1-4</code></td><td colspan="3"><span class="rfc-subject">Duplicate Extended Link TLV across different LSAs from the same router (smallest Opaque ID used): the situation may be logged as a warning (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-3.1-4">RFC7684-3.1-4</code></td><td colspan="3"><span class="rfc-subject">If this TLV is advertised multiple times for the same link in different OSPFv2 Extended Link Opaque LSAs originated by the same OSPFv2 router, the OSPFv2 Extended Link TLV in the OSPFv2 Extended Link Opaque LSA with the smallest Opaque ID is used by receiving OSPFv2 routers. This situation may be logged as a warning. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1</td>
@@ -488,11 +496,11 @@ Same OSPF experimental status.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this directive binds downstream application specifications (e.g. RFC 8665 segment routing) that define the sub-TLVs these LSAs carry, not a ze wire behavior; ze originates backward-compatible empty Extended Prefix/Link containers per RFC 5250 (internal/plugins/ospf/ext_prefix.go:72-75, internal/plugins/ospf/ext_link.go:56-59)</td>
 </tr>
-<tr><td><a href="#rfc7684-6.5-1"><code>RFC7684-6.5-1</code></a> Experimental Use types (32768-33023) MUST NOT be mentioned by RFCs -- Extended Prefix Opaque LSA TLVs (§6.1), Extended Prefix TLV Sub-TLVs (§6.2), Extended Link Opaque LSA TLVs (§6.4), Extended Link TLV Sub-TLVs (§6.5)</td>
+<tr><td><a href="#rfc7684-6.5-1"><code>RFC7684-6.5-1</code></a> Types in the range 32768-33023 are for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this is an IANA registry documentation policy binding RFC authors, not a ze code or wire behavior; ze defines and emits no TLV or sub-TLV type in the 32768-33023 Experimental Use range</td>
 </tr>
-<tr><td><a href="#rfc7684-6.5-2"><code>RFC7684-6.5-2</code></a> Before any assignment in the 33024-65535 range there MUST be an IETF specification specifying IANA considerations covering that range -- Extended Prefix Opaque LSA TLVs (§6.1), Extended Prefix TLV Sub-TLVs (§6.2), Extended Link Opaque LSA TLVs (§6.4), Extended Link TLV Sub-TLVs (§6.5)</td>
+<tr><td><a href="#rfc7684-6.5-2"><code>RFC7684-6.5-2</code></a> Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA considerations covering the range being assigned. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this is an IANA allocation policy binding IETF specifications, not a ze code or wire behavior; ze assigns and emits no TLV or sub-TLV type in the 33024-65535 range</td>
 </tr>
@@ -503,8 +511,8 @@ Same OSPF experimental status.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7684-5-3"><code>RFC7684-5-3</code></a></h3>
-<p>Malformed LSAs (TLV/sub-TLV overruns subsuming LSA/TLV/sub-TLV, or trailing data smaller than a TLV header) MUST NOT be stored in the LSDB, acknowledged, or reflooded (§5). `opaque.go:wireOpaqueDelivery` installs `ext.go:validateExtLSA` through `lsdb.SetReceiveValidator`; `lsdb.ReceiveUpdate` invokes it before every scope, self-originated and MaxAge branch. `packet.ValidateExtLSABody` checks top-level and nested framing without allocating attributes, including duplicate containers. Rejection increments `ze_ospf_ext_malformed_total`. `TestExtIngressMalformedDiscard` and `TestExtIngressValidCarriage` exercise the router dispatcher, LSDB and emitted acknowledgement/flood packets. Unknown opaque applications retain carrier behaviour.</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Malformed LSAs MUST NOT be stored in the Link State Database (LSDB), acknowledged, or reflooded. (§5). `opaque.go:wireOpaqueDelivery` installs `ext.go:validateExtLSA` through `lsdb.SetReceiveValidator`; `lsdb.ReceiveUpdate` invokes it before every scope, self-originated and MaxAge branch. `packet.ValidateExtLSABody` checks top-level and nested framing without allocating attributes, including duplicate containers. Rejection increments `ze_ospf_ext_malformed_total`. `TestExtIngressMalformedDiscard` and `TestExtIngressValidCarriage` exercise the router dispatcher, LSDB and emitted acknowledgement/flood packets. Unknown opaque applications retain carrier behaviour.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a malformed Extended Prefix or Extended Link LSA stored, acknowledged, or reflooded. TestExtIngressMalformedDiscard drives both opaque types in link, area and AS scope through the router ingress with a TLV overrun, trailing data shorter than a TLV header, sub-TLV overrun, short sub-TLV header, duplicate malformed container, MaxAge and self-originated input, and fails on any LSDB lookup hit (stored) or any send after RetransmitTick (acknowledged or reflooded), so each of the three clauses goes red. TestExtIngressValidCarriage is the positive: valid bodies are stored byte-for-byte, acknowledged and flooded to the expected interfaces.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -524,7 +532,7 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc7684-2.1-1"><code>RFC7684-2.1-1</code></a></h3>
 <p>If the flag is set and the prefix length is not a host prefix, then the flag MUST be ignored. (§2.1) -- `extNormalizeFlags` clears it on receive</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: honouring an N-Flag received on a prefix that is not a host prefix. TestExtPrefixNFlagIgnoredNonHost drives extPrefixOnReceive with N set on a /24 and fails if the stored entry&#39;s flags still carry ExtPrefixFlagN, which is what every consumer reads; the positive half fails if N is dropped from a /32 host prefix, so the ignore is confined to the non-host case. Both polarities present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -543,8 +551,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc7684-2.1-2"><code>RFC7684-2.1-2</code></a></h3>
-<p>Preserve the N-Flag when the Extended Prefix Opaque LSA is propagated between areas (§2.1) -- an ABR preserves N on the inter-area advertisement of a host prefix</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The flag is preserved when the OSPFv2 Extended Prefix Opaque LSA is propagated between areas. (§2.1) -- an ABR preserves N on the inter-area advertisement of a host prefix</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an ABR dropping the N-Flag when the Extended Prefix information is propagated into another area. TestExtPrefixNFlagPreservedInterArea proves it only for the ABR&#39;s own locally connected host /32 (N set by Ze&#39;s own origination): no unit propagates an N-Flag that another router advertised in its intra-area Extended Prefix LSA, which is the propagation the sentence is about. The negative (TestExtPrefixNFlagNotSetNonHostInterArea) asserts a /24 gains no N and carries A, a neighbouring rule (RFC7684-2.1-1 and the A-Flag row), not a violation of preservation.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -563,8 +571,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc7684-2.1-3"><code>RFC7684-2.1-3</code></a></h3>
-<p>The Extended Prefix Opaque LSA flooding scope (LS Type 10/11) MUST satisfy the application-specific scope requirements for all prefixes in the LSA (§2.1) -- `extPrefixScope`: area for intra/inter, AS for external</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>However, since the Opaque LSA type defines the flooding scope, the LSA flooding scope MUST satisfy the application-specific requirements for all the prefixes included in a single OSPFv2 Extended Prefix Opaque LSA. (§2.1) -- `extPrefixScope`: area for intra/inter, AS for external</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an Extended Prefix Opaque LSA whose flooding scope is narrower than a prefix it carries requires, e.g. an AS-external prefix in an LS Type 10 LSA. TestExtPrefixScopeSelection asserts the per-route-type mapping of extPrefixScope (intra and inter to area, external and NSSA-external to AS), which goes red on a wrong mapping. The clause &#39;for all the prefixes included in a single&#39; LSA has no assertion: no unit shows an originated LSA never mixes prefixes needing different scopes; it holds today only because origination emits one prefix per LSA, and nothing pins that.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -607,8 +615,8 @@ Same OSPF experimental status.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7684-4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7684-5-1"><code>RFC7684-5-1</code></a></h3>
-<p>Detect malformed TLV and sub-TLV permutations so they cannot crash the router or routing process (§5) -- bound-checked decode returns an error, never panics; extended in the packet fuzz target</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Additionally, implementations must assure that malformed TLV and sub- TLV permutations are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§5) -- bound-checked decode returns an error, never panics; extended in the packet fuzz target</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a malformed TLV or sub-TLV permutation that goes undetected or crashes the process. TestExtPrefixMalformedCounted asserts a top-level TLV overrun of an Extended Prefix body is counted and stores nothing, and the two decode tests pin that valid bodies decode. Detection of a sub-TLV overrun, and of any malformed Extended Link body, has no 5-1 tagged assertion: FuzzOSPFExtPrefixBody and FuzzOSPFExtLinkBody discard err and assert only no panic, over three seeds each under go test, so a decoder that silently accepted an overrunning sub-TLV stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -642,11 +650,11 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc7684-6.5-1"><code>RFC7684-6.5-1</code></a></h3>
-<p>Experimental Use types (32768-33023) MUST NOT be mentioned by RFCs -- Extended Prefix Opaque LSA TLVs (§6.1), Extended Prefix TLV Sub-TLVs (§6.2), Extended Link Opaque LSA TLVs (§6.4), Extended Link TLV Sub-TLVs (§6.5)</p>
+<p>Types in the range 32768-33023 are for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7684-6.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7684-6.5-2"><code>RFC7684-6.5-2</code></a></h3>
-<p>Before any assignment in the 33024-65535 range there MUST be an IETF specification specifying IANA considerations covering that range -- Extended Prefix Opaque LSA TLVs (§6.1), Extended Prefix TLV Sub-TLVs (§6.2), Extended Link Opaque LSA TLVs (§6.4), Extended Link TLV Sub-TLVs (§6.5)</p>
+<p>Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA considerations covering the range being assigned. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7684-6.5-2, so no unit is bound to it.</p>
 </section>
@@ -839,7 +847,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3579 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3579: RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP). 31 gated MUST-level requirements, 14 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 3579: RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP). 31 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3579 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3579: RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP). 31 gated MUST-level requirements, 14 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 3579: RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP). 31 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3579 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3579: RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP). 31 gated MUST-level requirements, 14 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 3579: RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP). 31 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>45.2%</strong><b>14 of 31 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>17</strong><b>of 31 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 31 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>14</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>35</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>17</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>35</td>
@@ -316,7 +320,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> `(*radiusAuthenticator).result` rejects an Access-Accept whose Service-Type is not Login-User (`AcceptedServiceType`, internal/component/radius/attr.go), which is the RFC 2865 form of this rule and covers the EAP path too, because authenticateEAP returns through that same function. What stays untested is this document&#39;s own form of the rule, an Accept concluding an EAP conversation ze could not run: `parseAuthMethod` refuses an unknown auth-method at config load, so ze only ever runs a method it offers and the branch has no input</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-1.2-1">RFC3579-1.2-1</code></td><td colspan="3"><span class="rfc-subject">A displayable message &#34;MUST NOT affect operation of the protocol&#34; (§1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-1.2-1">RFC3579-1.2-1</code></td><td colspan="3"><span class="rfc-subject">This is interpreted to be a human readable string of characters, and MUST NOT affect operation of the protocol. (§1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>1.2 - Terminology</td>
@@ -343,7 +347,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L455" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAccessRejectDeniesEvenCarryingEAPSuccess</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-2">RFC3579-2.1-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The NAS MUST NOT \&#34;manufacture\&#34; a Success or Failure packet as the result of a timeout&#34; (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-2">RFC3579-2.1-2</code></td><td colspan="3"><span class="rfc-subject">The NAS MUST NOT &#34;manufacture&#34; a Success or Failure packet as the result of a timeout. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.1 - Protocol Overview</td>
@@ -370,7 +374,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L190" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapRefusesAMalformedServerEAPHeader</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.2-2">RFC3579-2.2-2</code></td><td colspan="3"><span class="rfc-subject">On an Access-Challenge carrying Error-Cause 202, &#34;a new EAP-Response packet, if available, MUST be sent to the RADIUS server within an Access-Request, and the EAP-Message attribute(s) included within the Access-Challenge are silently discarded&#34; (§2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.2-2">RFC3579-2.2-2</code></td><td colspan="3"><span class="rfc-subject">If so, a new EAP-Response packet, if available, MUST be sent to the RADIUS server within an Access-Request, and the EAP-Message attribute(s) included within the Access-Challenge are silently discarded. (§2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.2 - Invalid Packets</td>
@@ -397,7 +401,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L589" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapDecisionFollowsTheRadiusCode</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.6.3-3">RFC3579-2.6.3-3</code></td><td colspan="3"><span class="rfc-subject">&#34;the NAS MUST NOT \&#34;manufacture\&#34; EAP packets in order to correct contradictory messages that it receives&#34; (§2.6.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.6.3-3">RFC3579-2.6.3-3</code></td><td colspan="3"><span class="rfc-subject">Since the responsibility for avoiding conflicts lies with the RADIUS server, the NAS MUST NOT &#34;manufacture&#34; EAP packets in order to correct contradictory messages that it receives. (§2.6.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.6.3 - Conflicting Messages</td>
@@ -424,7 +428,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> `eapCredential` (internal/component/radius/authenticator_eap.go) builds an EAP-bearing Access-Request from the EAP-Message run, the Message-Authenticator and the server&#39;s State, and appends no Reply-Message; `exchange` adds Service-Type, NAS-Identifier, User-Name and NAS-IP-Address, none of them Reply-Message. The exclusion holds by construction and no test tags it</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3-1">RFC3579-3-1</code></td><td colspan="3"><span class="rfc-subject">&#34;either NAS-Identifier, NAS-IP-Address or NAS-IPv6-Address attributes MUST be included&#34; in an Access-Request (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3-1">RFC3579-3-1</code></td><td colspan="3"><span class="rfc-subject">The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets, and either NAS-Identifier, NAS-IP-Address or NAS-IPv6-Address attributes MUST be included. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - Attributes</td>
@@ -470,7 +474,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L484" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapDiscardsUnauthenticatedChallenge</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3.2-1">RFC3579-3.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Message-Authenticator = HMAC-MD5 (Type, Identifier, Length, Request Authenticator, Attributes)&#34;, keyed with the shared secret, with the signature string &#34;considered to be sixteen octets of zero&#34; and the value inserted before the Response Authenticator is calculated (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3.2-1">RFC3579-3.2-1</code></td><td colspan="3"><span class="rfc-subject">When present in an Access-Request packet, Message-Authenticator is an HMAC-MD5 [RFC2104] hash of the entire Access-Request packet, including Type, ID, Length and Authenticator, using the shared secret as the key, as follows. Message-Authenticator = HMAC-MD5 (Type, Identifier, Length, Request Authenticator, Attributes) When the message integrity check is calculated the signature string should be considered to be sixteen octets of zero. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2 - Message-Authenticator</td>
@@ -488,7 +492,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L688" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestAccountingRequestRefusesEAPAttributes</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3.3-2">RFC3579-3.3-2</code></td><td colspan="3"><span class="rfc-subject">&#34;An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes&#34; (§3.3 Note 1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3.3-2">RFC3579-3.3-2</code></td><td colspan="3"><span class="rfc-subject">An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes. (§3.3 Note 1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.3 - Table of Attributes</td>
@@ -497,7 +501,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L938" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestAccessRequestRefusesTwoCredentialTypes</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.2-1">RFC3579-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Where RADIUS runs over IPsec ESP with a non-null transform and no shared secret is configured, &#34;a shared secret of zero length MUST be assumed&#34; (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.2-1">RFC3579-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Where RADIUS is run over IPsec ESP with a non-null transform, the secret shared between the NAS and the RADIUS server MAY NOT be configured. In this case, a shared secret of zero length MUST be assumed. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2 - Security Protocol</td>
@@ -506,7 +510,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze offers no way to run RADIUS over an IPsec SA and its RADIUS server configuration always carries a secret (`internal/component/radius/config.go`), so the zero-length case is unreachable; spec-radius-admin-eap does not add it</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.2-2">RFC3579-4.2-2</code></td><td colspan="3"><span class="rfc-subject">&#34;When IPsec ESP is used with RADIUS, per-packet authentication, integrity and replay protection MUST be used. 3DES-CBC MUST be supported as an encryption transform&#34; (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.2-2">RFC3579-4.2-2</code></td><td colspan="3"><span class="rfc-subject">When IPsec ESP is used with RADIUS, per-packet authentication, integrity and replay protection MUST be used. 3DES-CBC MUST be supported as an encryption transform (§4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2 - Security Protocol</td>
@@ -569,7 +573,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s admin login has no renegotiation path, and its PPP NAS never negotiates EAP, so nothing refuses a renegotiation; spec-radius-admin-eap</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.3.6-5">RFC3579-4.3.6-5</code></td><td colspan="3"><span class="rfc-subject">Where EAP was negotiated and the RADIUS server or proxy does not support it, &#34;a PPP NAS MUST send an LCP-Terminate and disconnect the peer&#34; (§4.3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.3.6-5">RFC3579-4.3.6-5</code></td><td colspan="3"><span class="rfc-subject">If EAP is negotiated but is not supported by the RADIUS proxy or server, then the server or proxy MUST respond with an Access-Reject. In these cases, a PPP NAS MUST send an LCP-Terminate and disconnect the peer. (§4.3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3.6 - Negotiation Attacks</td>
@@ -578,7 +582,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s PPP NAS never negotiates EAP, so the branch that would send LCP-Terminate on an EAP-incapable server does not exist; spec-radius-admin-eap</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-1.2-3">RFC3579-1.2-3</code></td><td colspan="3"><span class="rfc-subject">An implementation that silently discards a packet &#34;SHOULD provide the capability of logging the error, including the contents of the silently discarded packet, and SHOULD record the event in a statistics counter&#34; (§1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-1.2-3">RFC3579-1.2-3</code></td><td colspan="3"><span class="rfc-subject">The implementation SHOULD provide the capability of logging the error, including the contents of the silently discarded packet, and SHOULD record the event in a statistics counter. (§1.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>1.2 - Terminology</td>
@@ -587,7 +591,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-4">RFC3579-2.1-4</code></td><td colspan="3"><span class="rfc-subject">&#34;Once EAP has been negotiated, the NAS SHOULD send an initial EAP-Request message to the authenticating peer&#34; (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-4">RFC3579-2.1-4</code></td><td colspan="3"><span class="rfc-subject">Once EAP has been negotiated, the NAS SHOULD send an initial EAP-Request message to the authenticating peer. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1 - Protocol Overview</td>
@@ -596,7 +600,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-7">RFC3579-2.1-7</code></td><td colspan="3"><span class="rfc-subject">&#34;After a suitable number of timeouts have elapsed, the NAS SHOULD instead end the EAP conversation&#34; (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-7">RFC3579-2.1-7</code></td><td colspan="3"><span class="rfc-subject">After a suitable number of timeouts have elapsed, the NAS SHOULD instead end the EAP conversation. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1 - Protocol Overview</td>
@@ -605,7 +609,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-8">RFC3579-2.1-8</code></td><td colspan="3"><span class="rfc-subject">On an EAP-Response/Nak &#34;the NAS SHOULD send Access-Request encapsulating the received EAP-Response/Nak&#34; (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-8">RFC3579-2.1-8</code></td><td colspan="3"><span class="rfc-subject">Where the initial EAP-Request sent by the NAS is for an authentication Type (4 or greater), the peer MAY respond with a Nak indicating that it would prefer another authentication method that is not implemented locally. In this case, the NAS SHOULD send Access-Request encapsulating the received EAP-Response/Nak. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1 - Protocol Overview</td>
@@ -614,7 +618,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-9">RFC3579-2.1-9</code></td><td colspan="3"><span class="rfc-subject">Where the peer identity cannot be determined from the EAP-Response, &#34;the User-Name attribute SHOULD be determined by another means&#34; (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-9">RFC3579-2.1-9</code></td><td colspan="3"><span class="rfc-subject">If the NAS initially sends an EAP-Request for an authentication method, and the peer identity cannot be determined from the EAP-Response, then the User-Name attribute SHOULD be determined by another means. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1 - Protocol Overview</td>
@@ -623,7 +627,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-11">RFC3579-2.1-11</code></td><td colspan="3"><span class="rfc-subject">Where EAP-unaware peers are common, the EAP-Start technique &#34;SHOULD NOT be employed by default&#34; (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-11">RFC3579-2.1-11</code></td><td colspan="3"><span class="rfc-subject">Since this technique can result in a large number of uncompleted RADIUS conversations, in situations where EAP unaware peers are common, or where peer support for EAP cannot be determined on initial contact (e.g. [IEEE8021X] Supplicants not initiating the conversation with an EAPOL-Start) it SHOULD NOT be employed by default. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>2.1 - Protocol Overview</td>
@@ -632,7 +636,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.2-3">RFC3579-2.2-3</code></td><td colspan="3"><span class="rfc-subject">A NAS receiving an Access-Challenge with Error-Cause 202 &#34;SHOULD discard the EAP-Response packet most recently transmitted to the RADIUS server and check whether additional EAP-Response packets have been received matching the current Identifier value&#34; (§2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.2-3">RFC3579-2.2-3</code></td><td colspan="3"><span class="rfc-subject">A NAS compliant with this specification, on receiving an Access-Challenge with an Error-Cause attribute of value 202 (decimal) SHOULD discard the EAP-Response packet most recently transmitted to the RADIUS server and check whether additional EAP-Response packets have been received matching the current Identifier value. (§2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.2 - Invalid Packets</td>
@@ -641,7 +645,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.6.5-2">RFC3579-2.6.5-2</code></td><td colspan="3"><span class="rfc-subject">&#34;a NAS receiving a Reply-Message attribute from the RADIUS server SHOULD silently discard the attribute, rather than attempting to translate it to an EAP Notification Request&#34; (§2.6.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.6.5-2">RFC3579-2.6.5-2</code></td><td colspan="3"><span class="rfc-subject">To avoid these problems, a NAS receiving a Reply-Message attribute from the RADIUS server SHOULD silently discard the attribute, rather than attempting to translate it to an EAP Notification Request. (§2.6.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.6.5 - Displayable Messages</td>
@@ -650,7 +654,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3-2">RFC3579-3-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets&#34; (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3-2">RFC3579-3-2</code></td><td colspan="3"><span class="rfc-subject">The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3 - Attributes</td>
@@ -659,7 +663,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3.1-5">RFC3579-3.1-5</code></td><td colspan="3"><span class="rfc-subject">&#34;When RADIUS is used to enable EAP authentication, Access-Request, Access-Challenge, Access-Accept, and Access-Reject packets SHOULD contain one or more EAP-Message attributes&#34; (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3.1-5">RFC3579-3.1-5</code></td><td colspan="3"><span class="rfc-subject">When RADIUS is used to enable EAP authentication, Access-Request, Access-Challenge, Access-Accept, and Access-Reject packets SHOULD contain one or more EAP-Message attributes. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1 - EAP-Message</td>
@@ -668,7 +672,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3.1-6">RFC3579-3.1-6</code></td><td colspan="3"><span class="rfc-subject">&#34;Access-Challenge, Access-Accept, or Access-Reject packets including EAP-Message attribute(s) without a Message-Authenticator attribute SHOULD be silently discarded by the NAS&#34; (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3.1-6">RFC3579-3.1-6</code></td><td colspan="3"><span class="rfc-subject">Access-Challenge, Access-Accept, or Access-Reject packets including EAP-Message attribute(s) without a Message-Authenticator attribute SHOULD be silently discarded by the NAS. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1 - EAP-Message</td>
@@ -677,7 +681,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.2-4">RFC3579-4.2-4</code></td><td colspan="3"><span class="rfc-subject">&#34;implementations of this specification SHOULD support IPsec [RFC2401] along with IKE [RFC2409] for key management&#34;, and IPsec ESP with a non-null encryption transform and authentication &#34;SHOULD be used&#34; (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.2-4">RFC3579-4.2-4</code></td><td colspan="3"><span class="rfc-subject">To address the security vulnerabilities of RADIUS/EAP, implementations of this specification SHOULD support IPsec [RFC2401] along with IKE [RFC2409] for key management. IPsec ESP [RFC2406] with non-null transform SHOULD be supported, and IPsec ESP with a non-null encryption transform and authentication support SHOULD be used to provide per-packet confidentiality, authentication, integrity and replay protection. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2 - Security Protocol</td>
@@ -686,7 +690,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.2-5">RFC3579-4.2-5</code></td><td colspan="3"><span class="rfc-subject">&#34;AES-CBC SHOULD be supported&#34; and &#34;SHOULD be offered as a preferred encryption transform if supported&#34;, and &#34;DES-CBC SHOULD NOT be used as the encryption transform&#34; (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.2-5">RFC3579-4.2-5</code></td><td colspan="3"><span class="rfc-subject">AES-CBC SHOULD be supported. AES-CBC SHOULD be offered as a preferred encryption transform if supported. HMAC-SHA1-96 MUST be supported as an authentication transform. DES-CBC SHOULD NOT be used as the encryption transform. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2 - Security Protocol</td>
@@ -695,7 +699,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.3.2-1">RFC3579-4.3.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;the Message-Authenticator attribute SHOULD be used in Access-Request packets that do not have a User-Password attribute, in order to establish the identity of the NAS sending the request&#34; (§4.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.3.2-1">RFC3579-4.3.2-1</code></td><td colspan="3"><span class="rfc-subject">As a result, the Message-Authenticator attribute SHOULD be used in Access-Request packets that do not have a User-Password attribute, in order to establish the identity of the NAS sending the request. (§4.3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.3.2 - Spoofing and Hijacking</td>
@@ -704,7 +708,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2-1">RFC3579-2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;A NAS MAY authenticate local peers while at the same time acting as a pass-through for non-local peers and authentication methods it does not implement locally&#34; (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2-1">RFC3579-2-1</code></td><td colspan="3"><span class="rfc-subject">A NAS MAY authenticate local peers while at the same time acting as a pass-through for non-local peers and authentication methods it does not implement locally. (§2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2 - RADIUS Support for EAP</td>
@@ -713,7 +717,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-5">RFC3579-2.1-5</code></td><td colspan="3"><span class="rfc-subject">&#34;A NAS MAY be configured to initiate with a default authentication method&#34; (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-5">RFC3579-2.1-5</code></td><td colspan="3"><span class="rfc-subject">A NAS MAY be configured to initiate with a default authentication method. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.1 - Protocol Overview</td>
@@ -722,7 +726,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-6">RFC3579-2.1-6</code></td><td colspan="3"><span class="rfc-subject">&#34;the NAS MAY act as a pass-through, encapsulating the EAP-Response within EAP-Message attribute(s) sent to the RADIUS server within a RADIUS Access-Request packet&#34; (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-6">RFC3579-2.1-6</code></td><td colspan="3"><span class="rfc-subject">Alternatively, the NAS MAY act as a pass-through, encapsulating the EAP-Response within EAP-Message attribute(s) sent to the RADIUS server within a RADIUS Access-Request packet. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.1 - Protocol Overview</td>
@@ -731,7 +735,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-10">RFC3579-2.1-10</code></td><td colspan="3"><span class="rfc-subject">&#34;on detecting the presence of the peer, the NAS MAY send an Access-Request packet to the RADIUS server containing an EAP-Message attribute signifying EAP-Start&#34; (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.1-10">RFC3579-2.1-10</code></td><td colspan="3"><span class="rfc-subject">Rather than sending an initial EAP-Request packet to the authenticating peer, on detecting the presence of the peer, the NAS MAY send an Access-Request packet to the RADIUS server containing an EAP-Message attribute signifying EAP-Start. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.1 - Protocol Overview</td>
@@ -740,7 +744,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3.2-2">RFC3579-3.2-2</code></td><td colspan="3"><span class="rfc-subject">The Message-Authenticator attribute &#34;MAY be used to authenticate and integrity-protect Access-Requests in order to prevent spoofing&#34; and &#34;MAY be used in any Access-Request&#34; (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3.2-2">RFC3579-3.2-2</code></td><td colspan="3"><span class="rfc-subject">This attribute MAY be used to authenticate and integrity-protect Access-Requests in order to prevent spoofing. It MAY be used in any Access-Request. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.2 - Message-Authenticator</td>
@@ -766,15 +770,15 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <td>{gap}, no test</td>
 <td>ze now DECODES a displayable message -- `(*PeerSession).notificationResponse` (internal/core/eap/peer.go) carries the Type-2 Request&#39;s text out and `processEAPMessage` (internal/component/radius/authenticator_eap.go) logs it -- and encodes none. This sentence binds whoever encodes the message, and ze writes no Reply-Message and sends no Notification Request, so nothing here chooses an encoding to assert</td>
 </tr>
-<tr><td><a href="#rfc3579-2.1-2"><code>RFC3579-2.1-2</code></a> &#34;The NAS MUST NOT \&#34;manufacture\&#34; a Success or Failure packet as the result of a timeout&#34; (§2.1)</td>
+<tr><td><a href="#rfc3579-2.1-2"><code>RFC3579-2.1-2</code></a> The NAS MUST NOT &#34;manufacture&#34; a Success or Failure packet as the result of a timeout. (§2.1)</td>
 <td>{gap}, no test</td>
 <td>every EAP packet ze puts on the RADIUS wire came out of `(*eap.PeerSession).Process` (internal/core/eap/peer.go), and a timeout returns an error from `(*Client).SendToServers` that `authenticateEAP` passes up, so no branch manufactures a Success or Failure. Nothing tags the prohibition, because a test would have to observe a packet no code path can build</td>
 </tr>
-<tr><td><a href="#rfc3579-2.2-2"><code>RFC3579-2.2-2</code></a> On an Access-Challenge carrying Error-Cause 202, &#34;a new EAP-Response packet, if available, MUST be sent to the RADIUS server within an Access-Request, and the EAP-Message attribute(s) included within the Access-Challenge are silently discarded&#34; (§2.2)</td>
+<tr><td><a href="#rfc3579-2.2-2"><code>RFC3579-2.2-2</code></a> If so, a new EAP-Response packet, if available, MUST be sent to the RADIUS server within an Access-Request, and the EAP-Message attribute(s) included within the Access-Challenge are silently discarded. (§2.2)</td>
 <td>{gap}, no test</td>
 <td>ze reads no Error-Cause attribute, so an Access-Challenge carrying 202 is answered like any other. The MUST is conditional -- &#34;If so&#34; refers to additional EAP-Response packets received matching the current Identifier -- and ze holds no such queue: it is its own peer, and `(*eap.PeerSession).Process` (internal/core/eap/peer.go) returns exactly one Response per Request. So the antecedent never holds and there is no second Response to send</td>
 </tr>
-<tr><td><a href="#rfc3579-2.6.3-3"><code>RFC3579-2.6.3-3</code></a> &#34;the NAS MUST NOT \&#34;manufacture\&#34; EAP packets in order to correct contradictory messages that it receives&#34; (§2.6.3)</td>
+<tr><td><a href="#rfc3579-2.6.3-3"><code>RFC3579-2.6.3-3</code></a> Since the responsibility for avoiding conflicts lies with the RADIUS server, the NAS MUST NOT &#34;manufacture&#34; EAP packets in order to correct contradictory messages that it receives. (§2.6.3)</td>
 <td>{gap}, no test</td>
 <td>`authenticateEAP` (internal/component/radius/authenticator_eap.go) sends only what `(*eap.PeerSession).Process` returned, and on a contradictory reply it logs the peer&#39;s objection and drops it rather than correcting it. Nothing tags the prohibition, because a test would have to observe a manufactured packet no code path can build</td>
 </tr>
@@ -782,11 +786,11 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <td>{gap}, no test</td>
 <td>`eapCredential` (internal/component/radius/authenticator_eap.go) builds an EAP-bearing Access-Request from the EAP-Message run, the Message-Authenticator and the server&#39;s State, and appends no Reply-Message; `exchange` adds Service-Type, NAS-Identifier, User-Name and NAS-IP-Address, none of them Reply-Message. The exclusion holds by construction and no test tags it</td>
 </tr>
-<tr><td><a href="#rfc3579-4.2-1"><code>RFC3579-4.2-1</code></a> Where RADIUS runs over IPsec ESP with a non-null transform and no shared secret is configured, &#34;a shared secret of zero length MUST be assumed&#34; (§4.2)</td>
+<tr><td><a href="#rfc3579-4.2-1"><code>RFC3579-4.2-1</code></a> Where RADIUS is run over IPsec ESP with a non-null transform, the secret shared between the NAS and the RADIUS server MAY NOT be configured. In this case, a shared secret of zero length MUST be assumed. (§4.2)</td>
 <td>{gap}, no test</td>
 <td>ze offers no way to run RADIUS over an IPsec SA and its RADIUS server configuration always carries a secret (`internal/component/radius/config.go`), so the zero-length case is unreachable; spec-radius-admin-eap does not add it</td>
 </tr>
-<tr><td><a href="#rfc3579-4.2-2"><code>RFC3579-4.2-2</code></a> &#34;When IPsec ESP is used with RADIUS, per-packet authentication, integrity and replay protection MUST be used. 3DES-CBC MUST be supported as an encryption transform&#34; (§4.2)</td>
+<tr><td><a href="#rfc3579-4.2-2"><code>RFC3579-4.2-2</code></a> When IPsec ESP is used with RADIUS, per-packet authentication, integrity and replay protection MUST be used. 3DES-CBC MUST be supported as an encryption transform (§4.2)</td>
 <td>{gap}, no test</td>
 <td>ze has no RADIUS-over-IPsec profile, so nothing selects a transform for RADIUS traffic; spec-radius-admin-eap does not add it</td>
 </tr>
@@ -810,7 +814,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <td>{gap}, no test</td>
 <td>ze&#39;s admin login has no renegotiation path, and its PPP NAS never negotiates EAP, so nothing refuses a renegotiation; spec-radius-admin-eap</td>
 </tr>
-<tr><td><a href="#rfc3579-4.3.6-5"><code>RFC3579-4.3.6-5</code></a> Where EAP was negotiated and the RADIUS server or proxy does not support it, &#34;a PPP NAS MUST send an LCP-Terminate and disconnect the peer&#34; (§4.3.6)</td>
+<tr><td><a href="#rfc3579-4.3.6-5"><code>RFC3579-4.3.6-5</code></a> If EAP is negotiated but is not supported by the RADIUS proxy or server, then the server or proxy MUST respond with an Access-Reject. In these cases, a PPP NAS MUST send an LCP-Terminate and disconnect the peer. (§4.3.6)</td>
 <td>{gap}, no test</td>
 <td>ze&#39;s PPP NAS never negotiates EAP, so the branch that would send LCP-Terminate on an EAP-incapable server does not exist; spec-radius-admin-eap</td>
 </tr>
@@ -822,7 +826,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc3579-1-1"><code>RFC3579-1-1</code></a></h3>
 <p>This implies that a NAS that is unable to offer EAP service MUST NOT implement the RADIUS attributes for EAP. (§1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. positive requires AttrEAPMessage declared in dict.go; negative walks unofferedServiceAttrs, which EAP is not on, so no EAP-related change can turn it red. Nothing ties the EAP attribute constants to a live EAP auth-method (parseAuthMethod eap-md5/eap-mschapv2): removing EAP service and keeping the attributes stays green</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -845,8 +849,8 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3579-1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3579-1.2-1"><code>RFC3579-1.2-1</code></a></h3>
-<p>A displayable message &#34;MUST NOT affect operation of the protocol&#34; (§1.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>This is interpreted to be a human readable string of characters, and MUST NOT affect operation of the protocol. (§1.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. negative compares verdict, profiles and source with and without a Notification carrying text; positive shows the message is delivered (logged, Notification Response sent) and not acted on</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -870,7 +874,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <p>No test carries RFC3579-1.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3579-2.1-1"><code>RFC3579-2.1-1</code></a></h3>
 <p>Reception of a RADIUS Access-Reject packet MUST result in the NAS denying access to the authenticating peer. (§2.1, restated later in §2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Access-Reject returns aaa.ErrAuthRejected with no profiles; the negative carries an EAP-Success inside the Access-Reject and still denies</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -889,12 +893,12 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </table>
 </div>
 <h3><a href="#rfc3579-2.1-2"><code>RFC3579-2.1-2</code></a></h3>
-<p>&#34;The NAS MUST NOT \&#34;manufacture\&#34; a Success or Failure packet as the result of a timeout&#34; (§2.1)</p>
+<p>The NAS MUST NOT &#34;manufacture&#34; a Success or Failure packet as the result of a timeout. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3579-2.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3579-2.1-3"><code>RFC3579-2.1-3</code></a></h3>
 <p>In order to permit non-EAP aware RADIUS proxies to forward the Access-Request packet, if the NAS initially sends an EAP-Request/Identity message to the peer, the NAS MUST copy the contents of the Type-Data field of the EAP-Response/Identity received from the peer into the User-Name attribute and MUST include the Type-Data field of the EAP-Response/Identity in the User-Name attribute in every subsequent Access-Request. (§2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. positive compares User-Name to the Type-Data of the peer&#39;s EAP-Response/Identity read off the wire; negative checks every subsequent request (method Responses, not Identity) carries the same User-Name. Both clauses covered</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -914,7 +918,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </div>
 <h3><a href="#rfc3579-2.2-1"><code>RFC3579-2.2-1</code></a></h3>
 <p>While acting as a pass-through, the NAS MUST validate the EAP header fields (Code, Identifier, Length) prior to forwarding an EAP packet to or from the RADIUS server. (§2.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. only the Length field is validated under test (corruptEAPFrom declares a Length past the octets). Nothing forwards a server EAP packet with a wrong Code (not 1) or observes Identifier validation; the positive&#39;s Identifier-echo assertion is peer behaviour, not validation. Two of the three named fields unproven</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -933,12 +937,12 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </table>
 </div>
 <h3><a href="#rfc3579-2.2-2"><code>RFC3579-2.2-2</code></a></h3>
-<p>On an Access-Challenge carrying Error-Cause 202, &#34;a new EAP-Response packet, if available, MUST be sent to the RADIUS server within an Access-Request, and the EAP-Message attribute(s) included within the Access-Challenge are silently discarded&#34; (§2.2)</p>
+<p>If so, a new EAP-Response packet, if available, MUST be sent to the RADIUS server within an Access-Request, and the EAP-Message attribute(s) included within the Access-Challenge are silently discarded. (§2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3579-2.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3579-2.6.3-1"><code>RFC3579-2.6.3-1</code></a></h3>
 <p>The NAS MUST make its access control decision based solely on the RADIUS Packet Type (Access-Accept/Access-Reject). (§2.6.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Access-Reject carrying EAP-Success denies (TestRadiusAdminEapDecisionFollowsTheRadiusCode) and Access-Accept carrying EAP-Failure at the identity round grants (TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes); both directions, fixture chosen so an early return on eapErr would go red</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -958,7 +962,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </div>
 <h3><a href="#rfc3579-2.6.3-2"><code>RFC3579-2.6.3-2</code></a></h3>
 <p>The access control decision MUST NOT be based on the contents of the EAP packet encapsulated in one or more EAP-Message attributes, if present. (§2.6.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. same pair as 2.6.3-1 read from the prohibition side: EAP content contradicting the code in either direction does not change the decision</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -977,12 +981,12 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </table>
 </div>
 <h3><a href="#rfc3579-2.6.3-3"><code>RFC3579-2.6.3-3</code></a></h3>
-<p>&#34;the NAS MUST NOT \&#34;manufacture\&#34; EAP packets in order to correct contradictory messages that it receives&#34; (§2.6.3)</p>
+<p>Since the responsibility for avoiding conflicts lies with the RADIUS server, the NAS MUST NOT &#34;manufacture&#34; EAP packets in order to correct contradictory messages that it receives. (§2.6.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3579-2.6.3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc3579-2.6.4-1"><code>RFC3579-2.6.4-1</code></a></h3>
 <p>In order to ensure the correct processing of RADIUS packets, the NAS MUST first process the attributes, including the EAP-Message attribute(s), prior to processing the Accept/Reject indication. (§2.6.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. a concluding Access-Accept&#39;s EAP Notification (and, in the negative, an undecodable EAP-Message) reaches the log before the code decides; a loop that reads resp.Code first and returns would log nothing</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1005,8 +1009,8 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3579-2.6.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3579-3-1"><code>RFC3579-3-1</code></a></h3>
-<p>&#34;either NAS-Identifier, NAS-IP-Address or NAS-IPv6-Address attributes MUST be included&#34; in an Access-Request (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets, and either NAS-Identifier, NAS-IP-Address or NAS-IPv6-Address attributes MUST be included. (§3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The MUST clause is proven: every Access-Request carries NAS-Identifier, with and without a source address, so dropping it fails both tests. The quote&#39;s first clause, &#39;The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets&#39;, has no assertion in either unit, and the client never appends AttrNASPort (5) or AttrNASPortID (87) (dict.go declares them; authenticator.go exchange sends neither). The negative-tagged test is a second conforming input, not a violating one.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1026,7 +1030,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </div>
 <h3><a href="#rfc3579-3.1-1"><code>RFC3579-3.1-1</code></a></h3>
 <p>If multiple EAP-Message attributes are contained within an Access-Request or Access-Challenge packet, they MUST be in order and they MUST be consecutive attributes in the Access-Request or Access-Challenge packet. (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. split at 253 in order (join reproduces the packet), no foreign attribute inside the run (Message-Authenticator and State after it), and receive-side concatenation around foreign attributes</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1051,7 +1055,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </div>
 <h3><a href="#rfc3579-3.1-2"><code>RFC3579-3.1-2</code></a></h3>
 <p>Multiple EAP packets MUST NOT be encoded within EAP-Message attributes contained within a single Access-Challenge, Access-Accept, Access-Reject or Access-Request packet. (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. every sent Access-Request&#39;s EAP Length equals the whole run&#39;s octets, so a second packet riding along goes red; decoder refuses two separated runs in an Access-Challenge</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1071,7 +1075,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </div>
 <h3><a href="#rfc3579-3.1-3"><code>RFC3579-3.1-3</code></a></h3>
 <p>Therefore the Message-Authenticator attribute MUST be used to protect all Access-Request, Access-Challenge, Access-Accept, and Access-Reject packets containing an EAP-Message attribute. (§3.1, restated §3.2, §3.3 Note 1 and §4.3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. every EAP-bearing Access-Request carries a 16-octet Message-Authenticator that the mock server verifies; encodeRequest refuses an EAP-Message without the placeholder and replaces it with the HMAC. Ze sends only Access-Requests, so the Challenge/Accept/Reject clauses bind the server</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1091,7 +1095,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </div>
 <h3><a href="#rfc3579-3.1-4"><code>RFC3579-3.1-4</code></a></h3>
 <p>A NAS supporting the EAP-Message attribute MUST calculate the correct value of the Message-Authenticator and MUST silently discard the packet if it does not match the value sent. (§3.1, restated for any RADIUS client receiving an Access-Accept, Access-Reject or Access-Challenge at §3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. a forged challenge is discarded (retransmission observed, error is not a rejection); a verified challenge advances the conversation to a different second request</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1110,8 +1114,8 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </table>
 </div>
 <h3><a href="#rfc3579-3.2-1"><code>RFC3579-3.2-1</code></a></h3>
-<p>&#34;Message-Authenticator = HMAC-MD5 (Type, Identifier, Length, Request Authenticator, Attributes)&#34;, keyed with the shared secret, with the signature string &#34;considered to be sixteen octets of zero&#34; and the value inserted before the Response Authenticator is calculated (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>When present in an Access-Request packet, Message-Authenticator is an HMAC-MD5 [RFC2104] hash of the entire Access-Request packet, including Type, ID, Length and Authenticator, using the shared secret as the key, as follows. Message-Authenticator = HMAC-MD5 (Type, Identifier, Length, Request Authenticator, Attributes) When the message integrity check is calculated the signature string should be considered to be sixteen octets of zero. (§3.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. SignMessageAuthenticator matches an openssl HMAC-MD5 vector over the Access-Request, and a 0xff placeholder yields the same digest, so the field hashes as sixteen zero octets</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1131,7 +1135,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </div>
 <h3><a href="#rfc3579-3.3-1"><code>RFC3579-3.3-1</code></a></h3>
 <p>The EAP-Message and Message-Authenticator attributes specified in this document MUST NOT be present in an Accounting-Request. (§3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. encodeRequest refuses an Accounting-Request carrying EAP-Message or Message-Authenticator, and the control without either encodes</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1150,8 +1154,8 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </table>
 </div>
 <h3><a href="#rfc3579-3.3-2"><code>RFC3579-3.3-2</code></a></h3>
-<p>&#34;An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes&#34; (§3.3 Note 1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes. (§3.3 Note 1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. negative covers EAP-Message beside User-Password and beside CHAP-Password only. User-Password beside CHAP-Password is not tested, and ARAP-Password is in no pair: client.go oneCredentialType omits ARAP-Password (70) from its map, so an EAP-Message plus ARAP-Password Access-Request would encode</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1170,11 +1174,11 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </table>
 </div>
 <h3><a href="#rfc3579-4.2-1"><code>RFC3579-4.2-1</code></a></h3>
-<p>Where RADIUS runs over IPsec ESP with a non-null transform and no shared secret is configured, &#34;a shared secret of zero length MUST be assumed&#34; (§4.2)</p>
+<p>Where RADIUS is run over IPsec ESP with a non-null transform, the secret shared between the NAS and the RADIUS server MAY NOT be configured. In this case, a shared secret of zero length MUST be assumed. (§4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3579-4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3579-4.2-2"><code>RFC3579-4.2-2</code></a></h3>
-<p>&#34;When IPsec ESP is used with RADIUS, per-packet authentication, integrity and replay protection MUST be used. 3DES-CBC MUST be supported as an encryption transform&#34; (§4.2)</p>
+<p>When IPsec ESP is used with RADIUS, per-packet authentication, integrity and replay protection MUST be used. 3DES-CBC MUST be supported as an encryption transform (§4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3579-4.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3579-4.2-3"><code>RFC3579-4.2-3</code></a></h3>
@@ -1191,7 +1195,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <p>No test carries RFC3579-4.3.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3579-4.3.6-2"><code>RFC3579-4.3.6-2</code></a></h3>
 <p>An authenticating peer expecting EAP to be negotiated for a session MUST NOT negotiate a weaker method, such as CHAP or PAP. (§4.3.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. a successful and a rejected eap-mschapv2 login put an EAP-Message and no User-Password or CHAP-Password on every request, and the rejection produces no weaker retry</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1218,7 +1222,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3579-4.3.6-4, so no unit is bound to it.</p>
 <h3><a href="#rfc3579-4.3.6-5"><code>RFC3579-4.3.6-5</code></a></h3>
-<p>Where EAP was negotiated and the RADIUS server or proxy does not support it, &#34;a PPP NAS MUST send an LCP-Terminate and disconnect the peer&#34; (§4.3.6)</p>
+<p>If EAP is negotiated but is not supported by the RADIUS proxy or server, then the server or proxy MUST respond with an Access-Reject. In these cases, a PPP NAS MUST send an LCP-Terminate and disconnect the peer. (§4.3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3579-4.3.6-5, so no unit is bound to it.</p>
 </section>
@@ -1228,10 +1232,10 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Reviewer</td>
-<td>ze-work agent, plan/spec-radius-admin-eap.md phase 2, rfc3579</td>
+<td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-03</td>
+<td>2026-09-27</td>
 </tr>
 <tr><td>Register</td>
 <td>rfc2119</td>
@@ -1381,15 +1385,9 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 </tr>
 <tr><td><code>3.3</code></td>
 <td>Table of Attributes</td>
-<td>1</td>
+<td>4</td>
 <td>walked</td>
-<td>Table of Attributes. One obligation in the body, that neither attribute appears in an Accounting-Request. The table rows, its three notes and its legend are the section &#39;0&#39; the site scan derives.</td>
-</tr>
-<tr><td><code>0</code></td>
-<td>not stated</td>
-<td>3</td>
-<td>walked</td>
-<td>The Section 3.3 Table of Attributes itself: the per-packet-type counts, Notes 1 to 3, and the legend that defines the cell values. Note 1 carries two obligations and the legend carries none.</td>
+<td>Table of Attributes. One obligation in the body, that neither attribute appears in an Accounting-Request. The table rows, its three notes and its legend follow in this section: Note 1 carries two obligations and the legend carries none.</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>Security Considerations</td>
@@ -1597,12 +1595,12 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 <td>Restates site 3.1:6 for a RADIUS client rather than for a NAS supporting EAP-Message: recompute the Message-Authenticator of a received Access-Accept, Access-Reject or Access-Challenge and silently discard on a mismatch. One behaviour, one code path in ze (verifyResponseMessageAuthenticator), so it maps to the same requirement.</td>
 <td>A RADIUS client receiving an Access-Accept, Access-Reject or Access-Challenge with a Message-Authenticator attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent.</td>
 </tr>
-<tr><td><code>0:2</code></td>
+<tr><td><code>3.3:3</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>Note 1 restates site 3.1:3, &#39;If any packet type contains an EAP-Message attribute it MUST also contain a Message-Authenticator&#39;. It adds no obligation RFC3579-3.1-3 does not already carry.</td>
 <td>If any packet type contains an EAP-Message attribute it MUST also contain a Message-Authenticator.</td>
 </tr>
-<tr><td><code>0:3</code></td>
+<tr><td><code>3.3:4</code></td>
 <td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
 <td>The legend of the Section 3.3 table, defining what the cells 0, 0+, 0-1, 1 and 1+ mean. The keywords describe the notation, not a speaker&#39;s behaviour; the obligations the table expresses are carried by Note 1 and by the attribute sections.</td>
 <td>0 This attribute MUST NOT be present. 0+ Zero or more instances of this attribute MAY be present. 0-1 Zero or one instance of this attribute MAY be present. 1 Exactly one instance of this attribute MUST be present. 1+ One or more of these attributes MUST be present.</td>
@@ -1673,7 +1671,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

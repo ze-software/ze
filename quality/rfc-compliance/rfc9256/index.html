@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9256 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9256: Segment Routing Policy Architecture. 22 gated MUST-level requirements, 6 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 9256: Segment Routing Policy Architecture. 22 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9256 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9256: Segment Routing Policy Architecture. 22 gated MUST-level requirements, 6 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 9256: Segment Routing Policy Architecture. 22 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9256 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9256: Segment Routing Policy Architecture. 22 gated MUST-level requirements, 6 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 9256: Segment Routing Policy Architecture. 22 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -214,6 +214,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>6</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +230,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -406,7 +409,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> no SR Policy reaches forwarding; SAFI 73 appears only in the family registry and the NLRI codec (internal/core/family/family.go:93, internal/component/bgp/plugins/nlri/srpolicy/types.go:74), and grep for SAFISRPolicy over internal/plugins/fib and internal/component/resolve matches nothing</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-6">RFC9256-4-6</code></td><td colspan="3"><span class="rfc-subject">When building the label stack or SRv6 SID list, the node instantiating the policy MUST interpret the first segment as the topmost MPLS label / first SRv6 SID and the last segment as the bottommost label / last SID (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-6">RFC9256-4-6</code></td><td colspan="3"><span class="rfc-subject">When building the MPLS label stack or the SRv6 SID list from the segment list, the node instantiating the policy MUST interpret the set of Segments as follows: * The first Segment represents the topmost MPLS label or the first SRv6 SID. It identifies the active segment the traffic will be directed toward along the explicit SR path. * The last segment represents the bottommost MPLS label or the last SRv6 SID the traffic will be directed toward along the explicit SR path. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -415,7 +418,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> no code converts an SR Policy segment list into a label stack or an SRv6 SID list; buildSegmentListSubTLV only serializes the configured segments in their configured order (internal/component/bgp/plugins/nlri/srpolicy/config.go:428), and a received Tunnel Encapsulation attribute is kept as raw TLV bytes of which only the Preference sub-TLV is ever decoded (internal/core/bgp/attribute/tunnel_encap.go:39 and :137)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-2">RFC9256-5.1-2</code></td><td colspan="3"><span class="rfc-subject">A segment list of an explicit candidate path MUST be declared invalid when it is empty, its weight is 0, it mixes SR-MPLS and SRv6 segment types, the headend cannot resolve the first SID to outgoing interface(s)/next-hop(s), it cannot resolve any non-first SID of type C-K to an MPLS label or SRv6 SID, or verification fails for any SID for which verification was requested (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-2">RFC9256-5.1-2</code></td><td colspan="3"><span class="rfc-subject">A segment list of an explicit candidate path MUST be declared invalid when any of the following is true: * It is empty. * Its weight is 0. * It comprises a mix of SR-MPLS and SRv6 segment types. * The headend is unable to perform path resolution for the first SID into one or more outgoing interface(s) and next-hop(s). * The headend is unable to perform SID resolution for any non-first SID of type C through K into an MPLS label or an SRv6 SID. * The headend verification fails for any SID for which verification has been explicitly requested. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -469,7 +472,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze performs no BSID availability check; buildBindingSIDSubTLV encodes the configured label unconditionally (internal/component/bgp/plugins/nlri/srpolicy/config.go:381) and the only SRLB allocator in ze belongs to OSPF Adj-SIDs (internal/plugins/ospf/sr_adjsid.go:115), which no SR Policy code consults, so no alert is raised</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.3-3">RFC9256-6.2.3-3</code></td><td colspan="3"><span class="rfc-subject">Under Specified-BSID-only behavior, when a candidate path has an unspecified or unavailable BSID it is considered invalid and an alert MUST be triggered via mechanisms like syslog (§6.2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.3-3">RFC9256-6.2.3-3</code></td><td colspan="3"><span class="rfc-subject">When this restrictive behavior is enabled, if the candidate path has an unspecified BSID or if the specified BSID is not available when the candidate path becomes active, then no BSID is bound to it and the candidate path is considered invalid. An alert MUST be triggered for this error via mechanisms like syslog. (§6.2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.2.3</td>
@@ -505,7 +508,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.3-1">RFC9256-2.3-1</code></td><td colspan="3"><span class="rfc-subject">The RECOMMENDED default Protocol-Origin values are PCEP=10, BGP SR Policy=20, and Via Configuration=30 (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.3-1">RFC9256-2.3-1</code></td><td colspan="3"><span class="rfc-subject">The table below specifies the RECOMMENDED default values of Protocol-Origin: +=================+===================+ | Protocol-Origin | Description | +=================+===================+ | 10 | PCEP | +-----------------+-------------------+ | 20 | BGP SR Policy | +-----------------+-------------------+ | 30 | Via Configuration | (§2.3)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>2.3</td>
@@ -523,7 +526,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.8-1">RFC9256-2.8-1</code></td><td colspan="3"><span class="rfc-subject">The RECOMMENDED candidate-path validity criterion is the validity of at least one of its constituent segment lists (§2.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.8-1">RFC9256-2.8-1</code></td><td colspan="3"><span class="rfc-subject">The RECOMMENDED candidate path validity criterion is the validity of at least one of its constituent segment lists. (§2.8)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>2.8</td>
@@ -532,7 +535,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-4">RFC9256-4-4</code></td><td colspan="3"><span class="rfc-subject">When the algorithm is not specified for SID types that allow it, the headend SHOULD use the Strict Shortest Path algorithm if available and otherwise SHOULD use the default Shortest Path algorithm (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-4">RFC9256-4-4</code></td><td colspan="3"><span class="rfc-subject">When the algorithm is not specified for the SID types above which optionally allow for it, the headend SHOULD use the Strict Shortest Path algorithm if available and otherwise, it SHOULD use the default Shortest Path algorithm. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4</td>
@@ -568,7 +571,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-9">RFC9256-6.2-9</code></td><td colspan="3"><span class="rfc-subject">The BSID SHOULD NOT be used as an identification of an SR Policy (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-9">RFC9256-6.2-9</code></td><td colspan="3"><span class="rfc-subject">the BSID SHOULD NOT be used as an identification of an SR Policy. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>6.2</td>
@@ -577,7 +580,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.1-5">RFC9256-2.1-5</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY allow the assignment of a symbolic name of printable ASCII characters to an SR Policy for debugging/troubleshooting (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.1-5">RFC9256-2.1-5</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY allow the assignment of a symbolic name comprising printable ASCII [RFC0020] characters (i.e., 0x20 to 0x7E) to an SR Policy to serve as a user-friendly attribute for debugging and troubleshooting purposes. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.1</td>
@@ -595,7 +598,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.1-7">RFC9256-2.1-7</code></td><td colspan="3"><span class="rfc-subject">An SR Policy MAY have multiple names associated with it when different names arrive with different candidate paths (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.1-7">RFC9256-2.1-7</code></td><td colspan="3"><span class="rfc-subject">An SR Policy MAY have multiple names associated with it in the scenario where the headend receives different SR Policy names along with different candidate paths for the same SR Policy via the same or different sources. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.1</td>
@@ -604,7 +607,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.3-2">RFC9256-2.3-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY allow modifications of the default Protocol-Origin values, similar to a routing administrative distance (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.3-2">RFC9256-2.3-2</code></td><td colspan="3"><span class="rfc-subject">implementations MAY allow modifications of these default values assigned to protocols on the headend along similar lines as a routing administrative distance. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.3</td>
@@ -613,7 +616,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.4-3">RFC9256-2.4-3</code></td><td colspan="3"><span class="rfc-subject">When provisioning is via configuration, the Originator ASN and node address MAY be set to either the headend or the provisioning controller/node ASN and address (§2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.4-3">RFC9256-2.4-3</code></td><td colspan="3"><span class="rfc-subject">When provisioning is via configuration, the ASN and node address MAY be set to either the headend or the provisioning controller/node ASN and address. (§2.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.4</td>
@@ -622,7 +625,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.6-2">RFC9256-2.6-2</code></td><td colspan="3"><span class="rfc-subject">Candidate paths MAY also be assigned or signaled with a symbolic name of printable ASCII characters for debugging/troubleshooting (§2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.6-2">RFC9256-2.6-2</code></td><td colspan="3"><span class="rfc-subject">Candidate paths MAY also be assigned or signaled with a symbolic name comprising printable ASCII [RFC0020] characters (i.e., 0x20 to 0x7E) to serve as a user-friendly attribute for debugging and troubleshooting purposes. (§2.6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.6</td>
@@ -631,7 +634,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.12-1">RFC9256-2.12-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY provide a per-policy priority configuration governing the order in which policies are re-computed (§2.12)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.12-1">RFC9256-2.12-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY provide a per-policy priority configuration. The operator may set this field to indicate the order in which the policies should be re-computed. (§2.12)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.12</td>
@@ -649,7 +652,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-1">RFC9256-4-1</code></td><td colspan="3"><span class="rfc-subject">A Type A SID MAY be any MPLS label, including special-purpose labels such as explicit-null (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-1">RFC9256-4-1</code></td><td colspan="3"><span class="rfc-subject">Additionally, special purpose labels like explicit-null or in general any MPLS label MAY also be used. (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4</td>
@@ -658,7 +661,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-2">RFC9256-4-2</code></td><td colspan="3"><span class="rfc-subject">For SRv6 SID types (B, I, J, K), the SRv6 SID behavior and structure MAY also be provided for the headend to validate the SID (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-2">RFC9256-4-2</code></td><td colspan="3"><span class="rfc-subject">Optionally, the SRv6 SID behavior (as defined in [RFC8986] or other SRv6 specifications) and structure (as defined in [RFC8986]) MAY also be provided for the headend to perform validation of the SID when using it for building the segment list. (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4</td>
@@ -667,7 +670,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-3">RFC9256-4-3</code></td><td colspan="3"><span class="rfc-subject">For SID types that resolve to a Prefix/Adjacency SID (C, D, I, J, K), the SR Algorithm to be used MAY also be provided (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-3">RFC9256-4-3</code></td><td colspan="3"><span class="rfc-subject">The SR algorithm (refer to Section 3.1.1 of [RFC8402]) to be used MAY also be provided. Type D: IPv6 Global Prefix with optional SR Algorithm for SR-MPLS: In this case, the headend is required to resolve the specified IPv6 Global Prefix Address to the SR-MPLS label corresponding to its Prefix SID segment (as defined in [RFC8402]). The SR Algorithm (refer to Section 3.1.1 of [RFC8402]) to be used MAY also be provided. (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4</td>
@@ -685,7 +688,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-1">RFC9256-5.1-1</code></td><td colspan="3"><span class="rfc-subject">An explicit candidate path MAY consist of a single explicit segment list containing only an implicit-null label to indicate pop-and-forward behavior (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-1">RFC9256-5.1-1</code></td><td colspan="3"><span class="rfc-subject">An explicit candidate path MAY consist of a single explicit segment list containing only an implicit-null label to indicate pop-and- forward behavior. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.1</td>
@@ -694,7 +697,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-3">RFC9256-5.1-3</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY provide a local configuration option to enable SID verification on a global, per-policy, or per-candidate-path basis (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-3">RFC9256-5.1-3</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY provide a local configuration option to enable verification on a global or per-policy or per- candidate path basis. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.1</td>
@@ -703,7 +706,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-6">RFC9256-5.1-6</code></td><td colspan="3"><span class="rfc-subject">A segment list MAY be declared invalid when its last segment is neither a Prefix SID advertised by the endpoint node nor an Adjacency SID of a link terminating on the endpoint node (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-6">RFC9256-5.1-6</code></td><td colspan="3"><span class="rfc-subject">Additionally, a segment list MAY be declared invalid when both of the conditions below are met : * Its last segment is not a Prefix SID (including BGP Peer Node-SID) advertised by the node specified as the endpoint of the corresponding SR Policy. * Its last segment is not an Adjacency SID (including BGP Peer Adjacency SID) of any of the links present on neighbor nodes and that terminate on the node specified as the endpoint of the corresponding SR Policy. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.1</td>
@@ -712,7 +715,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-7">RFC9256-5.1-7</code></td><td colspan="3"><span class="rfc-subject">An explicit candidate path MAY be declared invalid when its constituent segment lists use segment types of different SR data planes (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-7">RFC9256-5.1-7</code></td><td colspan="3"><span class="rfc-subject">Additionally, an explicit candidate path MAY be declared invalid when its constituent segment lists (valid or invalid) are using segment types of different SR data planes. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.1</td>
@@ -730,7 +733,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-1">RFC9256-6.2-1</code></td><td colspan="3"><span class="rfc-subject">In the case of SR-MPLS, SRv6 BSIDs (e.g., End.BM) MAY be associated with the SR Policy in addition to the MPLS BSID (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-1">RFC9256-6.2-1</code></td><td colspan="3"><span class="rfc-subject">In the case of SR-MPLS, SRv6 BSIDs (e.g., with the behavior End.BM [RFC8986]) MAY be associated with the SR Policy in addition to the MPLS BSID. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.2</td>
@@ -739,7 +742,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-2">RFC9256-6.2-2</code></td><td colspan="3"><span class="rfc-subject">In the case of SRv6, multiple SRv6 BSIDs (e.g., End.B6.Encaps and End.B6.Encaps.Red) MAY be associated with the SR Policy (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-2">RFC9256-6.2-2</code></td><td colspan="3"><span class="rfc-subject">In the case of SRv6, multiple SRv6 BSIDs (e.g., with different behaviors like End.B6.Encaps and End.B6.Encaps.Red [RFC8986]) MAY be associated with the SR Policy. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.2</td>
@@ -748,7 +751,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-3">RFC9256-6.2-3</code></td><td colspan="3"><span class="rfc-subject">A headend MAY optionally check that the BSID is available within the given SID range, i.e., the SRLB (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-3">RFC9256-6.2-3</code></td><td colspan="3"><span class="rfc-subject">Optionally, instead of only checking that the BSID of the active path is available, a headend MAY check that it is available within the given SID range i.e., Segment Routing Local Block (SRLB) as specified in [RFC8402]. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.2</td>
@@ -757,7 +760,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-5">RFC9256-6.2-5</code></td><td colspan="3"><span class="rfc-subject">When no BSID is available, the SR Policy MAY dynamically bind a BSID to itself (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-5">RFC9256-6.2-5</code></td><td colspan="3"><span class="rfc-subject">In the cases (as described above) where SR Policy does not have a BSID available, the SR Policy MAY dynamically bind a BSID to itself. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.2</td>
@@ -766,7 +769,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-7">RFC9256-6.2-7</code></td><td colspan="3"><span class="rfc-subject">When a new active path has no specified or available BSID, the SR Policy MAY keep the previous BSID (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-7">RFC9256-6.2-7</code></td><td colspan="3"><span class="rfc-subject">Assuming that at time t the BSID of the SR Policy is B1, if at time t+dt a different candidate path becomes active and this new active path does not have a specified BSID or its BSID is specified but is not available (e.g., it is in use by something else), then the SR Policy MAY keep the previous BSID B1. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.2</td>
@@ -775,7 +778,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-8">RFC9256-6.2-8</code></td><td colspan="3"><span class="rfc-subject">The association of an SR Policy with a BSID MAY change over the life of the SR Policy (e.g., upon active path change) (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-8">RFC9256-6.2-8</code></td><td colspan="3"><span class="rfc-subject">The association of an SR Policy with a BSID thus MAY change over the life of the SR Policy (e.g., upon active path change). (§6.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.2</td>
@@ -784,7 +787,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.1-1">RFC9256-6.2.1-1</code></td><td colspan="3"><span class="rfc-subject">When all candidate paths have an unspecified BSID, a BSID MAY be dynamically bound to the SR Policy as soon as the first valid candidate path is received (§6.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.1-1">RFC9256-6.2.1-1</code></td><td colspan="3"><span class="rfc-subject">All the candidate paths of the same SR Policy can have an unspecified BSID. In such a case, a BSID MAY be dynamically bound to the SR Policy as soon as the first valid candidate path is received. (§6.2.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.2.1</td>
@@ -793,7 +796,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.3-1">RFC9256-6.2.3-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY support configuring the Specified-BSID-only restrictive behavior for all or individual SR Policies (§6.2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.3-1">RFC9256-6.2.3-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY support the configuration of the Specified- BSID-only restrictive behavior on the headend for all SR Policies or individual SR Policies. (§6.2.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.2.3</td>
@@ -802,7 +805,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.3-2">RFC9256-6.2.3-2</code></td><td colspan="3"><span class="rfc-subject">The Specified-BSID-only restrictive behavior MAY also be signaled on a per-SR-Policy basis to the headend (§6.2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.3-2">RFC9256-6.2.3-2</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY support the configuration of the Specified- BSID-only restrictive behavior on the headend for all SR Policies or individual SR Policies. Further, this restrictive behavior MAY also be signaled on a per-SR-Policy basis to the headend. (§6.2.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.2.3</td>
@@ -811,7 +814,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.4-1">RFC9256-6.4-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY choose to associate a Binding SID with any type of interface or tunnel (§6.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.4-1">RFC9256-6.4-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY choose to associate a Binding SID with any type of interface (e.g., a layer 3 termination of an Optical Circuit) or a tunnel (e.g., IP tunnel, GRE tunnel, IP/UDP tunnel, MPLS RSVP-TE tunnel, etc). (§6.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.4</td>
@@ -820,7 +823,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-7-2">RFC9256-7-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY support an administrative state to control locally provisioned policies via mechanisms like CLI or NETCONF (§7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-7-2">RFC9256-7-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY support an administrative state to control locally provisioned policies via mechanisms like command-line interface (CLI) or NETCONF. (§7)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>7</td>
@@ -838,7 +841,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-8.4-1">RFC9256-8.4-1</code></td><td colspan="3"><span class="rfc-subject">In a BGP multi-path scenario, the BGP route MAY be resolved over a mix of paths steered over SR Policies and paths resolved via normal BGP next-hop resolution (§8.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-8.4-1">RFC9256-8.4-1</code></td><td colspan="3"><span class="rfc-subject">In a BGP multi-path scenario, the BGP route MAY be resolved over a mix of paths that include those that are steered over SR Policies and others resolved via the normal BGP next-hop resolution. (§8.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>8.4</td>
@@ -847,7 +850,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-8.4-2">RFC9256-8.4-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY provide options to prefer one type of path over the other, or other local policy, to select the paths (§8.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-8.4-2">RFC9256-8.4-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY provide options to prefer one type over the other or other forms of local policy to determine the paths that are selected. (§8.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>8.4</td>
@@ -865,7 +868,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-8.7-1">RFC9256-8.7-1</code></td><td colspan="3"><span class="rfc-subject">Headend H MAY be configured with a local routing policy that overrides any BGP/IGP path and steers a specified packet on an SR Policy (§8.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-8.7-1">RFC9256-8.7-1</code></td><td colspan="3"><span class="rfc-subject">headend H MAY be configured with a local routing policy that overrides any BGP/IGP path and steers a specified packet on an SR Policy. (§8.7)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>8.7</td>
@@ -874,7 +877,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-9.3-1">RFC9256-9.3-1</code></td><td colspan="3"><span class="rfc-subject">A lower-preference candidate path MAY be designated as the backup for a specific or all active candidate path(s) (§9.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-9.3-1">RFC9256-9.3-1</code></td><td colspan="3"><span class="rfc-subject">another (lower preference) candidate path MAY be designated as the backup for a specific or all (active) candidate path(s). (§9.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>9.3</td>
@@ -883,7 +886,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-9.3-2">RFC9256-9.3-2</code></td><td colspan="3"><span class="rfc-subject">The headend MAY compute a priori and validate backup candidate paths and provision them into the forwarding plane as backup for the active path (§9.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-9.3-2">RFC9256-9.3-2</code></td><td colspan="3"><span class="rfc-subject">The headend MAY compute a priori and validate such backup candidate paths as well as provision them into the forwarding plane as a backup for the active path. (§9.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>9.3</td>
@@ -892,7 +895,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-9.3-3">RFC9256-9.3-3</code></td><td colspan="3"><span class="rfc-subject">A fast-reroute mechanism MAY be used to trigger sub-50 msec switchover from the active to the backup candidate path (§9.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-9.3-3">RFC9256-9.3-3</code></td><td colspan="3"><span class="rfc-subject">A fast-reroute mechanism MAY then be used to trigger sub-50 msec switchover from the active to the backup candidate path in the forwarding plane. (§9.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>9.3</td>
@@ -901,7 +904,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-9.3-4">RFC9256-9.3-4</code></td><td colspan="3"><span class="rfc-subject">Mechanisms like BFD MAY be used for fast detection of such failures (§9.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-9.3-4">RFC9256-9.3-4</code></td><td colspan="3"><span class="rfc-subject">Mechanisms like Bidirectional Forwarding Detection (BFD) MAY be used for fast detection of such failures. (§9.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>9.3</td>
@@ -959,11 +962,11 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: no SR Policy reaches forwarding; SAFI 73 appears only in the family registry and the NLRI codec (internal/core/family/family.go:93, internal/component/bgp/plugins/nlri/srpolicy/types.go:74), and grep for SAFISRPolicy over internal/plugins/fib and internal/component/resolve matches nothing</td>
 </tr>
-<tr><td><a href="#rfc9256-4-6"><code>RFC9256-4-6</code></a> When building the label stack or SRv6 SID list, the node instantiating the policy MUST interpret the first segment as the topmost MPLS label / first SRv6 SID and the last segment as the bottommost label / last SID (§4)</td>
+<tr><td><a href="#rfc9256-4-6"><code>RFC9256-4-6</code></a> When building the MPLS label stack or the SRv6 SID list from the segment list, the node instantiating the policy MUST interpret the set of Segments as follows: * The first Segment represents the topmost MPLS label or the first SRv6 SID. It identifies the active segment the traffic will be directed toward along the explicit SR path. * The last segment represents the bottommost MPLS label or the last SRv6 SID the traffic will be directed toward along the explicit SR path. (§4)</td>
 <td>{gap}, no test</td>
 <td>no code converts an SR Policy segment list into a label stack or an SRv6 SID list; buildSegmentListSubTLV only serializes the configured segments in their configured order (internal/component/bgp/plugins/nlri/srpolicy/config.go:428), and a received Tunnel Encapsulation attribute is kept as raw TLV bytes of which only the Preference sub-TLV is ever decoded (internal/core/bgp/attribute/tunnel_encap.go:39 and :137)</td>
 </tr>
-<tr><td><a href="#rfc9256-5.1-2"><code>RFC9256-5.1-2</code></a> A segment list of an explicit candidate path MUST be declared invalid when it is empty, its weight is 0, it mixes SR-MPLS and SRv6 segment types, the headend cannot resolve the first SID to outgoing interface(s)/next-hop(s), it cannot resolve any non-first SID of type C-K to an MPLS label or SRv6 SID, or verification fails for any SID for which verification was requested (§5.1)</td>
+<tr><td><a href="#rfc9256-5.1-2"><code>RFC9256-5.1-2</code></a> A segment list of an explicit candidate path MUST be declared invalid when any of the following is true: * It is empty. * Its weight is 0. * It comprises a mix of SR-MPLS and SRv6 segment types. * The headend is unable to perform path resolution for the first SID into one or more outgoing interface(s) and next-hop(s). * The headend is unable to perform SID resolution for any non-first SID of type C through K into an MPLS label or an SRv6 SID. * The headend verification fails for any SID for which verification has been explicitly requested. (§5.1)</td>
 <td>{gap}, no test</td>
 <td>parseSegmentList builds a segment list with no validity determination; it accepts a list with zero segments, accepts weight 0, and appends Type A and Type B segments into one list without a data-plane check (internal/component/bgp/plugins/nlri/srpolicy/config.go:267), and ze resolves no SID to an outgoing interface or next hop</td>
 </tr>
@@ -983,7 +986,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <td>{gap}, no test</td>
 <td>ze performs no BSID availability check; buildBindingSIDSubTLV encodes the configured label unconditionally (internal/component/bgp/plugins/nlri/srpolicy/config.go:381) and the only SRLB allocator in ze belongs to OSPF Adj-SIDs (internal/plugins/ospf/sr_adjsid.go:115), which no SR Policy code consults, so no alert is raised</td>
 </tr>
-<tr><td><a href="#rfc9256-6.2.3-3"><code>RFC9256-6.2.3-3</code></a> Under Specified-BSID-only behavior, when a candidate path has an unspecified or unavailable BSID it is considered invalid and an alert MUST be triggered via mechanisms like syslog (§6.2.3)</td>
+<tr><td><a href="#rfc9256-6.2.3-3"><code>RFC9256-6.2.3-3</code></a> When this restrictive behavior is enabled, if the candidate path has an unspecified BSID or if the specified BSID is not available when the candidate path becomes active, then no BSID is bound to it and the candidate path is considered invalid. An alert MUST be triggered for this error via mechanisms like syslog. (§6.2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze implements no Specified-BSID-only behavior; grep for specified-bsid or SpecifiedBSID over internal, pkg and cmd matches nothing and parseConfigRoute&#39;s keyword switch has no spelling for it (internal/component/bgp/plugins/nlri/srpolicy/config.go:72)</td>
 </tr>
@@ -1050,7 +1053,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <p>No test carries RFC9256-2.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-2.6-3"><code>RFC9256-2.6-3</code></a></h3>
 <p>Such symbolic names MUST NOT be considered as identifiers for a candidate path. (§2.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC9256SymbolicNamesAreNotIdentifiers drives parseConfigRoute: differing policy and candidate-path names give byte-identical NLRI keys while the names still reach the Tunnel Encapsulation attribute (positive), and a shared name with a different distinguisher gives distinct keys (negative), so the name never takes part in identity.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1077,16 +1080,16 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-2.11-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-4-6"><code>RFC9256-4-6</code></a></h3>
-<p>When building the label stack or SRv6 SID list, the node instantiating the policy MUST interpret the first segment as the topmost MPLS label / first SRv6 SID and the last segment as the bottommost label / last SID (§4)</p>
+<p>When building the MPLS label stack or the SRv6 SID list from the segment list, the node instantiating the policy MUST interpret the set of Segments as follows: * The first Segment represents the topmost MPLS label or the first SRv6 SID. It identifies the active segment the traffic will be directed toward along the explicit SR path. * The last segment represents the bottommost MPLS label or the last SRv6 SID the traffic will be directed toward along the explicit SR path. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-4-6, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-5.1-2"><code>RFC9256-5.1-2</code></a></h3>
-<p>A segment list of an explicit candidate path MUST be declared invalid when it is empty, its weight is 0, it mixes SR-MPLS and SRv6 segment types, the headend cannot resolve the first SID to outgoing interface(s)/next-hop(s), it cannot resolve any non-first SID of type C-K to an MPLS label or SRv6 SID, or verification fails for any SID for which verification was requested (§5.1)</p>
+<p>A segment list of an explicit candidate path MUST be declared invalid when any of the following is true: * It is empty. * Its weight is 0. * It comprises a mix of SR-MPLS and SRv6 segment types. * The headend is unable to perform path resolution for the first SID into one or more outgoing interface(s) and next-hop(s). * The headend is unable to perform SID resolution for any non-first SID of type C through K into an MPLS label or an SRv6 SID. * The headend verification fails for any SID for which verification has been explicitly requested. (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-5.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-5.1-4"><code>RFC9256-5.1-4</code></a></h3>
 <p>Types A or B MUST be used for the SIDs for which the reachability cannot be verified. (§5.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. ze verifies no SID reachability, so every SID must be Type A or B; TestRFC9256SegmentTypesAreAOrB shows parseSegmentList and buildSegmentSubSubTLV emit only sub-TLV 1 and 13 and that type-c, type-d, type-i and type-k are refused; the row carries its single-polarity marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1116,7 +1119,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-6.2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-6.2.3-3"><code>RFC9256-6.2.3-3</code></a></h3>
-<p>Under Specified-BSID-only behavior, when a candidate path has an unspecified or unavailable BSID it is considered invalid and an alert MUST be triggered via mechanisms like syslog (§6.2.3)</p>
+<p>When this restrictive behavior is enabled, if the candidate path has an unspecified BSID or if the specified BSID is not available when the candidate path becomes active, then no BSID is bound to it and the candidate path is considered invalid. An alert MUST be triggered for this error via mechanisms like syslog. (§6.2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-6.2.3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-6.2.3-4"><code>RFC9256-6.2.3-4</code></a></h3>
@@ -1557,7 +1560,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

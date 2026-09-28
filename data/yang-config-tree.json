@@ -337,7 +337,7 @@
                 "type": "uint8"
               },
               {
-                "description": "Shared secret. Redacted from `ze config show` output. MD5 variants use the first 16 bytes of the\nsecret, SHA1 variants the first 20, and both pad a shorter secret with zeros. The simple-password\ntype carries the secret itself on the wire, so it must be 1 to 16 bytes, and a longer one is refused\nat parse time (RFC 5880 Section 6.7.2).",
+                "description": "Shared secret. Redacted from `ze config show` output. The MD5 variants take a secret of up to 16\nbytes (RFC 5880 Section 6.7.3) and the SHA1 variants one of up to 20 bytes (Section 6.7.4). Both pad\na shorter secret with zeros, and a longer one is refused at parse time. The simple-password type\ncarries the secret itself on the wire, so it must be 1 to 16 bytes, and a longer one is refused at\nparse time too (RFC 5880 Section 6.7.2).",
                 "kind": "leaf",
                 "name": "secret",
                 "short-help": "Shared secret, redacted from `ze config show` output.",
@@ -408,14 +408,14 @@
                 "type": "uint32"
               }
             ],
-            "description": "RFC 5880 Section 6.4 / RFC 5881 Section 5 Echo mode. Echo mode is single-hop only, because RFC 5883\nSection 4 explicitly prohibits multi-hop echo, and the parser rejects echo on a multi-hop session.\nWhen echo is active, the engine sends echo packets on UDP port 3785 at the peer's advertised\nRequiredMinEchoRxInterval. The engine then slows its async Control TX to the peer's\nRequiredMinRxInterval.",
+            "description": "RFC 5880 Section 6.4 / RFC 5881 Section 5 Echo mode. Echo mode is single-hop only, because RFC 5883\nSection 3 prohibits multi-hop echo: a multi-hop session or BGP peer that uses an echo profile is refused.\nWhen echo is active, the engine sends echo packets on UDP port 3785 at the peer's advertised\nRequiredMinEchoRxInterval. The engine then slows its async Control TX to the peer's\nRequiredMinRxInterval.",
             "kind": "container",
             "name": "echo",
             "short-help": "BFD Echo mode (RFC 5880 Section 6.4, RFC 5881 Section 5).",
             "source": "config"
           },
           {
-            "description": "Active, which is the default, transmits from session creation. Passive transmits nothing until a\nControl packet arrives from the peer. RFC 5883 Section 4.3.",
+            "description": "Active, which is the default, transmits from session creation. Passive transmits nothing until a\nControl packet arrives from the peer. RFC 5883 Section 4.3. A single-hop session, BGP peer or static\nnext-hop that uses a passive profile is refused: RFC 5881 Section 3 requires the Active role on a single hop.",
             "kind": "leaf",
             "name": "passive",
             "short-help": "Wait for a peer Control packet before this session transmits.",
@@ -1160,7 +1160,7 @@
                     ]
                   },
                   {
-                    "description": "The referenced profile supplies detect-multiplier, desired-min-tx-us, and required-min-rx-us. An\nempty value selects the BFD plugin defaults.",
+                    "description": "The referenced profile supplies the session's detect-multiplier, desired-min-tx-us,\nrequired-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer\nwould otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not\ndefined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a\nmulti-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value\nselects the BFD plugin defaults.",
                     "kind": "leaf",
                     "name": "profile",
                     "short-help": "Name of a profile defined under the top-level bfd { profile ... } block.",
@@ -1768,7 +1768,7 @@
                         ]
                       },
                       {
-                        "description": "The referenced profile supplies detect-multiplier, desired-min-tx-us, and required-min-rx-us. An\nempty value selects the BFD plugin defaults.",
+                        "description": "The referenced profile supplies the session's detect-multiplier, desired-min-tx-us,\nrequired-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer\nwould otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not\ndefined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a\nmulti-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value\nselects the BFD plugin defaults.",
                         "kind": "leaf",
                         "name": "profile",
                         "short-help": "Name of a profile defined under the top-level bfd { profile ... } block.",
@@ -2774,6 +2774,24 @@
                       {
                         "children": [
                           {
+                            "description": "How Ze frames the version in the Capability Value it sends. draft, the default, sends the\nstring alone, as draft-abraitis-bgp-version-capability Section 3 defines. legacy puts one length\noctet before the string, which is what FRR and ExaBGP send and expect. A peer running FRR or\nExaBGP needs legacy: FRR 10.3.1 reads the first octet of the value as a length, and for the draft\nform that length exceeds the octets that follow, so FRR sends a NOTIFICATION and closes the\nsession. legacy is a deviation from the draft, kept for those peers. Ze reads either form it\nreceives, whatever this leaf says.",
+                            "kind": "leaf",
+                            "name": "encoding",
+                            "short-help": "Capability Value framing: draft, or legacy for FRR and ExaBGP.",
+                            "source": "config",
+                            "type": "enumeration",
+                            "values": [
+                              {
+                                "name": "draft",
+                                "short-help": "The version string alone, as the draft defines it."
+                              },
+                              {
+                                "name": "legacy",
+                                "short-help": "A length octet, then the version string, as FRR and ExaBGP send it."
+                              }
+                            ]
+                          },
+                          {
                             "description": "enable is the default, and Ze sends the capability. disable sends none. Ze treats require\nas enable and refuse as disable: the plugin decides only whether to send code 75, and it holds\nthe peer to nothing. So a peer that sends no Software Version stays up under require, and a peer\nthat sends one stays up under refuse. Set the leaf on the peer to override the group value.",
                             "kind": "leaf",
                             "name": "mode",
@@ -2800,7 +2818,7 @@
                             ]
                           }
                         ],
-                        "description": "The container carries presence, so writing it makes Ze send the capability of\ndraft-abraitis-bgp-version-capability to this peer. The value is the fixed string Ze/0.1.0, and no\nleaf changes it. A container on the peer replaces the container on the group rather than adding to\nit.",
+                        "description": "The container carries presence, so writing it makes Ze send the capability of\ndraft-abraitis-bgp-version-capability to this peer. The version is the fixed string Ze/0.1.0, and\nthe encoding leaf chooses how it is framed. A container on the peer replaces the container on the group rather than adding to\nit.",
                         "kind": "container",
                         "name": "software-version",
                         "short-help": "Software Version capability (code 75).",
@@ -4084,6 +4102,24 @@
                   {
                     "children": [
                       {
+                        "description": "How Ze frames the version in the Capability Value it sends. draft, the default, sends the\nstring alone, as draft-abraitis-bgp-version-capability Section 3 defines. legacy puts one length\noctet before the string, which is what FRR and ExaBGP send and expect. A peer running FRR or\nExaBGP needs legacy: FRR 10.3.1 reads the first octet of the value as a length, and for the draft\nform that length exceeds the octets that follow, so FRR sends a NOTIFICATION and closes the\nsession. legacy is a deviation from the draft, kept for those peers. Ze reads either form it\nreceives, whatever this leaf says.",
+                        "kind": "leaf",
+                        "name": "encoding",
+                        "short-help": "Capability Value framing: draft, or legacy for FRR and ExaBGP.",
+                        "source": "config",
+                        "type": "enumeration",
+                        "values": [
+                          {
+                            "name": "draft",
+                            "short-help": "The version string alone, as the draft defines it."
+                          },
+                          {
+                            "name": "legacy",
+                            "short-help": "A length octet, then the version string, as FRR and ExaBGP send it."
+                          }
+                        ]
+                      },
+                      {
                         "description": "enable is the default, and Ze sends the capability. disable sends none. Ze treats require\nas enable and refuse as disable: the plugin decides only whether to send code 75, and it holds\nthe peer to nothing. So a peer that sends no Software Version stays up under require, and a peer\nthat sends one stays up under refuse. Set the leaf on the peer to override the group value.",
                         "kind": "leaf",
                         "name": "mode",
@@ -4110,7 +4146,7 @@
                         ]
                       }
                     ],
-                    "description": "The container carries presence, so writing it makes Ze send the capability of\ndraft-abraitis-bgp-version-capability to this peer. The value is the fixed string Ze/0.1.0, and no\nleaf changes it. A container on the peer replaces the container on the group rather than adding to\nit.",
+                    "description": "The container carries presence, so writing it makes Ze send the capability of\ndraft-abraitis-bgp-version-capability to this peer. The version is the fixed string Ze/0.1.0, and\nthe encoding leaf chooses how it is framed. A container on the peer replaces the container on the group rather than adding to\nit.",
                     "kind": "container",
                     "name": "software-version",
                     "short-help": "Software Version capability (code 75).",
@@ -5208,7 +5244,7 @@
                     ]
                   },
                   {
-                    "description": "The referenced profile supplies detect-multiplier, desired-min-tx-us, and required-min-rx-us. An\nempty value selects the BFD plugin defaults.",
+                    "description": "The referenced profile supplies the session's detect-multiplier, desired-min-tx-us,\nrequired-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer\nwould otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not\ndefined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a\nmulti-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value\nselects the BFD plugin defaults.",
                     "kind": "leaf",
                     "name": "profile",
                     "short-help": "Name of a profile defined under the top-level bfd { profile ... } block.",
@@ -6214,6 +6250,24 @@
                   {
                     "children": [
                       {
+                        "description": "How Ze frames the version in the Capability Value it sends. draft, the default, sends the\nstring alone, as draft-abraitis-bgp-version-capability Section 3 defines. legacy puts one length\noctet before the string, which is what FRR and ExaBGP send and expect. A peer running FRR or\nExaBGP needs legacy: FRR 10.3.1 reads the first octet of the value as a length, and for the draft\nform that length exceeds the octets that follow, so FRR sends a NOTIFICATION and closes the\nsession. legacy is a deviation from the draft, kept for those peers. Ze reads either form it\nreceives, whatever this leaf says.",
+                        "kind": "leaf",
+                        "name": "encoding",
+                        "short-help": "Capability Value framing: draft, or legacy for FRR and ExaBGP.",
+                        "source": "config",
+                        "type": "enumeration",
+                        "values": [
+                          {
+                            "name": "draft",
+                            "short-help": "The version string alone, as the draft defines it."
+                          },
+                          {
+                            "name": "legacy",
+                            "short-help": "A length octet, then the version string, as FRR and ExaBGP send it."
+                          }
+                        ]
+                      },
+                      {
                         "description": "enable is the default, and Ze sends the capability. disable sends none. Ze treats require\nas enable and refuse as disable: the plugin decides only whether to send code 75, and it holds\nthe peer to nothing. So a peer that sends no Software Version stays up under require, and a peer\nthat sends one stays up under refuse. Set the leaf on the peer to override the group value.",
                         "kind": "leaf",
                         "name": "mode",
@@ -6240,7 +6294,7 @@
                         ]
                       }
                     ],
-                    "description": "The container carries presence, so writing it makes Ze send the capability of\ndraft-abraitis-bgp-version-capability to this peer. The value is the fixed string Ze/0.1.0, and no\nleaf changes it. A container on the peer replaces the container on the group rather than adding to\nit.",
+                    "description": "The container carries presence, so writing it makes Ze send the capability of\ndraft-abraitis-bgp-version-capability to this peer. The version is the fixed string Ze/0.1.0, and\nthe encoding leaf chooses how it is framed. A container on the peer replaces the container on the group rather than adding to\nit.",
                     "kind": "container",
                     "name": "software-version",
                     "short-help": "Software Version capability (code 75).",
@@ -25383,7 +25437,7 @@
                           {
                             "children": [
                               {
-                                "description": "BFD profile name (from bfd/profile list). When the BFD session to this next-hop goes down, Ze\nremoves the next-hop from the ECMP group. Ze then reprograms the route with the remaining active\nnext-hops.",
+                                "description": "BFD profile name (from bfd/profile list). When the BFD session to this next-hop goes down, Ze\nremoves the next-hop from the ECMP group. Ze then reprograms the route with the remaining active\nnext-hops. The session is single-hop, so a commit is refused when the profile is not defined or\nsets passive (RFC 5881 Section 3).",
                                 "kind": "leaf",
                                 "name": "bfd-profile",
                                 "short-help": "BFD profile name for this next-hop, from the bfd/profile list.",

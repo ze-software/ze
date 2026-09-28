@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4301 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4301: Security Architecture for the Internet Protocol. 78 gated MUST-level requirements, 25 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4301: Security Architecture for the Internet Protocol. 78 gated MUST-level requirements, 25 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4301 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4301: Security Architecture for the Internet Protocol. 78 gated MUST-level requirements, 25 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4301: Security Architecture for the Internet Protocol. 78 gated MUST-level requirements, 25 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4301 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4301: Security Architecture for the Internet Protocol. 78 gated MUST-level requirements, 25 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4301: Security Architecture for the Internet Protocol. 78 gated MUST-level requirements, 25 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>32.1%</strong><b>25 of 78 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>32</strong><b>of 78 gated MUSTs judged</b><p>17 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 78 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>25</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>96</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>32</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>74</td>
@@ -310,7 +314,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze projects both modes -- IKE child SAs install tunnel-mode ESP and OSPFv3 RFC 4552 installs transport-mode ESP/AH; a capability-presence MUST has no meaningful negative (internal/component/ike/engine/child.go:224, :253, internal/plugins/ospf/ipsec_install.go:413, :441)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-2">RFC4301-4.1-2</code></td><td colspan="3"><span class="rfc-subject">Security gateways MUST support tunnel mode (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-2">RFC4301-4.1-2</code></td><td colspan="3"><span class="rfc-subject">A security gateway MUST support tunnel mode (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -328,7 +332,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the IKE child-SA path hardcodes tunnel mode for every peer SA, so a peer SA can never be transport (internal/component/ike/engine/child.go:40, :224, :253)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-4">RFC4301-4.1-4</code></td><td colspan="3"><span class="rfc-subject">IKE-created SA pairs MUST use the same mode (both tunnel or both transport) (§4.1). The source sentence is indicative: &#34;IKE creates pairs of SAs, so for simplicity, we choose to require that both SAs in a pair be of the same mode, transport or tunnel.&#34;</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-4">RFC4301-4.1-4</code></td><td colspan="3"><span class="rfc-subject">IKE creates pairs of SAs, so for simplicity, we choose to require that both SAs in a pair be of the same mode, transport or tunnel. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -355,7 +359,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L102" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-1">RFC4301-4.4.1-1</code></td><td colspan="3"><span class="rfc-subject">Implementation MUST have at least one SPD (§4.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-1">RFC4301-4.4.1-1</code></td><td colspan="3"><span class="rfc-subject">An IPsec implementation MUST have at least one SPD, and it MAY support multiple SPDs, if appropriate for the context in which the IPsec implementation operates. (§4.4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4.1</td>
@@ -364,7 +368,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze maintains an SPD policy model (SPParams) and installs at least the PROTECT entries into the kernel SPD via both the IKE and OSPFv3 paths (internal/component/ike/dataplane/dataplane.go:145, engine/child.go:276, :290, internal/plugins/ospf/ipsec_install.go:432-452)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-2">RFC4301-4.4.1-2</code></td><td colspan="3"><span class="rfc-subject">SPD MUST be consulted for ALL traffic crossing IPsec boundary, including IKE management traffic (§4.4.1, §5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-2">RFC4301-4.4.1-2</code></td><td colspan="3"><span class="rfc-subject">The SPD, or relevant caches, must be consulted during the processing of all traffic (inbound and outbound), including traffic not protected by IPsec, that traverses the IPsec boundary. This includes IPsec management traffic such as IKE. (§4.4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4.1</td>
@@ -373,7 +377,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> per-packet SPD consultation for every crossing packet is a kernel XFRM datapath function; ze populates the kernel SPD but does not process packets</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.1-1">RFC4301-4.4.1.1-1</code></td><td colspan="3"><span class="rfc-subject">All implementations MUST support the defined selectors: remote/local IP, next-layer protocol, ports, ICMP type/code (§4.4.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.1-1">RFC4301-4.4.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The following selector parameters MUST be supported by all IPsec implementations to facilitate control of SA granularity. (§4.4.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4.1.1</td>
@@ -392,7 +396,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze captures the RFC 7296-narrowed negotiated traffic selectors and projects them into the inbound require-policy; the per-packet check against them is kernel-enforced (internal/component/ike/engine/child.go:155-164, :276-288)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.5-1">RFC4301-4.5-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST support both manual and automated (IKEv2) key management (§4.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.5-1">RFC4301-4.5-1</code></td><td colspan="3"><span class="rfc-subject">All IPsec implementations MUST support both manual and automated SA and cryptographic key management. (§4.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.5</td>
@@ -402,16 +406,16 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze implements automated keying via its native IKEv2 engine and manual keying via the OSPFv3 RFC 4552 config, both installing SAs through the same dataplane seam (internal/component/ike/engine/child.go:199-307, internal/plugins/ospf/ipsec_install.go:295-342)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.2-1">RFC4301-5.2-1</code></td><td colspan="3"><span class="rfc-subject">Inbound packets not matching SPD-I MUST be discarded (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.2-1">RFC4301-5.2-1</code></td><td colspan="3"><span class="rfc-subject">Since the SPD-I is just a part of the SPD, if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded. (§4.4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5.2</td>
+<td>4.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-5.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> dropping inbound packets that fail the SPD-I match is a kernel XFRM datapath function; ze installs the inbound require-policies but does not process packets (internal/component/ike/engine/child.go:276)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.2-2">RFC4301-5.2-2</code></td><td colspan="3"><span class="rfc-subject">After decapsulation, inner packet selectors MUST be verified against SAD traffic selectors (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.2-2">RFC4301-5.2-2</code></td><td colspan="3"><span class="rfc-subject">Then match the packet against the inbound selectors identified by the SAD entry to verify that the received packet is appropriate for the SA via which it was received. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2</td>
@@ -420,7 +424,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> post-decapsulation inner-selector verification against the SAD is a kernel XFRM datapath function; the kernel verifies the inner packet against the inbound policy ze installs</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-6">RFC4301-4.1-6</code></td><td colspan="3"><span class="rfc-subject">Multicast-capable implementations MUST support multicast SAD lookup (three-step: SPI+dst+src, SPI+dst, SPI alone) (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-6">RFC4301-4.1-6</code></td><td colspan="3"><span class="rfc-subject">If an IPsec implementation supports multicast, then it MUST support multicast SAs using the algorithm below for mapping inbound IPsec datagrams to SAs. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -429,16 +433,16 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the three-step inbound SAD lookup (SPI+dst+src / SPI+dst / SPI) is a per-packet kernel XFRM function; ze performs no inbound SAD lookups</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7-1">RFC4301-7-1</code></td><td colspan="3"><span class="rfc-subject">AH/ESP MUST NOT be applied in transport mode to IPv4 fragments; use tunnel mode (§7). The obligation is stated indicatively and the cited section only restates it: Section 4.1 says &#34;AH and ESP cannot be applied using transport mode to IPv4 packets that are fragments. Only tunnel mode can be employed in such cases&#34;, and Section 7 recalls it as &#34;In Section 4.1, transport mode SAs have been defined to not carry fragments (IPv4 or IPv6)&#34;</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7-1">RFC4301-7-1</code></td><td colspan="3"><span class="rfc-subject">Note: AH and ESP cannot be applied using transport mode to IPv4 packets that are fragments. Only tunnel mode can be employed in such cases. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>7</td>
+<td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze applies transport mode only to IPv6 OSPFv3 traffic (IPv4-family IPsec is rejected at config), so transport-mode IPsec on an IPv4 fragment structurally cannot arise, and per-packet fragment handling is kernel-delegated (internal/plugins/ospf/config_ipsec.go:21-22)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-3">RFC4301-4.4.1-3</code></td><td colspan="3"><span class="rfc-subject">SPD SHOULD have a default final entry that discards unmatched traffic (§4.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-3">RFC4301-4.4.1-3</code></td><td colspan="3"><span class="rfc-subject">Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it. (§4.4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.4.1</td>
@@ -447,16 +451,16 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7-2">RFC4301-7-2</code></td><td colspan="3"><span class="rfc-subject">Encapsulator SHOULD perform Path MTU Discovery and adjust tunnel MTU (§7). The sentence behind this row is in Section 8.2.2 of RFC 4301, not in Section 7 of it: &#34;Implementations SHOULD use the approach described in the Path MTU Discovery document ..., which suggests periodically resetting the PMTU to the first-hop data-link MTU and then letting the normal PMTU Discovery processes update the PMTU as necessary. The period SHOULD be configurable.&#34; (§7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7-2">RFC4301-7-2</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD use the approach described in the Path MTU Discovery document (RFC 1191 [MD90], Section 6.3), which suggests periodically resetting the PMTU to the first-hop data-link MTU and then letting the normal PMTU Discovery processes update the PMTU as necessary. (§8.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>7</td>
+<td>8.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-7">RFC4301-4.1-7</code></td><td colspan="3"><span class="rfc-subject">Security gateways MAY support transport mode only when acting as a host (e.g., SNMP management traffic) (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-7">RFC4301-4.1-7</code></td><td colspan="3"><span class="rfc-subject">Where traffic is destined for a security gateway, e.g., Simple Network Management Protocol (SNMP) commands, the security gateway is acting as a host and transport mode is allowed. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.1</td>
@@ -465,7 +469,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.3.1-1">RFC4301-4.4.3.1-1</code></td><td colspan="3"><span class="rfc-subject">Sub-tree matching MUST be supported for distinguished names, domain names and RFC 822 e-mail addresses in PAD entries (§4.4.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.3.1-1">RFC4301-4.4.3.1-1</code></td><td colspan="3"><span class="rfc-subject">The specific syntax used by an implementation to accommodate sub-tree matching for distinguished names, domain names or RFC 822 e-mail addresses is a local matter. But, at a minimum, sub-tree matching of the sort described above MUST be supported. (§4.4.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4.3.1</td>
@@ -487,7 +491,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_pad_subtree_test.go#L155" title="internal/component/ike/engine/rfc4301_pad_subtree_test.go" target="_blank" rel="noopener"><code>TestPadAddressRangeRefusesWhatIsOutsideIt</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-4">RFC4301-4.4.1-4</code></td><td colspan="3"><span class="rfc-subject">A user or administrator MUST be able to order the SPD entries, and the management interface MUST support (total) ordering of them as seen via that interface (§4.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-4">RFC4301-4.4.1-4</code></td><td colspan="3"><span class="rfc-subject">Thus, a user or administrator MUST be able to order the entries to express a desired access control policy. (§4.4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4.1</td>
@@ -587,7 +591,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs the ESP state and the kernel output path builds every header, so no value Ze writes decides where the ESP header sits</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4-1">RFC4301-4.4-1</code></td><td colspan="3"><span class="rfc-subject">The external behavior of implementations MUST correspond to the externally observable characteristics of the processing model of Section 4.4 in order to be compliant (§4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4-1">RFC4301-4.4-1</code></td><td colspan="3"><span class="rfc-subject">The model described below is nominal; implementations need not match details of this model as presented, but the external behavior of implementations MUST correspond to the externally observable characteristics of this model in order to be compliant. (§4.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
@@ -605,7 +609,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> Ze holds one SPD and no selection function; plan/spec-ipsec-spd-selection.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-6">RFC4301-4.4.1-6</code></td><td colspan="3"><span class="rfc-subject">The SPD MUST permit a user or administrator to specify policy entries as SPD-I, SPD-O and SPD-S, covering the DISCARD, BYPASS and PROTECT dispositions (§4.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-6">RFC4301-4.4.1-6</code></td><td colspan="3"><span class="rfc-subject">The SPD MUST permit a user or administrator to specify policy entries as follows: (§4.4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4.1</td>
@@ -650,7 +654,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L197" title="internal/component/ike/dataplane/rfc4301_boundary_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.1-2">RFC4301-4.4.1.1-2</code></td><td colspan="3"><span class="rfc-subject">A value of OPAQUE also MUST be supported for the Local and Remote port selectors, because ports may be unavailable on a fragment or encrypted by IPsec (§4.4.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.1-2">RFC4301-4.4.1.1-2</code></td><td colspan="3"><span class="rfc-subject">Note that the Local and Remote ports may not be available in the case of receipt of a fragmented packet or if the port fields have been protected by IPsec (encrypted); thus, a value of OPAQUE also MUST be supported. (§4.4.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4.1.1</td>
@@ -668,7 +672,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L198" title="internal/component/ike/dataplane/rfc4301_boundary_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.1-4">RFC4301-4.4.1.1-4</code></td><td colspan="3"><span class="rfc-subject">Given a policy entry with a range of Types (T-start to T-end) and a range of Codes (C-start to C-end), and an ICMP packet with Type t and Code c, an implementation MUST test for a match using (§4.4.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.1-4">RFC4301-4.4.1.1-4</code></td><td colspan="3"><span class="rfc-subject">Given a policy entry with a range of Types (T-start to T-end) and a range of Codes (C-start to C-end), and an ICMP packet with Type t and Code c, an implementation MUST test for a match using (T-start*256) + C-start &lt;= (t*256) + c &lt;= (T-end*256) + C-end (§4.4.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4.1.1</td>
@@ -677,7 +681,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> SPParams carries no ICMP type or code selector; plan/immediate/spec-rfc4301-architecture-gaps.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.1-5">RFC4301-4.4.1.1-5</code></td><td colspan="3"><span class="rfc-subject">All IPsec implementations MUST support the use of names (DNS name, RFC 822 address, X.500 distinguished name, other ID type) as a Local or Remote identity selector (§4.4.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.1-5">RFC4301-4.4.1.1-5</code></td><td colspan="3"><span class="rfc-subject">The name used to match this field is communicated during the IKE negotiation in the ID payload. In this context, the initiator&#39;s Source IP address (inner IP header in tunnel mode) is bound to the Remote IP address in the SAD entry created by the IKE negotiation. This address overrides the Remote IP address value in the SPD, when the SPD entry is selected in this fashion. All IPsec implementations MUST support this use of names. (§4.4.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4.1.1</td>
@@ -695,7 +699,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> internal/component/ike/ipsec/spd_policy.go::SPDPolicy holds one local and one remote prefix leaf, so no input can carry a second selector set</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.2.1-1">RFC4301-4.4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The data items listed in Section 4.4.2.1 (SPI, sequence number counter, anti-replay window, AH and ESP algorithm state, lifetime, mode, tunnel header, PMTU) MUST be in the SAD (§4.4.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.2.1-1">RFC4301-4.4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The following data items MUST be in the SAD: (§4.4.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4.2.1</td>
@@ -713,7 +717,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> newLifetimeState sets a time lifetime only and never a byte count; plan/spec-ipsec-lifetime-volume.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.2.1-3">RFC4301-4.4.2.1-3</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST be able to handle having the counters at the ends of an SA get out of synch, e.g., because of packet loss (§4.4.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.2.1-3">RFC4301-4.4.2.1-3</code></td><td colspan="3"><span class="rfc-subject">Note that implementations MUST be able to handle having the counters at the ends of an SA get out of synch, e.g., because of packet loss or because the implementations at each end of the SA aren&#39;t doing things the same way. (§4.4.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4.2.1</td>
@@ -778,7 +782,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_unmatched_test.go#L80" title="internal/component/ike/engine/rfc4301_unmatched_test.go" target="_blank" rel="noopener"><code>TestRFC4301UnmatchedNeverDiscardsWhatTheOperatorDidNotAskToDiscard</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.1-1">RFC4301-5.1-1</code></td><td colspan="3"><span class="rfc-subject">IPsec MUST perform the steps of Section 5.1 when processing outbound packets (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.1-1">RFC4301-5.1-1</code></td><td colspan="3"><span class="rfc-subject">IPsec MUST perform the following steps when processing outbound packets: (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -814,7 +818,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the outer-header DSCP is not mapped for the domain entered; plan/immediate/spec-rfc4301-architecture-gaps.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.2-3">RFC4301-5.2-3</code></td><td colspan="3"><span class="rfc-subject">IPsec MUST perform the steps of Section 5.2 when processing inbound packets (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.2-3">RFC4301-5.2-3</code></td><td colspan="3"><span class="rfc-subject">IPsec MUST perform the following steps: (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2</td>
@@ -886,7 +890,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> no check compares an ICMP error payload header against the SA selectors; plan/immediate/spec-rfc4301-architecture-gaps.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-6.2-2">RFC4301-6.2-2</code></td><td colspan="3"><span class="rfc-subject">IPsec senders and receivers MUST support the Section 6.2 processing for ICMP error messages that are sent and received via SAs (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-6.2-2">RFC4301-6.2-2</code></td><td colspan="3"><span class="rfc-subject">IPsec senders and receivers MUST support the following processing for ICMP error messages that are sent and received via SAs. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.2</td>
@@ -904,7 +908,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> whether the kernel maps an outbound ICMP error to the return SA is unverified and Ze holds no producer for it; plan/immediate/spec-rfc4301-architecture-gaps.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-6.2-4">RFC4301-6.2-4</code></td><td colspan="3"><span class="rfc-subject">If an inbound ICMP error message arrives on an SA and its IP and ICMP headers do not match the traffic selectors for that SA, the receiver MUST process the received message in the special fashion Section 6.2 describes (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-6.2-4">RFC4301-6.2-4</code></td><td colspan="3"><span class="rfc-subject">If an IPsec implementation receives an inbound ICMP error message on an SA, and the IP and ICMP headers of the message do not match the traffic selectors for the SA, the receiver MUST process the received message in a special fashion. Specifically, the receiver must extract the header of the triggering packet from the ICMP payload, and reverse fields as described above to determine if the packet is consistent with the selectors for the SA via which the ICMP error message was received. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.2</td>
@@ -958,7 +962,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/component/ike/engine/child.go::childPolicyParams builds one policy pair per Child SA and no separate non-initial-fragment SA, so approach #2 of Section 7.2 is never taken and no value Ze installs decides the offset check the kernel reassembly performs</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7.2-2">RFC4301-7.2-2</code></td><td colspan="3"><span class="rfc-subject">These separate fragment-carrying SAs MUST have non-trivial protocol selector values, otherwise approach #1 (Section 7.1) MUST be used (§7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7.2-2">RFC4301-7.2-2</code></td><td colspan="3"><span class="rfc-subject">Specific port (or ICMP type/code or Mobility Header type) selector values will be used to define SAs to carry initial fragments and non-fragmented packets. This approach can be used if a user or administrator wants to create one or more tunnel mode SAs between the same Local/Remote addresses that discriminate based on port (or ICMP type/code or Mobility Header type) fields. These SAs MUST have non-trivial protocol selector values, otherwise approach #1 above MUST be used. (§7.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.2</td>
@@ -1030,7 +1034,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the DF treatment of an SA is not configurable; plan/immediate/spec-rfc4301-architecture-gaps.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-8.2.1-1">RFC4301-8.2.1-1</code></td><td colspan="3"><span class="rfc-subject">When traffic arrives that would exceed the updated PMTU value, the traffic MUST be handled as Section 8.2.1 describes (fragment before or after IPsec, or discard and send a PMTU ICMP message, per the DF bit) (§8.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-8.2.1-1">RFC4301-8.2.1-1</code></td><td colspan="3"><span class="rfc-subject">When such traffic arrives, if the traffic would exceed the updated PMTU value the traffic MUST be handled as follows: Case 1: Original (cleartext) packet is IPv4 and has the DF bit set. The implementation SHOULD discard the packet and send a PMTU ICMP message. Case 2: Original (cleartext) packet is IPv4 and has the DF bit clear. The implementation SHOULD fragment (before or after encryption per its configuration) and then forward the fragments. It SHOULD NOT send a PMTU ICMP message. Case 3: Original (cleartext) packet is IPv6. The implementation SHOULD discard the packet and send a PMTU ICMP message. (§8.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.2.1</td>
@@ -1061,27 +1065,27 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: multiple SAs with identical selectors coexist by SPI in the kernel XFRM SAD and ze&#39;s SPI-keyed installs do not forbid this; the DSCP classification that selects among them for QoS is a datapath function ze does not model (internal/component/ike/dataplane/dataplane.go:81-108)</td>
 </tr>
-<tr><td><a href="#rfc4301-4.4.1-2"><code>RFC4301-4.4.1-2</code></a> SPD MUST be consulted for ALL traffic crossing IPsec boundary, including IKE management traffic (§4.4.1, §5)</td>
+<tr><td><a href="#rfc4301-4.4.1-2"><code>RFC4301-4.4.1-2</code></a> The SPD, or relevant caches, must be consulted during the processing of all traffic (inbound and outbound), including traffic not protected by IPsec, that traverses the IPsec boundary. This includes IPsec management traffic such as IKE. (§4.4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: per-packet SPD consultation for every crossing packet is a kernel XFRM datapath function; ze populates the kernel SPD but does not process packets</td>
 </tr>
-<tr><td><a href="#rfc4301-4.4.1.1-1"><code>RFC4301-4.4.1.1-1</code></a> All implementations MUST support the defined selectors: remote/local IP, next-layer protocol, ports, ICMP type/code (§4.4.1.1)</td>
+<tr><td><a href="#rfc4301-4.4.1.1-1"><code>RFC4301-4.4.1.1-1</code></a> The following selector parameters MUST be supported by all IPsec implementations to facilitate control of SA granularity. (§4.4.1.1)</td>
 <td>{gap}, no test</td>
 <td>ze&#39;s policy model carries IP-prefix and next-layer-protocol selectors only; the IKE traffic-selector negotiation discards ports/protocol into an address-only net.IPNet, and SPParams has no port or ICMP-type/code field (internal/component/ike/dataplane/dataplane.go:110-130 exists; ports/ICMP missing at internal/component/ike/engine/sa.go:128-129, engine/initiator.go:325)</td>
 </tr>
-<tr><td><a href="#rfc4301-5.2-1"><code>RFC4301-5.2-1</code></a> Inbound packets not matching SPD-I MUST be discarded (§5.2)</td>
+<tr><td><a href="#rfc4301-5.2-1"><code>RFC4301-5.2-1</code></a> Since the SPD-I is just a part of the SPD, if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded. (§4.4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: dropping inbound packets that fail the SPD-I match is a kernel XFRM datapath function; ze installs the inbound require-policies but does not process packets (internal/component/ike/engine/child.go:276)</td>
 </tr>
-<tr><td><a href="#rfc4301-5.2-2"><code>RFC4301-5.2-2</code></a> After decapsulation, inner packet selectors MUST be verified against SAD traffic selectors (§5.2)</td>
+<tr><td><a href="#rfc4301-5.2-2"><code>RFC4301-5.2-2</code></a> Then match the packet against the inbound selectors identified by the SAD entry to verify that the received packet is appropriate for the SA via which it was received. (§5.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: post-decapsulation inner-selector verification against the SAD is a kernel XFRM datapath function; the kernel verifies the inner packet against the inbound policy ze installs</td>
 </tr>
-<tr><td><a href="#rfc4301-4.1-6"><code>RFC4301-4.1-6</code></a> Multicast-capable implementations MUST support multicast SAD lookup (three-step: SPI+dst+src, SPI+dst, SPI alone) (§4.1)</td>
+<tr><td><a href="#rfc4301-4.1-6"><code>RFC4301-4.1-6</code></a> If an IPsec implementation supports multicast, then it MUST support multicast SAs using the algorithm below for mapping inbound IPsec datagrams to SAs. (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the three-step inbound SAD lookup (SPI+dst+src / SPI+dst / SPI) is a per-packet kernel XFRM function; ze performs no inbound SAD lookups</td>
 </tr>
-<tr><td><a href="#rfc4301-7-1"><code>RFC4301-7-1</code></a> AH/ESP MUST NOT be applied in transport mode to IPv4 fragments; use tunnel mode (§7). The obligation is stated indicatively and the cited section only restates it: Section 4.1 says &#34;AH and ESP cannot be applied using transport mode to IPv4 packets that are fragments. Only tunnel mode can be employed in such cases&#34;, and Section 7 recalls it as &#34;In Section 4.1, transport mode SAs have been defined to not carry fragments (IPv4 or IPv6)&#34;</td>
+<tr><td><a href="#rfc4301-7-1"><code>RFC4301-7-1</code></a> Note: AH and ESP cannot be applied using transport mode to IPv4 packets that are fragments. Only tunnel mode can be employed in such cases. (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze applies transport mode only to IPv6 OSPFv3 traffic (IPv4-family IPsec is rejected at config), so transport-mode IPsec on an IPv4 fragment structurally cannot arise, and per-packet fragment handling is kernel-delegated (internal/plugins/ospf/config_ipsec.go:21-22)</td>
 </tr>
@@ -1101,15 +1105,15 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>{gap}, no test</td>
 <td>no user or application override control exists in the SPD model; plan/spec-ipsec-spd-selection.md</td>
 </tr>
-<tr><td><a href="#rfc4301-4.4.1.1-2"><code>RFC4301-4.4.1.1-2</code></a> A value of OPAQUE also MUST be supported for the Local and Remote port selectors, because ports may be unavailable on a fragment or encrypted by IPsec (§4.4.1.1)</td>
+<tr><td><a href="#rfc4301-4.4.1.1-2"><code>RFC4301-4.4.1.1-2</code></a> Note that the Local and Remote ports may not be available in the case of receipt of a fragmented packet or if the port fields have been protected by IPsec (encrypted); thus, a value of OPAQUE also MUST be supported. (§4.4.1.1)</td>
 <td>{gap}, no test</td>
 <td>the operator SPD list refuses OPAQUE and the XFRM selector cannot express port 0 mask 0xffff; plan/spec-ipsec-opaque-selector-port-mask.md</td>
 </tr>
-<tr><td><a href="#rfc4301-4.4.1.1-4"><code>RFC4301-4.4.1.1-4</code></a> Given a policy entry with a range of Types (T-start to T-end) and a range of Codes (C-start to C-end), and an ICMP packet with Type t and Code c, an implementation MUST test for a match using (§4.4.1.1)</td>
+<tr><td><a href="#rfc4301-4.4.1.1-4"><code>RFC4301-4.4.1.1-4</code></a> Given a policy entry with a range of Types (T-start to T-end) and a range of Codes (C-start to C-end), and an ICMP packet with Type t and Code c, an implementation MUST test for a match using (T-start*256) + C-start &lt;= (t*256) + c &lt;= (T-end*256) + C-end (§4.4.1.1)</td>
 <td>{gap}, no test</td>
 <td>SPParams carries no ICMP type or code selector; plan/immediate/spec-rfc4301-architecture-gaps.md</td>
 </tr>
-<tr><td><a href="#rfc4301-4.4.1.1-5"><code>RFC4301-4.4.1.1-5</code></a> All IPsec implementations MUST support the use of names (DNS name, RFC 822 address, X.500 distinguished name, other ID type) as a Local or Remote identity selector (§4.4.1.1)</td>
+<tr><td><a href="#rfc4301-4.4.1.1-5"><code>RFC4301-4.4.1.1-5</code></a> The name used to match this field is communicated during the IKE negotiation in the ID payload. In this context, the initiator&#39;s Source IP address (inner IP header in tunnel mode) is bound to the Remote IP address in the SAD entry created by the IKE negotiation. This address overrides the Remote IP address value in the SPD, when the SPD entry is selected in this fashion. All IPsec implementations MUST support this use of names. (§4.4.1.1)</td>
 <td>{gap}, no test</td>
 <td>no name-valued selector selects an operator SPD entry during IKE; plan/spec-ipsec-spd-selection.md</td>
 </tr>
@@ -1149,7 +1153,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>{gap}, no test</td>
 <td>no check compares an ICMP error payload header against the SA selectors; plan/immediate/spec-rfc4301-architecture-gaps.md</td>
 </tr>
-<tr><td><a href="#rfc4301-6.2-2"><code>RFC4301-6.2-2</code></a> IPsec senders and receivers MUST support the Section 6.2 processing for ICMP error messages that are sent and received via SAs (§6.2)</td>
+<tr><td><a href="#rfc4301-6.2-2"><code>RFC4301-6.2-2</code></a> IPsec senders and receivers MUST support the following processing for ICMP error messages that are sent and received via SAs. (§6.2)</td>
 <td>{gap}, no test</td>
 <td>the Section 6.2 ICMP error processing is absent; plan/immediate/spec-rfc4301-architecture-gaps.md</td>
 </tr>
@@ -1157,7 +1161,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>{gap}, no test</td>
 <td>whether the kernel maps an outbound ICMP error to the return SA is unverified and Ze holds no producer for it; plan/immediate/spec-rfc4301-architecture-gaps.md</td>
 </tr>
-<tr><td><a href="#rfc4301-6.2-4"><code>RFC4301-6.2-4</code></a> If an inbound ICMP error message arrives on an SA and its IP and ICMP headers do not match the traffic selectors for that SA, the receiver MUST process the received message in the special fashion Section 6.2 describes (§6.2)</td>
+<tr><td><a href="#rfc4301-6.2-4"><code>RFC4301-6.2-4</code></a> If an IPsec implementation receives an inbound ICMP error message on an SA, and the IP and ICMP headers of the message do not match the traffic selectors for the SA, the receiver MUST process the received message in a special fashion. Specifically, the receiver must extract the header of the triggering packet from the ICMP payload, and reverse fields as described above to determine if the packet is consistent with the selectors for the SA via which the ICMP error message was received. (§6.2)</td>
 <td>{gap}, no test</td>
 <td>no special processing of a mismatching inbound ICMP error exists; plan/immediate/spec-rfc4301-architecture-gaps.md</td>
 </tr>
@@ -1169,7 +1173,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/engine/child.go::childPolicyParams builds one policy pair per Child SA and no separate non-initial-fragment SA, so approach #2 of Section 7.2 is never taken and no value Ze installs decides the offset check the kernel reassembly performs</td>
 </tr>
-<tr><td><a href="#rfc4301-7.2-2"><code>RFC4301-7.2-2</code></a> These separate fragment-carrying SAs MUST have non-trivial protocol selector values, otherwise approach #1 (Section 7.1) MUST be used (§7.2)</td>
+<tr><td><a href="#rfc4301-7.2-2"><code>RFC4301-7.2-2</code></a> Specific port (or ICMP type/code or Mobility Header type) selector values will be used to define SAs to carry initial fragments and non-fragmented packets. This approach can be used if a user or administrator wants to create one or more tunnel mode SAs between the same Local/Remote addresses that discriminate based on port (or ICMP type/code or Mobility Header type) fields. These SAs MUST have non-trivial protocol selector values, otherwise approach #1 above MUST be used. (§7.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/engine/child.go::childPolicyParams builds no fragment-carrying SA, so the protocol selector this sentence constrains is never written by Ze</td>
 </tr>
@@ -1189,7 +1193,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>{gap}, no test</td>
 <td>the DF treatment of an SA is not configurable; plan/immediate/spec-rfc4301-architecture-gaps.md</td>
 </tr>
-<tr><td><a href="#rfc4301-8.2.1-1"><code>RFC4301-8.2.1-1</code></a> When traffic arrives that would exceed the updated PMTU value, the traffic MUST be handled as Section 8.2.1 describes (fragment before or after IPsec, or discard and send a PMTU ICMP message, per the DF bit) (§8.2.1)</td>
+<tr><td><a href="#rfc4301-8.2.1-1"><code>RFC4301-8.2.1-1</code></a> When such traffic arrives, if the traffic would exceed the updated PMTU value the traffic MUST be handled as follows: Case 1: Original (cleartext) packet is IPv4 and has the DF bit set. The implementation SHOULD discard the packet and send a PMTU ICMP message. Case 2: Original (cleartext) packet is IPv4 and has the DF bit clear. The implementation SHOULD fragment (before or after encryption per its configuration) and then forward the fragments. It SHOULD NOT send a PMTU ICMP message. Case 3: Original (cleartext) packet is IPv6. The implementation SHOULD discard the packet and send a PMTU ICMP message. (§8.2.1)</td>
 <td>{gap}, no test</td>
 <td>no per-SA PMTU exists to exceed; plan/immediate/spec-rfc4301-architecture-gaps.md</td>
 </tr>
@@ -1205,7 +1209,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc4301-4.1-1"><code>RFC4301-4.1-1</code></a></h3>
 <p>a) A host implementation of IPsec MUST support both transport and tunnel mode. (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. IKE Child SA install asserts Mode==tunnel on both SAs and the OSPFv3 installer asserts Mode==transport on every SA, so both modes are proven; single-polarity annotated</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1224,8 +1228,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </table>
 </div>
 <h3><a href="#rfc4301-4.1-2"><code>RFC4301-4.1-2</code></a></h3>
-<p>Security gateways MUST support tunnel mode (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>A security gateway MUST support tunnel mode (§4.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestChildSAInstallsInDataplane asserts every installed policy is tunnel mode; single-polarity annotated</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1240,7 +1244,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-4.1-3"><code>RFC4301-4.1-3</code></a></h3>
 <p>Aside from the two exceptions below, whenever either end of a security association is a security gateway, the SA MUST be tunnel mode. (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. every IKE peer SA is asserted modeTunnel; OSPFv3 transport SAs fall under the security-gateway-acting-as-host exception; single-polarity annotated</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1254,8 +1258,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </table>
 </div>
 <h3><a href="#rfc4301-4.1-4"><code>RFC4301-4.1-4</code></a></h3>
-<p>IKE-created SA pairs MUST use the same mode (both tunnel or both transport) (§4.1). The source sentence is indicative: &#34;IKE creates pairs of SAs, so for simplicity, we choose to require that both SAs in a pair be of the same mode, transport or tunnel.&#34;</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>IKE creates pairs of SAs, so for simplicity, we choose to require that both SAs in a pair be of the same mode, transport or tunnel. (§4.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. inbound and outbound SA of one IKE pair both asserted modeTunnel, so the pair is same-mode; single-polarity annotated</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1274,7 +1278,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p>No test carries RFC4301-4.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.2-1"><code>RFC4301-4.2-1</code></a></h3>
 <p>Note: A compliant implementation MUST NOT allow instantiation of an ESP SA that employs both NULL encryption and no integrity algorithm. (§4.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: instantiating any ESP SA with NULL encryption and no integrity. OSPFv3 manual path: NULL encryption without integrity is refused with ErrIPsecAuthAlgo and NULL with integrity accepted (both polarities). The IKE-negotiated ESP path, which instantiates most of Ze&#39;s ESP SAs, has no assertion in the tagged unit: no case offers or accepts an ENCR_NULL proposal without an integrity transform, and the row carries no marker bounding the clause to the manual path.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1293,8 +1297,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </table>
 </div>
 <h3><a href="#rfc4301-4.4.1-1"><code>RFC4301-4.4.1-1</code></a></h3>
-<p>Implementation MUST have at least one SPD (§4.4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>An IPsec implementation MUST have at least one SPD, and it MAY support multiple SPDs, if appropriate for the context in which the IPsec implementation operates. (§4.4.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Child SA install asserts two PROTECT policies reach the SPD; single-polarity annotated</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1308,16 +1312,16 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </table>
 </div>
 <h3><a href="#rfc4301-4.4.1-2"><code>RFC4301-4.4.1-2</code></a></h3>
-<p>SPD MUST be consulted for ALL traffic crossing IPsec boundary, including IKE management traffic (§4.4.1, §5)</p>
+<p>The SPD, or relevant caches, must be consulted during the processing of all traffic (inbound and outbound), including traffic not protected by IPsec, that traverses the IPsec boundary. This includes IPsec management traffic such as IKE. (§4.4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-4.4.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.4.1.1-1"><code>RFC4301-4.4.1.1-1</code></a></h3>
-<p>All implementations MUST support the defined selectors: remote/local IP, next-layer protocol, ports, ICMP type/code (§4.4.1.1)</p>
+<p>The following selector parameters MUST be supported by all IPsec implementations to facilitate control of SA granularity. (§4.4.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-4.4.1.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.4.2-1"><code>RFC4301-4.4.2-1</code></a></h3>
 <p>For each of the selectors defined in Section 4.4.1.1, the entry for an inbound SA in the SAD MUST be initially populated with the value or values negotiated at the time the SA was created. (§4.4.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause: for EACH Section 4.4.1.1 selector, the inbound SAD entry is populated with the negotiated values. TestChildSAInboundPolicyUsesNegotiatedTS and TestNarrowedSelectorsReachTheInstalledPolicy assert the inbound SPD policy&#39;s Src/Dst equal the narrowed TSr/TSi: that is the SPD entry, not the SAD entry (the XFRM state&#39;s selector is never read), and the Next Layer protocol and port selectors are not asserted at all, so a SAD entry carrying unnegotiated protocol or ports stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1336,8 +1340,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </table>
 </div>
 <h3><a href="#rfc4301-4.5-1"><code>RFC4301-4.5-1</code></a></h3>
-<p>Implementations MUST support both manual and automated (IKEv2) key management (§4.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>All IPsec implementations MUST support both manual and automated SA and cryptographic key management. (§4.5)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. automated half: createFirstChildSA installs IKE-keyed SAs; manual half: OSPFv3 installs static SPI+key SAs; single-polarity annotated</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1356,24 +1360,24 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </table>
 </div>
 <h3><a href="#rfc4301-5.2-1"><code>RFC4301-5.2-1</code></a></h3>
-<p>Inbound packets not matching SPD-I MUST be discarded (§5.2)</p>
+<p>Since the SPD-I is just a part of the SPD, if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded. (§4.4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-5.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-5.2-2"><code>RFC4301-5.2-2</code></a></h3>
-<p>After decapsulation, inner packet selectors MUST be verified against SAD traffic selectors (§5.2)</p>
+<p>Then match the packet against the inbound selectors identified by the SAD entry to verify that the received packet is appropriate for the SA via which it was received. (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-5.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.1-6"><code>RFC4301-4.1-6</code></a></h3>
-<p>Multicast-capable implementations MUST support multicast SAD lookup (three-step: SPI+dst+src, SPI+dst, SPI alone) (§4.1)</p>
+<p>If an IPsec implementation supports multicast, then it MUST support multicast SAs using the algorithm below for mapping inbound IPsec datagrams to SAs. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-4.1-6, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-7-1"><code>RFC4301-7-1</code></a></h3>
-<p>AH/ESP MUST NOT be applied in transport mode to IPv4 fragments; use tunnel mode (§7). The obligation is stated indicatively and the cited section only restates it: Section 4.1 says &#34;AH and ESP cannot be applied using transport mode to IPv4 packets that are fragments. Only tunnel mode can be employed in such cases&#34;, and Section 7 recalls it as &#34;In Section 4.1, transport mode SAs have been defined to not carry fragments (IPv4 or IPv6)&#34;</p>
+<p>Note: AH and ESP cannot be applied using transport mode to IPv4 packets that are fragments. Only tunnel mode can be employed in such cases. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-7-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.4.3.1-1"><code>RFC4301-4.4.3.1-1</code></a></h3>
-<p>Sub-tree matching MUST be supported for distinguished names, domain names and RFC 822 e-mail addresses in PAD entries (§4.4.3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The specific syntax used by an implementation to accommodate sub-tree matching for distinguished names, domain names or RFC 822 e-mail addresses is a local matter. But, at a minimum, sub-tree matching of the sort described above MUST be supported. (§4.4.3.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. sub-tree entries admit DNS, RFC 822 and DN peers beneath them and refuse near misses, apex and outside peers; certificate binding kept</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1408,7 +1412,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-4.4.3.1-2"><code>RFC4301-4.4.3.1-2</code></a></h3>
 <p>For IPv4 and IPv6 addresses, the same address range syntax used for SPD entries MUST be supported. (§4.4.3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. prefix PAD entries admit addresses inside for v4 and v6 and refuse outside, other family and text spellings; the same prefix syntax the SPD uses</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1432,8 +1436,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </table>
 </div>
 <h3><a href="#rfc4301-4.4.1-4"><code>RFC4301-4.4.1-4</code></a></h3>
-<p>A user or administrator MUST be able to order the SPD entries, and the management interface MUST support (total) ordering of them as seen via that interface (§4.4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Thus, a user or administrator MUST be able to order the entries to express a desired access control policy. (§4.4.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestSpdOperatorOrdersOverlappingPeers asserts the operator&#39;s priority reaches every entry in both directions and orders overlapping peers; negatives refuse rank 0 and ranks capturing IKE. TestSPDPolicyMirrorsTheInboundSelector is mistagged: it proves direction mirroring, not ordering</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1598,7 +1602,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-4.1-8"><code>RFC4301-4.1-8</code></a></h3>
 <p>The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or Group Domain of Interpretation (GDOI) [RFC3547]. (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. positive only shows the SAD entry copies src and dst; the negative (unknown mode refused) violates a different rule; neither asserts how the address-matching indication is set by manual configuration or negotiation</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1618,7 +1622,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-4.1-9"><code>RFC4301-4.1-9</code></a></h3>
 <p>The receiver MUST process the packets from the different SAs without prejudice. (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The sentence: the receiver processes packets from parallel SAs (same selectors, different QoS/DSCP) without prejudice. The positive asserts two SAs with the same selector and different SPIs build two distinct SAD entries, which is exactly the neighbouring &#39;MUST permit establishment and maintenance of multiple SAs ... with the same selectors&#39; (RFC4301-4.1-5); the negative asserts an unbuildable SA is refused. No unit receives packets on either SA, so the tags attribute the neighbouring obligation&#39;s evidence to this row. Re-judged after the blind reader&#39;s weak: nothing in either unit is a partial proof of unprejudiced processing.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1645,8 +1649,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-4.1-11, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.4-1"><code>RFC4301-4.4-1</code></a></h3>
-<p>The external behavior of implementations MUST correspond to the externally observable characteristics of the processing model of Section 4.4 in order to be compliant (§4.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The model described below is nominal; implementations need not match details of this model as presented, but the external behavior of implementations MUST correspond to the externally observable characteristics of this model in order to be compliant. (§4.4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. one policy-builder unit cannot prove whole-model conformance; positive asserts the fields of one SPD entry, negative a selector-expressibility refusal</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1669,8 +1673,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-4.4.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.4.1-6"><code>RFC4301-4.4.1-6</code></a></h3>
-<p>The SPD MUST permit a user or administrator to specify policy entries as SPD-I, SPD-O and SPD-S, covering the DISCARD, BYPASS and PROTECT dispositions (§4.4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The SPD MUST permit a user or administrator to specify policy entries as follows: (§4.4.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SPD-I and SPD-O BYPASS/DISCARD entries asserted configurable, unknown dispositions refused; the SPD-S (PROTECT) clause of the sentence is proved by no tagged unit</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1714,7 +1718,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p>No test carries RFC4301-4.4.1-8, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.4.1-9"><code>RFC4301-4.4.1-9</code></a></h3>
 <p>Note that when an SPD entry is decorrelated all the resulting entries MUST be linked together, so that all members of the group derived from an individual, SPD entry (prior to decorrelation) can all be placed into caches and into the SAD at the same time. (§4.4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. obligation is conditional on decorrelation, which Ze does not perform; the units assert one entry builds one policy and a refused entry builds none, which proves the condition absent rather than the linking</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1734,7 +1738,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-4.4.1-10"><code>RFC4301-4.4.1-10</code></a></h3>
 <p>If the SPD is not decorrelated, caching is not allowed and an ordered search of SPD MUST be performed to verify that inbound traffic arriving on an SA is consistent with the access control policy expressed in the SPD. (§4.4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. positive asserts the priority only on the OUTBOUND entry, while the sentence is about the ordered search verifying INBOUND traffic; the inbound entry&#39;s priority is not asserted</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1753,7 +1757,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </table>
 </div>
 <h3><a href="#rfc4301-4.4.1.1-2"><code>RFC4301-4.4.1.1-2</code></a></h3>
-<p>A value of OPAQUE also MUST be supported for the Local and Remote port selectors, because ports may be unavailable on a fragment or encrypted by IPsec (§4.4.1.1)</p>
+<p>Note that the Local and Remote ports may not be available in the case of receipt of a fragmented packet or if the port fields have been protected by IPsec (encrypted); thus, a value of OPAQUE also MUST be supported. (§4.4.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-4.4.1.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.4.1.1-3"><code>RFC4301-4.4.1.1-3</code></a></h3>
@@ -1777,16 +1781,16 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </table>
 </div>
 <h3><a href="#rfc4301-4.4.1.1-4"><code>RFC4301-4.4.1.1-4</code></a></h3>
-<p>Given a policy entry with a range of Types (T-start to T-end) and a range of Codes (C-start to C-end), and an ICMP packet with Type t and Code c, an implementation MUST test for a match using (§4.4.1.1)</p>
+<p>Given a policy entry with a range of Types (T-start to T-end) and a range of Codes (C-start to C-end), and an ICMP packet with Type t and Code c, an implementation MUST test for a match using (T-start*256) + C-start &lt;= (t*256) + c &lt;= (T-end*256) + C-end (§4.4.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-4.4.1.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.4.1.1-5"><code>RFC4301-4.4.1.1-5</code></a></h3>
-<p>All IPsec implementations MUST support the use of names (DNS name, RFC 822 address, X.500 distinguished name, other ID type) as a Local or Remote identity selector (§4.4.1.1)</p>
+<p>The name used to match this field is communicated during the IKE negotiation in the ID payload. In this context, the initiator&#39;s Source IP address (inner IP header in tunnel mode) is bound to the Remote IP address in the SAD entry created by the IKE negotiation. This address overrides the Remote IP address value in the SPD, when the SPD entry is selected in this fashion. All IPsec implementations MUST support this use of names. (§4.4.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-4.4.1.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.4.1.2-1"><code>RFC4301-4.4.1.2-1</code></a></h3>
 <p>Until IKE provides a facility that conveys the semantics that are expressed in the SPD via selector sets (as described below), users MUST NOT include multiple selector sets in a single SPD entry unless the access control intent aligns with the IKE &#34;mix and match&#34; semantics. (§4.4.1.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. asserts one selector set parsed from a one-set input; would still pass if the model grew a list of selector sets, so it cannot fail on non-compliance</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1800,8 +1804,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </table>
 </div>
 <h3><a href="#rfc4301-4.4.2.1-1"><code>RFC4301-4.4.2.1-1</code></a></h3>
-<p>The data items listed in Section 4.4.2.1 (SPI, sequence number counter, anti-replay window, AH and ESP algorithm state, lifetime, mode, tunnel header, PMTU) MUST be in the SAD (§4.4.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The following data items MUST be in the SAD: (§4.4.2.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. asserts SPI, mode, protocol, transforms, keys and replay window; the sequence counter, overflow flag, lifetime, PMTU and the DF/DSCP bypass items of the list are not asserted</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1824,8 +1828,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-4.4.2.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.4.2.1-3"><code>RFC4301-4.4.2.1-3</code></a></h3>
-<p>Implementations MUST be able to handle having the counters at the ends of an SA get out of synch, e.g., because of packet loss (§4.4.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Note that implementations MUST be able to handle having the counters at the ends of an SA get out of synch, e.g., because of packet loss or because the implementations at each end of the SA aren&#39;t doing things the same way. (§4.4.2.1)</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. the sentence concerns byte-count LIFETIME counters at the two ends getting out of synch (4.4.2.1 lifetime item (a)); the units assert the anti-replay window, a different mechanism</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1845,7 +1849,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-4.4.3.1-3"><code>RFC4301-4.4.3.1-3</code></a></h3>
 <p>For this name type, only exact-match syntax MUST be supported (since there is no explicit structure for this ID type). (§4.4.3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. ID_KEY_ID admitted only on octet-exact equality; prefix, suffix, case, trailing dot and sub-tree variants refused</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1865,7 +1869,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-4.4.3.2-1"><code>RFC4301-4.4.3.2-1</code></a></h3>
 <p>Thus, implementations MUST provide a means for an administrator to require a match between an asserted IKE ID and the subject name or subject alt name in a certificate. (§4.4.3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. with remote-id set, a certificate carrying the asserted ID (SAN, or CN without SAN) is admitted and one issued to another name is refused naming the asserted ID</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1889,7 +1893,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p>No test carries RFC4301-4.4.3.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.5.2-1"><code>RFC4301-4.5.2-1</code></a></h3>
 <p>To ensure that the IPsec implementations at each end of the SA use the same bits for the same keys, and irrespective of which part of the system divides the string of bits into individual keys, the encryption keys MUST be taken from the first (left-most, high-order) bits and the integrity keys MUST be taken from the remaining bits. (§4.5.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. encryption key asserted as the leading octets and integrity key the following octets per SA, and the swapped split asserted absent</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1909,7 +1913,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-4.5.3-1"><code>RFC4301-4.5.3-1</code></a></h3>
 <p>To address these problems, an IPsec-supporting host or security gateway MUST have an administrative interface that allows the user/administrator to configure the address of one or more security gateways for ranges of destination addresses that require its use. (§4.5.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. gateway address and destination ranges parsed as written; malformed range refused naming peer and range</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1958,8 +1962,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </table>
 </div>
 <h3><a href="#rfc4301-5.1-1"><code>RFC4301-5.1-1</code></a></h3>
-<p>IPsec MUST perform the steps of Section 5.1 when processing outbound packets (§5.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>IPsec MUST perform the following steps when processing outbound packets: (§5.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quote obliges IPsec to perform the Section 5.1 outbound steps (a list the quote points to). The kernel performs them; the tagged units assert one outbound SPD entry Ze installs (out dir, selector, ESP tunnel template, priority) and the refusal of a partial port mask. No assertion ties to the individual steps (cache lookup, SPD-S/O/I selection, DISCARD, the SA-less PROTECT case), so a Ze install that broke any step other than this entry&#39;s shape stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1979,7 +1983,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-5.1-2"><code>RFC4301-5.1-2</code></a></h3>
 <p>If so, there MUST be an entry in SPD-I database that permits inbound bypassing of the packet, otherwise the packet will be discarded. (§5.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. the sentence is §5.1 step 4: a packet the forwarding function passes back across the boundary (nested SAs) needs an SPD-I bypass entry; the units assert the return flow of a both-direction bypass gets a mirrored SPD-I entry, a different obligation</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2006,8 +2010,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-5.1.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-5.2-3"><code>RFC4301-5.2-3</code></a></h3>
-<p>IPsec MUST perform the steps of Section 5.2 when processing inbound packets (§5.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>IPsec MUST perform the following steps: (§5.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quote obliges IPsec to perform the Section 5.2 inbound steps (a list the quote points to). The tagged units assert one inbound SPD entry Ze installs (in dir, same selector, template) and the refusal of a partial port mask; no assertion ties to the individual steps (SPI demux to the SAD, the SPD-I bypass/discard lookup, the post-decapsulation selector check), so the steps are not proven by what Ze installs here.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2047,7 +2051,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-5.2-5"><code>RFC4301-5.2-5</code></a></h3>
 <p>If so, then as with ALL outbound traffic that is to be bypassed, the packet MUST be matched against an SPD-O entry. (§5.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The sentence (§5.2): an inbound packet that the forwarding function sends back out across the boundary (nested SAs) MUST be matched against an SPD-O entry, the entry matching THAT packet&#39;s orientation. The units assert that a both-direction bypass builds a mirrored SPD-O entry for the reply flow (src 10.1/24 -&gt; 10.2/24, src port 22) and explicitly assert it does NOT carry the inbound orientation, and that an in-only bypass gets no SPD-O entry. That is the bidirectional-bypass mirroring rule, not the re-crossing match the sentence states. Re-judged after the blind reader&#39;s enforced: the SPD-O entry proven is for a different packet.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2086,7 +2090,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-6.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-6.2-2"><code>RFC4301-6.2-2</code></a></h3>
-<p>IPsec senders and receivers MUST support the Section 6.2 processing for ICMP error messages that are sent and received via SAs (§6.2)</p>
+<p>IPsec senders and receivers MUST support the following processing for ICMP error messages that are sent and received via SAs. (§6.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-6.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-6.2-3"><code>RFC4301-6.2-3</code></a></h3>
@@ -2094,7 +2098,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-6.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-6.2-4"><code>RFC4301-6.2-4</code></a></h3>
-<p>If an inbound ICMP error message arrives on an SA and its IP and ICMP headers do not match the traffic selectors for that SA, the receiver MUST process the received message in the special fashion Section 6.2 describes (§6.2)</p>
+<p>If an IPsec implementation receives an inbound ICMP error message on an SA, and the IP and ICMP headers of the message do not match the traffic selectors for the SA, the receiver MUST process the received message in a special fashion. Specifically, the receiver must extract the header of the triggering packet from the ICMP payload, and reverse fields as described above to determine if the packet is consistent with the selectors for the SA via which the ICMP error message was received. (§6.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-6.2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-6.2-5"><code>RFC4301-6.2-5</code></a></h3>
@@ -2123,7 +2127,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-7.1-2"><code>RFC4301-7.1-2</code></a></h3>
 <p>If the SA will carry traffic for specified protocols, the selector set for the SA MUST specify the port fields (or ICMP type/code or Mobility Header type) as ANY. (§7.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a protocol-scoped SA carrying traffic without regard to ports whose installed selector constrains a port. TestRFC4301ProtocolScopedSASpecifiesPortsAsAny asserts, in both directions, UpperProto == 17 and SrcPort.IsAny() &amp;&amp; DstPort.IsAny() on childPolicyParams output, red if either port is narrowed. TestRFC4301AnyPortFormNeverLeaksAPortNumber asserts no ExactPortMatch(8080/9090/0) under the ANY form, red if a stray Port value or a zero reaches the policy.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2143,7 +2147,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-7.1-3"><code>RFC4301-7.1-3</code></a></h3>
 <p>If the SA will carry traffic without regard to a specific protocol value (i.e., ANY is specified as the (Next Layer) protocol selector value), then the port field values are undefined and MUST be set to ANY as well. (§7.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. Forbidden: an SA whose Next Layer protocol selector is ANY installed with a port field other than ANY. Both tagged units (TestRFC4301ProtocolAnyEntryCarriesAnyPorts, TestRFC4301ProtocolAnyEntryRefusesAPort) drive ParseIPsecConfig and ValidateSPDPolicies over bypass SPD entries, which create no SA; they prove the neighbouring SPD-entry validation. No tagged unit builds a Child SA with protocol ANY through childPolicyParams and asserts both ports ANY, nor refuses a port selector under protocol ANY on the SA path.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2166,7 +2170,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-7.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-7.2-2"><code>RFC4301-7.2-2</code></a></h3>
-<p>These separate fragment-carrying SAs MUST have non-trivial protocol selector values, otherwise approach #1 (Section 7.1) MUST be used (§7.2)</p>
+<p>Specific port (or ICMP type/code or Mobility Header type) selector values will be used to define SAs to carry initial fragments and non-fragmented packets. This approach can be used if a user or administrator wants to create one or more tunnel mode SAs between the same Local/Remote addresses that discriminate based on port (or ICMP type/code or Mobility Header type) fields. These SAs MUST have non-trivial protocol selector values, otherwise approach #1 above MUST be used. (§7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-7.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-7.3-1"><code>RFC4301-7.3-1</code></a></h3>
@@ -2199,7 +2203,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-7.3-4"><code>RFC4301-7.3-4</code></a></h3>
 <p>However, a receiver MUST discard non-initial fragments that arrive on an SA with non-trivial port (or ICMP type/code or MH type) selector values unless this feature has been negotiated. (§7.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a non-initial fragment on an SA with non-trivial port selectors (Ze has no NON_FIRST_FRAGMENTS_ALSO negotiation). Ze&#39;s boundary is the inbound XFRM policy the kernel checks; Linux decodes no ports for a non-initial fragment, so an exact port selector refuses it. TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate asserts in.SrcPort == 443 on the inbound entry, red if the selector is widened to ANY. TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened asserts a partial mask (0x00ff) is refused for SADirIn and SADirOut, red if it is installed widened.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2219,7 +2223,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-7.3-5"><code>RFC4301-7.3-5</code></a></h3>
 <p>Also, the receiver MUST discard non-initial fragments that do not comply with the security policy applied to the overall packet. (§7.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: accepting a non-initial fragment that does not comply with the policy applied to the overall packet. The positive asserts only that the inbound entry carries the same selector as the outbound and exactly one template (len(in.Tmpls) == 1); no assertion goes red on a fragment of a non-compliant packet being accepted. The negative asserts that a bypass entry carries no template, a neighbouring property unrelated to fragment compliance.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2246,7 +2250,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-8.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-8.2.1-1"><code>RFC4301-8.2.1-1</code></a></h3>
-<p>When traffic arrives that would exceed the updated PMTU value, the traffic MUST be handled as Section 8.2.1 describes (fragment before or after IPsec, or discard and send a PMTU ICMP message, per the DF bit) (§8.2.1)</p>
+<p>When such traffic arrives, if the traffic would exceed the updated PMTU value the traffic MUST be handled as follows: Case 1: Original (cleartext) packet is IPv4 and has the DF bit set. The implementation SHOULD discard the packet and send a PMTU ICMP message. Case 2: Original (cleartext) packet is IPv4 and has the DF bit clear. The implementation SHOULD fragment (before or after encryption per its configuration) and then forward the fragments. It SHOULD NOT send a PMTU ICMP message. Case 3: Original (cleartext) packet is IPv6. The implementation SHOULD discard the packet and send a PMTU ICMP message. (§8.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-8.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-8.2.2-1"><code>RFC4301-8.2.2-1</code></a></h3>
@@ -2263,7 +2267,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-09-27</td>
 </tr>
 <tr><td>Register</td>
 <td>rfc2119</td>
@@ -2669,11 +2673,35 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>skipped (references)</td>
 <td>Informative References</td>
 </tr>
+<tr><td><code>A</code></td>
+<td>Appendix A</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix A. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>B</code></td>
+<td>Appendix B</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix B. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
 <tr><td><code>B.1</code></td>
 <td>not stated</td>
 <td>0</td>
 <td>skipped (appendix-non-normative)</td>
 <td>Appendix B is the decorrelation algorithm, presented as an example implementation aid</td>
+</tr>
+<tr><td><code>C</code></td>
+<td>Appendix C</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix C. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>D</code></td>
+<td>Appendix D</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix D. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
 </tr>
 <tr><td><code>D.1</code></td>
 <td>not stated</td>
@@ -2722,6 +2750,12 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>1</td>
 <td>walked</td>
 <td>not stated</td>
+</tr>
+<tr><td><code>E</code></td>
+<td>Appendix E</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix E. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
 </tr>
 </tbody>
 </table>
@@ -2827,7 +2861,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

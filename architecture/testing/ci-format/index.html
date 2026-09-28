@@ -1774,8 +1774,12 @@ Persistent config, versions, pointers and plugin state use key expectations:</p>
 <pre><code>expect=key:path=meta/config/router.conf/active:exists=true
 expect=key:path=meta/config/router.conf/candidate:absent=true
 expect=key:glob=file/[0-9]*/router.conf:count=2
-expect=key:glob=file/[0-9]*/router.conf:contains=router-id 1.2.3.4
+expect=key:glob=object/*:count=2
+expect=key:glob=object/*:contains=router-id 1.2.3.4
 </code></pre>
+<p>A dated history entry holds <code>sha256:&lt;hex&gt;</code>, not the config: the bytes live in
+<code>object/&lt;hex&gt;</code> (<code>docs/architecture/storage-backends.md</code>, "Content-addressed
+history"). Count versions on the entries and assert config text on <code>object/*</code>.</p>
 <p>Key expectations resolve beneath <code>database/</code> in the work directory and decode
 the complete netcapstring frame before inspecting its value. A bad CRC or
 trailing frame bytes fail the assertion. They accept the same path, glob,
@@ -3019,7 +3023,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

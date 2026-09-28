@@ -56,6 +56,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 8 |
 | Not applicable, so out of scope | 8 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
@@ -92,39 +93,39 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6071-5.1-1` | ESP: NULL encryption must be implemented (§5.1, IPsec-v3) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP algorithm-implementation requirement owned by RFC 4835 (NULL encryption per RFC 2410), which governs ze's ESP dataplane (internal/component/ike/dataplane/xfrm_linux.go) |
-| `RFC6071-5.1-2` | ESP: AES-CBC-128 encryption must be implemented (§5.1, IPsec-v3) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP algorithm-implementation requirement owned by RFC 4835 (AES-CBC-128 per RFC 3602), which governs ze's ESP dataplane |
-| `RFC6071-5.3-1` | ESP/AH: HMAC-SHA-1-96 integrity must be implemented (§5.3, IPsec-v3 and IKEv2) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP/AH and IKEv2 integrity requirement owned by RFC 4835 and RFC 4307 (HMAC-SHA-1-96 per RFC 2404), which governs ze's ESP and IKE code |
-| `RFC6071-5.4-1` | IKEv2: PRF-HMAC-SHA-1 must be implemented (§5.4, IKEv2) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 PRF requirement owned by RFC 4307, which governs ze's IKEv2 transform negotiation (internal/component/ike/crypto/transform.go) |
-| `RFC6071-5.5-1` | IKEv1: MODP group 2 (1024-bit) must be supported (§5.5, IKEv1, deprecated) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv1 algorithm requirement owned by RFC 4109, and ze implements IKEv2 only (no IKEv1 code path) |
-| `RFC6071-5.1-3` | IKEv2: 3DES-CBC must be supported (§5.1, MUST- / deprecated but mandatory) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 3DES-CBC requirement owned by RFC 4307, which governs ze's IKEv2 transform negotiation |
-| `RFC6071-5.5-2` | IKEv2: MODP group 2 (1024-bit) must be supported (§5.5, MUST- / deprecated but mandatory) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 MODP-1024 group requirement owned by RFC 4307, which governs ze's IKEv2 group negotiation |
-| `RFC6071-5.1-4` | ESP: 3DES-CBC must be supported (§5.1, MUST- / deprecated but mandatory) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP 3DES-CBC requirement owned by RFC 4835, which governs ze's ESP dataplane |
-| `RFC6071-5.1-5` | ESP: AES-CTR encryption should be implemented (§5.1, IPsec-v3) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6071-5.3-2` | ESP/AH: AES-XCBC-MAC-96 integrity should be implemented (§5.3, SHOULD+ for IPsec-v3) | SHOULD | 5.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6071-5.1-6` | IKEv2: AES-CBC-128 encryption should be implemented (§5.1, SHOULD+ for IKEv2) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6071-5.4-2` | IKEv2: AES-XCBC-PRF-128 should be implemented (§5.4, SHOULD+ for IKEv2) | SHOULD | 5.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6071-5.5-3` | IKEv2: MODP group 14 (2048-bit) should be supported (§5.5, SHOULD+ for IKEv2) | SHOULD | 5.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6071-5.5-4` | IKEv1: MODP group 14 (2048-bit) should be supported (§5.5, SHOULD for IKEv1) | SHOULD | 5.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6071-Key-1` | IPsec-v3: AH is optional to implement (§Key Architecture Changes, IPsec-v3) | MAY | Key | **positive:** no positive test. **negative:** no negative test |
-| `RFC6071-5.3-3` | ESP/AH: HMAC-MD5-96 may be implemented (§5.3, MAY for IPsec-v3) | MAY | 5.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6071-5.2-1` | ESP: AES-GCM combined-mode may be implemented (§5.2) | MAY | 5.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6071-5.2-2` | ESP: AES-CCM combined-mode may be implemented (§5.2) | MAY | 5.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6071-5.5-5` | IKEv2: ECP groups 19-21 are optional (§5.5) | MAY | 5.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6071-5.3-4` | IKEv2: HMAC-SHA-256/384/512 are optional (§5.3, §5.4) | MAY | 5.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6071-5.1-1` | Requirement levels for ESP-NULL: IKEv1 - N/A IKEv2 - N/A ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.1, IPsec-v3) | MUST | 5.2.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP algorithm-implementation requirement owned by RFC 4835 (NULL encryption per RFC 2410), which governs ze's ESP dataplane (internal/component/ike/dataplane/xfrm_linux.go) |
+| `RFC6071-5.1-2` | Requirement levels for AES-CBC with 128-bit keys: IKEv1 - SHOULD [RFC4109] IKEv2 - SHOULD+ [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.3, IPsec-v3) | MUST | 5.2.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP algorithm-implementation requirement owned by RFC 4835 (AES-CBC-128 per RFC 3602), which governs ze's ESP dataplane |
+| `RFC6071-5.3-1` | Requirement levels for HMAC-SHA-1: IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307] IPsec-v2 - MUST [RFC4835] IPsec-v3 - MUST [RFC4835] (§5.3.1, IPsec-v3 and IKEv2) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP/AH and IKEv2 integrity requirement owned by RFC 4835 and RFC 4307 (HMAC-SHA-1-96 per RFC 2404), which governs ze's ESP and IKE code |
+| `RFC6071-5.4-1` | Requirement levels for PRF-HMAC-SHA1: IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307] (§5.5, IKEv2) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 PRF requirement owned by RFC 4307, which governs ze's IKEv2 transform negotiation (internal/component/ike/crypto/transform.go) |
+| `RFC6071-5.5-1` | Requirement levels for DH MODP group 2: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] (§5.7, IKEv1, deprecated) | MUST | 5.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv1 algorithm requirement owned by RFC 4109, and ze implements IKEv2 only (no IKEv1 code path) |
+| `RFC6071-5.1-3` | Requirement levels for 3DES-CBC: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST- [RFC4835] (§5.2.2, MUST- / deprecated but mandatory) | MUST | 5.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 3DES-CBC requirement owned by RFC 4307, which governs ze's IKEv2 transform negotiation |
+| `RFC6071-5.5-2` | Requirement levels for DH MODP group 2: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] (§5.7, MUST- / deprecated but mandatory) | MUST | 5.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 MODP-1024 group requirement owned by RFC 4307, which governs ze's IKEv2 group negotiation |
+| `RFC6071-5.1-4` | Requirement levels for 3DES-CBC: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST- [RFC4835] (§5.2.2, MUST- / deprecated but mandatory) | MUST | 5.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP 3DES-CBC requirement owned by RFC 4835, which governs ze's ESP dataplane |
+| `RFC6071-5.1-5` | Requirement levels for AES-CTR: IKEv1 - undefined (no IANA #) IKEv2 - optional [RFC5930] ESP-v2 - SHOULD [RFC4835] ESP-v3 - SHOULD [RFC4835] (§5.2.4, IPsec-v3) | SHOULD | 5.2.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6071-5.3-2` | Requirement levels for AES-XCBC-MAC: IKEv1 - undefined (no RFC) IKEv2 - optional IPsec-v2 - SHOULD+ [RFC4835] IPsec-v3 - SHOULD+ [RFC4835] (§5.3.2, SHOULD+ for IPsec-v3) | SHOULD | 5.3.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6071-5.1-6` | Requirement levels for AES-CBC with 128-bit keys: IKEv1 - SHOULD [RFC4109] IKEv2 - SHOULD+ [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.3, SHOULD+ for IKEv2) | SHOULD | 5.2.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6071-5.4-2` | Requirement levels for AES-XCBC-PRF: IKEv1 - undefined (no RFC) IKEv2 - SHOULD+ [RFC4307] (§5.5.1, SHOULD+ for IKEv2) | SHOULD | 5.5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6071-5.5-3` | Requirement levels for DH MODP group 14: IKEv1 - SHOULD [RFC4109] IKEv2 - SHOULD+ [RFC4307] (§5.7.1, SHOULD+ for IKEv2) | SHOULD | 5.7.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6071-5.5-4` | Requirement levels for DH MODP group 14: IKEv1 - SHOULD [RFC4109] IKEv2 - SHOULD+ [RFC4307] (§5.7.1, SHOULD for IKEv1) | SHOULD | 5.7.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6071-Key-1` | o AH [RFC4302] is mandatory to implement (MUST) in IPsec-v2, optional (MAY) in IPsec-v3 (§2.2.1, IPsec-v3) | MAY | 2.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6071-5.3-3` | Requirement levels for HMAC-MD5: IKEv1 - MAY [RFC4109] IKEv2 - optional [RFC4307] IPsec-v2 - MAY [RFC4835] IPsec-v3 - MAY [RFC4835] (§5.3.4, MAY for IPsec-v3) | MAY | 5.3.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6071-5.2-1` | Requirement levels for AES-GCM: IKEv1 - N/A IKEv2 - optional ESP-v2 - N/A ESP-v3 - optional [RFC4835] (§5.4.2) | MAY | 5.4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6071-5.2-2` | Requirement levels for AES-CCM: IKEv1 - N/A IKEv2 - optional ESP-v2 - N/A ESP-v3 - optional [RFC4835] (§5.4.1) | MAY | 5.4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6071-5.5-5` | Requirement levels for DH EC groups 19-21: IKEv1 - optional [RFC4109] IKEv2 - optional (§5.7.2) | MAY | 5.7.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6071-5.3-4` | Requirement levels for HMAC-SHA-256, HMAC-SHA-384, HMAC-SHA-512: IKEv1 - optional IKEv2 - optional IPsec-v2 - optional IPsec-v3 - optional (§5.3.3) | MAY | 5.3.3 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC6071-5.1-1`](#rfc6071-5.1-1) ESP: NULL encryption must be implemented (§5.1, IPsec-v3) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP algorithm-implementation requirement owned by RFC 4835 (NULL encryption per RFC 2410), which governs ze's ESP dataplane (internal/component/ike/dataplane/xfrm_linux.go) |
-| [`RFC6071-5.1-2`](#rfc6071-5.1-2) ESP: AES-CBC-128 encryption must be implemented (§5.1, IPsec-v3) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP algorithm-implementation requirement owned by RFC 4835 (AES-CBC-128 per RFC 3602), which governs ze's ESP dataplane |
-| [`RFC6071-5.3-1`](#rfc6071-5.3-1) ESP/AH: HMAC-SHA-1-96 integrity must be implemented (§5.3, IPsec-v3 and IKEv2) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP/AH and IKEv2 integrity requirement owned by RFC 4835 and RFC 4307 (HMAC-SHA-1-96 per RFC 2404), which governs ze's ESP and IKE code |
-| [`RFC6071-5.4-1`](#rfc6071-5.4-1) IKEv2: PRF-HMAC-SHA-1 must be implemented (§5.4, IKEv2) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 PRF requirement owned by RFC 4307, which governs ze's IKEv2 transform negotiation (internal/component/ike/crypto/transform.go) |
-| [`RFC6071-5.5-1`](#rfc6071-5.5-1) IKEv1: MODP group 2 (1024-bit) must be supported (§5.5, IKEv1, deprecated) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv1 algorithm requirement owned by RFC 4109, and ze implements IKEv2 only (no IKEv1 code path) |
-| [`RFC6071-5.1-3`](#rfc6071-5.1-3) IKEv2: 3DES-CBC must be supported (§5.1, MUST- / deprecated but mandatory) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 3DES-CBC requirement owned by RFC 4307, which governs ze's IKEv2 transform negotiation |
-| [`RFC6071-5.5-2`](#rfc6071-5.5-2) IKEv2: MODP group 2 (1024-bit) must be supported (§5.5, MUST- / deprecated but mandatory) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 MODP-1024 group requirement owned by RFC 4307, which governs ze's IKEv2 group negotiation |
-| [`RFC6071-5.1-4`](#rfc6071-5.1-4) ESP: 3DES-CBC must be supported (§5.1, MUST- / deprecated but mandatory) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP 3DES-CBC requirement owned by RFC 4835, which governs ze's ESP dataplane |
+| [`RFC6071-5.1-1`](#rfc6071-5.1-1) Requirement levels for ESP-NULL: IKEv1 - N/A IKEv2 - N/A ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.1, IPsec-v3) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP algorithm-implementation requirement owned by RFC 4835 (NULL encryption per RFC 2410), which governs ze's ESP dataplane (internal/component/ike/dataplane/xfrm_linux.go) |
+| [`RFC6071-5.1-2`](#rfc6071-5.1-2) Requirement levels for AES-CBC with 128-bit keys: IKEv1 - SHOULD [RFC4109] IKEv2 - SHOULD+ [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.3, IPsec-v3) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP algorithm-implementation requirement owned by RFC 4835 (AES-CBC-128 per RFC 3602), which governs ze's ESP dataplane |
+| [`RFC6071-5.3-1`](#rfc6071-5.3-1) Requirement levels for HMAC-SHA-1: IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307] IPsec-v2 - MUST [RFC4835] IPsec-v3 - MUST [RFC4835] (§5.3.1, IPsec-v3 and IKEv2) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP/AH and IKEv2 integrity requirement owned by RFC 4835 and RFC 4307 (HMAC-SHA-1-96 per RFC 2404), which governs ze's ESP and IKE code |
+| [`RFC6071-5.4-1`](#rfc6071-5.4-1) Requirement levels for PRF-HMAC-SHA1: IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307] (§5.5, IKEv2) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 PRF requirement owned by RFC 4307, which governs ze's IKEv2 transform negotiation (internal/component/ike/crypto/transform.go) |
+| [`RFC6071-5.5-1`](#rfc6071-5.5-1) Requirement levels for DH MODP group 2: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] (§5.7, IKEv1, deprecated) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv1 algorithm requirement owned by RFC 4109, and ze implements IKEv2 only (no IKEv1 code path) |
+| [`RFC6071-5.1-3`](#rfc6071-5.1-3) Requirement levels for 3DES-CBC: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST- [RFC4835] (§5.2.2, MUST- / deprecated but mandatory) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 3DES-CBC requirement owned by RFC 4307, which governs ze's IKEv2 transform negotiation |
+| [`RFC6071-5.5-2`](#rfc6071-5.5-2) Requirement levels for DH MODP group 2: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] (§5.7, MUST- / deprecated but mandatory) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 MODP-1024 group requirement owned by RFC 4307, which governs ze's IKEv2 group negotiation |
+| [`RFC6071-5.1-4`](#rfc6071-5.1-4) Requirement levels for 3DES-CBC: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST- [RFC4835] (§5.2.2, MUST- / deprecated but mandatory) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP 3DES-CBC requirement owned by RFC 4835, which governs ze's ESP dataplane |
 
 ## Proof state
 
@@ -132,7 +133,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC6071-5.1-1`](#rfc6071-5.1-1)
 
-ESP: NULL encryption must be implemented (§5.1, IPsec-v3)
+Requirement levels for ESP-NULL: IKEv1 - N/A IKEv2 - N/A ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.1, IPsec-v3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -140,7 +141,7 @@ No test carries RFC6071-5.1-1, so no unit is bound to it.
 
 ### [`RFC6071-5.1-2`](#rfc6071-5.1-2)
 
-ESP: AES-CBC-128 encryption must be implemented (§5.1, IPsec-v3)
+Requirement levels for AES-CBC with 128-bit keys: IKEv1 - SHOULD [RFC4109] IKEv2 - SHOULD+ [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.3, IPsec-v3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -148,7 +149,7 @@ No test carries RFC6071-5.1-2, so no unit is bound to it.
 
 ### [`RFC6071-5.3-1`](#rfc6071-5.3-1)
 
-ESP/AH: HMAC-SHA-1-96 integrity must be implemented (§5.3, IPsec-v3 and IKEv2)
+Requirement levels for HMAC-SHA-1: IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307] IPsec-v2 - MUST [RFC4835] IPsec-v3 - MUST [RFC4835] (§5.3.1, IPsec-v3 and IKEv2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -156,7 +157,7 @@ No test carries RFC6071-5.3-1, so no unit is bound to it.
 
 ### [`RFC6071-5.4-1`](#rfc6071-5.4-1)
 
-IKEv2: PRF-HMAC-SHA-1 must be implemented (§5.4, IKEv2)
+Requirement levels for PRF-HMAC-SHA1: IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307] (§5.5, IKEv2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -164,7 +165,7 @@ No test carries RFC6071-5.4-1, so no unit is bound to it.
 
 ### [`RFC6071-5.5-1`](#rfc6071-5.5-1)
 
-IKEv1: MODP group 2 (1024-bit) must be supported (§5.5, IKEv1, deprecated)
+Requirement levels for DH MODP group 2: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] (§5.7, IKEv1, deprecated)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -172,7 +173,7 @@ No test carries RFC6071-5.5-1, so no unit is bound to it.
 
 ### [`RFC6071-5.1-3`](#rfc6071-5.1-3)
 
-IKEv2: 3DES-CBC must be supported (§5.1, MUST- / deprecated but mandatory)
+Requirement levels for 3DES-CBC: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST- [RFC4835] (§5.2.2, MUST- / deprecated but mandatory)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -180,7 +181,7 @@ No test carries RFC6071-5.1-3, so no unit is bound to it.
 
 ### [`RFC6071-5.5-2`](#rfc6071-5.5-2)
 
-IKEv2: MODP group 2 (1024-bit) must be supported (§5.5, MUST- / deprecated but mandatory)
+Requirement levels for DH MODP group 2: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] (§5.7, MUST- / deprecated but mandatory)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -188,7 +189,7 @@ No test carries RFC6071-5.5-2, so no unit is bound to it.
 
 ### [`RFC6071-5.1-4`](#rfc6071-5.1-4)
 
-ESP: 3DES-CBC must be supported (§5.1, MUST- / deprecated but mandatory)
+Requirement levels for 3DES-CBC: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST- [RFC4835] (§5.2.2, MUST- / deprecated but mandatory)
 
 Audit verdict: not audited: no reader has judged these tests
 

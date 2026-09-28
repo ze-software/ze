@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 22.2% | 12 of 54 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 11.1% | 6 of 54 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 54 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 53.1% | 17 of 32 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 22.0% | 11 of 50 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 12.0% | 6 of 50 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 50 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Proven by a recorded break | 53.3% | 16 of 30 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 54 | of 64 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 27 | of 54 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 35.2% | 19 of 54 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 54 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 14.8% | 8 of 54 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 50 | of 57 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 24 | of 50 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 32.0% | 16 of 50 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 50 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 16.0% | 8 of 50 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 16.7% | 9 of 54 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 18.0% | 9 of 50 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 12 | of 50 gated MUSTs judged | 5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 54 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 50 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -59,16 +60,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Experimental |
 | Enrolment | Enrolled |
-| Requirements | 64 |
-| Gated MUST-level | 54 |
-| Not applicable, so out of scope | 19 |
+| Requirements | 57 |
+| Gated MUST-level | 50 |
+| Not applicable, so out of scope | 16 |
 | Declared gaps | 9 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 32 |
-| Tagged units | 32 |
-| Recorded audit verdicts | 0 |
-| Discrimination records | 17 |
+| Test tags | 30 |
+| Tagged units | 30 |
+| Recorded audit verdicts | 12 |
+| Discrimination records | 16 |
 | Summary | `rfc/short/rfc7011.md` |
 | Requirement shard | `rfc/requirements/rfc7011.md` |
 | RFC text | `rfc/full/rfc7011.txt` |
@@ -95,41 +97,37 @@ Enrolled: IP Flow Information Export / IPFIX (RFC 7011): exporter role. The 2026
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 12 | one part of the gated population |
-| Annotated instead of tested | 42 | one part of the gated population |
+| Positive and negative tests | 11 | one part of the gated population |
+| Annotated instead of tested | 39 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **54** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **50** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (12):** [`RFC7011-3-1`](#rfc7011-3-1), [`RFC7011-3.3.1-1`](#rfc7011-3.3.1-1), [`RFC7011-8-1`](#rfc7011-8-1), [`RFC7011-8-2`](#rfc7011-8-2), [`RFC7011-3.3.1-3`](#rfc7011-3.3.1-3), [`RFC7011-6.1.1-1`](#rfc7011-6.1.1-1), [`RFC7011-6.1.2-1`](#rfc7011-6.1.2-1), [`RFC7011-8.2-1`](#rfc7011-8.2-1), [`RFC7011-8.2-2`](#rfc7011-8.2-2), [`RFC7011-8.2-3`](#rfc7011-8.2-3), [`RFC7011-10.1-1`](#rfc7011-10.1-1), [`RFC7011-10.3.3-1`](#rfc7011-10.3.3-1)
+**Positive and negative tests (11):** [`RFC7011-3.3.1-1`](#rfc7011-3.3.1-1), [`RFC7011-8-1`](#rfc7011-8-1), [`RFC7011-8-2`](#rfc7011-8-2), [`RFC7011-3.3.1-3`](#rfc7011-3.3.1-3), [`RFC7011-6.1.1-1`](#rfc7011-6.1.1-1), [`RFC7011-6.1.2-1`](#rfc7011-6.1.2-1), [`RFC7011-8.2-1`](#rfc7011-8.2-1), [`RFC7011-8.2-2`](#rfc7011-8.2-2), [`RFC7011-8.2-3`](#rfc7011-8.2-3), [`RFC7011-10.1-1`](#rfc7011-10.1-1), [`RFC7011-10.3.3-1`](#rfc7011-10.3.3-1)
 
-**Annotated instead of tested (42):** [`RFC7011-3.1-1`](#rfc7011-3.1-1), [`RFC7011-3.3.1-2`](#rfc7011-3.3.1-2), [`RFC7011-3.4.1-1`](#rfc7011-3.4.1-1), [`RFC7011-3.4.2-1`](#rfc7011-3.4.2-1), [`RFC7011-3.4.2-2`](#rfc7011-3.4.2-2), [`RFC7011-3.2-1`](#rfc7011-3.2-1), [`RFC7011-3.2-2`](#rfc7011-3.2-2), [`RFC7011-x-1`](#rfc7011-x-1), [`RFC7011-x-2`](#rfc7011-x-2), [`RFC7011-8-3`](#rfc7011-8-3), [`RFC7011-10-1`](#rfc7011-10-1), [`RFC7011-10-2`](#rfc7011-10-2), [`RFC7011-x-3`](#rfc7011-x-3), [`RFC7011-x-4`](#rfc7011-x-4), [`RFC7011-6.2-1`](#rfc7011-6.2-1), [`RFC7011-3.4.2.1-1`](#rfc7011-3.4.2.1-1), [`RFC7011-4.1-1`](#rfc7011-4.1-1), [`RFC7011-4.1-2`](#rfc7011-4.1-2), [`RFC7011-4.1-3`](#rfc7011-4.1-3), [`RFC7011-6.1.3-1`](#rfc7011-6.1.3-1), [`RFC7011-6.1.4-1`](#rfc7011-6.1.4-1), [`RFC7011-6.1.6-1`](#rfc7011-6.1.6-1), [`RFC7011-6.1.6-2`](#rfc7011-6.1.6-2), [`RFC7011-6.2-3`](#rfc7011-6.2-3), [`RFC7011-7-1`](#rfc7011-7-1), [`RFC7011-8.1-1`](#rfc7011-8.1-1), [`RFC7011-8.2-4`](#rfc7011-8.2-4), [`RFC7011-10-5`](#rfc7011-10-5), [`RFC7011-10.2.2-1`](#rfc7011-10.2.2-1), [`RFC7011-10.3.2-1`](#rfc7011-10.3.2-1), [`RFC7011-10.3.2-2`](#rfc7011-10.3.2-2), [`RFC7011-10.4.1-1`](#rfc7011-10.4.1-1), [`RFC7011-10.4.4-1`](#rfc7011-10.4.4-1), [`RFC7011-11.1-1`](#rfc7011-11.1-1), [`RFC7011-11.1-2`](#rfc7011-11.1-2), [`RFC7011-11.1-3`](#rfc7011-11.1-3), [`RFC7011-11.1-4`](#rfc7011-11.1-4), [`RFC7011-11.3-1`](#rfc7011-11.3-1), [`RFC7011-11.3-2`](#rfc7011-11.3-2), [`RFC7011-11.3-3`](#rfc7011-11.3-3), [`RFC7011-11.3-4`](#rfc7011-11.3-4), [`RFC7011-11-1`](#rfc7011-11-1)
+**Annotated instead of tested (39):** [`RFC7011-3.1-1`](#rfc7011-3.1-1), [`RFC7011-3.3.1-2`](#rfc7011-3.3.1-2), [`RFC7011-3.4.1-1`](#rfc7011-3.4.1-1), [`RFC7011-3.4.2-1`](#rfc7011-3.4.2-1), [`RFC7011-3.2-1`](#rfc7011-3.2-1), [`RFC7011-3.2-2`](#rfc7011-3.2-2), [`RFC7011-x-1`](#rfc7011-x-1), [`RFC7011-x-2`](#rfc7011-x-2), [`RFC7011-8-3`](#rfc7011-8-3), [`RFC7011-10-1`](#rfc7011-10-1), [`RFC7011-10-2`](#rfc7011-10-2), [`RFC7011-6.2-1`](#rfc7011-6.2-1), [`RFC7011-3.4.2.1-1`](#rfc7011-3.4.2.1-1), [`RFC7011-4.1-1`](#rfc7011-4.1-1), [`RFC7011-4.1-2`](#rfc7011-4.1-2), [`RFC7011-4.1-3`](#rfc7011-4.1-3), [`RFC7011-6.1.3-1`](#rfc7011-6.1.3-1), [`RFC7011-6.1.4-1`](#rfc7011-6.1.4-1), [`RFC7011-6.1.6-1`](#rfc7011-6.1.6-1), [`RFC7011-6.1.6-2`](#rfc7011-6.1.6-2), [`RFC7011-6.2-3`](#rfc7011-6.2-3), [`RFC7011-7-1`](#rfc7011-7-1), [`RFC7011-8.1-1`](#rfc7011-8.1-1), [`RFC7011-8.2-4`](#rfc7011-8.2-4), [`RFC7011-10-5`](#rfc7011-10-5), [`RFC7011-10.2.2-1`](#rfc7011-10.2.2-1), [`RFC7011-10.3.2-1`](#rfc7011-10.3.2-1), [`RFC7011-10.3.2-2`](#rfc7011-10.3.2-2), [`RFC7011-10.4.1-1`](#rfc7011-10.4.1-1), [`RFC7011-10.4.4-1`](#rfc7011-10.4.4-1), [`RFC7011-11.1-1`](#rfc7011-11.1-1), [`RFC7011-11.1-2`](#rfc7011-11.1-2), [`RFC7011-11.1-3`](#rfc7011-11.1-3), [`RFC7011-11.1-4`](#rfc7011-11.1-4), [`RFC7011-11.3-1`](#rfc7011-11.3-1), [`RFC7011-11.3-2`](#rfc7011-11.3-2), [`RFC7011-11.3-3`](#rfc7011-11.3-3), [`RFC7011-11.3-4`](#rfc7011-11.3-4), [`RFC7011-11-1`](#rfc7011-11-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7011-3-1` | An IPFIX Message MUST contain at least one Set (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC7011MessageHasAtLeastOneSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L56). **negative:** `unit/verify` [`TestRFC7011NoEmptyMessageEmitted`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L68) |
-| `RFC7011-3.1-1` | Version Number MUST be the value 0x000a (Section 3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC7011VersionIsIPFIX`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L101). **negative:** no negative test. **{single-polarity}:** version is the compile-time constant Version = 0x000a written by WriteMessageHeader (internal/plugins/flowexport/ipfix/encoder.go:18,23); no input can alter it, so there is no code path emitting a different version to reject negatively |
-| `RFC7011-3.3.1-1` | For security reasons, the padding octet(s) MUST be composed of octets with value zero (0). (Section 3.3.1) | MUST | 3.3.1 | **positive:** `unit/verify` [`TestRFC7011PaddingIsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L136). **negative:** `unit/verify` [`TestRFC7011PaddingZeroedOverGarbage`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L148) |
-| `RFC7011-3.3.1-2` | The padding length MUST be shorter than any allowable record in this Set. (Section 3.3.1) | MUST | 3.3.1 | **positive:** `unit/verify` [`TestRFC7011PaddingShorterThanRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L160). **negative:** no negative test. **{single-polarity}:** 4-byte-alignment padding is at most 3 octets while the smallest record is 32 octets, so the padLen < recSize guard (internal/plugins/flowexport/ipfix/data.go:47, flow_data.go:68) always takes its true branch and the false branch is unreachable with any real template |
-| `RFC7011-3.4.1-1` | Template ID MUST be greater than 255 (Section 3.4.1) | MUST | 3.4.1 | **positive:** `unit/verify` [`TestRFC7011TemplateIDAbove255`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L173). **negative:** no negative test. **{single-polarity}:** Template IDs are the compile-time constants 256/257/258 (internal/plugins/flowexport/ipfix/template.go:10, flow_template.go:11,16); no input produces an ID <= 255, so there is no sub-256 case to reject negatively |
+| `RFC7011-3.1-1` | The value of this field is 0x000a for the current version (Section 3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC7011VersionIsIPFIX`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L102). **negative:** no negative test. **{single-polarity}:** version is the compile-time constant Version = 0x000a written by WriteMessageHeader (internal/plugins/flowexport/ipfix/encoder.go:18,23); no input can alter it, so there is no code path emitting a different version to reject negatively |
+| `RFC7011-3.3.1-1` | For security reasons, the padding octet(s) MUST be composed of octets with value zero (0). (Section 3.3.1) | MUST | 3.3.1 | **positive:** `unit/verify` [`TestRFC7011PaddingIsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L137). **negative:** `unit/verify` [`TestRFC7011PaddingZeroedOverGarbage`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L149) |
+| `RFC7011-3.3.1-2` | The padding length MUST be shorter than any allowable record in this Set. (Section 3.3.1) | MUST | 3.3.1 | **positive:** `unit/verify` [`TestRFC7011PaddingShorterThanRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L161). **negative:** no negative test. **{single-polarity}:** 4-byte-alignment padding is at most 3 octets while the smallest record is 32 octets, so the padLen < recSize guard (internal/plugins/flowexport/ipfix/data.go:47, flow_data.go:68) always takes its true branch and the false branch is unreachable with any real template |
+| `RFC7011-3.4.1-1` | Each Template Record is given a unique Template ID in the range 256 to 65535. (Section 3.4.1) | MUST | 3.4.1 | **positive:** `unit/verify` [`TestRFC7011TemplateIDAbove255`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L174). **negative:** no negative test. **{single-polarity}:** Template IDs are the compile-time constants 256/257/258 (internal/plugins/flowexport/ipfix/template.go:10, flow_template.go:11,16); no input produces an ID <= 255, so there is no sub-256 case to reject negatively |
 | `RFC7011-3.4.2-1` | The Scope Field Count MUST NOT be zero. (Section 3.4.2) | MUST NOT | 3.4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the exporter emits only Template Sets (Set ID 2) and never Options Template Sets (Set ID 3); the builders encode no Scope Field Count (internal/plugins/flowexport/ipfix/template.go:48-77, flow_template.go:96-123), so no Options Template Record with a scope field count is produced |
-| `RFC7011-3.4.2-2` | An Options Template Record MUST contain at least one Scope Field and at least one non-scope Field (Section 3.4.2) | MUST | 3.4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the exporter emits no Options Template Records at all, only Set ID 2 Template Sets (internal/plugins/flowexport/ipfix/template.go:56, flow_template.go:103), so the scope-field / non-scope-field composition rule has no code path |
-| `RFC7011-3.2-1` | When the Enterprise bit is set to 0, the corresponding Information Element appears in [IANA-IPFIX], and the Enterprise Number MUST NOT be present. (Section 3.2) | MUST NOT | 3.2 | **positive:** `unit/verify` [`TestIPFIXTemplateSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/template_test.go#L9). **positive:** `unit/verify` [`TestRFC7011NoEnterpriseNumberWhenEClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L197). **negative:** no negative test. **{single-polarity}:** every field specifier is the 4-octet E=0 form with bit 15 clear (internal/plugins/flowexport/ipfix/template.go:69-74, flow_template.go:115-119); no code path sets the E bit or appends an Enterprise Number, so the prohibited E=0-with-Enterprise-Number combination cannot be constructed to test negatively |
+| `RFC7011-3.2-1` | When the Enterprise bit is set to 0, the corresponding Information Element appears in [IANA-IPFIX], and the Enterprise Number MUST NOT be present. (Section 3.2) | MUST NOT | 3.2 | **positive:** `unit/verify` [`TestIPFIXTemplateSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/template_test.go#L9). **positive:** `unit/verify` [`TestRFC7011NoEnterpriseNumberWhenEClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L198). **negative:** no negative test. **{single-polarity}:** every field specifier is the 4-octet E=0 form with bit 15 clear (internal/plugins/flowexport/ipfix/template.go:69-74, flow_template.go:115-119); no code path sets the E bit or appends an Enterprise Number, so the prohibited E=0-with-Enterprise-Number combination cannot be constructed to test negatively |
 | `RFC7011-3.2-2` | When the Enterprise bit is set to 1, the corresponding Information Element identifier identified an enterprise-specific Information Element; the Enterprise Number MUST be present. (Section 3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the exporter uses only IANA (E=0) Information Elements (internal/plugins/flowexport/ipfix/ie.go, template.go:69-74); it never sets the Enterprise bit, so no E=1 field specifier is produced and the E=1-requires-Enterprise-Number obligation has no code path |
-| `RFC7011-x-1` | Variable-length encoding MUST use short form (1-byte prefix) when value length is 0-254 (Variable-Length IE Encoding) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** every template field specifier declares a fixed Field Length (internal/plugins/flowexport/ipfix/template.go:20-27, flow_template.go:20-48); none uses 65535, so the exporter never emits a variable-length short-form prefix |
-| `RFC7011-x-2` | Variable-length encoding MUST use long form (3-byte prefix) when value length is 255-65535 (Variable-Length IE Encoding) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** no template field uses Field Length 65535 (internal/plugins/flowexport/ipfix/flow_template.go:20-48), so the exporter never emits a variable-length long-form prefix |
+| `RFC7011-x-1` | In most cases, the length of the Information Element will be less than 255 octets. The following length-encoding mechanism optimizes the overhead of carrying the Information Element length in this more common case. The length is carried in the octet before the Information Element, as shown in Figure R. (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** every template field specifier declares a fixed Field Length (internal/plugins/flowexport/ipfix/template.go:20-27, flow_template.go:20-48); none uses 65535, so the exporter never emits a variable-length short-form prefix |
+| `RFC7011-x-2` | The length may also be encoded into 3 octets before the Information Element, allowing the length of the Information Element to be greater than or equal to 255 octets. In this case, the first octet of the Length field MUST be 255, and the length is carried in the second and third octets, as shown in Figure S. (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** no template field uses Field Length 65535 (internal/plugins/flowexport/ipfix/flow_template.go:20-48), so the exporter never emits a variable-length long-form prefix |
 | `RFC7011-8-1` | Since UDP provides no method for reliable transmission of Templates, Exporting Processes using UDP as the transport protocol MUST periodically retransmit each active Template at regular intervals. (Section 8) | MUST | 8 | **positive:** `unit/verify` [`TestRFC7011TemplateRetransmittedAtInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_test.go#L25). **negative:** `unit/verify` [`TestRFC7011TemplateNotRetransmittedBeforeInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_test.go#L46) |
 | `RFC7011-8-2` | The Template retransmission interval MUST be configurable via, for example, the templateRefreshTimeout and optionsTemplateRefreshTimeout parameters as defined in [RFC6728]. (Section 8) | MUST | 8 | **positive:** `unit/verify` [`TestRFC7011TemplateRefreshConfigurable`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_test.go#L67). **negative:** `unit/verify` [`TestRFC7011TemplateRefreshRangeRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_test.go#L87) |
-| `RFC7011-8-3` | Template Withdrawals MUST NOT be sent over UDP (Section 8) | MUST NOT | 8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the exporter is UDP-only (internal/plugins/flowexport/sender.go:82 net.DialUDP) and implements no Template Withdrawal mechanism; the builders always write Field Count = len(fields) > 0 (internal/plugins/flowexport/ipfix/template.go:64, flow_template.go:111), so no Field-Count-0 withdrawal record is ever produced to send |
-| `RFC7011-10-1` | An Exporting Process MUST support SCTP (Section 10) | MUST | 10 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the IPFIX exporter transmits over UDP only (internal/plugins/flowexport/sender.go:82 net.DialUDP; internal/plugins/flowexport/config.go:360 accepts sflow/netflow9/ipfix with no SCTP option); SCTP transport is absent, so this mandatory SCTP-support MUST is unmet |
-| `RFC7011-10-2` | Templates MUST be sent reliably over SCTP using ordered delivery (Section 10) | MUST | 10 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the exporter implements no SCTP transport (internal/plugins/flowexport/sender.go:82 is UDP-only), so the SCTP ordered-delivery obligation for Templates has no code path; the absence of SCTP itself is the gap recorded under RFC7011-10-1 |
-| `RFC7011-x-3` | PR-SCTP MUST NOT be used for Template Records (SCTP Transport) | MUST NOT | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the exporter implements no SCTP or PR-SCTP transport (internal/plugins/flowexport/sender.go:82 net.DialUDP only), so the PR-SCTP prohibition for Template Records has no applicable code path |
-| `RFC7011-x-4` | Over TCP, the Exporting Process MUST handle backpressure from congestion control (TCP Transport) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the exporter implements no TCP transport (internal/plugins/flowexport/sender.go uses net.DialUDP; internal/plugins/flowexport/config.go:360-361 accepts only the three UDP protocols), so the TCP backpressure obligation has no code path |
-| `RFC7011-6.2-1` | Reduced-size encoding MUST NOT be used for addresses, timestamps, boolean, string, or octetArray (Section 6.2) | MUST NOT | 6.2 | **positive:** `unit/verify` [`TestRFC7011NoReducedSizeForAddressOrTimestamp`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L226). **negative:** no negative test. **{single-polarity}:** the templates hardcode full-width field lengths for every address (4/16) and timestamp (4/8) IE (internal/plugins/flowexport/ipfix/template.go:20-27, flow_template.go:20-48) and the exporter applies no reduced-size encoding to any type, so the prohibited reduced-size-on-address/timestamp combination cannot be produced to test negatively |
+| `RFC7011-8-3` | Template Withdrawals (Section 8.1) MUST NOT be sent by Exporting Processes exporting via UDP (§8.4) | MUST NOT | 8.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the exporter is UDP-only (internal/plugins/flowexport/sender.go:82 net.DialUDP) and implements no Template Withdrawal mechanism; the builders always write Field Count = len(fields) > 0 (internal/plugins/flowexport/ipfix/template.go:64, flow_template.go:111), so no Field-Count-0 withdrawal record is ever produced to send |
+| `RFC7011-10-1` | SCTP [RFC4960] using the Partially Reliable SCTP (PR-SCTP) extension as specified in [RFC3758] MUST be implemented by all compliant implementations. (§10.1) | MUST | 10.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the IPFIX exporter transmits over UDP only (internal/plugins/flowexport/sender.go:82 net.DialUDP; internal/plugins/flowexport/config.go:360 accepts sflow/netflow9/ipfix with no SCTP option); SCTP transport is absent, so this mandatory SCTP-support MUST is unmet |
+| `RFC7011-10-2` | Template Sets and Options Template Sets MUST be sent reliably, using SCTP ordered delivery. (§8.3) | MUST | 8.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the exporter implements no SCTP transport (internal/plugins/flowexport/sender.go:82 is UDP-only), so the SCTP ordered-delivery obligation for Templates has no code path; the absence of SCTP itself is the gap recorded under RFC7011-10-1 |
+| `RFC7011-6.2-1` | Reduced-size encoding MUST NOT be applied to any other data type defined in [RFC7012] that implies a fixed length, as these types either have internal structure (such as ipv4Address or dateTimeMicroseconds) or restricted ranges that are not suitable for reduced-size encoding (such as dateTimeMilliseconds). (Section 6.2) | MUST NOT | 6.2 | **positive:** `unit/verify` [`TestRFC7011NoReducedSizeForAddressOrTimestamp`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L227). **negative:** no negative test. **{single-polarity}:** the templates hardcode full-width field lengths for every address (4/16) and timestamp (4/8) IE (internal/plugins/flowexport/ipfix/template.go:20-27, flow_template.go:20-48) and the exporter applies no reduced-size encoding to any type, so the prohibited reduced-size-on-address/timestamp combination cannot be produced to test negatively |
 | `RFC7011-3.3.1-3` | The record types MUST NOT be mixed within a Set (Section 3.3.1) | MUST NOT | 3.3.1 | **positive:** `unit/verify` [`TestRFC7011OneRecordTypePerSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/export_rfc7011_test.go#L88). **negative:** `unit/verify` [`TestRFC7011RecordTypesNotMixedInSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/export_rfc7011_test.go#L120) |
 | `RFC7011-3.4.2.1-1` | If a different order of Scope Fields would result in a Record having a different semantic meaning, then the order of Scope Fields MUST be preserved by the Exporting Process (Section 3.4.2.1) | MUST | 3.4.2.1 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "Multiple Scope Fields MAY be present in the Options Template Record"; the exporter writes no Options Template Record and so no Scope Field whose order could matter. internal/plugins/flowexport/ipfix/template.go::BuildCounterTemplate and internal/plugins/flowexport/ipfix/flow_template.go::BuildFlowTemplate build only Set ID 2 Template Sets |
 | `RFC7011-4.1-1` | This Information Element MUST be defined as a Scope Field and MUST be present, unless the Observation Domain ID of the enclosing Message is non-zero. (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "The Options Template and Options Template Records defined in these subsections, which impose some constraints on the Metering Process and Exporting Process implementations, MAY be implemented."; the exporter does not implement the Metering Process Statistics Options Template: internal/plugins/flowexport/ipfix/template.go::BuildCounterTemplate and internal/plugins/flowexport/ipfix/flow_template.go::BuildFlowTemplate build only Set ID 2 Template Sets with no scope field |
@@ -156,40 +154,34 @@ Enrolled: IP Flow Information Export / IPFIX (RFC 7011): exporter role. The 2026
 | `RFC7011-10.3.3-1` | The maximum size of exported messages MUST be configured such that the total packet size does not exceed the PMTU (Section 10.3.3) | MUST | 10.3.3 | **positive:** `unit/verify` [`TestRFC7011MaxDatagramSizeConfigured`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/datagram_rfc7011_test.go#L23). **negative:** `unit/verify` [`TestRFC7011MaxDatagramSizeOutOfRangeRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/datagram_rfc7011_test.go#L56) |
 | `RFC7011-10.4.1-1` | The dropped Data Records MUST be accounted for, so that the number of lost records can later be reported as described in Section 4.3. (Section 10.4.1) | MUST | 10.4.1 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "TCP [TCP] MAY also be implemented by compliant implementations."; the exporter implements no TCP transport, so no TCP send buffer drops records: internal/plugins/flowexport/sender.go::NewSender opens a UDP socket only |
 | `RFC7011-10.4.4-1` | In the default configuration, an Exporting Process MUST NOT attempt to establish a connection more frequently than once per minute (Section 10.4.4) | MUST NOT | 10.4.4 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "TCP [TCP] MAY also be implemented by compliant implementations."; the exporter implements no TCP transport and establishes no connection: internal/plugins/flowexport/sender.go::NewSender opens a connectionless UDP socket only |
-| `RFC7011-11.1-1` | IPFIX Exporting Processes and Collecting Processes using TCP MUST support TLS version 1.1, including the mandatory ciphersuites specified in that version (Section 11.1) | MUST | 11.1 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "TCP [TCP] MAY also be implemented by compliant implementations."; the exporter implements no TCP transport, so the TLS-over-TCP obligation has no path: internal/plugins/flowexport/sender.go::NewSender opens a UDP socket only |
-| `RFC7011-11.1-2` | IPFIX Exporting Processes and Collecting Processes using UDP or SCTP MUST support DTLS version 1.0, including the mandatory ciphersuites specified in that version (Section 11.1) | MUST | 11.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the IPFIX exporter has no DTLS. NewSender in internal/plugins/flowexport/sender.go opens a plain connected UDP socket with net.DialUDP, and Send writes unencrypted datagrams to it. No flowexport configuration selects DTLS. |
+| `RFC7011-11.1-1` | IPFIX Exporting Processes and Collecting Processes using TCP MUST support TLS version 1.1 and SHOULD support TLS version 1.2 [RFC5246], including the mandatory ciphersuite(s) specified in each version. (Section 11.1) | MUST | 11.1 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "TCP [TCP] MAY also be implemented by compliant implementations."; the exporter implements no TCP transport, so the TLS-over-TCP obligation has no path: internal/plugins/flowexport/sender.go::NewSender opens a UDP socket only |
+| `RFC7011-11.1-2` | IPFIX Exporting Processes and Collecting Processes using UDP or SCTP MUST support DTLS version 1.0 and SHOULD support DTLS version 1.2 [RFC6347], including the mandatory ciphersuite(s) specified in each version. (Section 11.1) | MUST | 11.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the IPFIX exporter has no DTLS. NewSender in internal/plugins/flowexport/sender.go opens a plain connected UDP socket with net.DialUDP, and Send writes unencrypted datagrams to it. No flowexport configuration selects DTLS. |
 | `RFC7011-11.1-3` | When using DTLS over SCTP, the Exporting Process MUST ensure that each IPFIX Message is sent over the same SCTP Stream that would be used when sending the same IPFIX Message directly over SCTP. (Section 11.1) | MUST | 11.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the exporter has neither SCTP nor DTLS (internal/plugins/flowexport/sender.go::NewSender opens a plain UDP socket), so DTLS over SCTP is absent; both absent capabilities are mandatory and recorded under RFC7011-10-1 and RFC7011-11.1-2 |
 | `RFC7011-11.1-4` | Exporting and Collecting Processes MUST NOT request, offer, or use any version of the Secure Socket Layer (SSL), or any version of TLS prior to 1.1, due to known security vulnerabilities in prior versions of TLS; see Appendix E of [RFC5246] for more information. (Section 11.1) | MUST NOT | 11.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the exporter negotiates no SSL, TLS or DTLS of any version (internal/plugins/flowexport/sender.go::NewSender opens a plain UDP socket and Send writes cleartext), so it never requests, offers or uses SSL or TLS before 1.1; the missing DTLS is the gap under RFC7011-11.1-2 |
 | `RFC7011-11.3-1` | Exporting Processes MUST verify the reference identifiers of the Collecting Processes to which they are exporting IPFIX Messages against those stored in the certificates. (Section 11.3) | MUST | 11.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the exporter has no DTLS or TLS and so verifies no certificate reference identifier; internal/plugins/flowexport/sender.go::NewSender opens a plain UDP socket to the configured address |
 | `RFC7011-11.3-2` | Exporting Processes MUST NOT export to non-verified Collecting Processes, and Collecting Processes MUST NOT accept IPFIX Messages from non-verified Exporting Processes (Section 11.3) | MUST NOT | 11.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the exporter exports to any configured Collecting Process without verifying it; internal/plugins/flowexport/sender.go::NewSender opens a plain UDP socket with no DTLS or TLS authentication |
 | `RFC7011-11.3-3` | Exporting Processes and Collecting Processes MUST support the verification of certificates against an explicitly authorized list of peer certificates identified by Common Name (Section 11.3) | MUST | 11.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the exporter has no certificate verification and no authorized-certificate list; internal/plugins/flowexport/sender.go::NewSender opens a plain UDP socket with no DTLS or TLS |
 | `RFC7011-11.3-4` | IPFIX Exporting Processes and Collecting Processes MUST use non-NULL ciphersuites for authentication, integrity, and confidentiality (Section 11.3) | MUST | 11.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the exporter uses no ciphersuite at all; internal/plugins/flowexport/sender.go::NewSender opens a plain UDP socket and Send writes cleartext IPFIX Messages |
-| `RFC7011-10-3` | Exporting Processes SHOULD support TCP and UDP in addition to SCTP (Section 10) | SHOULD | 10 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7011-10-4` | Over UDP, IPFIX Messages SHOULD fit within the path MTU to avoid IP fragmentation (Section 10) | SHOULD | 10 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7011-x-5` | Over UDP, the Exporting Process SHOULD implement rate limiting or congestion-avoidance mechanisms (UDP Transport) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC7011-x-6` | The Exporting Process over TCP SHOULD use long-lived connections (TCP Transport) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC7011-10-3` | UDP [UDP] MAY also be implemented by compliant implementations. TCP [TCP] MAY also be implemented by compliant implementations. (§10.1) | MAY | 10.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7011-x-5` | UDP may be used, although it is not a congestion-aware protocol. However, in this case the IPFIX traffic between the Exporter and Collector must be separately contained or provisioned to minimize the risk of congestion-related loss. (§10.1) | SHOULD | 10.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7011-11-1` | To prevent man-in-the-middle attacks from impostor Exporting or Collecting Processes, the acceptance of data from an unauthorized Exporting Process, or the export of data to an unauthorized Collecting Process, mutual authentication MUST be used for both TLS and DTLS. (Section 11) | MUST | 11 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the exporter has no DTLS or TLS and therefore no mutual authentication; internal/plugins/flowexport/sender.go::NewSender opens a plain UDP socket |
-| `RFC7011-x-7` | The Collecting Process SHOULD restrict which Exporting Processes may connect (Security, Access Control) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC7011-11-2` | It is RECOMMENDED that IPFIX Exporting and Collecting Processes use TLS or DTLS for all communications (Section 11) | RECOMMENDED | 11 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7011-x-8` | PR-SCTP MAY be used for Data Records (SCTP Transport) | MAY | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC7011-x-9` | Data Sets MAY use unordered delivery over SCTP (SCTP Transport) | MAY | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC7011-8-4` | Over UDP, the Collecting Process MAY expire templates after a configurable timeout (Section 8) | MAY | 8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7011-6.2-2` | Reduced-size encoding MAY be used for integer and float types (Section 6.2) | MAY | 6.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7011-x-7` | In any case, the use of open Collecting Processes (those that will accept IPFIX Messages from any Exporting Process regardless of IP address or identity) is discouraged. (§11.5) | SHOULD | 11.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7011-x-8` | An IPFIX Exporting Process MAY use any PR-SCTP service definition as per Section 4 of the PR-SCTP specification [RFC3758] when using partial reliability to transmit IPFIX Messages containing only Data Sets. (§10.2.6) | MAY | 10.2.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7011-x-9` | Depending on the requirements of the application, the Exporting Process may send Data Sets with full or partial reliability, using ordered or out-of-order delivery, over any SCTP Stream established during SCTP association setup. (§10.2.6) | MAY | 10.2.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7011-8-4` | In order to minimize resource requirements for Templates that are no longer being used by the Exporting Process, the Collecting Process MAY associate a lifetime with each Template received in a Transport Session. Templates not refreshed by the Exporting Process within the lifetime can then be discarded by the Collecting Process. The Template lifetime at the Collecting Process MAY be exposed by a configuration parameter or MAY be derived from observation of the interval of periodic Template retransmissions from the Exporting Process. (§8.4) | MAY | 8.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7011-6.2-2` | Information Elements encoded as signed, unsigned, or float data types MAY be encoded using fewer octets than those implied by their type in the information model definition (Section 6.2) | MAY | 6.2 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC7011-3.4.2-1`](#rfc7011-3.4.2-1) The Scope Field Count MUST NOT be zero. (Section 3.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: the exporter emits only Template Sets (Set ID 2) and never Options Template Sets (Set ID 3); the builders encode no Scope Field Count (internal/plugins/flowexport/ipfix/template.go:48-77, flow_template.go:96-123), so no Options Template Record with a scope field count is produced |
-| [`RFC7011-3.4.2-2`](#rfc7011-3.4.2-2) An Options Template Record MUST contain at least one Scope Field and at least one non-scope Field (Section 3.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: the exporter emits no Options Template Records at all, only Set ID 2 Template Sets (internal/plugins/flowexport/ipfix/template.go:56, flow_template.go:103), so the scope-field / non-scope-field composition rule has no code path |
 | [`RFC7011-3.2-2`](#rfc7011-3.2-2) When the Enterprise bit is set to 1, the corresponding Information Element identifier identified an enterprise-specific Information Element; the Enterprise Number MUST be present. (Section 3.2) | no test | no test carries this requirement id; annotated {not-applicable}: the exporter uses only IANA (E=0) Information Elements (internal/plugins/flowexport/ipfix/ie.go, template.go:69-74); it never sets the Enterprise bit, so no E=1 field specifier is produced and the E=1-requires-Enterprise-Number obligation has no code path |
-| [`RFC7011-x-1`](#rfc7011-x-1) Variable-length encoding MUST use short form (1-byte prefix) when value length is 0-254 (Variable-Length IE Encoding) | no test | no test carries this requirement id; annotated {not-applicable}: every template field specifier declares a fixed Field Length (internal/plugins/flowexport/ipfix/template.go:20-27, flow_template.go:20-48); none uses 65535, so the exporter never emits a variable-length short-form prefix |
-| [`RFC7011-x-2`](#rfc7011-x-2) Variable-length encoding MUST use long form (3-byte prefix) when value length is 255-65535 (Variable-Length IE Encoding) | no test | no test carries this requirement id; annotated {not-applicable}: no template field uses Field Length 65535 (internal/plugins/flowexport/ipfix/flow_template.go:20-48), so the exporter never emits a variable-length long-form prefix |
-| [`RFC7011-8-3`](#rfc7011-8-3) Template Withdrawals MUST NOT be sent over UDP (Section 8) | no test | no test carries this requirement id; annotated {not-applicable}: the exporter is UDP-only (internal/plugins/flowexport/sender.go:82 net.DialUDP) and implements no Template Withdrawal mechanism; the builders always write Field Count = len(fields) > 0 (internal/plugins/flowexport/ipfix/template.go:64, flow_template.go:111), so no Field-Count-0 withdrawal record is ever produced to send |
-| [`RFC7011-10-1`](#rfc7011-10-1) An Exporting Process MUST support SCTP (Section 10) | {gap}, no test | the IPFIX exporter transmits over UDP only (internal/plugins/flowexport/sender.go:82 net.DialUDP; internal/plugins/flowexport/config.go:360 accepts sflow/netflow9/ipfix with no SCTP option); SCTP transport is absent, so this mandatory SCTP-support MUST is unmet |
-| [`RFC7011-10-2`](#rfc7011-10-2) Templates MUST be sent reliably over SCTP using ordered delivery (Section 10) | no test | no test carries this requirement id; annotated {not-applicable}: the exporter implements no SCTP transport (internal/plugins/flowexport/sender.go:82 is UDP-only), so the SCTP ordered-delivery obligation for Templates has no code path; the absence of SCTP itself is the gap recorded under RFC7011-10-1 |
-| [`RFC7011-x-3`](#rfc7011-x-3) PR-SCTP MUST NOT be used for Template Records (SCTP Transport) | no test | no test carries this requirement id; annotated {not-applicable}: the exporter implements no SCTP or PR-SCTP transport (internal/plugins/flowexport/sender.go:82 net.DialUDP only), so the PR-SCTP prohibition for Template Records has no applicable code path |
-| [`RFC7011-x-4`](#rfc7011-x-4) Over TCP, the Exporting Process MUST handle backpressure from congestion control (TCP Transport) | no test | no test carries this requirement id; annotated {not-applicable}: the exporter implements no TCP transport (internal/plugins/flowexport/sender.go uses net.DialUDP; internal/plugins/flowexport/config.go:360-361 accepts only the three UDP protocols), so the TCP backpressure obligation has no code path |
+| [`RFC7011-x-1`](#rfc7011-x-1) In most cases, the length of the Information Element will be less than 255 octets. The following length-encoding mechanism optimizes the overhead of carrying the Information Element length in this more common case. The length is carried in the octet before the Information Element, as shown in Figure R. (§7) | no test | no test carries this requirement id; annotated {not-applicable}: every template field specifier declares a fixed Field Length (internal/plugins/flowexport/ipfix/template.go:20-27, flow_template.go:20-48); none uses 65535, so the exporter never emits a variable-length short-form prefix |
+| [`RFC7011-x-2`](#rfc7011-x-2) The length may also be encoded into 3 octets before the Information Element, allowing the length of the Information Element to be greater than or equal to 255 octets. In this case, the first octet of the Length field MUST be 255, and the length is carried in the second and third octets, as shown in Figure S. (§7) | no test | no test carries this requirement id; annotated {not-applicable}: no template field uses Field Length 65535 (internal/plugins/flowexport/ipfix/flow_template.go:20-48), so the exporter never emits a variable-length long-form prefix |
+| [`RFC7011-8-3`](#rfc7011-8-3) Template Withdrawals (Section 8.1) MUST NOT be sent by Exporting Processes exporting via UDP (§8.4) | no test | no test carries this requirement id; annotated {not-applicable}: the exporter is UDP-only (internal/plugins/flowexport/sender.go:82 net.DialUDP) and implements no Template Withdrawal mechanism; the builders always write Field Count = len(fields) > 0 (internal/plugins/flowexport/ipfix/template.go:64, flow_template.go:111), so no Field-Count-0 withdrawal record is ever produced to send |
+| [`RFC7011-10-1`](#rfc7011-10-1) SCTP [RFC4960] using the Partially Reliable SCTP (PR-SCTP) extension as specified in [RFC3758] MUST be implemented by all compliant implementations. (§10.1) | {gap}, no test | the IPFIX exporter transmits over UDP only (internal/plugins/flowexport/sender.go:82 net.DialUDP; internal/plugins/flowexport/config.go:360 accepts sflow/netflow9/ipfix with no SCTP option); SCTP transport is absent, so this mandatory SCTP-support MUST is unmet |
+| [`RFC7011-10-2`](#rfc7011-10-2) Template Sets and Options Template Sets MUST be sent reliably, using SCTP ordered delivery. (§8.3) | no test | no test carries this requirement id; annotated {not-applicable}: the exporter implements no SCTP transport (internal/plugins/flowexport/sender.go:82 is UDP-only), so the SCTP ordered-delivery obligation for Templates has no code path; the absence of SCTP itself is the gap recorded under RFC7011-10-1 |
 | [`RFC7011-3.4.2.1-1`](#rfc7011-3.4.2.1-1) If a different order of Scope Fields would result in a Record having a different semantic meaning, then the order of Scope Fields MUST be preserved by the Exporting Process (Section 3.4.2.1) | no test | no test carries this requirement id; annotated {feature-declined}: "Multiple Scope Fields MAY be present in the Options Template Record"; the exporter writes no Options Template Record and so no Scope Field whose order could matter. internal/plugins/flowexport/ipfix/template.go::BuildCounterTemplate and internal/plugins/flowexport/ipfix/flow_template.go::BuildFlowTemplate build only Set ID 2 Template Sets |
 | [`RFC7011-4.1-1`](#rfc7011-4.1-1) This Information Element MUST be defined as a Scope Field and MUST be present, unless the Observation Domain ID of the enclosing Message is non-zero. (Section 4.1) | no test | no test carries this requirement id; annotated {feature-declined}: "The Options Template and Options Template Records defined in these subsections, which impose some constraints on the Metering Process and Exporting Process implementations, MAY be implemented."; the exporter does not implement the Metering Process Statistics Options Template: internal/plugins/flowexport/ipfix/template.go::BuildCounterTemplate and internal/plugins/flowexport/ipfix/flow_template.go::BuildFlowTemplate build only Set ID 2 Template Sets with no scope field |
 | [`RFC7011-4.1-2`](#rfc7011-4.1-2) If present, this Information Element MUST be defined as a Scope Field. (Section 4.1) | no test | no test carries this requirement id; annotated {feature-declined}: "The Options Template and Options Template Records defined in these subsections, which impose some constraints on the Metering Process and Exporting Process implementations, MAY be implemented."; the exporter does not implement the Metering Process Statistics Options Template: internal/plugins/flowexport/ipfix/template.go::BuildCounterTemplate and internal/plugins/flowexport/ipfix/flow_template.go::BuildFlowTemplate build only Set ID 2 Template Sets with no scope field |
@@ -207,8 +199,8 @@ Enrolled: IP Flow Information Export / IPFIX (RFC 7011): exporter role. The 2026
 | [`RFC7011-10.3.2-1`](#rfc7011-10.3.2-1) UDP MUST NOT be used unless the application can tolerate some loss of IPFIX Messages (Section 10.3.2) | {gap}, no test | the exporter offers UDP as its only transport (internal/plugins/flowexport/sender.go::NewSender calls net.DialUDP), so an operator whose application cannot tolerate lost IPFIX Messages has no reliable transport to select; this follows from the SCTP gap under RFC7011-10-1 |
 | [`RFC7011-10.4.1-1`](#rfc7011-10.4.1-1) The dropped Data Records MUST be accounted for, so that the number of lost records can later be reported as described in Section 4.3. (Section 10.4.1) | no test | no test carries this requirement id; annotated {feature-declined}: "TCP [TCP] MAY also be implemented by compliant implementations."; the exporter implements no TCP transport, so no TCP send buffer drops records: internal/plugins/flowexport/sender.go::NewSender opens a UDP socket only |
 | [`RFC7011-10.4.4-1`](#rfc7011-10.4.4-1) In the default configuration, an Exporting Process MUST NOT attempt to establish a connection more frequently than once per minute (Section 10.4.4) | no test | no test carries this requirement id; annotated {feature-declined}: "TCP [TCP] MAY also be implemented by compliant implementations."; the exporter implements no TCP transport and establishes no connection: internal/plugins/flowexport/sender.go::NewSender opens a connectionless UDP socket only |
-| [`RFC7011-11.1-1`](#rfc7011-11.1-1) IPFIX Exporting Processes and Collecting Processes using TCP MUST support TLS version 1.1, including the mandatory ciphersuites specified in that version (Section 11.1) | no test | no test carries this requirement id; annotated {feature-declined}: "TCP [TCP] MAY also be implemented by compliant implementations."; the exporter implements no TCP transport, so the TLS-over-TCP obligation has no path: internal/plugins/flowexport/sender.go::NewSender opens a UDP socket only |
-| [`RFC7011-11.1-2`](#rfc7011-11.1-2) IPFIX Exporting Processes and Collecting Processes using UDP or SCTP MUST support DTLS version 1.0, including the mandatory ciphersuites specified in that version (Section 11.1) | {gap}, no test | the IPFIX exporter has no DTLS. NewSender in internal/plugins/flowexport/sender.go opens a plain connected UDP socket with net.DialUDP, and Send writes unencrypted datagrams to it. No flowexport configuration selects DTLS. |
+| [`RFC7011-11.1-1`](#rfc7011-11.1-1) IPFIX Exporting Processes and Collecting Processes using TCP MUST support TLS version 1.1 and SHOULD support TLS version 1.2 [RFC5246], including the mandatory ciphersuite(s) specified in each version. (Section 11.1) | no test | no test carries this requirement id; annotated {feature-declined}: "TCP [TCP] MAY also be implemented by compliant implementations."; the exporter implements no TCP transport, so the TLS-over-TCP obligation has no path: internal/plugins/flowexport/sender.go::NewSender opens a UDP socket only |
+| [`RFC7011-11.1-2`](#rfc7011-11.1-2) IPFIX Exporting Processes and Collecting Processes using UDP or SCTP MUST support DTLS version 1.0 and SHOULD support DTLS version 1.2 [RFC6347], including the mandatory ciphersuite(s) specified in each version. (Section 11.1) | {gap}, no test | the IPFIX exporter has no DTLS. NewSender in internal/plugins/flowexport/sender.go opens a plain connected UDP socket with net.DialUDP, and Send writes unencrypted datagrams to it. No flowexport configuration selects DTLS. |
 | [`RFC7011-11.1-3`](#rfc7011-11.1-3) When using DTLS over SCTP, the Exporting Process MUST ensure that each IPFIX Message is sent over the same SCTP Stream that would be used when sending the same IPFIX Message directly over SCTP. (Section 11.1) | {gap}, no test | the exporter has neither SCTP nor DTLS (internal/plugins/flowexport/sender.go::NewSender opens a plain UDP socket), so DTLS over SCTP is absent; both absent capabilities are mandatory and recorded under RFC7011-10-1 and RFC7011-11.1-2 |
 | [`RFC7011-11.1-4`](#rfc7011-11.1-4) Exporting and Collecting Processes MUST NOT request, offer, or use any version of the Secure Socket Layer (SSL), or any version of TLS prior to 1.1, due to known security vulnerabilities in prior versions of TLS; see Appendix E of [RFC5246] for more information. (Section 11.1) | no test | no test carries this requirement id; annotated {not-applicable}: the exporter negotiates no SSL, TLS or DTLS of any version (internal/plugins/flowexport/sender.go::NewSender opens a plain UDP socket and Send writes cleartext), so it never requests, offers or uses SSL or TLS before 1.1; the missing DTLS is the gap under RFC7011-11.1-2 |
 | [`RFC7011-11.3-1`](#rfc7011-11.3-1) Exporting Processes MUST verify the reference identifiers of the Collecting Processes to which they are exporting IPFIX Messages against those stored in the certificates. (Section 11.3) | {gap}, no test | the exporter has no DTLS or TLS and so verifies no certificate reference identifier; internal/plugins/flowexport/sender.go::NewSender opens a plain UDP socket to the configured address |
@@ -221,57 +213,46 @@ Enrolled: IP Flow Information Export / IPFIX (RFC 7011): exporter role. The 2026
 
 A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
 
-### [`RFC7011-3-1`](#rfc7011-3-1)
-
-An IPFIX Message MUST contain at least one Set (Section 3)
-
-Audit verdict: not audited: no reader has judged these tests
-
-| Polarity | Test | Kind and tier | Proof state |
-|---|---|---|---|
-| negative | [`TestRFC7011NoEmptyMessageEmitted`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L68) | unit/verify | revert, verified |
-| positive | [`TestRFC7011MessageHasAtLeastOneSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L56) | unit/verify | unproven |
-
 ### [`RFC7011-3.1-1`](#rfc7011-3.1-1)
 
-Version Number MUST be the value 0x000a (Section 3.1)
+The value of this field is 0x000a for the current version (Section 3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Message Header whose Version is not 0x000a. TestRFC7011VersionIsIPFIX asserts the first two octets WriteMessageHeader writes are 0x000a and the Version constant is 0x000a, red on any other value. Single-polarity marker: the version is a compile-time constant with no path to another value.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC7011VersionIsIPFIX`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L101) | unit/verify | unproven |
+| positive | [`TestRFC7011VersionIsIPFIX`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L102) | unit/verify | unproven |
 
 ### [`RFC7011-3.3.1-1`](#rfc7011-3.3.1-1)
 
 For security reasons, the padding octet(s) MUST be composed of octets with value zero (0). (Section 3.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a padding octet that is not zero. TestRFC7011PaddingIsZero asserts the 3 padding octets after a 53-octet IPv4 flow record are 0; TestRFC7011PaddingZeroedOverGarbage pre-fills the buffer with 0xFF and asserts the same octets are 0, red if writeFlowDataSet skips the zeroing. The IPv6 flow Set shares writeFlowDataSet, and the counter Set (32-octet records) never pads.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7011PaddingZeroedOverGarbage`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L148) | unit/verify | unproven |
-| positive | [`TestRFC7011PaddingIsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L136) | unit/verify | unproven |
+| negative | [`TestRFC7011PaddingZeroedOverGarbage`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L149) | unit/verify | unproven |
+| positive | [`TestRFC7011PaddingIsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L137) | unit/verify | unproven |
 
 ### [`RFC7011-3.3.1-2`](#rfc7011-3.3.1-2)
 
 The padding length MUST be shorter than any allowable record in this Set. (Section 3.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: padding as long as or longer than a record of the Set. TestRFC7011PaddingShorterThanRecord asserts the padding is > 0, < FlowRecordSize and <= 3 octets, red otherwise. Single-polarity marker: 4-octet alignment padding cannot reach the smallest record.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC7011PaddingShorterThanRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L160) | unit/verify | unproven |
+| positive | [`TestRFC7011PaddingShorterThanRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L161) | unit/verify | unproven |
 
 ### [`RFC7011-3.4.1-1`](#rfc7011-3.4.1-1)
 
-Template ID MUST be greater than 255 (Section 3.4.1)
+Each Template Record is given a unique Template ID in the range 256 to 65535. (Section 3.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC7011TemplateIDAbove255 asserts each builder writes its own constant (256, 257, 258) and that each is >= 256, which proves the range. The quoted sentence also requires the Template ID be unique within the Transport Session and Observation Domain, and no assertion checks the three IDs are distinct: setting FlowTemplateID to 256 keeps the test green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC7011TemplateIDAbove255`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L173) | unit/verify | unproven |
+| positive | [`TestRFC7011TemplateIDAbove255`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L174) | unit/verify | unproven |
 
 ### [`RFC7011-3.4.2-1`](#rfc7011-3.4.2-1)
 
@@ -281,23 +262,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC7011-3.4.2-1, so no unit is bound to it.
 
-### [`RFC7011-3.4.2-2`](#rfc7011-3.4.2-2)
-
-An Options Template Record MUST contain at least one Scope Field and at least one non-scope Field (Section 3.4.2)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC7011-3.4.2-2, so no unit is bound to it.
-
 ### [`RFC7011-3.2-1`](#rfc7011-3.2-1)
 
 When the Enterprise bit is set to 0, the corresponding Information Element appears in [IANA-IPFIX], and the Enterprise Number MUST NOT be present. (Section 3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an Enterprise Number following a field specifier whose E bit is 0. TestRFC7011NoEnterpriseNumberWhenEClear asserts each of the counter, flow4 and flow6 templates is exactly 8 + 4 x fieldCount octets (red if any specifier carries 4 more octets) and that bit 15 is clear in every specifier; TestIPFIXTemplateSet pins the counter Template Set. Single-polarity marker: no code path sets E.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC7011NoEnterpriseNumberWhenEClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L197) | unit/verify | unproven |
+| positive | [`TestRFC7011NoEnterpriseNumberWhenEClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L198) | unit/verify | unproven |
 | positive | [`TestIPFIXTemplateSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/template_test.go#L9) | unit/verify | revert, verified |
 
 ### [`RFC7011-3.2-2`](#rfc7011-3.2-2)
@@ -310,7 +283,7 @@ No test carries RFC7011-3.2-2, so no unit is bound to it.
 
 ### [`RFC7011-x-1`](#rfc7011-x-1)
 
-Variable-length encoding MUST use short form (1-byte prefix) when value length is 0-254 (Variable-Length IE Encoding)
+In most cases, the length of the Information Element will be less than 255 octets. The following length-encoding mechanism optimizes the overhead of carrying the Information Element length in this more common case. The length is carried in the octet before the Information Element, as shown in Figure R. (§7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -318,7 +291,7 @@ No test carries RFC7011-x-1, so no unit is bound to it.
 
 ### [`RFC7011-x-2`](#rfc7011-x-2)
 
-Variable-length encoding MUST use long form (3-byte prefix) when value length is 255-65535 (Variable-Length IE Encoding)
+The length may also be encoded into 3 octets before the Information Element, allowing the length of the Information Element to be greater than or equal to 255 octets. In this case, the first octet of the Length field MUST be 255, and the length is carried in the second and third octets, as shown in Figure S. (§7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -328,7 +301,7 @@ No test carries RFC7011-x-2, so no unit is bound to it.
 
 Since UDP provides no method for reliable transmission of Templates, Exporting Processes using UDP as the transport protocol MUST periodically retransmit each active Template at regular intervals. (Section 8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a UDP Exporting Process that does not periodically retransmit EACH active Template at regular intervals. TestRFC7011TemplateRetransmittedAtInterval uses a countingEncoder on the counter path and asserts templateCalls goes 1 to 2 once, at +600 s; the negative asserts no resend at +2 s. 'Each active Template' is not asserted (the flow4/flow6 Templates 257/258 are never counted) and 'periodically ... at regular intervals' is one observed resend, not a second interval. An exporter that resent the counter Template once, or never resent the flow Templates, stays green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -339,7 +312,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Template retransmission interval MUST be configurable via, for example, the templateRefreshTimeout and optionsTemplateRefreshTimeout parameters as defined in [RFC6728]. (Section 8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC7011TemplateRefreshConfigurable proves only that template-refresh parses into CollectorConfig.TemplateRefresh and passes Validate; TestRFC7011TemplateRefreshRangeRejected proves out-of-range values are refused, which is validation, not a violation of configurability. No unit shows the configured value drives the retransmit decision in exporter.go (refreshInterval from cs.cfg.TemplateRefresh): an exporter hardcoding 600 s keeps every tagged unit green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -348,7 +321,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7011-8-3`](#rfc7011-8-3)
 
-Template Withdrawals MUST NOT be sent over UDP (Section 8)
+Template Withdrawals (Section 8.1) MUST NOT be sent by Exporting Processes exporting via UDP (§8.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -356,7 +329,7 @@ No test carries RFC7011-8-3, so no unit is bound to it.
 
 ### [`RFC7011-10-1`](#rfc7011-10-1)
 
-An Exporting Process MUST support SCTP (Section 10)
+SCTP [RFC4960] using the Partially Reliable SCTP (PR-SCTP) extension as specified in [RFC3758] MUST be implemented by all compliant implementations. (§10.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -364,37 +337,21 @@ No test carries RFC7011-10-1, so no unit is bound to it.
 
 ### [`RFC7011-10-2`](#rfc7011-10-2)
 
-Templates MUST be sent reliably over SCTP using ordered delivery (Section 10)
+Template Sets and Options Template Sets MUST be sent reliably, using SCTP ordered delivery. (§8.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC7011-10-2, so no unit is bound to it.
 
-### [`RFC7011-x-3`](#rfc7011-x-3)
-
-PR-SCTP MUST NOT be used for Template Records (SCTP Transport)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC7011-x-3, so no unit is bound to it.
-
-### [`RFC7011-x-4`](#rfc7011-x-4)
-
-Over TCP, the Exporting Process MUST handle backpressure from congestion control (TCP Transport)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC7011-x-4, so no unit is bound to it.
-
 ### [`RFC7011-6.2-1`](#rfc7011-6.2-1)
 
-Reduced-size encoding MUST NOT be used for addresses, timestamps, boolean, string, or octetArray (Section 6.2)
+Reduced-size encoding MUST NOT be applied to any other data type defined in [RFC7012] that implies a fixed length, as these types either have internal structure (such as ipv4Address or dateTimeMicroseconds) or restricted ranges that are not suitable for reduced-size encoding (such as dateTimeMilliseconds). (Section 6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a reduced-size length on an address or dateTime IE. TestRFC7011NoReducedSizeForAddressOrTimestamp walks the counter, flow4 and flow6 templates and asserts IPv4 address IEs at 4, IPv6 at 16, dateTimeSeconds at 4 and dateTimeMilliseconds at 8 octets, red on any reduced length; every other exported IE is integral, for which reduced size is permitted. Single-polarity marker: no path applies reduced-size encoding.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC7011NoReducedSizeForAddressOrTimestamp`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L226) | unit/verify | unproven |
+| positive | [`TestRFC7011NoReducedSizeForAddressOrTimestamp`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L227) | unit/verify | unproven |
 
 ### [`RFC7011-3.3.1-3`](#rfc7011-3.3.1-3)
 
@@ -443,7 +400,7 @@ No test carries RFC7011-4.1-3, so no unit is bound to it.
 
 Integral data types -- unsigned8, unsigned16, unsigned32, unsigned64, signed8, signed16, signed32, and signed64 -- MUST be encoded using the default canonical format in network byte order. (Section 6.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC7011IntegralNetworkByteOrder, TestRFC7011IntegralNeverLittleEndian and TestIPFIXFlowData (flow_data_test.go) prove big-endian integral encoding on the per-flow path (WriteFlowDataSet) only. The counter Data Record path, data.go::writeCounterRecord, encodes the unsigned32 interface indexes and unsigned64 total counts and carries no tagged unit, so a little-endian regression there stays green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -455,7 +412,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Address types -- macAddress, ipv4Address, and ipv6Address -- MUST be encoded the same way as the integral data types, as six, four, and sixteen octets in network byte order, respectively. (Section 6.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an ipv4Address or ipv6Address not written as 4 or 16 octets in network byte order. TestRFC7011AddressOctetsNetworkByteOrder asserts the IPv4 record opens with 0a010203 0a040506 and the IPv6 record with the 16-octet source then destination in network order, and that each Set payload is the record size; TestRFC7011IPv4NeverWidenedToSixteenOctets asserts an IPv4 flow is neither encoded at the IPv6 width nor carries an IPv4-mapped 16-octet form. Ze exports no macAddress IE, so that clause has no producer.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -522,7 +479,7 @@ No test carries RFC7011-8.1-1, so no unit is bound to it.
 
 Since there is no guarantee of the ordering of exported IPFIX Messages across SCTP Streams or over UDP, an Exporting Process MUST sequence all Template management actions (i.e., Template Records defining new Templates and Template Withdrawals withdrawing them) using the Export Time field in the IPFIX Message Header. (Section 8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: Template management actions whose Export Time does not sequence them, i.e. a Template sent with an Export Time earlier than one already sent. TestRFC7011TemplateExportTimeIsSendTime asserts the flow Template's Export Time lies within the send second (red on a zero or constant time) and TestRFC7011TemplateExportTimeNeverRegresses asserts it does not decrease over three rounds. Both read the real clock, so removing the max(now, templateExportTime) clamp in flow_adapter.go that keeps the sequence monotonic across a backward clock step leaves both green; and the counter Template path (adapter.go, its own clamp) carries no tagged unit. The exporter sends no Template Withdrawals.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -598,7 +555,7 @@ No test carries RFC7011-10.3.2-1, so no unit is bound to it.
 
 Exporting Processes exporting IPFIX Messages via UDP MUST include a valid UDP checksum [UDP] in UDP datagrams including IPFIX Messages. (Section 10.3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an IPFIX UDP datagram sent without a valid UDP checksum. TestRFC7011UDPChecksumEnabledOnSenderSocket (Linux) reads the socket NewSender dials and asserts SO_NO_CHECK clear for IPv4 and UDP_NO_CHECK6_TX clear for IPv6, red if either is set, so the kernel writes the checksum. Single-polarity marker: NewSender never sets either option.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -633,7 +590,7 @@ No test carries RFC7011-10.4.4-1, so no unit is bound to it.
 
 ### [`RFC7011-11.1-1`](#rfc7011-11.1-1)
 
-IPFIX Exporting Processes and Collecting Processes using TCP MUST support TLS version 1.1, including the mandatory ciphersuites specified in that version (Section 11.1)
+IPFIX Exporting Processes and Collecting Processes using TCP MUST support TLS version 1.1 and SHOULD support TLS version 1.2 [RFC5246], including the mandatory ciphersuite(s) specified in each version. (Section 11.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -641,7 +598,7 @@ No test carries RFC7011-11.1-1, so no unit is bound to it.
 
 ### [`RFC7011-11.1-2`](#rfc7011-11.1-2)
 
-IPFIX Exporting Processes and Collecting Processes using UDP or SCTP MUST support DTLS version 1.0, including the mandatory ciphersuites specified in that version (Section 11.1)
+IPFIX Exporting Processes and Collecting Processes using UDP or SCTP MUST support DTLS version 1.0 and SHOULD support DTLS version 1.2 [RFC6347], including the mandatory ciphersuite(s) specified in each version. (Section 11.1)
 
 Audit verdict: not audited: no reader has judged these tests
 

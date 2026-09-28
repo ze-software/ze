@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 7 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 7 | of 7 gated MUSTs judged | 6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 7 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 11 |
 | Tagged units | 11 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 7 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc8092.md` |
 | Requirement shard | `rfc/requirements/rfc8092.md` |
@@ -104,15 +113,15 @@ No tracked gap in current source anchors.
 |---|---|---|---|---|
 | `RFC8092-3-1` | Duplicate BGP Large Community values MUST NOT be transmitted. (Section 3) | MUST NOT | 3 - BGP Large Communities Attribute | **positive:** `unit/verify` [`TestLargeCommunitiesWriteToNoDuplicates`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L430). **negative:** `unit/verify` [`TestLargeCommunities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L221) |
 | `RFC8092-3-2` | A receiving speaker MUST silently remove redundant BGP Large Community values from a BGP Large Community attribute. (Section 3) | MUST | 3 - BGP Large Communities Attribute | **positive:** `unit/verify` [`TestLargeCommunitiesDeduplication`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L403). **negative:** `unit/verify` [`TestLargeCommunitiesParse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L245) |
-| `RFC8092-5-1` | Canonical representation numbers must not contain leading zeros; zero must be represented as a single "0" (Section 5) | MUST NOT | 5 - Canonical Representation | **positive:** `unit/verify` [`TestAppendText_LargeCommunityElement`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/text_append_test.go#L41). **negative:** no negative test. **{single-polarity}:** the canonical rendering LargeCommunity.AppendText (internal/core/bgp/attribute/community.go:316) uses strconv.AppendUint, which never emits leading zeros and renders 0 as a single "0", so every value is canonical and there is no non-canonical rendering to assert as a negative |
+| `RFC8092-5-1` | Numbers MUST NOT contain leading zeros; a zero value MUST be represented with a single zero. (Section 5) | MUST NOT | 5 - Canonical Representation | **positive:** `unit/verify` [`TestAppendText_LargeCommunityElement`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/text_append_test.go#L41). **negative:** no negative test. **{single-polarity}:** the canonical rendering LargeCommunity.AppendText (internal/core/bgp/attribute/community.go:316) uses strconv.AppendUint, which never emits leading zeros and renders 0 as a single "0", so every value is canonical and there is no non-canonical rendering to assert as a negative |
 | `RFC8092-6-1` | The BGP Large Communities Global Administrator field may contain any value, and a BGP Large Communities attribute MUST NOT be considered malformed if the Global Administrator field contains an unallocated, unassigned, or reserved ASN. (Section 6) | MUST NOT | 6 - Error Handling | **positive:** `unit/verify` [`TestRFC8092LargeCommunityValidReservedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L41). **negative:** no negative test. **{single-polarity}:** the malformed check validateLargeCommunityAttr (internal/component/bgp/message/rfc7606.go:620) inspects the attribute length only and never the Global Administrator value, so a reserved or unallocated ASN is never treated as malformed and there is no ASN-based rejection to assert as a negative |
 | `RFC8092-6-2` | o A BGP Large Communities attribute SHALL be considered malformed if the length of the BGP Large Communities Attribute value, expressed in octets, is not a non-zero multiple of 12. (Section 6) | SHALL | 6 - Error Handling | **positive:** `unit/verify` [`TestRFC8092LargeCommunityMalformedLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L17). **negative:** `unit/verify` [`TestRFC8092LargeCommunityValidReservedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L37) |
 | `RFC8092-6-3` | o A BGP Large Communities attribute SHALL NOT be considered malformed due to presence of duplicate Large Community values. (Section 6) | SHALL NOT | 6 - Error Handling | **positive:** `unit/verify` [`TestLargeCommunitiesDeduplication`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L406). **negative:** no negative test. **{single-polarity}:** ParseLargeCommunities silently deduplicates and returns no error on duplicates (internal/core/bgp/attribute/community.go:422), and validateLargeCommunityAttr checks only length, so a duplicate is never treated as malformed and there is no duplicate-based rejection to assert as a negative |
 | `RFC8092-6-4` | o A BGP UPDATE message with a malformed BGP Large Communities attribute SHALL be handled using the approach of "treat-as- withdraw" as described in Section 2 of [RFC7606]. (Section 6) | SHALL | 6 - Error Handling | **positive:** `unit/verify` [`TestRFC8092LargeCommunityMalformedLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L19). **negative:** `unit/verify` [`TestRFC8092LargeCommunityValidReservedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L39) |
-| `RFC8092-3-3` | Global Administrator field should be an ASN (Section 3) | SHOULD | 3 - BGP Large Communities Attribute | **positive:** no positive test. **negative:** no negative test |
-| `RFC8092-5-2` | BGP Large Communities should be represented in the canonical representation (Section 5) | SHOULD | 5 - Canonical Representation | **positive:** no positive test. **negative:** no negative test |
-| `RFC8092-4-1` | Aggregated routes should contain the union of all BGP Large Communities from all aggregated routes (Section 4) | SHOULD | 4 - Aggregation | **positive:** no positive test. **negative:** no negative test |
-| `RFC8092-3-4` | Use of reserved ASNs (0, 65535, 4294967295) in Global Administrator is not recommended (Section 3) | NOT RECOMMENDED | 3 - BGP Large Communities Attribute | **positive:** no positive test. **negative:** no negative test |
+| `RFC8092-3-3` | The Global Administrator field is intended to allow different ASes to define BGP Large Communities without collision.  This field SHOULD be an ASN, in which case the Local Data Parts are to be interpreted as defined by the owner of the ASN. (Section 3) | SHOULD | 3 - BGP Large Communities Attribute | **positive:** no positive test. **negative:** no negative test |
+| `RFC8092-5-2` | BGP Large Communities SHOULD be represented in the canonical representation. (Section 5) | SHOULD | 5 - Canonical Representation | **positive:** no positive test. **negative:** no negative test |
+| `RFC8092-4-1` | If a range of routes is aggregated, then the resulting aggregate should have a BGP Large Communities attribute that contains all of the BGP Large Communities attributes from all of the aggregated routes. (Section 4) | SHOULD | 4 - Aggregation | **positive:** no positive test. **negative:** no negative test |
+| `RFC8092-3-4` | The use of Reserved ASNs (0 [RFC7607], 65535 and 4294967295 [RFC7300]) is NOT RECOMMENDED. (Section 3) | NOT RECOMMENDED | 3 - BGP Large Communities Attribute | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -126,7 +135,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Duplicate BGP Large Community values MUST NOT be transmitted. (Section 3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a speaker transmitting a LARGE_COMMUNITY attribute that carries the same 12-octet value twice. TestLargeCommunitiesWriteToNoDuplicates asserts n == 24 for a three-entry list holding one duplicate, so it goes red if LargeCommunities.WriteTo stops deduplicating; TestLargeCommunities (negative) pins that distinct values are all emitted. Only the WriteTo producer is covered: the adj-rib-out replay encoder in internal/component/bgp/plugins/rib/ribout_entry.go (parseLargeCommunityWire then appendAttr) re-encodes the stored value without deduplication, and forward-unchanged raw attribute bytes are not asserted either, so a duplicate can reach the wire on a path no tagged unit exercises.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -137,7 +146,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A receiving speaker MUST silently remove redundant BGP Large Community values from a BGP Large Community attribute. (Section 3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a receiving speaker keeping redundant values in the attribute, or reporting them as an error. TestLargeCommunitiesDeduplication asserts ParseLargeCommunities returns no error and exactly the two distinct values of a three-entry input, so the parser clause and 'silently' are proven for that function; TestLargeCommunitiesParse (negative) pins no over-removal. The received attribute as Ze holds and re-advertises it is not asserted: the rib plugin's parseLargeCommunityWire (ribout_entry.go) keeps duplicates, and raw wire bytes forwarded unchanged keep them, so the sentence is proven for one decoder only.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -146,9 +155,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8092-5-1`](#rfc8092-5-1)
 
-Canonical representation numbers must not contain leading zeros; zero must be represented as a single "0" (Section 5)
+Numbers MUST NOT contain leading zeros; a zero value MUST be represented with a single zero. (Section 5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a canonical rendering with a leading zero (e.g. 065001) or a zero rendered as anything but a single 0 (00, empty). TestAppendText_LargeCommunityElement asserts exact strings: {0,0,0} -> 0:0:0 goes red on either zero-clause violation, and 65001:100:200 and the 4294967295 case go red on any padding. LargeCommunity.String derives from AppendText. Single-polarity marker present.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -158,7 +167,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The BGP Large Communities Global Administrator field may contain any value, and a BGP Large Communities attribute MUST NOT be considered malformed if the Global Administrator field contains an unallocated, unassigned, or reserved ASN. (Section 6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: treating the attribute as malformed because its Global Administrator is an unallocated, unassigned or reserved ASN. TestRFC8092LargeCommunityValidReservedASN asserts RFC7606ActionNone for a length-12 attribute with Global Administrator 0, so the reserved case (ASN 0 only) is proven. The unallocated and unassigned cases, and the other reserved ASNs 65535 and 4294967295, have no assertion, so a validator that special-cased any of them would stay green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -168,7 +177,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 o A BGP Large Communities attribute SHALL be considered malformed if the length of the BGP Large Communities Attribute value, expressed in octets, is not a non-zero multiple of 12. (Section 6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: accepting a value whose length is not a non-zero multiple of 12, or flagging one that is. Positive TestRFC8092LargeCommunityMalformedLength asserts TreatAsWithdraw and AttrCode 32 for length 10; negative TestRFC8092LargeCommunityValidReservedASN asserts ActionNone for length 12. The non-zero clause has no assertion: a zero-length LARGE_COMMUNITY is never driven, although validateLargeCommunityAttr (rfc7606.go) does flag length 0, and ParseLargeCommunities accepts length 0 without error, so dropping the length == 0 test would stay green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -179,7 +188,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 o A BGP Large Communities attribute SHALL NOT be considered malformed due to presence of duplicate Large Community values. (Section 6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: the malformed-attribute check rejecting an attribute because it carries duplicate values. The tagged unit TestLargeCommunitiesDeduplication asserts only that ParseLargeCommunities returns no error on duplicates; the malformed determination Ze acts on is ValidateUpdateRFC7606 / validateLargeCommunityAttr, and no tagged unit drives that validator with duplicate values, so a duplicate check added there would stay green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -189,7 +198,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 o A BGP UPDATE message with a malformed BGP Large Communities attribute SHALL be handled using the approach of "treat-as- withdraw" as described in Section 2 of [RFC7606]. (Section 6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an UPDATE with a malformed LARGE_COMMUNITY handled other than by treat-as-withdraw (session reset, attribute discard, or accepting the routes). TestRFC8092LargeCommunityMalformedLength asserts the validator's classification RFC7606ActionTreatAsWithdraw and AttrCode 32, and the negative asserts ActionNone for a well-formed attribute. That proves the classification only: no tagged unit asserts that the UPDATE's routes are then withdrawn, which is what RFC 7606 Section 2 treat-as-withdraw requires.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 6071 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 6071: IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap. 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 6071: IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap. 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 6071 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 6071: IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap. 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 6071: IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap. 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 6071 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 6071: IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap. 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 6071: IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap. 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -287,181 +290,181 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.1-1">RFC6071-5.1-1</code></td><td colspan="3"><span class="rfc-subject">ESP: NULL encryption must be implemented (§5.1, IPsec-v3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.1-1">RFC6071-5.1-1</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for ESP-NULL: IKEv1 - N/A IKEv2 - N/A ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.1, IPsec-v3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5.1</td>
+<td>5.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP algorithm-implementation requirement owned by RFC 4835 (NULL encryption per RFC 2410), which governs ze&#39;s ESP dataplane (internal/component/ike/dataplane/xfrm_linux.go)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.1-2">RFC6071-5.1-2</code></td><td colspan="3"><span class="rfc-subject">ESP: AES-CBC-128 encryption must be implemented (§5.1, IPsec-v3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.1-2">RFC6071-5.1-2</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for AES-CBC with 128-bit keys: IKEv1 - SHOULD [RFC4109] IKEv2 - SHOULD+ [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.3, IPsec-v3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5.1</td>
+<td>5.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP algorithm-implementation requirement owned by RFC 4835 (AES-CBC-128 per RFC 3602), which governs ze&#39;s ESP dataplane</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.3-1">RFC6071-5.3-1</code></td><td colspan="3"><span class="rfc-subject">ESP/AH: HMAC-SHA-1-96 integrity must be implemented (§5.3, IPsec-v3 and IKEv2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.3-1">RFC6071-5.3-1</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for HMAC-SHA-1: IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307] IPsec-v2 - MUST [RFC4835] IPsec-v3 - MUST [RFC4835] (§5.3.1, IPsec-v3 and IKEv2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5.3</td>
+<td>5.3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP/AH and IKEv2 integrity requirement owned by RFC 4835 and RFC 4307 (HMAC-SHA-1-96 per RFC 2404), which governs ze&#39;s ESP and IKE code</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.4-1">RFC6071-5.4-1</code></td><td colspan="3"><span class="rfc-subject">IKEv2: PRF-HMAC-SHA-1 must be implemented (§5.4, IKEv2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.4-1">RFC6071-5.4-1</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for PRF-HMAC-SHA1: IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307] (§5.5, IKEv2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5.4</td>
+<td>5.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 PRF requirement owned by RFC 4307, which governs ze&#39;s IKEv2 transform negotiation (internal/component/ike/crypto/transform.go)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.5-1">RFC6071-5.5-1</code></td><td colspan="3"><span class="rfc-subject">IKEv1: MODP group 2 (1024-bit) must be supported (§5.5, IKEv1, deprecated)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.5-1">RFC6071-5.5-1</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for DH MODP group 2: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] (§5.7, IKEv1, deprecated)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5.5</td>
+<td>5.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv1 algorithm requirement owned by RFC 4109, and ze implements IKEv2 only (no IKEv1 code path)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.1-3">RFC6071-5.1-3</code></td><td colspan="3"><span class="rfc-subject">IKEv2: 3DES-CBC must be supported (§5.1, MUST- / deprecated but mandatory)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.1-3">RFC6071-5.1-3</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for 3DES-CBC: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST- [RFC4835] (§5.2.2, MUST- / deprecated but mandatory)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5.1</td>
+<td>5.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 3DES-CBC requirement owned by RFC 4307, which governs ze&#39;s IKEv2 transform negotiation</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.5-2">RFC6071-5.5-2</code></td><td colspan="3"><span class="rfc-subject">IKEv2: MODP group 2 (1024-bit) must be supported (§5.5, MUST- / deprecated but mandatory)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.5-2">RFC6071-5.5-2</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for DH MODP group 2: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] (§5.7, MUST- / deprecated but mandatory)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5.5</td>
+<td>5.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.5-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 MODP-1024 group requirement owned by RFC 4307, which governs ze&#39;s IKEv2 group negotiation</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.1-4">RFC6071-5.1-4</code></td><td colspan="3"><span class="rfc-subject">ESP: 3DES-CBC must be supported (§5.1, MUST- / deprecated but mandatory)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.1-4">RFC6071-5.1-4</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for 3DES-CBC: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST- [RFC4835] (§5.2.2, MUST- / deprecated but mandatory)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5.1</td>
+<td>5.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP 3DES-CBC requirement owned by RFC 4835, which governs ze&#39;s ESP dataplane</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.1-5">RFC6071-5.1-5</code></td><td colspan="3"><span class="rfc-subject">ESP: AES-CTR encryption should be implemented (§5.1, IPsec-v3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.1-5">RFC6071-5.1-5</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for AES-CTR: IKEv1 - undefined (no IANA #) IKEv2 - optional [RFC5930] ESP-v2 - SHOULD [RFC4835] ESP-v3 - SHOULD [RFC4835] (§5.2.4, IPsec-v3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>5.1</td>
+<td>5.2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.1-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.3-2">RFC6071-5.3-2</code></td><td colspan="3"><span class="rfc-subject">ESP/AH: AES-XCBC-MAC-96 integrity should be implemented (§5.3, SHOULD+ for IPsec-v3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.3-2">RFC6071-5.3-2</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for AES-XCBC-MAC: IKEv1 - undefined (no RFC) IKEv2 - optional IPsec-v2 - SHOULD+ [RFC4835] IPsec-v3 - SHOULD+ [RFC4835] (§5.3.2, SHOULD+ for IPsec-v3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>5.3</td>
+<td>5.3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.1-6">RFC6071-5.1-6</code></td><td colspan="3"><span class="rfc-subject">IKEv2: AES-CBC-128 encryption should be implemented (§5.1, SHOULD+ for IKEv2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.1-6">RFC6071-5.1-6</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for AES-CBC with 128-bit keys: IKEv1 - SHOULD [RFC4109] IKEv2 - SHOULD+ [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.3, SHOULD+ for IKEv2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>5.1</td>
+<td>5.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.1-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.4-2">RFC6071-5.4-2</code></td><td colspan="3"><span class="rfc-subject">IKEv2: AES-XCBC-PRF-128 should be implemented (§5.4, SHOULD+ for IKEv2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.4-2">RFC6071-5.4-2</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for AES-XCBC-PRF: IKEv1 - undefined (no RFC) IKEv2 - SHOULD+ [RFC4307] (§5.5.1, SHOULD+ for IKEv2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>5.4</td>
+<td>5.5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.5-3">RFC6071-5.5-3</code></td><td colspan="3"><span class="rfc-subject">IKEv2: MODP group 14 (2048-bit) should be supported (§5.5, SHOULD+ for IKEv2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.5-3">RFC6071-5.5-3</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for DH MODP group 14: IKEv1 - SHOULD [RFC4109] IKEv2 - SHOULD+ [RFC4307] (§5.7.1, SHOULD+ for IKEv2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>5.5</td>
+<td>5.7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.5-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.5-4">RFC6071-5.5-4</code></td><td colspan="3"><span class="rfc-subject">IKEv1: MODP group 14 (2048-bit) should be supported (§5.5, SHOULD for IKEv1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.5-4">RFC6071-5.5-4</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for DH MODP group 14: IKEv1 - SHOULD [RFC4109] IKEv2 - SHOULD+ [RFC4307] (§5.7.1, SHOULD for IKEv1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>5.5</td>
+<td>5.7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.5-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-key-1">RFC6071-Key-1</code></td><td colspan="3"><span class="rfc-subject">IPsec-v3: AH is optional to implement (§Key Architecture Changes, IPsec-v3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-key-1">RFC6071-Key-1</code></td><td colspan="3"><span class="rfc-subject">o AH [RFC4302] is mandatory to implement (MUST) in IPsec-v2, optional (MAY) in IPsec-v3 (§2.2.1, IPsec-v3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>Key</td>
+<td>2.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-Key-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.3-3">RFC6071-5.3-3</code></td><td colspan="3"><span class="rfc-subject">ESP/AH: HMAC-MD5-96 may be implemented (§5.3, MAY for IPsec-v3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.3-3">RFC6071-5.3-3</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for HMAC-MD5: IKEv1 - MAY [RFC4109] IKEv2 - optional [RFC4307] IPsec-v2 - MAY [RFC4835] IPsec-v3 - MAY [RFC4835] (§5.3.4, MAY for IPsec-v3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>5.3</td>
+<td>5.3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.3-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.2-1">RFC6071-5.2-1</code></td><td colspan="3"><span class="rfc-subject">ESP: AES-GCM combined-mode may be implemented (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.2-1">RFC6071-5.2-1</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for AES-GCM: IKEv1 - N/A IKEv2 - optional ESP-v2 - N/A ESP-v3 - optional [RFC4835] (§5.4.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>5.2</td>
+<td>5.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.2-2">RFC6071-5.2-2</code></td><td colspan="3"><span class="rfc-subject">ESP: AES-CCM combined-mode may be implemented (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.2-2">RFC6071-5.2-2</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for AES-CCM: IKEv1 - N/A IKEv2 - optional ESP-v2 - N/A ESP-v3 - optional [RFC4835] (§5.4.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>5.2</td>
+<td>5.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.5-5">RFC6071-5.5-5</code></td><td colspan="3"><span class="rfc-subject">IKEv2: ECP groups 19-21 are optional (§5.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.5-5">RFC6071-5.5-5</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for DH EC groups 19-21: IKEv1 - optional [RFC4109] IKEv2 - optional (§5.7.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>5.5</td>
+<td>5.7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.5-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.3-4">RFC6071-5.3-4</code></td><td colspan="3"><span class="rfc-subject">IKEv2: HMAC-SHA-256/384/512 are optional (§5.3, §5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6071-5.3-4">RFC6071-5.3-4</code></td><td colspan="3"><span class="rfc-subject">Requirement levels for HMAC-SHA-256, HMAC-SHA-384, HMAC-SHA-512: IKEv1 - optional IKEv2 - optional IPsec-v2 - optional IPsec-v3 - optional (§5.3.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>5.3</td>
+<td>5.3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6071-5.3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -476,35 +479,35 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc6071-5.1-1"><code>RFC6071-5.1-1</code></a> ESP: NULL encryption must be implemented (§5.1, IPsec-v3)</td>
+<tr><td><a href="#rfc6071-5.1-1"><code>RFC6071-5.1-1</code></a> Requirement levels for ESP-NULL: IKEv1 - N/A IKEv2 - N/A ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.1, IPsec-v3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP algorithm-implementation requirement owned by RFC 4835 (NULL encryption per RFC 2410), which governs ze&#39;s ESP dataplane (internal/component/ike/dataplane/xfrm_linux.go)</td>
 </tr>
-<tr><td><a href="#rfc6071-5.1-2"><code>RFC6071-5.1-2</code></a> ESP: AES-CBC-128 encryption must be implemented (§5.1, IPsec-v3)</td>
+<tr><td><a href="#rfc6071-5.1-2"><code>RFC6071-5.1-2</code></a> Requirement levels for AES-CBC with 128-bit keys: IKEv1 - SHOULD [RFC4109] IKEv2 - SHOULD+ [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.3, IPsec-v3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP algorithm-implementation requirement owned by RFC 4835 (AES-CBC-128 per RFC 3602), which governs ze&#39;s ESP dataplane</td>
 </tr>
-<tr><td><a href="#rfc6071-5.3-1"><code>RFC6071-5.3-1</code></a> ESP/AH: HMAC-SHA-1-96 integrity must be implemented (§5.3, IPsec-v3 and IKEv2)</td>
+<tr><td><a href="#rfc6071-5.3-1"><code>RFC6071-5.3-1</code></a> Requirement levels for HMAC-SHA-1: IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307] IPsec-v2 - MUST [RFC4835] IPsec-v3 - MUST [RFC4835] (§5.3.1, IPsec-v3 and IKEv2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP/AH and IKEv2 integrity requirement owned by RFC 4835 and RFC 4307 (HMAC-SHA-1-96 per RFC 2404), which governs ze&#39;s ESP and IKE code</td>
 </tr>
-<tr><td><a href="#rfc6071-5.4-1"><code>RFC6071-5.4-1</code></a> IKEv2: PRF-HMAC-SHA-1 must be implemented (§5.4, IKEv2)</td>
+<tr><td><a href="#rfc6071-5.4-1"><code>RFC6071-5.4-1</code></a> Requirement levels for PRF-HMAC-SHA1: IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307] (§5.5, IKEv2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 PRF requirement owned by RFC 4307, which governs ze&#39;s IKEv2 transform negotiation (internal/component/ike/crypto/transform.go)</td>
 </tr>
-<tr><td><a href="#rfc6071-5.5-1"><code>RFC6071-5.5-1</code></a> IKEv1: MODP group 2 (1024-bit) must be supported (§5.5, IKEv1, deprecated)</td>
+<tr><td><a href="#rfc6071-5.5-1"><code>RFC6071-5.5-1</code></a> Requirement levels for DH MODP group 2: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] (§5.7, IKEv1, deprecated)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv1 algorithm requirement owned by RFC 4109, and ze implements IKEv2 only (no IKEv1 code path)</td>
 </tr>
-<tr><td><a href="#rfc6071-5.1-3"><code>RFC6071-5.1-3</code></a> IKEv2: 3DES-CBC must be supported (§5.1, MUST- / deprecated but mandatory)</td>
+<tr><td><a href="#rfc6071-5.1-3"><code>RFC6071-5.1-3</code></a> Requirement levels for 3DES-CBC: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST- [RFC4835] (§5.2.2, MUST- / deprecated but mandatory)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 3DES-CBC requirement owned by RFC 4307, which governs ze&#39;s IKEv2 transform negotiation</td>
 </tr>
-<tr><td><a href="#rfc6071-5.5-2"><code>RFC6071-5.5-2</code></a> IKEv2: MODP group 2 (1024-bit) must be supported (§5.5, MUST- / deprecated but mandatory)</td>
+<tr><td><a href="#rfc6071-5.5-2"><code>RFC6071-5.5-2</code></a> Requirement levels for DH MODP group 2: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] (§5.7, MUST- / deprecated but mandatory)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an IKEv2 MODP-1024 group requirement owned by RFC 4307, which governs ze&#39;s IKEv2 group negotiation</td>
 </tr>
-<tr><td><a href="#rfc6071-5.1-4"><code>RFC6071-5.1-4</code></a> ESP: 3DES-CBC must be supported (§5.1, MUST- / deprecated but mandatory)</td>
+<tr><td><a href="#rfc6071-5.1-4"><code>RFC6071-5.1-4</code></a> Requirement levels for 3DES-CBC: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST- [RFC4835] (§5.2.2, MUST- / deprecated but mandatory)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: RFC 6071 is an informational IPsec/IKE document roadmap that catalogs other specifications and defines no independent protocol behavior; this restates an ESP 3DES-CBC requirement owned by RFC 4835, which governs ze&#39;s ESP dataplane</td>
 </tr>
@@ -515,35 +518,35 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc6071-5.1-1"><code>RFC6071-5.1-1</code></a></h3>
-<p>ESP: NULL encryption must be implemented (§5.1, IPsec-v3)</p>
+<p>Requirement levels for ESP-NULL: IKEv1 - N/A IKEv2 - N/A ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.1, IPsec-v3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6071-5.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6071-5.1-2"><code>RFC6071-5.1-2</code></a></h3>
-<p>ESP: AES-CBC-128 encryption must be implemented (§5.1, IPsec-v3)</p>
+<p>Requirement levels for AES-CBC with 128-bit keys: IKEv1 - SHOULD [RFC4109] IKEv2 - SHOULD+ [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835] (§5.2.3, IPsec-v3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6071-5.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6071-5.3-1"><code>RFC6071-5.3-1</code></a></h3>
-<p>ESP/AH: HMAC-SHA-1-96 integrity must be implemented (§5.3, IPsec-v3 and IKEv2)</p>
+<p>Requirement levels for HMAC-SHA-1: IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307] IPsec-v2 - MUST [RFC4835] IPsec-v3 - MUST [RFC4835] (§5.3.1, IPsec-v3 and IKEv2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6071-5.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6071-5.4-1"><code>RFC6071-5.4-1</code></a></h3>
-<p>IKEv2: PRF-HMAC-SHA-1 must be implemented (§5.4, IKEv2)</p>
+<p>Requirement levels for PRF-HMAC-SHA1: IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307] (§5.5, IKEv2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6071-5.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6071-5.5-1"><code>RFC6071-5.5-1</code></a></h3>
-<p>IKEv1: MODP group 2 (1024-bit) must be supported (§5.5, IKEv1, deprecated)</p>
+<p>Requirement levels for DH MODP group 2: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] (§5.7, IKEv1, deprecated)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6071-5.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6071-5.1-3"><code>RFC6071-5.1-3</code></a></h3>
-<p>IKEv2: 3DES-CBC must be supported (§5.1, MUST- / deprecated but mandatory)</p>
+<p>Requirement levels for 3DES-CBC: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST- [RFC4835] (§5.2.2, MUST- / deprecated but mandatory)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6071-5.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc6071-5.5-2"><code>RFC6071-5.5-2</code></a></h3>
-<p>IKEv2: MODP group 2 (1024-bit) must be supported (§5.5, MUST- / deprecated but mandatory)</p>
+<p>Requirement levels for DH MODP group 2: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] (§5.7, MUST- / deprecated but mandatory)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6071-5.5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6071-5.1-4"><code>RFC6071-5.1-4</code></a></h3>
-<p>ESP: 3DES-CBC must be supported (§5.1, MUST- / deprecated but mandatory)</p>
+<p>Requirement levels for 3DES-CBC: IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST- [RFC4835] (§5.2.2, MUST- / deprecated but mandatory)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6071-5.1-4, so no unit is bound to it.</p>
 </section>
@@ -1749,7 +1752,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

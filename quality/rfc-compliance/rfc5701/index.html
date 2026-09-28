@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5701 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5701: IPv6 Address Specific BGP Extended Community Attribute. 4 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5701: IPv6 Address Specific BGP Extended Community Attribute. 4 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5701 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5701: IPv6 Address Specific BGP Extended Community Attribute. 4 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5701: IPv6 Address Specific BGP Extended Community Attribute. 4 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5701 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5701: IPv6 Address Specific BGP Extended Community Attribute. 4 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5701: IPv6 Address Specific BGP Extended Community Attribute. 4 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -214,6 +214,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>1</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +230,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>6</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>3</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -297,7 +300,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5701-2-1">RFC5701-2-1</code></td><td colspan="3"><span class="rfc-subject">Attribute is optional, transitive (O=1 T=1) per BGP-4 attribute handling (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5701-2-1">RFC5701-2-1</code></td><td colspan="3"><span class="rfc-subject">The IPv6 Address Specific Extended Community Attribute is a transitive, optional BGP attribute [BGP-4]. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -306,7 +309,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L19" title="internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go" target="_blank" rel="noopener"><code>TestRFC5701IPv6ExtCommunityFlags</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5701-2-2">RFC5701-2-2</code></td><td colspan="3"><span class="rfc-subject">Each community is encoded as exactly 20 octets (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5701-2-2">RFC5701-2-2</code></td><td colspan="3"><span class="rfc-subject">Each IPv6 Address Specific extended community is encoded as a 20-octet quantity (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -315,7 +318,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L50" title="internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go" target="_blank" rel="noopener"><code>TestRFC5701IPv6ExtCommunityTwentyOctets</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5701-2-3">RFC5701-2-3</code></td><td colspan="3"><span class="rfc-subject">Attribute length must be a multiple of 20 octets (§2, Validation)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5701-2-3">RFC5701-2-3</code></td><td colspan="3"><span class="rfc-subject">The attribute consists of a set of &#34;IPv6 Address Specific extended communities&#34;. All routes with the IPv6 Address Specific Extended Community attribute belong to the communities listed in the attribute. Just like all other BGP Extended Communities, the IPv6 Address Specific Extended Community supports multiple sub-types. Each IPv6 Address Specific extended community is encoded as a 20-octet quantity (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -324,7 +327,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L83" title="internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go" target="_blank" rel="noopener"><code>TestRFC5701IPv6ExtCommunityLengthMultipleOf20</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5701-4-1">RFC5701-4-1</code></td><td colspan="3"><span class="rfc-subject">Follow RFC 4271 transitive attribute handling for malformed optional transitive attributes (§4, referencing OPT_TRANS/RFC 7606)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5701-4-1">RFC5701-4-1</code></td><td colspan="3"><span class="rfc-subject">There is a potential serious issue if a malformed, optional, transitive attribute is received. This issue and the steps to avoid it are discussed in [OPT_TRANS]. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -333,7 +336,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> Ze does not apply RFC 7606 malformed-attribute handling (treat-as-withdraw) to a malformed IPv6 Address Specific Extended Community (attribute code 25). The RFC 7606 structural validation pass has no per-attribute validator for code 25 (internal/component/bgp/message/rfc7606.go attrValidators[25] is unset), so a code-25 attribute whose length is not a multiple of 20 passes structural validation instead of being treat-as-withdrawn. The lazy value parser ParseIPv6ExtendedCommunities (internal/core/bgp/attribute/community.go:515) does reject a bad length with ErrInvalidLength, but only when the attribute is later accessed, which is not the RFC 4271/7606-mandated optional-transitive treat-as-withdraw at ingest. This is the same code-25 omission already disclosed under RFC 7606 (§7.15). Disclosed in docs/features/rfc-status.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5701-2-4">RFC5701-2-4</code></td><td colspan="3"><span class="rfc-subject">Non-transitive communities (Type=0x40) should not be propagated to external peers (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5701-2-4">RFC5701-2-4</code></td><td colspan="3"><span class="rfc-subject">The first high-order octet indicates whether a particular sub-type of this community is transitive across Autonomous Systems (ASes) (0x00), or not (0x40). (§2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2</td>
@@ -342,7 +345,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5701-2-5">RFC5701-2-5</code></td><td colspan="3"><span class="rfc-subject">Organization assigned the IPv6 address can encode any information in Local Administrator field (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5701-2-5">RFC5701-2-5</code></td><td colspan="3"><span class="rfc-subject">The organization that has been assigned the IPv6 address in the Global Administrator field can encode any information in this field. (§2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2</td>
@@ -360,7 +363,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc5701-4-1"><code>RFC5701-4-1</code></a> Follow RFC 4271 transitive attribute handling for malformed optional transitive attributes (§4, referencing OPT_TRANS/RFC 7606)</td>
+<tr><td><a href="#rfc5701-4-1"><code>RFC5701-4-1</code></a> There is a potential serious issue if a malformed, optional, transitive attribute is received. This issue and the steps to avoid it are discussed in [OPT_TRANS]. (§4)</td>
 <td>{gap}, no test</td>
 <td>Ze does not apply RFC 7606 malformed-attribute handling (treat-as-withdraw) to a malformed IPv6 Address Specific Extended Community (attribute code 25). The RFC 7606 structural validation pass has no per-attribute validator for code 25 (internal/component/bgp/message/rfc7606.go attrValidators[25] is unset), so a code-25 attribute whose length is not a multiple of 20 passes structural validation instead of being treat-as-withdrawn. The lazy value parser ParseIPv6ExtendedCommunities (internal/core/bgp/attribute/community.go:515) does reject a bad length with ErrInvalidLength, but only when the attribute is later accessed, which is not the RFC 4271/7606-mandated optional-transitive treat-as-withdraw at ingest. This is the same code-25 omission already disclosed under RFC 7606 (§7.15). Disclosed in docs/features/rfc-status.md</td>
 </tr>
@@ -371,8 +374,8 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5701-2-1"><code>RFC5701-2-1</code></a></h3>
-<p>Attribute is optional, transitive (O=1 T=1) per BGP-4 attribute handling (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The IPv6 Address Specific Extended Community Attribute is a transitive, optional BGP attribute [BGP-4]. (§2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: flagging code 25 as anything but optional transitive (0x80 non-transitive, 0x40 well-known, partial on origination). TestRFC5701IPv6ExtCommunityFlags asserts IsOptional, IsTransitive, f != FlagOptional, !IsPartial and f == FlagOptional|FlagTransitive, each red on the corresponding wrong flag byte from Flags() (community.go). Both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -391,8 +394,8 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc5701-2-2"><code>RFC5701-2-2</code></a></h3>
-<p>Each community is encoded as exactly 20 octets (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Each IPv6 Address Specific extended community is encoded as a 20-octet quantity (§2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: encoding a community on any stride but 20 octets (e.g. the 8-octet RFC 4360 stride). TestRFC5701IPv6ExtCommunityTwentyOctets asserts Len() == 40 and WriteTo n == 40 for two communities, and buf[20] == 0xBB with buf[8], buf[16] != 0xBB, red on any other per-community size. Both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -411,8 +414,8 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc5701-2-3"><code>RFC5701-2-3</code></a></h3>
-<p>Attribute length must be a multiple of 20 octets (§2, Validation)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The attribute consists of a set of &#34;IPv6 Address Specific extended communities&#34;. All routes with the IPv6 Address Specific Extended Community attribute belong to the communities listed in the attribute. Just like all other BGP Extended Communities, the IPv6 Address Specific Extended Community supports multiple sub-types. Each IPv6 Address Specific extended community is encoded as a 20-octet quantity (§2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The span states the attribute is a set of 20-octet communities, so a value whose length is not a multiple of 20 is not such a set. Forbidden: parsing a non-multiple length as communities (truncating). TestRFC5701IPv6ExtCommunityLengthMultipleOf20 asserts ParseIPv6ExtendedCommunities accepts 40 octets as exactly 2, and returns ErrInvalidLength for 19, 21, 8, 39 and 41, red on truncation or acceptance. Both polarities. The zero-length and treat-as-withdraw handling is RFC 7606 Section 7.15, row RFC7606-7.15-1.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -431,7 +434,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc5701-4-1"><code>RFC5701-4-1</code></a></h3>
-<p>Follow RFC 4271 transitive attribute handling for malformed optional transitive attributes (§4, referencing OPT_TRANS/RFC 7606)</p>
+<p>There is a potential serious issue if a malformed, optional, transitive attribute is received. This issue and the steps to avoid it are discussed in [OPT_TRANS]. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5701-4-1, so no unit is bound to it.</p>
 </section>
@@ -581,7 +584,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

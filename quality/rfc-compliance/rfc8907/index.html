@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8907 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8907: The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol. 56 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8907: The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol. 56 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8907 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8907: The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol. 56 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8907: The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol. 56 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8907 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8907: The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol. 56 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8907: The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol. 56 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -120,7 +120,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>7.1%</strong><b>4 of 56 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 56 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 56 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>46.7%</strong><b>56 of 120 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>37.5%</strong><b>45 of 120 tagged units, 0 escaped and 11 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -130,6 +130,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>3.6%</strong><b>2 of 56 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 56 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>10.7%</strong><b>6 of 56 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>48</strong><b>of 56 gated MUSTs judged</b><p>18 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 56 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>120</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>48</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>56</td>
@@ -302,19 +310,19 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4-1">RFC8907-4-1</code></td><td colspan="3"><span class="rfc-subject">Major version MUST be 0xC (12 decimal) (§4, Packet Header)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4-1">RFC8907-4-1</code></td><td colspan="3"><span class="rfc-subject">This is the major TACACS+ version number. TAC_PLUS_MAJOR_VER := 0xc (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>4</td>
+<td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L146" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L241" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientRejectsBadResponseHeader</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4-2">RFC8907-4-2</code></td><td colspan="3"><span class="rfc-subject">Client sends odd seq_no, server sends even seq_no (§4, Packet Header)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4-2">RFC8907-4-2</code></td><td colspan="3"><span class="rfc-subject">TACACS+ clients only send packets containing odd sequence numbers, and TACACS+ servers only send packets containing even sequence numbers. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>4</td>
+<td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L147" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L250" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientRejectsBadResponseHeader</code></a></span></div>
@@ -330,25 +338,25 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the session id is drawn from crypto/rand (internal/component/tacacs/client.go:497-503) with no predictable/reject path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4-4">RFC8907-4-4</code></td><td colspan="3"><span class="rfc-subject">session_id MUST remain constant for entire session (§4, Session Lifecycle)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4-4">RFC8907-4-4</code></td><td colspan="3"><span class="rfc-subject">The Id for this TACACS+ session. This field does not change for the duration of the TACACS+ session. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>4</td>
+<td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-4-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L148" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze generates one session id at internal/component/tacacs/client.go:209 and reuses it for the single request/reply exchange; the reply mismatch guard (client.go:354-358) enforces constancy and the positive path exercises it, but a single-exchange client emits no second packet whose id could differ, so there is no client-side constancy-violation to test</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4-5">RFC8907-4-5</code></td><td colspan="3"><span class="rfc-subject">Body length field MUST be in network byte order (§4, Packet Header)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4-5">RFC8907-4-5</code></td><td colspan="3"><span class="rfc-subject">All length values are unsigned and in network byte order. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>4</td>
+<td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-4-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L15" title="internal/component/tacacs/packet_test.go" target="_blank" rel="noopener"><code>TestPacketHeaderMarshalRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> multi-octet header fields (session_id, length) are written and read with binary.BigEndian at internal/component/tacacs/packet.go:75-76 and 90-91; the marshal/unmarshal round-trip is symmetric with no independent little-endian oracle, so a negative would only test a different codec</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4.6-1">RFC8907-4.6-1</code></td><td colspan="3"><span class="rfc-subject">After de-obfuscation, the sum of component lengths must equal the header&#39;s body length; discard a mismatch and signal ERROR (§4.5, Data Obfuscation)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4.6-1">RFC8907-4.6-1</code></td><td colspan="3"><span class="rfc-subject">After a packet body is de-obfuscated, the lengths of the component values in the packet are summed. If the sum is not identical to the cleartext datalength value from the header, the packet MUST be discarded and an ERROR signaled. (§4.5, Data Obfuscation)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.5</td>
@@ -357,7 +365,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L239" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907TrailingReplyBytesRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5-1">RFC8907-5-1</code></td><td colspan="3"><span class="rfc-subject">&#34;The sequence number must never wrap, i.e., if the sequence number 2^(8)-1 is ever reached, that session must terminate and be restarted with a sequence number of 1.&#34; (§4.1, Packet Header; maximum 255, not 254)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5-1">RFC8907-5-1</code></td><td colspan="3"><span class="rfc-subject">The sequence number must never wrap, i.e., if the sequence number 2^(8)-1 is ever reached, that session must terminate and be restarted with a sequence number of 1. (§4.1, Packet Header; maximum 255, not 254)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -366,28 +374,28 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> on 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`; internal/component/tacacs/client.go::Authenticate calls NewPAPAuthenStart and trySend emits sequence 1 and accepts only reply sequence 2. Section 5.4.2.2 requires one START and one REPLY for PAP, so no reachable authentication exchange approaches 255 or wraps; the separate initial/reply sequence tests remain applicable</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-7-1">RFC8907-7-1</code></td><td colspan="3"><span class="rfc-subject">Accounting flag MORE (0x01) is deprecated and MUST NOT be set (§7, Accounting)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-7-1">RFC8907-7-1</code></td><td colspan="3"><span class="rfc-subject">This holds bitmapped flags. Valid values are: TAC_PLUS_ACCT_FLAG_START := 0x02 TAC_PLUS_ACCT_FLAG_STOP := 0x04 TAC_PLUS_ACCT_FLAG_WATCHDOG := 0x08 (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>7</td>
+<td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-7-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L13" title="internal/component/tacacs/acct_test.go" target="_blank" rel="noopener"><code>TestAcctRequestMarshalStartStop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L277" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingMoreFlagRefused</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-7-2">RFC8907-7-2</code></td><td colspan="3"><span class="rfc-subject">START and STOP accounting flags are mutually exclusive (§7, Accounting)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-7-2">RFC8907-7-2</code></td><td colspan="3"><span class="rfc-subject">The START and STOP flags are mutually exclusive. (§7.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>7</td>
+<td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-7-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L14" title="internal/component/tacacs/acct_test.go" target="_blank" rel="noopener"><code>TestAcctRequestMarshalStartStop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L288" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingStartStopCombinationRefused</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-10-1">RFC8907-10-1</code></td><td colspan="3"><span class="rfc-subject">§10.5.2: &#34;Clients MUST be implemented in a way that requires explicit configuration to enable the use of TAC_PLUS_UNENCRYPTED_FLAG.&#34; (§10, Security)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-10-1">RFC8907-10-1</code></td><td colspan="3"><span class="rfc-subject">Clients MUST be implemented in a way that requires explicit configuration to enable the use of TAC_PLUS_UNENCRYPTED_FLAG. (§10.5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>10</td>
+<td>10.5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-10-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L128" title="internal/component/tacacs/packet_test.go" target="_blank" rel="noopener"><code>TestPacketMarshalRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L137" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientNeverSendsUnobfuscatedBody</code></a></span></div>
@@ -405,7 +413,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L111" title="internal/component/tacacs/rfc8907_security_config_test.go" target="_blank" rel="noopener"><code>TestRFC8907BuildRejectsMissingSecret</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-10.5.2-1">RFC8907-10.5.2-1</code></td><td colspan="3"><span class="rfc-subject">A client that receives a reply whose obfuscation state disagrees with the shared-secret configuration of the server it came from MUST close the TCP session and process the reply as a FAIL (§10.5.2, Connections and Obfuscation)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-10.5.2-1">RFC8907-10.5.2-1</code></td><td colspan="3"><span class="rfc-subject">When a TACACS+ client receives responses from servers where: * the response packet was received from the server configured with a shared key, but the packet has TAC_PLUS_UNENCRYPTED_FLAG set, and * the response packet was received from the server configured not to use obfuscation, but the packet has TAC_PLUS_UNENCRYPTED_FLAG not set, the TACACS+ client MUST close the TCP session, and process the response in the same way that a TAC_PLUS_AUTHEN_STATUS_FAIL (authentication sessions) or TAC_PLUS_AUTHOR_STATUS_FAIL (authorization sessions) was received. (§10.5.2, Connections and Obfuscation)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>10.5.2</td>
@@ -414,10 +422,10 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L198" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientRefusesUnobfuscatedReply</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-6-1">RFC8907-6-1</code></td><td colspan="3"><span class="rfc-subject">Authorization argument separator `=` (equals): client MUST be able to act on mandatory attributes or reject the authorization (§6, Authorization)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-6-1">RFC8907-6-1</code></td><td colspan="3"><span class="rfc-subject">Mandatory arguments require that the receiving side can handle the argument, that is, its implementation and configuration includes the details of how to act on it. If the client receives a mandatory argument that it cannot handle, it MUST consider the authorization to have failed. (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>6</td>
+<td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L50" title="internal/component/tacacs/rfc8907_authorization_test.go" target="_blank" rel="noopener"><code>TestRFC8907MandatoryCommandPolicyAccepted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L79" title="internal/component/tacacs/rfc8907_authorization_test.go" target="_blank" rel="noopener"><code>TestRFC8907OptionalCommandPolicyIgnored</code></a></span></div>
@@ -434,7 +442,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L90" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ForbiddenUsernameNeverSent</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-3.7-2">RFC8907-3.7-2</code></td><td colspan="3"><span class="rfc-subject">&#34;All other text fields in TACACS+ MUST be treated as printable byte arrays of US-ASCII as defined by [RFC0020]&#34;, and printable &#34;MUST exclude the &#39;Control Characters&#39; defined in Section 5.2 of [RFC0020]&#34; (§3.7, Treatment of Text Strings)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-3.7-2">RFC8907-3.7-2</code></td><td colspan="3"><span class="rfc-subject">All other text fields in TACACS+ MUST be treated as printable byte arrays of US-ASCII as defined by [RFC0020]. The term &#34;printable&#34; used here means the fields MUST exclude the &#34;Control Characters&#34; defined in Section 5.2 of [RFC0020]. (§3.7, Treatment of Text Strings)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.7</td>
@@ -444,7 +452,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L130" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907NonPrintableTextRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4.1-1">RFC8907-4.1-1</code></td><td colspan="3"><span class="rfc-subject">A variable-length field whose length value is zero is unused, and such fields &#34;MUST be ignored, and treated as if not present&#34; (§4.1, The TACACS+ Packet Header)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4.1-1">RFC8907-4.1-1</code></td><td colspan="3"><span class="rfc-subject">To signal that any variable-length data fields are unused, the corresponding length values are set to zero. Such fields MUST be ignored, and treated as if not present. (§4.1, The TACACS+ Packet Header)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -462,7 +470,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L210" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907ReplyReusingSequenceOneIsRefused</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4.1-3">RFC8907-4.1-3</code></td><td colspan="3"><span class="rfc-subject">Header flag bits other than TAC_PLUS_UNENCRYPTED_FLAG and TAC_PLUS_SINGLE_CONNECT_FLAG &#34;MUST be ignored when reading, and SHOULD be set to zero when writing&#34; (§4.1, The TACACS+ Packet Header)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4.1-3">RFC8907-4.1-3</code></td><td colspan="3"><span class="rfc-subject">All other bits MUST be ignored when reading, and SHOULD be set to zero when writing. (§4.1, The TACACS+ Packet Header)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -498,7 +506,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L294" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClosureOnFreshDialIsNotRetried</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4.4-1">RFC8907-4.4-1</code></td><td colspan="3"><span class="rfc-subject">On a REPLY of ERROR &#34;The client cannot apply the result, and it MUST behave as if the server could not be connected to.&#34; (§4.4, Session Completion)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4.4-1">RFC8907-4.4-1</code></td><td colspan="3"><span class="rfc-subject">The server responds with an ERROR to indicate that the processing of the request did not complete. The client cannot apply the result, and it MUST behave as if the server could not be connected to. (§4.4, Session Completion)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
@@ -507,7 +515,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L203" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907FailDoesNotUseBackupServer</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4.4-2">RFC8907-4.4-2</code></td><td colspan="3"><span class="rfc-subject">After an ERROR caused by connection issues on a Single Connection Mode connection, &#34;any further new sessions MUST NOT be accepted on the connection&#34; (§4.4, Session Completion)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4.4-2">RFC8907-4.4-2</code></td><td colspan="3"><span class="rfc-subject">If Single Connection Mode was enabled, but an ERROR occurred due to connection issues (such as an incorrect secret (see Section 4.5)), then any further new sessions MUST NOT be accepted on the connection. (§4.4, Session Completion)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.4</td>
@@ -525,7 +533,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L351" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907HealthyPooledConnectionStaysOpen</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.1-1">RFC8907-5.1-1</code></td><td colspan="3"><span class="rfc-subject">The username is optional in the START packet; &#34;If it is absent, the client MUST set user_len to 0.&#34; (§5.1, The Authentication START Packet Body)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.1-1">RFC8907-5.1-1</code></td><td colspan="3"><span class="rfc-subject">The username is optional in this packet, depending upon the class of authentication. If it is absent, the client MUST set user_len to 0. (§5.1, The Authentication START Packet Body)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -534,7 +542,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L63" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907AuthenStartPresentUserWritesItsLength</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4-1">RFC8907-5.4-1</code></td><td colspan="3"><span class="rfc-subject">On a REPLY of GETDATA, GETUSER or GETPASS, &#34;The client MUST then return a CONTINUE packet containing the requested information in the user_msg field.&#34; (§5.4, Description of Authentication Process)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4-1">RFC8907-5.4-1</code></td><td colspan="3"><span class="rfc-subject">When the REPLY status equals TAC_PLUS_AUTHEN_STATUS_GETDATA, TAC_PLUS_AUTHEN_STATUS_GETUSER, or TAC_PLUS_AUTHEN_STATUS_GETPASS, authentication continues and the server SHOULD provide server_msg content for the client to prompt the user for more information. The client MUST then return a CONTINUE packet containing the requested information in the user_msg field. (§5.4, Description of Authentication Process)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4</td>
@@ -543,7 +551,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;The entire exchange MUST consist of a single START packet and a single REPLY.&#34;; the PAP-specific rule is §5.4.2.2, which also restricts the reply to PASS, FAIL or ERROR. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding ASCII interactive workflows. internal/component/tacacs/client.go::Authenticate produces PAP through NewPAPAuthenStart, and validateReplyStatus rejects GETDATA/GETUSER/GETPASS rather than entering an interactive exchange; this is a selected method boundary, not a server-only obligation</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4-2">RFC8907-5.4-2</code></td><td colspan="3"><span class="rfc-subject">When the client queries the user for information the server marked NOECHO, &#34;the response MUST NOT be reflected in the user interface as it is entered&#34; (§5.4, Description of Authentication Process)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4-2">RFC8907-5.4-2</code></td><td colspan="3"><span class="rfc-subject">If the information being requested by the server from the client is sensitive, then the server should set the TAC_PLUS_REPLY_FLAG_NOECHO flag. When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered. (§5.4, Description of Authentication Process)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.4</td>
@@ -552,7 +560,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered.&#34;; this rule is conditional on interactive prompting. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding ASCII interaction. internal/component/tacacs/client.go::Authenticate receives an already supplied username/password through aaa.AuthRequest and never prompts in response to a TACACS+ reply</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.2-1">RFC8907-5.4.2.2-1</code></td><td colspan="3"><span class="rfc-subject">A PAP login exchange &#34;MUST consist of a single START packet and a single REPLY&#34; (§5.4.2.2, PAP Login)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.2-1">RFC8907-5.4.2.2-1</code></td><td colspan="3"><span class="rfc-subject">The entire exchange MUST consist of a single START packet and a single REPLY. (§5.4.2.2, PAP Login)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4.2.2</td>
@@ -570,7 +578,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L89" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPStartRefusesPasswordItCannotCarry</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.3-1">RFC8907-5.4.2.3-1</code></td><td colspan="3"><span class="rfc-subject">A CHAP login exchange &#34;MUST consist of a single START packet and a single REPLY&#34;, and &#34;The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response.&#34; (§5.4.2.3, CHAP Login)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.3-1">RFC8907-5.4.2.3-1</code></td><td colspan="3"><span class="rfc-subject">The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response. (§5.4.2.3, CHAP Login)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4.2.3</td>
@@ -579,7 +587,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response.&#34;; §5.4.2.3 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_CHAP. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding CHAP. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product CHAP challenge/response workflow exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.4-1">RFC8907-5.4.2.4-1</code></td><td colspan="3"><span class="rfc-subject">An MS-CHAP v1 login exchange &#34;MUST consist of a single START packet and a single REPLY&#34;, and &#34;The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response.&#34; (§5.4.2.4, MS-CHAP v1 Login)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.4-1">RFC8907-5.4.2.4-1</code></td><td colspan="3"><span class="rfc-subject">The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.4, MS-CHAP v1 Login)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4.2.4</td>
@@ -588,7 +596,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response.&#34;; §5.4.2.4 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_MSCHAP. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding MS-CHAP v1. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product MS-CHAP v1 challenge/response workflow exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.5-1">RFC8907-5.4.2.5-1</code></td><td colspan="3"><span class="rfc-subject">An MS-CHAP v2 login exchange &#34;MUST consist of a single START packet and a single REPLY&#34;, and &#34;The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response.&#34; (§5.4.2.5, MS-CHAP v2 Login)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.5-1">RFC8907-5.4.2.5-1</code></td><td colspan="3"><span class="rfc-subject">The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.5, MS-CHAP v2 Login)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4.2.5</td>
@@ -606,7 +614,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;The exchange MAY consist of multiple messages while the server collects the information it requires in order to allow changing the principal&#39;s privilege level.&#34;; §5.4.2.6 defines an ENABLE privilege-change workflow, and the service rule applies when requesting an ENABLE. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding ENABLE workflows. internal/component/tacacs/authen.go::NewPAPAuthenStart sets the LOGIN service for the management password callback; it does not request a privilege change. The separate prohibition on using ENABLE for other operations remains tested</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.6-2">RFC8907-5.4.2.6-2</code></td><td colspan="3"><span class="rfc-subject">authen_service &#34;MUST NOT be set to this value when requesting any other operation&#34; (§5.4.2.6, Enable Requests)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.6-2">RFC8907-5.4.2.6-2</code></td><td colspan="3"><span class="rfc-subject">In order to readily distinguish &#34;ENABLE&#34; requests from other types of request, the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE. It MUST NOT be set to this value when requesting any other operation. (§5.4.2.6, Enable Requests)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.4.2.6</td>
@@ -642,7 +650,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L151" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907ArgumentValueKeepsSeparatorOutOfName</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-6.2-1">RFC8907-6.2-1</code></td><td colspan="3"><span class="rfc-subject">On TAC_PLUS_AUTHOR_STATUS_PASS_ADD &#34;the arguments in the response MUST be applied according to the rules described above&#34; (§6.2, The Authorization REPLY Packet Body)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-6.2-1">RFC8907-6.2-1</code></td><td colspan="3"><span class="rfc-subject">If the status equals TAC_PLUS_AUTHOR_STATUS_PASS_ADD, then the arguments specified in the request are authorized and the arguments in the response MUST be applied according to the rules described above. (§6.2, The Authorization REPLY Packet Body)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.2</td>
@@ -652,7 +660,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L97" title="internal/component/tacacs/rfc8907_authorization_test.go" target="_blank" rel="noopener"><code>TestRFC8907PassAddCannotIgnoreCommandExtension</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-6.2-2">RFC8907-6.2-2</code></td><td colspan="3"><span class="rfc-subject">On TAC_PLUS_AUTHOR_STATUS_PASS_REPL &#34;the client MUST use the authorization argument-value pairs (if any) in the response instead of the authorization argument-value pairs from the request&#34; (§6.2, The Authorization REPLY Packet Body)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-6.2-2">RFC8907-6.2-2</code></td><td colspan="3"><span class="rfc-subject">If the status equals TAC_PLUS_AUTHOR_STATUS_PASS_REPL, then the client MUST use the authorization argument-value pairs (if any) in the response instead of the authorization argument- value pairs from the request. (§6.2, The Authorization REPLY Packet Body)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.2</td>
@@ -663,7 +671,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L118" title="internal/component/tacacs/rfc8907_authorization_test.go" target="_blank" rel="noopener"><code>TestRFC8907PassReplCannotAuthorizeOriginalCommand</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-6.2-3">RFC8907-6.2-3</code></td><td colspan="3"><span class="rfc-subject">On TAC_PLUS_AUTHOR_STATUS_FAIL &#34;the requested authorization MUST be denied&#34; (§6.2, The Authorization REPLY Packet Body)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-6.2-3">RFC8907-6.2-3</code></td><td colspan="3"><span class="rfc-subject">If the status equals TAC_PLUS_AUTHOR_STATUS_FAIL, then the requested authorization MUST be denied. (§6.2, The Authorization REPLY Packet Body)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.2</td>
@@ -691,7 +699,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L103" title="internal/component/tacacs/rfc8907_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907CommandRecordsCarryNoForeignArgument</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-8.1-1">RFC8907-8.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;TACACS+ implementations MUST verify that they can accommodate the lengths of numeric arguments before attempting to process them&#34;, and a length that cannot be accommodated means &#34;the argument MUST be regarded as not handled and the logic in &#39;Authorization&#39; (Section 6.1) regarding the processing of arguments MUST be applied&#34; (§8.1, Value Encoding)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-8.1-1">RFC8907-8.1-1</code></td><td colspan="3"><span class="rfc-subject">TACACS+ implementations MUST verify that they can accommodate the lengths of numeric arguments before attempting to process them. If the length cannot be accommodated, then the argument MUST be regarded as not handled and the logic in &#34;Authorization&#34; (Section 6.1) regarding the processing of arguments MUST be applied. (§8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.1</td>
@@ -701,7 +709,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L178" title="internal/component/tacacs/rfc8907_authorization_test.go" target="_blank" rel="noopener"><code>TestRFC8907InvalidMandatoryPrivilegeDenied</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-8.1-2">RFC8907-8.1-2</code></td><td colspan="3"><span class="rfc-subject">For an absolute date/time argument, &#34;The time zone MUST be UTC unless a time zone argument is specified.&#34; (§8.1, Value Encoding)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-8.1-2">RFC8907-8.1-2</code></td><td colspan="3"><span class="rfc-subject">Absolute date/times are specified in seconds since the epoch, 12:00am, January 1, 1970. The time zone MUST be UTC unless a time zone argument is specified. (§8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.1</td>
@@ -710,7 +718,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L132" title="internal/component/tacacs/rfc8907_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907StartTimeIgnoresLocalZone</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-8.2-1">RFC8907-8.2-1</code></td><td colspan="3"><span class="rfc-subject">The &#34;service&#34; argument &#34;MUST always be included&#34; (§8.2, Authorization Arguments)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-8.2-1">RFC8907-8.2-1</code></td><td colspan="3"><span class="rfc-subject">Specifying a service argument indicates that this is a request for authorization or accounting of that service. For example: &#34;shell&#34;, &#34;tty-server&#34;, &#34;connection&#34;, &#34;system&#34; and &#34;firewall&#34;; others may be chosen for the required application. This argument MUST always be included. (§8.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.2</td>
@@ -728,7 +736,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L180" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907CmdArgumentPresentForEmptyCommand</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-8.3-1">RFC8907-8.3-1</code></td><td colspan="3"><span class="rfc-subject">Accounting arguments &#34;MUST precede any argument-value pairs that are defined in &#39;Authorization&#39; (Section 6)&#34; (§8.3, Accounting Arguments)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-8.3-1">RFC8907-8.3-1</code></td><td colspan="3"><span class="rfc-subject">The following arguments are defined for TACACS+ accounting only. They MUST precede any argument-value pairs that are defined in &#34;Authorization&#34; (Section 6). (§8.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.3</td>
@@ -833,29 +841,29 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this request-receiver obligation binds a TACACS+ server. Ze implements the management AAA client, not a TACACS+ server; the client&#39;s separate obfuscation and reply-validation obligations remain applicable</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-x-1">RFC8907-x-1</code></td><td colspan="3"><span class="rfc-subject">Server SHOULD use a configurable connection timeout (Connection Management)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-x-1">RFC8907-x-1</code></td><td colspan="3"><span class="rfc-subject">The client should manage connections and handle the case of a server that establishes a connection but does not respond. The exact behavior is implementation specific. It is recommended that the client close the connection after a configurable timeout. (§4.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-x-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-x-2">RFC8907-x-2</code></td><td colspan="3"><span class="rfc-subject">The TAC_PLUS_AUTHEN_STATUS_FOLLOW redirection mechanism is deprecated, and &#34;This mechanism MUST NOT be used in modern deployments. It MUST NOT be used outside a secured deployment.&#34; (Error Handling)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-x-2">RFC8907-x-2</code></td><td colspan="3"><span class="rfc-subject">This document deprecates the redirection mechanism using the TAC_PLUS_AUTHEN_STATUS_FOLLOW option, which was included in &#34;The Draft&#34;. As part of this process, the secret key for a new server was sent to the client. This public exchange of secret keys means that once one session is broken, it may be possible to leverage that key to attacking connections to other servers. This mechanism MUST NOT be used in modern deployments. It MUST NOT be used outside a secured deployment. (§10.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>x</td>
+<td>10.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-x-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L135" title="internal/component/tacacs/rfc8907_status_test.go" target="_blank" rel="noopener"><code>TestRFC8907AuthorizationFollowDeniesWithoutFallback</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L127" title="internal/component/tacacs/rfc8907_status_test.go" target="_blank" rel="noopener"><code>TestRFC8907FollowIsNotAuthenticated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L143" title="internal/component/tacacs/rfc8907_status_test.go" target="_blank" rel="noopener"><code>TestRFC8907FollowTargetIsNeverContacted</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-6-2">RFC8907-6-2</code></td><td colspan="3"><span class="rfc-subject">Authorization argument separator `*` (asterisk): client MAY ignore optional attributes if not understood (§6, Authorization)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-6-2">RFC8907-6-2</code></td><td colspan="3"><span class="rfc-subject">Optional arguments are ones that may be disregarded by either client or server. (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>6</td>
+<td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-6-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -870,27 +878,27 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc8907-5-1"><code>RFC8907-5-1</code></a> &#34;The sequence number must never wrap, i.e., if the sequence number 2^(8)-1 is ever reached, that session must terminate and be restarted with a sequence number of 1.&#34; (§4.1, Packet Header; maximum 255, not 254)</td>
+<tr><td><a href="#rfc8907-5-1"><code>RFC8907-5-1</code></a> The sequence number must never wrap, i.e., if the sequence number 2^(8)-1 is ever reached, that session must terminate and be restarted with a sequence number of 1. (§4.1, Packet Header; maximum 255, not 254)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: on 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`; internal/component/tacacs/client.go::Authenticate calls NewPAPAuthenStart and trySend emits sequence 1 and accepts only reply sequence 2. Section 5.4.2.2 requires one START and one REPLY for PAP, so no reachable authentication exchange approaches 255 or wraps; the separate initial/reply sequence tests remain applicable</td>
 </tr>
-<tr><td><a href="#rfc8907-5.4-1"><code>RFC8907-5.4-1</code></a> On a REPLY of GETDATA, GETUSER or GETPASS, &#34;The client MUST then return a CONTINUE packet containing the requested information in the user_msg field.&#34; (§5.4, Description of Authentication Process)</td>
+<tr><td><a href="#rfc8907-5.4-1"><code>RFC8907-5.4-1</code></a> When the REPLY status equals TAC_PLUS_AUTHEN_STATUS_GETDATA, TAC_PLUS_AUTHEN_STATUS_GETUSER, or TAC_PLUS_AUTHEN_STATUS_GETPASS, authentication continues and the server SHOULD provide server_msg content for the client to prompt the user for more information. The client MUST then return a CONTINUE packet containing the requested information in the user_msg field. (§5.4, Description of Authentication Process)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {feature-declined}: &#34;The entire exchange MUST consist of a single START packet and a single REPLY.&#34;; the PAP-specific rule is §5.4.2.2, which also restricts the reply to PASS, FAIL or ERROR. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding ASCII interactive workflows. internal/component/tacacs/client.go::Authenticate produces PAP through NewPAPAuthenStart, and validateReplyStatus rejects GETDATA/GETUSER/GETPASS rather than entering an interactive exchange; this is a selected method boundary, not a server-only obligation</td>
 </tr>
-<tr><td><a href="#rfc8907-5.4-2"><code>RFC8907-5.4-2</code></a> When the client queries the user for information the server marked NOECHO, &#34;the response MUST NOT be reflected in the user interface as it is entered&#34; (§5.4, Description of Authentication Process)</td>
+<tr><td><a href="#rfc8907-5.4-2"><code>RFC8907-5.4-2</code></a> If the information being requested by the server from the client is sensitive, then the server should set the TAC_PLUS_REPLY_FLAG_NOECHO flag. When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered. (§5.4, Description of Authentication Process)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {feature-declined}: &#34;When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered.&#34;; this rule is conditional on interactive prompting. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding ASCII interaction. internal/component/tacacs/client.go::Authenticate receives an already supplied username/password through aaa.AuthRequest and never prompts in response to a TACACS+ reply</td>
 </tr>
-<tr><td><a href="#rfc8907-5.4.2.3-1"><code>RFC8907-5.4.2.3-1</code></a> A CHAP login exchange &#34;MUST consist of a single START packet and a single REPLY&#34;, and &#34;The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response.&#34; (§5.4.2.3, CHAP Login)</td>
+<tr><td><a href="#rfc8907-5.4.2.3-1"><code>RFC8907-5.4.2.3-1</code></a> The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response. (§5.4.2.3, CHAP Login)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {feature-declined}: &#34;The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response.&#34;; §5.4.2.3 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_CHAP. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding CHAP. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product CHAP challenge/response workflow exists</td>
 </tr>
-<tr><td><a href="#rfc8907-5.4.2.4-1"><code>RFC8907-5.4.2.4-1</code></a> An MS-CHAP v1 login exchange &#34;MUST consist of a single START packet and a single REPLY&#34;, and &#34;The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response.&#34; (§5.4.2.4, MS-CHAP v1 Login)</td>
+<tr><td><a href="#rfc8907-5.4.2.4-1"><code>RFC8907-5.4.2.4-1</code></a> The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.4, MS-CHAP v1 Login)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {feature-declined}: &#34;The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response.&#34;; §5.4.2.4 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_MSCHAP. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding MS-CHAP v1. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product MS-CHAP v1 challenge/response workflow exists</td>
 </tr>
-<tr><td><a href="#rfc8907-5.4.2.5-1"><code>RFC8907-5.4.2.5-1</code></a> An MS-CHAP v2 login exchange &#34;MUST consist of a single START packet and a single REPLY&#34;, and &#34;The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response.&#34; (§5.4.2.5, MS-CHAP v2 Login)</td>
+<tr><td><a href="#rfc8907-5.4.2.5-1"><code>RFC8907-5.4.2.5-1</code></a> The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.5, MS-CHAP v2 Login)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {feature-declined}: &#34;The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response.&#34;; §5.4.2.5 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_MSCHAPV2. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding MS-CHAP v2. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product MS-CHAP v2 challenge/response workflow exists</td>
 </tr>
@@ -913,8 +921,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8907-4-1"><code>RFC8907-4-1</code></a></h3>
-<p>Major version MUST be 0xC (12 decimal) (§4, Packet Header)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>This is the major TACACS+ version number. TAC_PLUS_MAJOR_VER := 0xc (§4.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. validateResponseHeader compares the reply major nibble with the request, not with 0xc, and the test server echoes the request version: a client emitting major 0xD stays green in both TestTacacsClientAuthenticatePass and the wrong-major-version case; no tagged unit asserts the emitted major version is 0xc</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -933,8 +941,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-4-2"><code>RFC8907-4-2</code></a></h3>
-<p>Client sends odd seq_no, server sends even seq_no (§4, Packet Header)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>TACACS+ clients only send packets containing odd sequence numbers, and TACACS+ servers only send packets containing even sequence numbers. (§4.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. tests assert reply seq == request seq+1 only; the echoing test server hides the client parity (a client sending seq 2 would get 3 and pass), and the seq-7 negative is refused for not being seq+1, not for being odd from a server</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -954,7 +962,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-4-3"><code>RFC8907-4-3</code></a></h3>
 <p>This number MUST be generated by a cryptographically strong random number generation method. (§4, Session Lifecycle)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC8907SessionIDComesFromCryptoRand substitutes crypto/rand.Reader and requires the id to be exactly those octets; TestRandomSessionIDDistinct adds cross-session distinctness</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -973,8 +981,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-4-4"><code>RFC8907-4-4</code></a></h3>
-<p>session_id MUST remain constant for entire session (§4, Session Lifecycle)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The Id for this TACACS+ session. This field does not change for the duration of the TACACS+ session. (§4.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestTacacsClientAuthenticatePass asserts only status and server_msg; the test server always echoes session_id, so removing the client mismatch guard or changing the id would stay green; single-polarity marker acknowledges no negative</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -988,8 +996,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-4-5"><code>RFC8907-4-5</code></a></h3>
-<p>Body length field MUST be in network byte order (§4, Packet Header)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>All length values are unsigned and in network byte order. (§4.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestPacketHeaderMarshalRoundTrip is a symmetric marshal/unmarshal round trip with no wire-octet assertion: a little-endian codec on both sides passes</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1003,8 +1011,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-4.6-1"><code>RFC8907-4.6-1</code></a></h3>
-<p>After de-obfuscation, the sum of component lengths must equal the header&#39;s body length; discard a mismatch and signal ERROR (§4.5, Data Obfuscation)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>After a packet body is de-obfuscated, the lengths of the component values in the packet are summed. If the sum is not identical to the cleartext datalength value from the header, the packet MUST be discarded and an ERROR signaled. (§4.5, Data Obfuscation)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;the sum is not identical&#39; has two directions. TestRFC8907TrailingReplyBytesRejected proves only sum &lt; datalength (one trailing decrypted byte -&gt; error, status 0) for all three services, and TestRFC8907ExactReplyLengthsAccepted is the positive. No tagged unit sends component lengths whose sum exceeds datalength, so the other half of the inequality (reply.go:56 total != len(body), and the earlier truncation guards) is unasserted.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1023,12 +1031,12 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-5-1"><code>RFC8907-5-1</code></a></h3>
-<p>&#34;The sequence number must never wrap, i.e., if the sequence number 2^(8)-1 is ever reached, that session must terminate and be restarted with a sequence number of 1.&#34; (§4.1, Packet Header; maximum 255, not 254)</p>
+<p>The sequence number must never wrap, i.e., if the sequence number 2^(8)-1 is ever reached, that session must terminate and be restarted with a sequence number of 1. (§4.1, Packet Header; maximum 255, not 254)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8907-5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8907-7-1"><code>RFC8907-7-1</code></a></h3>
-<p>Accounting flag MORE (0x01) is deprecated and MUST NOT be set (§7, Accounting)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>This holds bitmapped flags. Valid values are: TAC_PLUS_ACCT_FLAG_START := 0x02 TAC_PLUS_ACCT_FLAG_STOP := 0x04 TAC_PLUS_ACCT_FLAG_WATCHDOG := 0x08 (§7.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. producer (acct.go flag switch) allowlists START, STOP, WATCHDOG and WATCHDOG|START, but the tagged units probe only the 0x01 bit; a denylist of 0x01 alone would pass, and bits 0x10-0x80 are never exercised</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1047,8 +1055,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-7-2"><code>RFC8907-7-2</code></a></h3>
-<p>START and STOP accounting flags are mutually exclusive (§7, Accounting)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The START and STOP flags are mutually exclusive. (§7.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a request carrying START and STOP together. (b) TestRFC8907AccountingStartStopCombinationRefused requires errors.Is(err, errRequestInvalid) for Flags START|STOP; TestAcctRequestMarshalStartStop marshals START and STOP as separate flags.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1067,8 +1075,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-10-1"><code>RFC8907-10-1</code></a></h3>
-<p>§10.5.2: &#34;Clients MUST be implemented in a way that requires explicit configuration to enable the use of TAC_PLUS_UNENCRYPTED_FLAG.&#34; (§10, Security)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Clients MUST be implemented in a way that requires explicit configuration to enable the use of TAC_PLUS_UNENCRYPTED_FLAG. (§10.5.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. {single-polarity} on the row: no configuration enables the flag. (a) forbidden: any configuration state, including a keyless server, under which the client sends with TAC_PLUS_UNENCRYPTED_FLAG. (b) TestRFC8907UnencryptedModeIsNotReachableFromConfiguration reads the socket: a keyed config puts wire[3]&amp;0x01 == 0 (assert.Zero), a keyless config writes no bytes (assert.Empty); TestRFC8907ClientNeverSendsUnobfuscatedBody requires the wire body to be the pseudo-pad XOR of the plaintext.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1086,14 +1094,14 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_unencrypted_config_test.go#L93" title="internal/component/tacacs/rfc8907_unencrypted_config_test.go" target="_blank" rel="noopener"><code>TestRFC8907UnencryptedModeIsNotReachableFromConfiguration</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8907-10-2"><code>RFC8907-10-2</code></a></h3>
 <p>TACACS+ clients MUST NOT set TAC_PLUS_UNENCRYPTED_FLAG. (§10, Security)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a client request whose flags octet has 0x01 set, or a send with no key. (b) TestRFC8907ClientNeverSendsUnobfuscatedBody fails when wire[3]&amp;FlagUnencrypted != 0 and requires the body to decode through the pad; TestPacketMarshalNoEncryption requires ErrNoSharedSecret for nil and empty keys with zero bytes written; TestRFC8907BuildRejectsMissingSecret requires Build to refuse a keyless server with ErrNoSharedSecret and no authenticator.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1111,14 +1119,14 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L142" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientNeverSendsUnobfuscatedBody</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8907-10.5.2-1"><code>RFC8907-10.5.2-1</code></a></h3>
-<p>A client that receives a reply whose obfuscation state disagrees with the shared-secret configuration of the server it came from MUST close the TCP session and process the reply as a FAIL (§10.5.2, Connections and Obfuscation)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>When a TACACS+ client receives responses from servers where: * the response packet was received from the server configured with a shared key, but the packet has TAC_PLUS_UNENCRYPTED_FLAG set, and * the response packet was received from the server configured not to use obfuscation, but the packet has TAC_PLUS_UNENCRYPTED_FLAG not set, the TACACS+ client MUST close the TCP session, and process the response in the same way that a TAC_PLUS_AUTHEN_STATUS_FAIL (authentication sessions) or TAC_PLUS_AUTHOR_STATUS_FAIL (authorization sessions) was received. (§10.5.2, Connections and Obfuscation)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC8907ClientRefusesUnobfuscatedReply asserts only the FAIL status for an authentication session; the MUST close the TCP session clause is not asserted, and the authorization-session FAIL path is not exercised</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1126,7 +1134,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L198" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientRefusesUnobfuscatedReply</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L222" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientAcceptsObfuscatedReply</code></a></td>
@@ -1137,8 +1145,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-6-1"><code>RFC8907-6-1</code></a></h3>
-<p>Authorization argument separator `=` (equals): client MUST be able to act on mandatory attributes or reject the authorization (§6, Authorization)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Mandatory arguments require that the receiving side can handle the argument, that is, its implementation and configuration includes the details of how to act on it. If the client receives a mandatory argument that it cannot handle, it MUST consider the authorization to have failed. (§6.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: authorizing when a mandatory argument cannot be handled. (b) TestRFC8907MandatoryCommandPolicyDenied fails if an unsupported mandatory argument or value grants the command or consults the local fallback; TestRFC8907MandatorySessionPolicyDenied fails if session login grants profiles under an unenforceable mandatory argument; positives TestRFC8907MandatoryCommandPolicyAccepted (recognized mandatory values authorize) and TestRFC8907OptionalCommandPolicyIgnored (unsupported optional is disregarded).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1168,7 +1176,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-3.7-1"><code>RFC8907-3.7-1</code></a></h3>
 <p>Usernames MUST be encoded and handled using the UsernameCasePreserved Profile specified in [RFC8265]. (§3.7, Treatment of Text Strings)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a username sent without UsernameCasePreserved enforcement: no width mapping, no NFC, case folded, or a PRECIS-disallowed string (control, private use, ZWJ outside context, invalid UTF-8, bidi-rule violation) sent. (b) TestRFC8907UsernameProfileOnWire reads the username off the wire for all three services and requires &#34;Ａlice\u0301&#34; to arrive as &#34;Alicé&#34; (width-mapped, NFC, case kept); TestRFC8907ForbiddenUsernameNeverSent requires errRequestInvalid and no server contact for &#34;alice\x00&#34;, &#34;alice\ue000&#34;, &#34;a\u200db&#34;, &#34;\xff&#34; and &#34;\u05d0a&#34; on every service.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1187,8 +1195,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-3.7-2"><code>RFC8907-3.7-2</code></a></h3>
-<p>&#34;All other text fields in TACACS+ MUST be treated as printable byte arrays of US-ASCII as defined by [RFC0020]&#34;, and printable &#34;MUST exclude the &#39;Control Characters&#39; defined in Section 5.2 of [RFC0020]&#34; (§3.7, Treatment of Text Strings)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>All other text fields in TACACS+ MUST be treated as printable byte arrays of US-ASCII as defined by [RFC0020]. The term &#34;printable&#34; used here means the fields MUST exclude the &#34;Control Characters&#34; defined in Section 5.2 of [RFC0020]. (§3.7, Treatment of Text Strings)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;all other text fields&#39; is proven for four fields only: TestRFC8907NonPrintableTextRejected fails on a control, DEL or non-ASCII byte in the PAP password (authen data), an authorization cmd argument, the accounting port, and an authentication server_msg; TestRFC8907PrintableTextRoundTrip is the positive. validateText also guards rem_addr (authen.go:66, author.go:55, acct.go:62), the authentication and authorization port (authen.go:63, author.go:52), accounting arguments (acct.go:78) and the authorization/accounting reply message (reply.go:60,66); removing any of those calls leaves every tagged assertion green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1212,8 +1220,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-4.1-1"><code>RFC8907-4.1-1</code></a></h3>
-<p>A variable-length field whose length value is zero is unused, and such fields &#34;MUST be ignored, and treated as if not present&#34; (§4.1, The TACACS+ Packet Header)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>To signal that any variable-length data fields are unused, the corresponding length values are set to zero. Such fields MUST be ignored, and treated as if not present. (§4.1, The TACACS+ Packet Header)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Only the data field is asserted: TestRFC8907ZeroLengthDataIsReadAsAbsent (data_len 0 -&gt; Empty) and TestRFC8907PresentZeroByteIsNotReadAsAbsent (one zero byte retained). The quote binds any variable-length field whose length is zero (server_msg, user, port, rem_addr, reply arguments); no tagged assertion goes red if another zero-length field were read as present or read past.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1233,7 +1241,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-4.1-2"><code>RFC8907-4.1-2</code></a></h3>
 <p>The first packet in a session MUST have the sequence number 1, and each subsequent packet will increment the sequence number by one. (§4.1, The TACACS+ Packet Header)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a session&#39;s first packet with a seq_no other than 1, or accepting a reply that does not follow it. (b) TestRFC8907FirstPacketCarriesSequenceOne requires requests[0].SeqNo == 1 on each new connection; TestRFC8907ReplyReusingSequenceOneIsRefused requires a reply carrying seq_no 1 to fail Authenticate and validateResponseHeader to report &#34;sequence mismatch&#34;. The increment clause is descriptive (&#34;will&#34;).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1252,8 +1260,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-4.1-3"><code>RFC8907-4.1-3</code></a></h3>
-<p>Header flag bits other than TAC_PLUS_UNENCRYPTED_FLAG and TAC_PLUS_SINGLE_CONNECT_FLAG &#34;MUST be ignored when reading, and SHOULD be set to zero when writing&#34; (§4.1, The TACACS+ Packet Header)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>All other bits MUST be ignored when reading, and SHOULD be set to zero when writing. (§4.1, The TACACS+ Packet Header)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: refusing a reply because undefined flag bits are set, or letting undefined bits mask a defined flag. (b) TestRFC8907UnknownHeaderFlagsIgnored sets reply flags 0xf2 (undefined bits only) and fails unless status == PASS with no error; TestRFC8907UnknownFlagsDoNotMaskDowngrade sets 0x81 and fails unless the result is FAIL. The SHOULD-zero-on-write half is not a MUST.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1273,7 +1281,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-4.3-1"><code>RFC8907-4.3-1</code></a></h3>
 <p>The client MUST NOT send a second packet on a connection until single-connect status has been established. (§4.3, Single Connection Mode)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a second packet on a connection before the server echoed single-connect. (b) TestRFC8907NoSecondPacketWithoutSingleConnect (no echo) requires two connections and requestsOn(0) of length 1; TestRFC8907SecondSessionReusesEstablishedConnection (echo) requires one connection carrying two requests.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1281,19 +1289,19 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L240" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907NoSecondPacketWithoutSingleConnect</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L229" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907SecondSessionReusesEstablishedConnection</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8907-4.3-2"><code>RFC8907-4.3-2</code></a></h3>
 <p>No provision is made for changing Single Connection Mode after the first two packets; the client and server MUST ignore the flag after the second packet on a connection. (§4.3, Single Connection Mode)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: acting on the single-connect flag after the second packet, by leaving the pool when a later reply clears it or by re-signalling it. (b) TestRFC8907FlagClearedOnLaterReplyIsIgnored requires one connection carrying three requests although replies after the first clear the flag; TestRFC8907ClientDoesNotResignalSingleConnect requires requests[1].Flags and requests[2].Flags == 0.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1301,19 +1309,19 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L266" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientDoesNotResignalSingleConnect</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L254" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907FlagClearedOnLaterReplyIsIgnored</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8907-4.3-3"><code>RFC8907-4.3-3</code></a></h3>
 <p>The client MUST accommodate such closures on a TCP session even after Single Connection Mode has been established. (§4.3, Single Connection Mode)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: failing a later session, or writing to the dead socket, after the server closed an established single-connect TCP. TestRFC8907ServerClosureOfPooledConnectionIsAccommodated goes red on that (authenticatePass, require.Len connections 2, requestsOn(1) 1). The negative-tagged TestRFC8907ClosureOnFreshDialIsNotRetried asserts a neighbouring property (a closure on a fresh dial is not retried), which does not violate this requirement, and the row carries no {single-polarity} marker, so only one genuine polarity exists.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1321,7 +1329,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L294" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClosureOnFreshDialIsNotRetried</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L281" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907ServerClosureOfPooledConnectionIsAccommodated</code></a></td>
@@ -1332,8 +1340,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-4.4-1"><code>RFC8907-4.4-1</code></a></h3>
-<p>On a REPLY of ERROR &#34;The client cannot apply the result, and it MUST behave as if the server could not be connected to.&#34; (§4.4, Session Completion)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The server responds with an ERROR to indicate that the processing of the request did not complete. The client cannot apply the result, and it MUST behave as if the server could not be connected to. (§4.4, Session Completion)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: applying an ERROR reply as a result (terminal rejection) instead of behaving as if the server were unreachable. (b) TestRFC8907ErrorUsesBackupServer fails for authentication, authorization and accounting unless the backup is contacted and its status 1 is returned with no error; TestRFC8907FailDoesNotUseBackupServer is the discriminating pair: a FAIL keeps failStatus and never contacts the backup.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1352,8 +1360,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-4.4-2"><code>RFC8907-4.4-2</code></a></h3>
-<p>After an ERROR caused by connection issues on a Single Connection Mode connection, &#34;any further new sessions MUST NOT be accepted on the connection&#34; (§4.4, Session Completion)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If Single Connection Mode was enabled, but an ERROR occurred due to connection issues (such as an incorrect secret (see Section 4.5)), then any further new sessions MUST NOT be accepted on the connection. (§4.4, Session Completion)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a new session on a single-connect connection after a reply on it failed validation. (b) TestRFC8907NoNewSessionOnBrokenPooledConnection (session_id corrupted on the second reply) requires two connections and requestsOn(0) of length 2, so a third request on the broken TCP goes red; TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions requires one connection carrying three requests.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1361,7 +1369,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L328" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L313" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907NoNewSessionOnBrokenPooledConnection</code></a></td>
@@ -1373,7 +1381,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-4.4-3"><code>RFC8907-4.4-3</code></a></h3>
 <p>Once all active sessions are completed, then the connection MUST be closed. (§4.4, Session Completion)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: leaving the broken single-connect connection open. (b) TestRFC8907BrokenPooledConnectionIsClosed requires waitClosed on the server side of the broken TCP; TestRFC8907HealthyPooledConnectionStaysOpen requires isClosed false after three healthy sessions.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1381,7 +1389,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L351" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907HealthyPooledConnectionStaysOpen</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L339" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907BrokenPooledConnectionIsClosed</code></a></td>
@@ -1392,8 +1400,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-5.1-1"><code>RFC8907-5.1-1</code></a></h3>
-<p>The username is optional in the START packet; &#34;If it is absent, the client MUST set user_len to 0.&#34; (§5.1, The Authentication START Packet Body)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The username is optional in this packet, depending upon the class of authentication. If it is absent, the client MUST set user_len to 0. (§5.1, The Authentication START Packet Body)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a START with no username whose user_len is not 0. (b) TestRFC8907AuthenStartAbsentUserWritesZeroLength requires body[4] == 0, no user bytes and the port at offset 8; TestRFC8907AuthenStartPresentUserWritesItsLength requires body[4] == len(&#34;alice&#34;) and the user bytes.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1412,16 +1420,16 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-5.4-1"><code>RFC8907-5.4-1</code></a></h3>
-<p>On a REPLY of GETDATA, GETUSER or GETPASS, &#34;The client MUST then return a CONTINUE packet containing the requested information in the user_msg field.&#34; (§5.4, Description of Authentication Process)</p>
+<p>When the REPLY status equals TAC_PLUS_AUTHEN_STATUS_GETDATA, TAC_PLUS_AUTHEN_STATUS_GETUSER, or TAC_PLUS_AUTHEN_STATUS_GETPASS, authentication continues and the server SHOULD provide server_msg content for the client to prompt the user for more information. The client MUST then return a CONTINUE packet containing the requested information in the user_msg field. (§5.4, Description of Authentication Process)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8907-5.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8907-5.4-2"><code>RFC8907-5.4-2</code></a></h3>
-<p>When the client queries the user for information the server marked NOECHO, &#34;the response MUST NOT be reflected in the user interface as it is entered&#34; (§5.4, Description of Authentication Process)</p>
+<p>If the information being requested by the server from the client is sensitive, then the server should set the TAC_PLUS_REPLY_FLAG_NOECHO flag. When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered. (§5.4, Description of Authentication Process)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8907-5.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8907-5.4.2.2-1"><code>RFC8907-5.4.2.2-1</code></a></h3>
-<p>A PAP login exchange &#34;MUST consist of a single START packet and a single REPLY&#34; (§5.4.2.2, PAP Login)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The entire exchange MUST consist of a single START packet and a single REPLY. (§5.4.2.2, PAP Login)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a PAP login with more than one START/REPLY, including a CONTINUE. (b) TestRFC8907PAPExchangeIsOneStartOneReply requires exactly one authentication request on the connection; TestRFC8907PAPClientSendsNoContinue replies GETPASS and requires an error, a nil reply and requestsOn(0) of length 1.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1429,7 +1437,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L394" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPClientSendsNoContinue</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L382" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPExchangeIsOneStartOneReply</code></a></td>
@@ -1441,7 +1449,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-5.4.2.2-2"><code>RFC8907-5.4.2.2-2</code></a></h3>
 <p>The START packet MUST contain a username and the data field MUST contain the PAP ASCII password. (§5.4.2.2, PAP Login)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;MUST contain a username&#39; has no red assertion in a tagged unit: TestRFC8907PAPStartCarriesUserAndPassword asserts the user and data fields when a username is given, and the absent-username refusal lives only in the untagged TestRFC8907PAPRequiresPresentBoundedUsername. TestRFC8907PAPStartRefusesPasswordItCannotCarry proves a length bound, not presence of the password. The data-field-is-the-password clause is enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1460,15 +1468,15 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-5.4.2.3-1"><code>RFC8907-5.4.2.3-1</code></a></h3>
-<p>A CHAP login exchange &#34;MUST consist of a single START packet and a single REPLY&#34;, and &#34;The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response.&#34; (§5.4.2.3, CHAP Login)</p>
+<p>The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response. (§5.4.2.3, CHAP Login)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8907-5.4.2.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8907-5.4.2.4-1"><code>RFC8907-5.4.2.4-1</code></a></h3>
-<p>An MS-CHAP v1 login exchange &#34;MUST consist of a single START packet and a single REPLY&#34;, and &#34;The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response.&#34; (§5.4.2.4, MS-CHAP v1 Login)</p>
+<p>The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.4, MS-CHAP v1 Login)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8907-5.4.2.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8907-5.4.2.5-1"><code>RFC8907-5.4.2.5-1</code></a></h3>
-<p>An MS-CHAP v2 login exchange &#34;MUST consist of a single START packet and a single REPLY&#34;, and &#34;The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response.&#34; (§5.4.2.5, MS-CHAP v2 Login)</p>
+<p>The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.5, MS-CHAP v2 Login)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8907-5.4.2.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8907-5.4.2.6-1"><code>RFC8907-5.4.2.6-1</code></a></h3>
@@ -1476,8 +1484,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8907-5.4.2.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8907-5.4.2.6-2"><code>RFC8907-5.4.2.6-2</code></a></h3>
-<p>authen_service &#34;MUST NOT be set to this value when requesting any other operation&#34; (§5.4.2.6, Enable Requests)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In order to readily distinguish &#34;ENABLE&#34; requests from other types of request, the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE. It MUST NOT be set to this value when requesting any other operation. (§5.4.2.6, Enable Requests)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause 1 (&#39;MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE&#39;) has no assertion and no annotation: Ze sets only authenServiceLogin (authen.go:176) and never requests ENABLE, but the row carries no {single-polarity} or {not-applicable} argument for that half. Clause 2 is covered, though the two tagged units are one assertion wearing two hats (Equal LOGIN implies NotEqual ENABLE).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1497,7 +1505,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-5.4.3-1"><code>RFC8907-5.4.3-1</code></a></h3>
 <p>If a client does not implement the TAC_PLUS_AUTHEN_STATUS_RESTART option, then it MUST process the response as if the status was TAC_PLUS_AUTHEN_STATUS_FAIL. (§5.4.3, Aborting an Authentication Session)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: processing RESTART as anything but FAIL. (b) TestRFC8907RestartIsProcessedAsFail requires ErrorIs aaa.ErrAuthRejected, Authenticated false and Source == backendName; TestRFC8907ErrorIsNotProcessedAsFail is the discriminating pair: ERROR must not be ErrAuthRejected.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1517,7 +1525,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-6.1-1"><code>RFC8907-6.1-1</code></a></h3>
 <p>The user_len MUST indicate the length of the user field, in bytes. (§6.1, The Authorization REQUEST Packet Body)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: a user_len that is not the BYTE length of the user field (for example a character count). Both tagged units use ASCII users, where bytes and characters coincide: TestRFC8907AuthorRequestUserLenMatchesUser asserts body[4] == 5 and the five user bytes for &#34;alice&#34;, and TestRFC8907AuthorRequestRefusesUserItCannotMeasure asserts a 256-byte ASCII user is refused. A user_len computed as a rune count stays green; the multi-byte case (&#34;Alicé&#34;) is asserted only in TestRFC8907UsernameProfileOnWire, tagged to RFC8907-3.7-1.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1537,7 +1545,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-6.1-2"><code>RFC8907-6.1-2</code></a></h3>
 <p>An argument name MUST NOT contain either of the separators. (§6.1, The Authorization REQUEST Packet Body)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: an argument whose name contains = or *. (b) TestRFC8907ArgumentNamesCarryNoSeparator requires every built name to be service, cmd or cmd-arg; TestRFC8907ArgumentValueKeepsSeparatorOutOfName requires splitTacacsArgs(&#34;set key=a*b value=*&#34;) to equal exactly service=shell, cmd=set, cmd-arg=key=a*b, cmd-arg=value=*, so a token carried as a name goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1556,8 +1564,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-6.2-1"><code>RFC8907-6.2-1</code></a></h3>
-<p>On TAC_PLUS_AUTHOR_STATUS_PASS_ADD &#34;the arguments in the response MUST be applied according to the rules described above&#34; (§6.2, The Authorization REPLY Packet Body)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the status equals TAC_PLUS_AUTHOR_STATUS_PASS_ADD, then the arguments specified in the request are authorized and the arguments in the response MUST be applied according to the rules described above. (§6.2, The Authorization REPLY Packet Body)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: under PASS_ADD, dropping the requested arguments or not applying the returned ones. (b) TestRFC8907PassAddRetainsCommand fails if the requested command is lost; TestRFC8907PassAddCannotIgnoreCommandExtension fails if an added mandatory cmd-arg is ignored or falls back to local policy; TestRFC8907SessionPrivilegeApplied fails unless the returned priv-lvl selects its mapped profile.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1581,8 +1589,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-6.2-2"><code>RFC8907-6.2-2</code></a></h3>
-<p>On TAC_PLUS_AUTHOR_STATUS_PASS_REPL &#34;the client MUST use the authorization argument-value pairs (if any) in the response instead of the authorization argument-value pairs from the request&#34; (§6.2, The Authorization REPLY Packet Body)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the status equals TAC_PLUS_AUTHOR_STATUS_PASS_REPL, then the client MUST use the authorization argument-value pairs (if any) in the response instead of the authorization argument- value pairs from the request. (§6.2, The Authorization REPLY Packet Body)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: under PASS_REPL, using the request arguments instead of the reply ones. (b) TestRFC8907PassReplCannotAuthorizeOriginalCommand fails if an empty, incomplete, changed, reordered or re-split replacement authorizes the original command or consults the local fallback; TestRFC8907IncompleteSessionReplacementDenied fails if session replacement inherits service/cmd from the request; positives TestRFC8907PassReplPreservesExactCommand and TestRFC8907SessionReplacementMapsZero (reply priv-lvl 0 applied).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1611,8 +1619,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-6.2-3"><code>RFC8907-6.2-3</code></a></h3>
-<p>On TAC_PLUS_AUTHOR_STATUS_FAIL &#34;the requested authorization MUST be denied&#34; (§6.2, The Authorization REPLY Packet Body)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the status equals TAC_PLUS_AUTHOR_STATUS_FAIL, then the requested authorization MUST be denied. (§6.2, The Authorization REPLY Packet Body)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: allowing a request the server answered with FAIL. (b) TestRFC8907AuthorizationFailDenies requires Authorize false and zero calls to a permissive local policy; TestRFC8907AuthorizationPassAddIsNotDenied requires PASS_ADD to allow.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1632,7 +1640,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-7.2-1"><code>RFC8907-7.2-1</code></a></h3>
 <p>The STOP flag MUST NOT be set in conjunction with the WATCHDOG flag. (§7.2, The Accounting REPLY Packet Body)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: STOP with WATCHDOG set. (b) TestRFC8907AccountingStopWatchdogCombinationRefused requires errRequestInvalid for STOP|WATCHDOG; TestRFC8907StopRecordNeverCarriesWatchdog requires Flags&amp;WATCHDOG == 0 on the queued STOP; TestRFC8907StopRecordCarriesStopFlagOnly requires Flags == STOP.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1657,7 +1665,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-8-1"><code>RFC8907-8-1</code></a></h3>
 <p>Clients MUST use these arguments when supporting the corresponding use cases. (§8, Argument-Value Pairs)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quote binds every use case the Section 8 dictionary serves. The tagged units assert only command accounting: TestRFC8907CommandRecordsUseDictionaryArguments requires service/cmd/cmd-arg/task_id/start_time|stop_time and TestRFC8907CommandRecordsCarryNoForeignArgument refuses names outside the dictionary. Authorization requests (command and session) are not asserted under this row, and the 8.2 rows that carry them are themselves weak.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1676,8 +1684,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-8.1-1"><code>RFC8907-8.1-1</code></a></h3>
-<p>&#34;TACACS+ implementations MUST verify that they can accommodate the lengths of numeric arguments before attempting to process them&#34;, and a length that cannot be accommodated means &#34;the argument MUST be regarded as not handled and the logic in &#39;Authorization&#39; (Section 6.1) regarding the processing of arguments MUST be applied&#34; (§8.1, Value Encoding)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>TACACS+ implementations MUST verify that they can accommodate the lengths of numeric arguments before attempting to process them. If the length cannot be accommodated, then the argument MUST be regarded as not handled and the logic in &#34;Authorization&#34; (Section 6.1) regarding the processing of arguments MUST be applied. (§8.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: processing a numeric argument whose length Ze cannot accommodate, or not applying Section 6.1 to it. (b) TestRFC8907InvalidMandatoryPrivilegeDenied asserts ErrAuthRejected and zero profiles for priv-lvl=18446744073709551631 and a 242-digit value (mandatory -&gt; authorization failed); TestRFC8907OverlongOptionalPrivilegeCannotElevate asserts the overlong optional priv-lvl is disregarded (profile ops); TestRFC8907SessionPrivilegeApplied is the positive (priv-lvl=15 -&gt; admin). priv-lvl is the only numeric argument Ze processes; timeout and others are refused as unsupported mandatory.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1701,8 +1709,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-8.1-2"><code>RFC8907-8.1-2</code></a></h3>
-<p>For an absolute date/time argument, &#34;The time zone MUST be UTC unless a time zone argument is specified.&#34; (§8.1, Value Encoding)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Absolute date/times are specified in seconds since the epoch, 12:00am, January 1, 1970. The time zone MUST be UTC unless a time zone argument is specified. (§8.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an absolute date/time in local time, or not in epoch seconds, without a timezone argument. (b) TestRFC8907StartTimeIsEpochSeconds bounds start_time to time.Now().Unix(); TestRFC8907StartTimeIgnoresLocalZone sets time.Local five hours east and asserts no shift and no timezone argument. stop_time, the other absolute date/time Ze emits (accounting.go line 189), has no assertion, so a local-zone stop_time passes.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1721,8 +1729,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-8.2-1"><code>RFC8907-8.2-1</code></a></h3>
-<p>The &#34;service&#34; argument &#34;MUST always be included&#34; (§8.2, Authorization Arguments)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Specifying a service argument indicates that this is a request for authorization or accounting of that service. For example: &#34;shell&#34;, &#34;tty-server&#34;, &#34;connection&#34;, &#34;system&#34; and &#34;firewall&#34;; others may be chosen for the required application. This argument MUST always be included. (§8.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an authorization or accounting request without a service argument. (b) TestRFC8907ServiceArgumentAlwaysFirst and TestRFC8907ServiceArgumentPresentForEmptyCommand assert service=shell only for splitTacacsArgs, the command-authorization builder. The session authorization request built in authenticator.go (args service=shell, cmd=) and the accounting records have no assertion in a unit tagged to this row, so &#34;always&#34; is proven for one request kind.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1742,7 +1750,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-8.2-2"><code>RFC8907-8.2-2</code></a></h3>
 <p>The &#34;cmd&#34; argument MUST be specified if service equals &#34;shell&#34;. (§8.2, Authorization Arguments)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: a service=shell request without a cmd argument. (b) TestRFC8907CmdArgumentFollowsShellService and TestRFC8907CmdArgumentPresentForEmptyCommand assert cmd= after service=shell only for splitTacacsArgs. The session authorization request (authenticator.go, service=shell with cmd=) is not asserted by a unit tagged to this row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1761,8 +1769,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </table>
 </div>
 <h3><a href="#rfc8907-8.3-1"><code>RFC8907-8.3-1</code></a></h3>
-<p>Accounting arguments &#34;MUST precede any argument-value pairs that are defined in &#39;Authorization&#39; (Section 6)&#34; (§8.3, Accounting Arguments)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The following arguments are defined for TACACS+ accounting only. They MUST precede any argument-value pairs that are defined in &#34;Authorization&#34; (Section 6). (§8.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a Section 8.2 argument (service, cmd, cmd-arg) before task_id/start_time/stop_time in an accounting record. (b) TestRFC8907AccountingArgumentsPrecedeAuthorizationOnes asserts task_id and start_time (START) and task_id and stop_time (STOP) index below service; TestRFC8907NoAuthorizationArgumentPrecedesAccountingOne fails on any service/cmd/cmd-arg seen before task_id or start_time in START. Both records share accountingArguments.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1782,7 +1790,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-8.3-2"><code>RFC8907-8.3-2</code></a></h3>
 <p>Start and stop records for the same event MUST have matching task_id argument values. (§8.3, Accounting Arguments)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: START and STOP of one command with different task_id values. (b) TestRFC8907StartAndStopShareTaskID require.Equal(startID, stopID); TestRFC8907SecondCommandCarriesOtherTaskID require.NotEqual for a second command.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1802,7 +1810,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-8.3-3"><code>RFC8907-8.3-3</code></a></h3>
 <p>The client MUST ensure that active task_ids are not duplicated; a client MUST NOT reuse a task_id in a start record until it has sent a stop record for that task_id. (§8.3, Accounting Arguments)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: two active START records sharing a task_id, or a task_id reused in START before its STOP. (b) TestRFC8907ActiveTaskIDsAreDistinct fails on any repeat among sixteen START records with no STOP; TestRFC8907TaskIDNeverReappears asserts a used task_id never reappears in eight later STARTs.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1822,7 +1830,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-8.3-4"><code>RFC8907-8.3-4</code></a></h3>
 <p>To support this mode of operation, TACACS+ client devices MUST be configured to send an accounting start packet for every command entered, irrespective of how the commands were authorized. (§8.3, Accounting Arguments)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: an entered command with no accounting START, including a command authorization denied or that is unknown or malformed. (b) TestDispatcherAccountsRefusedCommands asserts starts == [input] for a denied, an unknown and a malformed command; TestRFC8907TypedDispatchAccountsDeniedCommand asserts START and STOP for a denied typed dispatch; api_test.go denied-stream and TACACS wire tests (rfc8907_dispatch_wire_test.go) assert real START packets; TestRFC8907AccountingRequiresDestination refuses accounting with no destination at Build.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1897,7 +1905,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-8.3-5"><code>RFC8907-8.3-5</code></a></h3>
 <p>These &#34;Command Accounting&#34; packets MUST include the &#34;service&#34; and &#34;cmd&#34; arguments, and if needed, the &#34;cmd-arg&#34; arguments detailed in Section 8.2. (§8.3, Accounting Arguments)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a command accounting record without service or cmd, or dropping needed cmd-arg arguments. (b) TestRFC8907CommandRecordsCarryServiceCmdAndArgs asserts service=shell, cmd=show, cmd-arg=bgp, cmd-arg=summary in START and STOP; TestRFC8907EmptyCommandRecordStillCarriesServiceAndCmd asserts service=shell and cmd= for an empty command.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1921,7 +1929,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <p>No test carries RFC8907-10.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8907-10.5.1-1"><code>RFC8907-10.5.1-1</code></a></h3>
 <p>TACACS+ servers and clients MUST treat shared secrets as sensitive data to be managed securely, as would be expected for other sensitive data such as identity credential information. (§10.5.1, Shared Secrets)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: exposing the shared secret in display, diagnostics, logs or accounting records. (b) TestRFC8907SharedSecretConfigBuildAndDisplay asserts the display tree masks the key while the live key still decodes a real exchange; TestRFC8907SharedSecretDiagnosticRedaction fails on the key, its base64 or byte list in fmt, %#v, JSON and slog output; TestRFC8907SharedSecretCommandRedaction fails on secret words in DisplayCommand; TestRFC8907AccountingRedactsConfigSecretWithoutChangingExecution asserts accounting tokens carry the placeholder.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1951,7 +1959,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-10.5.1-2"><code>RFC8907-10.5.1-2</code></a></h3>
 <p>* TACACS+ servers and clients MUST support shared keys that are at least 32 characters long. (§10.5.1, Shared Secrets)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: rejecting or truncating a shared key of 32 characters or more. (b) TestRFC8907LongSharedKeysAuthenticate completes a PASS exchange with 32- and 300-character keys; TestRFC8907SharedKeyIsNotTruncated asserts the pad for 32 characters differs from the pad for the first 31; TestRFC8907SharedSecretConfigBuildAndDisplay drives a 32-character key through Build into a real accounting exchange.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1976,7 +1984,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-10.5.4-1"><code>RFC8907-10.5.4-1</code></a></h3>
 <p>The cost of the flexibility is that administrators and implementers MUST ensure that the argument and value pairs shared between the clients and servers have consistent interpretation. (§10.5.4, Authorization)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: Ze interpreting a shared argument-value pair differently from its defined meaning. (b) TestRFC8907MandatoryCommandPolicyAccepted asserts an exact service/cmd/cmd-arg policy with separators inside the value is enacted, which is one consistent-interpretation case. The negatives (TestRFC8907MandatoryCommandPolicyDenied, TestRFC8907MandatorySessionPolicyDenied) prove the next sentence of Section 10.5.4, unrecognized mandatory argument evaluated as FAIL, which RFC8907-6-1 carries. No assertion covers interpretation of the rest of the base dictionary Ze consumes (priv-lvl is asserted under RFC8907-8.1-1 only).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2004,8 +2012,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8907-4.6-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8907-x-2"><code>RFC8907-x-2</code></a></h3>
-<p>The TAC_PLUS_AUTHEN_STATUS_FOLLOW redirection mechanism is deprecated, and &#34;This mechanism MUST NOT be used in modern deployments. It MUST NOT be used outside a secured deployment.&#34; (Error Handling)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>This document deprecates the redirection mechanism using the TAC_PLUS_AUTHEN_STATUS_FOLLOW option, which was included in &#34;The Draft&#34;. As part of this process, the secret key for a new server was sent to the client. This public exchange of secret keys means that once one session is broken, it may be possible to leverage that key to attacking connections to other servers. This mechanism MUST NOT be used in modern deployments. It MUST NOT be used outside a secured deployment. (§10.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: the client using the FOLLOW redirection, by contacting the named server or treating FOLLOW as success or fallback. (b) TestRFC8907FollowTargetIsNeverContacted fails if the FOLLOW target receives a connection; TestRFC8907FollowIsNotAuthenticated asserts ErrAuthRejected and not authenticated; TestRFC8907AuthorizationFollowDeniesWithoutFallback asserts denial with zero local fallback calls.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2734,7 +2742,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5310 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5310: IS-IS Generic Cryptographic Authentication. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5310: IS-IS Generic Cryptographic Authentication. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5310 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5310: IS-IS Generic Cryptographic Authentication. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5310: IS-IS Generic Cryptographic Authentication. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5310 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5310: IS-IS Generic Cryptographic Authentication. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5310: IS-IS Generic Cryptographic Authentication. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 9 gated MUSTs judged</b><p>6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>16</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -292,7 +300,7 @@ Same IS-IS experimental status.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.2-1">RFC5310-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Level 1 Sequence Number PDUs &#34;SHALL use the Area Authentication string, as in Level 1 Link State PDUs&#34; (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.2-1">RFC5310-3.2-1</code></td><td colspan="3"><span class="rfc-subject">When calculating the CRYPTO_AUTH result for Sequence Number PDUs, Level 1 Sequence Number PDUs SHALL use the Area Authentication string, as in Level 1 Link State PDUs. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>3.2</td>
@@ -310,7 +318,7 @@ Same IS-IS experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L284" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthLevelChainCrossUseL2</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.2-3">RFC5310-3.2-3</code></td><td colspan="3"><span class="rfc-subject">&#34;IS-IS HELLO PDUs SHALL use the Link Level Authentication string&#34; (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.2-3">RFC5310-3.2-3</code></td><td colspan="3"><span class="rfc-subject">IS-IS HELLO PDUs SHALL use the Link Level Authentication string (§3.2)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>3.2</td>
@@ -328,7 +336,7 @@ Same IS-IS experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze always pads the IIH before signing it (circuit/runtime.go:273-276 for LAN, :293-304 for P2P), so there is no sign-before-pad code path and no negative (unpadded-sign) behavior to assert. The positive is proven in TestISISHelloSignedOverPaddedPDU: the bytes handed to the signer are already padded to MTU-LLC and carry Padding TLV 8</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.2-6">RFC5310-3.2-6</code></td><td colspan="3"><span class="rfc-subject">Implementations that support the optional checksum for the Sequence Number PDUs and IS-IS HELLO PDUs &#34;MUST NOT include the Checksum TLV&#34; (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.2-6">RFC5310-3.2-6</code></td><td colspan="3"><span class="rfc-subject">Implementations that support the optional checksum for the Sequence Number PDUs and IS-IS HELLO PDUs MUST NOT include the Checksum TLV. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2</td>
@@ -356,7 +364,7 @@ Same IS-IS experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze pads the IIH before signing it (circuit/runtime.go:273-276 pads then signs), with no sign-before-pad code path, so no negative (auth-computed-before-padding) behavior exists to assert. The positive is proven in TestISISHelloSignedOverPaddedPDU: the signer receives the PDU already padded to MTU-LLC</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-4-1">RFC5310-4-1</code></td><td colspan="3"><span class="rfc-subject">&#34;the remaining lifetime of the LSP MUST be set to zero before computing the authentication&#34;, so that field is not authenticated (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-4-1">RFC5310-4-1</code></td><td colspan="3"><span class="rfc-subject">This document states that the remaining lifetime of the LSP MUST be set to zero before computing the authentication, thus this field is not authenticated. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -377,7 +385,7 @@ Same IS-IS experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L637" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthWrongKeyRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.5-1">RFC5310-3.5-1</code></td><td colspan="3"><span class="rfc-subject">When the calculated data and the received authentication data do not match, the PDU is discarded and &#34;an error event SHOULD be logged&#34; (§3.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.5-1">RFC5310-3.5-1</code></td><td colspan="3"><span class="rfc-subject">The calculated data is compared with the received authentication data in the PDU, and the PDU is discarded if the two do not match. In such a case, an error event SHOULD be logged. (§3.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.5</td>
@@ -386,7 +394,7 @@ Same IS-IS experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.2-4">RFC5310-3.2-4</code></td><td colspan="3"><span class="rfc-subject">The IS-IS HELLO PDU Link Level Authentication string &#34;MAY be different from that of Link State PDUs&#34; (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.2-4">RFC5310-3.2-4</code></td><td colspan="3"><span class="rfc-subject">IS-IS HELLO PDUs SHALL use the Link Level Authentication string, which MAY be different from that of Link State PDUs. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.2</td>
@@ -395,7 +403,7 @@ Same IS-IS experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.5-2">RFC5310-3.5-2</code></td><td colspan="3"><span class="rfc-subject">&#34;An implementation MAY have a transition mode where it includes CRYPTO_AUTH information in the PDUs but does not verify this information&#34; as a migration aid (§3.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.5-2">RFC5310-3.5-2</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY have a transition mode where it includes CRYPTO_AUTH information in the PDUs but does not verify this information. This is provided as a transition aid for networks in the process of migrating to the new CRYPTO_AUTH-based authentication schemes. (§3.5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.5</td>
@@ -413,7 +421,7 @@ Same IS-IS experimental status.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc5310-3.2-6"><code>RFC5310-3.2-6</code></a> Implementations that support the optional checksum for the Sequence Number PDUs and IS-IS HELLO PDUs &#34;MUST NOT include the Checksum TLV&#34; (§3.2)</td>
+<tr><td><a href="#rfc5310-3.2-6"><code>RFC5310-3.2-6</code></a> Implementations that support the optional checksum for the Sequence Number PDUs and IS-IS HELLO PDUs MUST NOT include the Checksum TLV. (§3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the antecedent is false -- ze implements no optional IS-IS per-PDU Checksum TLV (internal/plugins/isis/packet/tlv.go has no TLV 12 codec), so this conditional MUST NOT has no applicable code path</td>
 </tr>
@@ -424,8 +432,8 @@ Same IS-IS experimental status.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5310-3.2-1"><code>RFC5310-3.2-1</code></a></h3>
-<p>Level 1 Sequence Number PDUs &#34;SHALL use the Area Authentication string, as in Level 1 Link State PDUs&#34; (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>When calculating the CRYPTO_AUTH result for Sequence Number PDUs, Level 1 Sequence Number PDUs SHALL use the Area Authentication string, as in Level 1 Link State PDUs. (§3.2)</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The sentence binds Level 1 Sequence Number PDUs (CSNP/PSNP). Both tagged units drive an LSP (authTestLSP): TestISISAuthEngineSignLevel round-trips an L1 LSP through signLevelPDU/verifyFrame, and TestISISAuthChainSelection rejects an L1 LSP signed with the IIH key. They prove the neighbouring rule that L1 LSPs use the area string. No tagged unit signs or verifies an L1 SNP, so an SNP signed with the domain or IIH string stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -464,8 +472,8 @@ Same IS-IS experimental status.
 </table>
 </div>
 <h3><a href="#rfc5310-3.2-3"><code>RFC5310-3.2-3</code></a></h3>
-<p>&#34;IS-IS HELLO PDUs SHALL use the Link Level Authentication string&#34; (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>IS-IS HELLO PDUs SHALL use the Link Level Authentication string (§3.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an IIH authenticated with a string other than the Link Level one (the area or domain string); (b) no tagged assertion goes red on it. The positive round-trips signHelloPDU through verifyFrame, which stays green if both sides switched to the area chain (self-consistent). The negative rejects an IIH with no TLV 10, which proves &#39;authentication is required&#39;, not which string. The untagged wrong-key case uses an unconfigured key &#39;nope&#39;. Missing: an IIH signed with the area/domain key rejected, and a check that the sender picks the per-interface chain.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -485,7 +493,7 @@ Same IS-IS experimental status.
 </div>
 <h3><a href="#rfc5310-3.2-5"><code>RFC5310-3.2-5</code></a></h3>
 <p>The CRYPTO_AUTH result for the IS-IS HELLO PDUs SHALL be calculated after the PDU is padded to the MTU size, if padding is not disabled. (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Single-polarity positive. (a) forbidden: computing the IIH CRYPTO_AUTH result before padding to MTU; (b) TestISISHelloSignedOverPaddedPDU len(cs.pdu)!=wantPDU and the Padding TLV 8 check go red on sign-before-pad, but only on a LAN circuit (lanCircuit, SendHello-&gt;sendLANHello). The P2P IIH producer (sendP2PHello, runtime.go) has no tagged assertion, so a sign-before-pad there stays green. Ze has no padding-disable option, so the conditional branch does not arise.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -499,12 +507,12 @@ Same IS-IS experimental status.
 </table>
 </div>
 <h3><a href="#rfc5310-3.2-6"><code>RFC5310-3.2-6</code></a></h3>
-<p>Implementations that support the optional checksum for the Sequence Number PDUs and IS-IS HELLO PDUs &#34;MUST NOT include the Checksum TLV&#34; (§3.2)</p>
+<p>Implementations that support the optional checksum for the Sequence Number PDUs and IS-IS HELLO PDUs MUST NOT include the Checksum TLV. (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5310-3.2-6, so no unit is bound to it.</p>
 <h3><a href="#rfc5310-3.4-1"><code>RFC5310-3.4-1</code></a></h3>
 <p>An implementation MUST fill the authentication type and the length before the authentication data is computed. (§3.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity positive. (a) forbidden: computing the digest before the auth-type byte and TLV length are in place; (b) TestISISAuthHMACSHAApadPreimage recomputes HMAC-SHA-256 over the signed PDU (which carries the final type 3 byte and length) with the data region Apad-filled and asserts bytes.Equal(onWire, wantApad): a digest computed over a pre-image lacking the type or length differs and goes red. TestISISAuthSignVerifyHMACSHA256 pins AuthType 3 and value length 34 on every PDU class.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -524,7 +532,7 @@ Same IS-IS experimental status.
 </div>
 <h3><a href="#rfc5310-3.4-2"><code>RFC5310-3.4-2</code></a></h3>
 <p>The authentication data for the IS-IS IIH PDUs MUST be computed after the IS-IS Hello (IIH) has been padded to the MTU size, if padding is not explicitly disabled. (§3.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Same unit and gap as RFC5310-3.2-5: the pad-before-sign assertion (len == MTU-LLC, Padding TLV 8 present) runs on the LAN IIH only; the P2P IIH producer sendP2PHello has no tagged assertion.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -538,8 +546,8 @@ Same IS-IS experimental status.
 </table>
 </div>
 <h3><a href="#rfc5310-4-1"><code>RFC5310-4-1</code></a></h3>
-<p>&#34;the remaining lifetime of the LSP MUST be set to zero before computing the authentication&#34;, so that field is not authenticated (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>This document states that the remaining lifetime of the LSP MUST be set to zero before computing the authentication, thus this field is not authenticated. (§4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Single-polarity positive. (a) forbidden: including the Remaining Lifetime in the CRYPTO_AUTH digest; (b) the only assertion that goes red on it, TestISISAuthLSPChecksumAfterSign &#39;VerifyPDU after lifetime change&#39;, signs with HMAC-MD5 (RFC 5304 type 54), not a CRYPTO_AUTH key. The type-3 unit TestISISAuthRotationOverlapAccepts only round-trips an LSP without touching the lifetime, so it stays green if the lifetime were hashed on both sides. The zeroing in auth_sign.go is shared across algorithms today, but no tagged unit proves it on the RFC 5310 path.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -559,7 +567,7 @@ Same IS-IS experimental status.
 </div>
 <h3><a href="#rfc5310-4-2"><code>RFC5310-4-2</code></a></h3>
 <p>To ensure greater security, the keys used should be changed periodically, and implementations MUST be able to store and use more than one key at the same time. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Positive is sound: TestISISAuthRotationOverlapAccepts verifies PDUs signed by either of two candidate keys, and TestISISAuthRotation asserts verifyKeys returns 2 keys before and after rollover; a one-key store goes red. The negative tags (TestISISAuthWrongKeyRejected, TestISISAuthKeyIDMismatchRejected) prove a neighbouring rule, rejection of an unknown key or Key ID (RFC 5304 sec 2 / RFC 5310 sec 3.5), not a violation of &#39;store and use more than one key&#39;. No true negative and no {single-polarity} marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -786,7 +794,7 @@ Same IS-IS experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

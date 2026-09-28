@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 1997 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 1997: BGP Communities Attribute. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 1997: BGP Communities Attribute. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 1997 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 1997: BGP Communities Attribute. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 1997: BGP Communities Attribute. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 1997 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 1997: BGP Communities Attribute. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 1997: BGP Communities Attribute. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -121,6 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>3.8%</strong><b>1 of 26 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>5</strong><b>of 5 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -179,7 +180,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +211,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +227,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>26</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>1</td>
@@ -295,7 +299,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-well-1">RFC1997-Well-1</code></td><td colspan="3"><span class="rfc-subject">Routes with NO_EXPORT community MUST NOT be advertised outside a BGP confederation boundary (§Well-known Communities)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-well-1">RFC1997-Well-1</code></td><td colspan="3"><span class="rfc-subject">NO_EXPORT (0xFFFFFF01) All routes received carrying a communities attribute containing this value MUST NOT be advertised outside a BGP confederation boundary (a stand-alone autonomous system that is not part of a confederation should be considered a confederation itself). (§Well-known Communities)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>Well</td>
@@ -312,7 +316,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1054" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoExportBoundary</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-well-2">RFC1997-Well-2</code></td><td colspan="3"><span class="rfc-subject">Routes with NO_ADVERTISE community MUST NOT be advertised to other BGP peers (§Well-known Communities)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-well-2">RFC1997-Well-2</code></td><td colspan="3"><span class="rfc-subject">NO_ADVERTISE (0xFFFFFF02) All routes received carrying a communities attribute containing this value MUST NOT be advertised to other BGP peers. (§Well-known Communities)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>Well</td>
@@ -324,7 +328,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L5" title="test/plugin/wellknown-no-advertise-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-advertise-egress.ci</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-well-3">RFC1997-Well-3</code></td><td colspan="3"><span class="rfc-subject">Routes with NO_EXPORT_SUBCONFED community MUST NOT be advertised to external BGP peers, including peers in other member ASes inside a confederation (§Well-known Communities)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-well-3">RFC1997-Well-3</code></td><td colspan="3"><span class="rfc-subject">NO_EXPORT_SUBCONFED (0xFFFFFF03) All routes received carrying a communities attribute containing this value MUST NOT be advertised to external BGP peers (this includes peers in other members autonomous systems inside a BGP confederation). (§Well-known Communities)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>Well</td>
@@ -336,16 +340,16 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L12" title="test/plugin/wellknown-no-advertise-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-advertise-egress.ci</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-encoding-1">RFC1997-Encoding-1</code></td><td colspan="3"><span class="rfc-subject">Attribute length MUST be a multiple of 4 (§Encoding Rules)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-encoding-1">RFC1997-Encoding-1</code></td><td colspan="3"><span class="rfc-subject">The attribute consists of a set of four octet values, each of which specify a community. (§COMMUNITIES attribute)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>Encoding</td>
+<td>COMMUNITIES</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1997-Encoding-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L44" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestCommunitiesParse</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L54" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestCommunitiesParseRejectsNonMultipleOf4</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-well-4">RFC1997-Well-4</code></td><td colspan="3"><span class="rfc-subject">Well-known community operations SHALL be implemented in any community-attribute-aware BGP speaker (§Well-known Communities)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-well-4">RFC1997-Well-4</code></td><td colspan="3"><span class="rfc-subject">The following communities have global significance and their operations shall be implemented in any community-attribute-aware BGP speaker. (§Well-known Communities)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>Well</td>
@@ -356,7 +360,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L122" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownIgnoresOtherReservedCommunities</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-aggregation-1">RFC1997-Aggregation-1</code></td><td colspan="3"><span class="rfc-subject">When aggregating routes without ATOMIC_AGGREGATE, the resulting aggregate SHOULD have a COMMUNITIES attribute containing all communities from all aggregated routes (§Aggregation)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-aggregation-1">RFC1997-Aggregation-1</code></td><td colspan="3"><span class="rfc-subject">If a range of routes is to be aggregated and the resultant aggregates attribute section does not carry the ATOMIC_AGGREGATE attribute, then the resulting aggregate should have a COMMUNITIES path attribute which contains all communities from all of the aggregated routes. (§Aggregation)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>Aggregation</td>
@@ -365,7 +369,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-operation-1">RFC1997-Operation-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MAY use the COMMUNITIES attribute to control which routing information it accepts, prefers, or distributes (§Operation)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-operation-1">RFC1997-Operation-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker may use this attribute to control which routing information it accepts, prefers or distributes to other neighbors. (§Operation)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>Operation</td>
@@ -374,7 +378,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-operation-2">RFC1997-Operation-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker receiving a route without COMMUNITIES MAY append this attribute when propagating to peers (§Operation)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-operation-2">RFC1997-Operation-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker receiving a route that does not have the COMMUNITIES path attribute may append this attribute to the route when propagating it to its peers. (§Operation)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>Operation</td>
@@ -383,7 +387,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-operation-3">RFC1997-Operation-3</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker receiving a route with COMMUNITIES MAY modify the attribute according to local policy (§Operation)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-operation-3">RFC1997-Operation-3</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker receiving a route with the COMMUNITIES path attribute may modify this attribute according to the local policy. (§Operation)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>Operation</td>
@@ -402,8 +406,8 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc1997-well-1"><code>RFC1997-Well-1</code></a></h3>
-<p>Routes with NO_EXPORT community MUST NOT be advertised outside a BGP confederation boundary (§Well-known Communities)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>NO_EXPORT (0xFFFFFF01) All routes received carrying a communities attribute containing this value MUST NOT be advertised outside a BGP confederation boundary (a stand-alone autonomous system that is not part of a confederation should be considered a confederation itself). (§Well-known Communities)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence&#39;s own parenthesis defines. Forbidden: a received NO_EXPORT route advertised to an external peer. TestWellKnownNoExportRefusesExternalPeer asserts AllowsEgressTo(false) is false; TestForwardNoExportSkipsExternalPeerOnly asserts NotContains the eBGP address on the forward rail; wellknown-no-export-egress.ci covers the daemon wire. Negatives: the same route still reaches an internal peer (TestWellKnownNoExportAllowsInternalPeer, Contains iBGP), so a speaker that advertises to nobody goes red. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -462,8 +466,8 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 </table>
 </div>
 <h3><a href="#rfc1997-well-2"><code>RFC1997-Well-2</code></a></h3>
-<p>Routes with NO_ADVERTISE community MUST NOT be advertised to other BGP peers (§Well-known Communities)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>NO_ADVERTISE (0xFFFFFF02) All routes received carrying a communities attribute containing this value MUST NOT be advertised to other BGP peers. (§Well-known Communities)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence&#39;s own parenthesis defines. Forbidden: a received NO_ADVERTISE route advertised to any peer. TestWellKnownNoAdvertiseRefusesEveryPeer asserts AllowsEgressTo false for internal and external; TestForwardNoAdvertiseSkipsEveryPeer asserts the forward set is empty; wellknown-no-advertise-egress.ci on the wire. Negative TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer asserts an ordinary community reaches both. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -497,8 +501,8 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 </table>
 </div>
 <h3><a href="#rfc1997-well-3"><code>RFC1997-Well-3</code></a></h3>
-<p>Routes with NO_EXPORT_SUBCONFED community MUST NOT be advertised to external BGP peers, including peers in other member ASes inside a confederation (§Well-known Communities)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>NO_EXPORT_SUBCONFED (0xFFFFFF03) All routes received carrying a communities attribute containing this value MUST NOT be advertised to external BGP peers (this includes peers in other members autonomous systems inside a BGP confederation). (§Well-known Communities)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence&#39;s own parenthesis defines. Forbidden: a received NO_EXPORT_SUBCONFED route advertised to an external peer. TestWellKnownNoExportSubconfedRefusesExternalPeer asserts AllowsEgressTo(false) false and TestForwardNoExportSubconfedSkipsExternalPeerOnly asserts NotContains eBGP; the negative asserts an internal peer still receives it. The parenthesis extends &#39;external&#39; to member-AS peers of a confederation, and with no confederation configurable no such peer exists apart from the external peers already asserted. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -532,8 +536,8 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 </table>
 </div>
 <h3><a href="#rfc1997-encoding-1"><code>RFC1997-Encoding-1</code></a></h3>
-<p>Attribute length MUST be a multiple of 4 (§Encoding Rules)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The attribute consists of a set of four octet values, each of which specify a community. (§COMMUNITIES attribute)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) a COMMUNITIES value that is not a whole set of four-octet values, e.g. 6 octets, silently truncated to one community; (b) TestCommunitiesParseRejectsNonMultipleOf4 require.ErrorIs ErrInvalidLength on 6 octets goes red. Positive TestCommunitiesParse asserts the exact two four-octet communities decoded from 8 octets.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -552,8 +556,8 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 </table>
 </div>
 <h3><a href="#rfc1997-well-4"><code>RFC1997-Well-4</code></a></h3>
-<p>Well-known community operations SHALL be implemented in any community-attribute-aware BGP speaker (§Well-known Communities)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The following communities have global significance and their operations shall be implemented in any community-attribute-aware BGP speaker. (§Well-known Communities)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence&#39;s own parenthesis defines. Forbidden: a community-aware speaker that applies the three operations only under operator policy, or not at all. TestWellKnownAllThreeOperationsImplemented asserts all three bits scanned from the wire with no policy and the route refused to both peer kinds; TestForwardWellKnownNeedsNoOperatorPolicy asserts no export filter is configured and the forward set is empty. Negatives: other reserved communities (NOPEER, LLGR_STALE, BLACKHOLE, GRACEFUL_SHUTDOWN) carry no egress prohibition (TestWellKnownIgnoresOtherReservedCommunities, TestForwardOtherReservedCommunitiesReachExternalPeer). Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -680,7 +684,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

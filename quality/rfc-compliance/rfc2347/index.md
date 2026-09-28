@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 2 | of 4 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 4 |
 | Not applicable, so out of scope | 2 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 4 |
 | Tagged units | 4 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 2 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc2347.md` |
 | Requirement shard | `rfc/requirements/rfc2347.md` |
@@ -102,19 +111,19 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2347-x-1` | Server MUST NOT include in the OACK any option which had not been specifically requested by the client (Negotiation Protocol) | MUST NOT | x | **positive:** `unit/verify` [`TestRFC2347ServerOACKOnlyRequestedOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L78). **negative:** `unit/verify` [`TestRFC2347ServerOACKOnlyRequestedOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L82) |
-| `RFC2347-x-2` | If multiple options were requested, the client MUST use those options which were acknowledged by the server (Negotiation Protocol) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** This requirement governs the TFTP CLIENT (it MUST use the options the server acknowledged). Ze ships only a TFTP SERVER (internal/plugins/tftpserver/handler.go) and has no TFTP client, so there is no client-side option-consumption code path to which this applies. |
-| `RFC2347-x-3` | An option not acknowledged by the server must be ignored by the client and server as if it were never requested (Negotiation Protocol) | MUST | x | **positive:** `unit/verify` [`TestRFC2347ServerIgnoresUnacknowledgedOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L103). **negative:** `unit/verify` [`TestRFC2347ServerIgnoresUnacknowledgedOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L108) |
-| `RFC2347-x-4` | If multiple options were requested, the client MUST NOT use those options which were not acknowledged by the server (Negotiation Protocol) | MUST NOT | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** This requirement governs the TFTP CLIENT (it MUST NOT use options the server did not acknowledge). Ze has no TFTP client (only the server in internal/plugins/tftpserver/handler.go), so no client-side code path could use an unacknowledged option. |
-| `RFC2347-x-5` | Unrecognized options SHOULD be omitted from the OACK, not cause an ERROR packet (Negotiation Protocol) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC2347-x-6` | If client receives an OACK containing an unrequested option, it SHOULD respond with ERROR code 8 and terminate (Negotiation Protocol) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC2347-x-1` | The server must not include in the OACK any option which had not been specifically requested by the client; that is, only the client may initiate option negotiation. (§Negotiation) | MUST NOT | Negotiation | **positive:** `unit/verify` [`TestRFC2347ServerOACKOnlyRequestedOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L78). **negative:** `unit/verify` [`TestRFC2347ServerOACKOnlyRequestedOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L82) |
+| `RFC2347-x-2` | If multiple options were requested, the client must use those options which were acknowledged by the server (§Negotiation) | MUST | Negotiation | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** This requirement governs the TFTP CLIENT (it MUST use the options the server acknowledged). Ze ships only a TFTP SERVER (internal/plugins/tftpserver/handler.go) and has no TFTP client, so there is no client-side option-consumption code path to which this applies. |
+| `RFC2347-x-3` | An option not acknowledged by the server must be ignored by the client and server as if it were never requested. (§Negotiation) | MUST | Negotiation | **positive:** `unit/verify` [`TestRFC2347ServerIgnoresUnacknowledgedOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L103). **negative:** `unit/verify` [`TestRFC2347ServerIgnoresUnacknowledgedOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L108) |
+| `RFC2347-x-4` | If multiple options were requested, the client must use those options which were acknowledged by the server and must not use those options which were not acknowledged by the server. (§Negotiation) | MUST NOT | Negotiation | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** This requirement governs the TFTP CLIENT (it MUST NOT use options the server did not acknowledge). Ze has no TFTP client (only the server in internal/plugins/tftpserver/handler.go), so no client-side code path could use an unacknowledged option. |
+| `RFC2347-x-5` | Options which the server does not support should be omitted from the OACK; they should not cause an ERROR packet to be generated. (§Negotiation) | SHOULD | Negotiation | **positive:** no positive test. **negative:** no negative test |
+| `RFC2347-x-6` | If the client receives an OACK containing an unrequested option, it should respond with an ERROR packet, with error code 8, and terminate the transfer. (§Negotiation) | SHOULD | Negotiation | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC2347-x-2`](#rfc2347-x-2) If multiple options were requested, the client MUST use those options which were acknowledged by the server (Negotiation Protocol) | no test | no test carries this requirement id; annotated {not-applicable}: This requirement governs the TFTP CLIENT (it MUST use the options the server acknowledged). Ze ships only a TFTP SERVER (internal/plugins/tftpserver/handler.go) and has no TFTP client, so there is no client-side option-consumption code path to which this applies. |
-| [`RFC2347-x-4`](#rfc2347-x-4) If multiple options were requested, the client MUST NOT use those options which were not acknowledged by the server (Negotiation Protocol) | no test | no test carries this requirement id; annotated {not-applicable}: This requirement governs the TFTP CLIENT (it MUST NOT use options the server did not acknowledge). Ze has no TFTP client (only the server in internal/plugins/tftpserver/handler.go), so no client-side code path could use an unacknowledged option. |
+| [`RFC2347-x-2`](#rfc2347-x-2) If multiple options were requested, the client must use those options which were acknowledged by the server (§Negotiation) | no test | no test carries this requirement id; annotated {not-applicable}: This requirement governs the TFTP CLIENT (it MUST use the options the server acknowledged). Ze ships only a TFTP SERVER (internal/plugins/tftpserver/handler.go) and has no TFTP client, so there is no client-side option-consumption code path to which this applies. |
+| [`RFC2347-x-4`](#rfc2347-x-4) If multiple options were requested, the client must use those options which were acknowledged by the server and must not use those options which were not acknowledged by the server. (§Negotiation) | no test | no test carries this requirement id; annotated {not-applicable}: This requirement governs the TFTP CLIENT (it MUST NOT use options the server did not acknowledge). Ze has no TFTP client (only the server in internal/plugins/tftpserver/handler.go), so no client-side code path could use an unacknowledged option. |
 
 ## Proof state
 
@@ -122,9 +131,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC2347-x-1`](#rfc2347-x-1)
 
-Server MUST NOT include in the OACK any option which had not been specifically requested by the client (Negotiation Protocol)
+The server must not include in the OACK any option which had not been specifically requested by the client; that is, only the client may initiate option negotiation. (§Negotiation)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an OACK carrying an option the client did not request, and a server initiating negotiation. The server can emit two options (sendOACKAndWait, handler.go: blksize and tsize). TestRFC2347ServerOACKOnlyRequestedOptions requests only blksize and asserts opts["tsize"] is absent, red if the server volunteers tsize. No tagged case requests only tsize (or no option) and asserts blksize is absent, so a server that always added blksize stays green; and no case sends a plain RRQ and asserts no OACK comes back (the hasOptions guard, handler.go:280), the 'only the client may initiate option negotiation' clause.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -133,7 +142,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2347-x-2`](#rfc2347-x-2)
 
-If multiple options were requested, the client MUST use those options which were acknowledged by the server (Negotiation Protocol)
+If multiple options were requested, the client must use those options which were acknowledged by the server (§Negotiation)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -141,9 +150,9 @@ No test carries RFC2347-x-2, so no unit is bound to it.
 
 ### [`RFC2347-x-3`](#rfc2347-x-3)
 
-An option not acknowledged by the server must be ignored by the client and server as if it were never requested (Negotiation Protocol)
+An option not acknowledged by the server must be ignored by the client and server as if it were never requested. (§Negotiation)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: the server acting on an option it did not acknowledge (e.g. streaming windowsize-windowed DATA, or using an out-of-range blksize it declined). TestRFC2347ServerIgnoresUnacknowledgedOption asserts only the OACK contents: windowsize absent, blksize present. That is red on acknowledging windowsize, the x-1/OACK rule, not on using it: no assertion reads the DATA/ACK exchange after the OACK, so a server that omitted windowsize from the OACK but then sent windowed blocks stays green. The declined-blksize case (value outside 8..65464, parseRRQ) is untested. The client half governs a TFTP client, which Ze does not have.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -152,7 +161,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2347-x-4`](#rfc2347-x-4)
 
-If multiple options were requested, the client MUST NOT use those options which were not acknowledged by the server (Negotiation Protocol)
+If multiple options were requested, the client must use those options which were acknowledged by the server and must not use those options which were not acknowledged by the server. (§Negotiation)
 
 Audit verdict: not audited: no reader has judged these tests
 

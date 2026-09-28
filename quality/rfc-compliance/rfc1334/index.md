@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 13 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 13 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 10 | of 13 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 13 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 28 |
 | Tagged units | 28 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 10 |
 | Discrimination records | 6 |
 | Summary | `rfc/short/rfc1334.md` |
 | Requirement shard | `rfc/requirements/rfc1334.md` |
@@ -101,21 +110,21 @@ Verification remains for the retry and post-authentication reanswer changes in [
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC1334-1-1` | If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1) | MUST | 1 | **positive:** `unit/verify` [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L669). **negative:** `unit/verify` [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L148) |
-| `RFC1334-x-1` | Any implementation that includes a stronger authentication method (such as CHAP) must offer to negotiate that method prior to PAP (Security Considerations) | MUST | x | **positive:** `unit/verify` [`TestDefaultAuthFallbackOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L270). **negative:** `unit/verify` [`TestSelectAuthFallback`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L112) |
+| `RFC1334-x-1` | Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestDefaultAuthFallbackOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L270). **negative:** `unit/verify` [`TestSelectAuthFallback`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L112) |
 | `RFC1334-2.3-1` | If the Peer-ID/Password pair received in an Authenticate-Request is both recognizable and acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 2 (Authenticate- Ack). (Section 2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L293). **negative:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L411) |
-| `RFC1334-2.3-2` | If id/password pair is not recognizable or acceptable, authenticator must transmit Authenticate-Nak (Code=3) (Section 2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L407). **negative:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L297) |
+| `RFC1334-2.3-2` | If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate- Nak) (§2.2.2) | MUST | 2.2.2 | **positive:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L407). **negative:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L297) |
 | `RFC1334-2.2.1-1` | The link peer MUST transmit a PAP packet with the Code field set to 1 (Authenticate-Request) during the Authentication phase (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestClientOpensAuthPhaseWithPAPRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L52). **negative:** `unit/verify` [`TestClientOpensAuthPhaseWithPAPRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L53) |
 | `RFC1334-2.2.1-2` | The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L125). **negative:** `unit/verify` [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L126) |
 | `RFC1334-2.2.1-3` | Upon reception of an Authenticate-Request packet, some type of Authenticate reply (described below) MUST be returned. (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestPAPRequestInAuthPhaseIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L74). **negative:** `unit/verify` [`TestPAPRejectedRequestIsStillAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L92) |
 | `RFC1334-2.2.1-4` | Implementation Note: Because the Authenticate-Ack might be lost, the authenticator MUST allow repeated Authenticate- Request packets after completing the Authentication phase. (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L144). **negative:** `unit/verify` [`TestPAPReanswerDiscardsMalformedRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L205) |
-| `RFC1334-2.2.1-5` | Any Authenticate-Request packets received during the Network-Layer Protocol phase MUST return the same reply Code returned when the Authentication phase completed (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L145). **negative:** `unit/verify` [`TestPAPReanswerPreservesDecision`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L178) |
+| `RFC1334-2.2.1-5` | Protocol phase MUST return the same reply Code returned when the Authentication phase completed (§2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L145). **negative:** `unit/verify` [`TestPAPReanswerPreservesDecision`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L178) |
 | `RFC1334-2.2.1-6` | Any Authenticate-Request packets received during any other phase MUST be silently discarded (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestPAPRequestOutsideAuthPhaseIsSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L109). **negative:** `unit/verify` [`TestPAPRequestInAuthPhaseIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L75) |
 | `RFC1334-2.2-1` | The Identifier field MUST be changed each time an Authenticate-Request packet is issued. (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L127). **negative:** `unit/verify` [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L128) |
 | `RFC1334-2.3-3` | The Identifier field MUST be copied from the Identifier field of the Authenticate-Request which caused this reply. (Section 2.2.2) | MUST | 2.2.2 | **positive:** `unit/verify` [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L146). **positive:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L414). **positive:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L300). **negative:** `unit/verify` [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L147) |
 | `RFC1334-2.3-4` | It is intended to be human readable, and MUST NOT affect operation of the protocol. (Section 2.3) | MUST NOT | 2.3 | **positive:** `unit/verify` [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L49). **negative:** `unit/verify` [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L53) |
-| `RFC1334-2.3-5` | Authenticator should take action to terminate the link on Nak (Section 2.3) | SHOULD | 2.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC1334-2.3-6` | Message field may be empty (Section 2.3) | MAY | 2.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC1334-2.2-2` | Implementations may retry Authenticate-Request at implementation-defined intervals (Section 2.2) | MAY | 2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1334-2.3-5` | If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate- Nak), and SHOULD take action to terminate the link. (§2.2.2) | SHOULD | 2.2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1334-2.3-6` | The Message field is zero or more octets, and its contents are implementation dependent. (§2.2.2) | MAY | 2.2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1334-2.2-2` | The peer is in control of the frequency and timing of the attempts. (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -129,7 +138,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: authentication configured but the LCP CONFREQ omits Auth-Protocol. TestLocalCONFREQAdvertisesAuthMethod asserts lookupOption(LCPOptAuthProto) ok and the protocol 0xC023 for PAP (0xC223 plus algorithm for CHAP) in the first CONFREQ from the driver; TestAuthProtoRejectClearsMethod asserts the option is absent once authentication is no longer desired, so an unconditional option goes red there.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -138,9 +147,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1334-x-1`](#rfc1334-x-1)
 
-Any implementation that includes a stronger authentication method (such as CHAP) must offer to negotiate that method prior to PAP (Security Considerations)
+Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an implementation that includes CHAP offering PAP before offering CHAP in LCP negotiation. The positive TestDefaultAuthFallbackOrder asserts only the helper list [CHAP-MD5, MS-CHAPv2, PAP]; the negative TestSelectAuthFallback asserts a CHAP-only order refuses a PAP suggestion, which is downgrade refusal, a neighbouring rule. No tagged unit drives LCP and asserts the first CONFREQ carries CHAP (0xC223) with PAP offered only after CHAP is refused, and a session configured with AuthMethod PAP opens with PAP regardless of the order list.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -151,7 +160,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the Peer-ID/Password pair received in an Authenticate-Request is both recognizable and acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 2 (Authenticate- Ack). (Section 2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an accepted Peer-ID/Password pair answered with anything but a PAP Code 2. TestPAPRequestEmitsEvent (accept=true) asserts reply proto ProtoPAP and payload[0]==PAPAuthenticateAck through runPAPAuthPhase; TestPAPRejectWritesNak asserts the reject path sends Nak, so an unconditional Ack goes red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -160,9 +169,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1334-2.3-2`](#rfc1334-2.3-2)
 
-If id/password pair is not recognizable or acceptable, authenticator must transmit Authenticate-Nak (Code=3) (Section 2.3)
+If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate- Nak) (§2.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a rejected pair answered with anything but a PAP Code 3. TestPAPRejectWritesNak (accept=false) asserts payload[0]==PAPAuthenticateNak; TestPAPRequestEmitsEvent asserts the accept path sends Ack, so an unconditional Nak goes red. The SHOULD-terminate half of the sentence is RFC1334-2.3-5 and is not claimed here.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -195,7 +204,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Upon reception of an Authenticate-Request packet, some type of Authenticate reply (described below) MUST be returned. (Section 2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an Authenticate-Request in the Authentication phase left without a reply. TestPAPRequestInAuthPhaseIsAnswered asserts a PAP reply frame with Code Ack and Identifier 0x5a for an accepted request; TestPAPRejectedRequestIsStillAnswered asserts a PAP Nak with 0x5a for a rejected one, so silence on either decision goes red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -206,7 +215,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Implementation Note: Because the Authenticate-Ack might be lost, the authenticator MUST allow repeated Authenticate- Request packets after completing the Authentication phase. (Section 2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: dropping or refusing an Authenticate-Request repeated after the Authentication phase completed. TestPAPReanswersAfterAuthentication delivers two repeats through handleFrame in AckSent and Opened and asserts three replies (require len 3), each an Ack; the negative TestPAPReanswerDiscardsMalformedRequest confines the reanswer to valid requests.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -215,9 +224,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1334-2.2.1-5`](#rfc1334-2.2.1-5)
 
-Any Authenticate-Request packets received during the Network-Layer Protocol phase MUST return the same reply Code returned when the Authentication phase completed (Section 2.2.1)
+Protocol phase MUST return the same reply Code returned when the Authentication phase completed (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a request after authentication answered with a Code other than the one the Authentication phase returned. TestPAPReanswerPreservesDecision runs accept and reject, changes the credentials of the repeated request, and asserts replies[1].Code == replies[0].Code for both Ack and Nak; TestPAPReanswersAfterAuthentication asserts the Ack Code on repeats through handleFrame. RFC text note: rfc1334.txt drops the line naming the Network-Layer Protocol phase, so the row quotes the surviving span.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -239,7 +248,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Identifier field MUST be changed each time an Authenticate-Request packet is issued. (Section 2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a reissued Authenticate-Request carrying the previous Identifier. TestClientPAPRetriesUntilMatchingReply lets the first request go unanswered, advances the production retry timer, and asserts packets[0].Identifier != packets[1].Identifier with the credentials unchanged; the negative half asserts no third request after the matching Ack.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -250,7 +259,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Identifier field MUST be copied from the Identifier field of the Authenticate-Request which caused this reply. (Section 2.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a reply Identifier not copied from the request that caused it. TestPAPRequestEmitsEvent and TestPAPRejectWritesNak assert 0x42 and 0x77 echoed on Ack and Nak; TestPAPReanswersAfterAuthentication asserts replies carry 0x5a, 0x5b, 0x5c in turn, so a hardcoded or stale Identifier goes red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -263,7 +272,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 It is intended to be human readable, and MUST NOT affect operation of the protocol. (Section 2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: the Message field changing the outcome. TestPAPReplyMessageDoesNotAffectOutcome sends Ack with 'welcome aboard' (success) and Nak with 'invalid credentials' (failure). The messages differ, contrary to the tag prose ('the same Message text on both codes'), so an implementation that decides on the message text and ignores the Code passes both cases. No tagged case holds the Code fixed and varies the Message (or puts a failure-like message on an Ack), which is the input that isolates the rule.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -334,18 +343,18 @@ RFC 1334 is obsoleted by RFC 1994.
 | Requirement | Disposition | Now stated at | Reason |
 |---|---|---|---|
 | [`RFC1334-1-1`](#rfc1334-1-1) If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1) | restated | RFC1994-1-1 | RFC 1994 Section 1 repeats the sentence word for word, that an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase if authentication of the link is desired. The obligation is PPP-wide and binds neither authentication protocol in particular |
-| [`RFC1334-x-1`](#rfc1334-x-1) Any implementation that includes a stronger authentication method (such as CHAP) must offer to negotiate that method prior to PAP (Security Considerations) | dropped | not stated | RFC 1994 defines CHAP alone and states no obligation to offer a stronger method before PAP. Its Security Considerations warn that authenticating one user name by several methods exposes the least secure of them, and recommend one method per user name, with no keyword. The rule is still owed for as long as PAP is offered |
+| [`RFC1334-x-1`](#rfc1334-x-1) Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP. (§2) | dropped | not stated | RFC 1994 defines CHAP alone and states no obligation to offer a stronger method before PAP. Its Security Considerations warn that authenticating one user name by several methods exposes the least secure of them, and recommend one method per user name, with no keyword. The rule is still owed for as long as PAP is offered |
 | [`RFC1334-2.3-1`](#rfc1334-2.3-1) If the Peer-ID/Password pair received in an Authenticate-Request is both recognizable and acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 2 (Authenticate- Ack). (Section 2.3) | dropped | not stated | RFC 1994 defines no PAP packet. Its Section 4.2 obliges a CHAP packet with Code 3 (Success) when the received Response Value equals the expected value, which is the CHAP handshake rather than the PAP Authenticate-Ack. PAP stays defined by RFC 1334, as this summary's forward Meta row records |
-| [`RFC1334-2.3-2`](#rfc1334-2.3-2) If id/password pair is not recognizable or acceptable, authenticator must transmit Authenticate-Nak (Code=3) (Section 2.3) | dropped | not stated | RFC 1994 Section 4.2 obliges a CHAP packet with Code 4 (Failure) when the Response Value does not match, and defines no PAP Authenticate-Nak. The PAP rule is still owed for as long as PAP peers are authenticated |
+| [`RFC1334-2.3-2`](#rfc1334-2.3-2) If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate- Nak) (§2.2.2) | dropped | not stated | RFC 1994 Section 4.2 obliges a CHAP packet with Code 4 (Failure) when the Response Value does not match, and defines no PAP Authenticate-Nak. The PAP rule is still owed for as long as PAP peers are authenticated |
 | [`RFC1334-2.2.1-1`](#rfc1334-2.2.1-1) The link peer MUST transmit a PAP packet with the Code field set to 1 (Authenticate-Request) during the Authentication phase (Section 2.2.1) | dropped | not stated | RFC 1994 defines CHAP alone and no PAP packet, so it states no obligation to transmit an Authenticate-Request; PAP stays defined here |
 | [`RFC1334-2.2.1-2`](#rfc1334-2.2.1-2) The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires (Section 2.2.1) | dropped | not stated | RFC 1994 defines no PAP packet and no Authenticate-Request retry; its Section 4.1 retries only the CHAP Challenge; PAP stays defined here |
 | [`RFC1334-2.2.1-3`](#rfc1334-2.2.1-3) Upon reception of an Authenticate-Request packet, some type of Authenticate reply (described below) MUST be returned. (Section 2.2.1) | dropped | not stated | RFC 1994 defines no PAP packet, so no reply to an Authenticate-Request; its Section 4.1 obliges only a Success or Failure to a CHAP Response; PAP stays defined here |
 | [`RFC1334-2.2.1-4`](#rfc1334-2.2.1-4) Implementation Note: Because the Authenticate-Ack might be lost, the authenticator MUST allow repeated Authenticate- Request packets after completing the Authentication phase. (Section 2.2.1) | dropped | not stated | RFC 1994 defines no PAP Authenticate-Ack and states no obligation to answer repeated Authenticate-Requests; PAP stays defined here |
-| [`RFC1334-2.2.1-5`](#rfc1334-2.2.1-5) Any Authenticate-Request packets received during the Network-Layer Protocol phase MUST return the same reply Code returned when the Authentication phase completed (Section 2.2.1) | dropped | not stated | RFC 1994 states no obligation on a PAP packet received in the Network-Layer Protocol phase; PAP stays defined here |
+| [`RFC1334-2.2.1-5`](#rfc1334-2.2.1-5) Protocol phase MUST return the same reply Code returned when the Authentication phase completed (§2.2.1) | dropped | not stated | RFC 1994 states no obligation on a PAP packet received in the Network-Layer Protocol phase; PAP stays defined here |
 | [`RFC1334-2.2.1-6`](#rfc1334-2.2.1-6) Any Authenticate-Request packets received during any other phase MUST be silently discarded (Section 2.2.1) | dropped | not stated | RFC 1994 states no obligation on a PAP packet received in another phase; its Section 4.1 discards only CHAP Response packets; PAP stays defined here |
 | [`RFC1334-2.2-1`](#rfc1334-2.2-1) The Identifier field MUST be changed each time an Authenticate-Request packet is issued. (Section 2.2.1) | dropped | not stated | RFC 1994 states no PAP obligation. Its Section 4.1 requires the Identifier to change each time a Challenge is sent, which binds the CHAP Challenge and not a reissued PAP Authenticate-Request |
 | [`RFC1334-2.3-3`](#rfc1334-2.3-3) The Identifier field MUST be copied from the Identifier field of the Authenticate-Request which caused this reply. (Section 2.2.2) | dropped | not stated | RFC 1994 Section 4.2 requires the Success or Failure Identifier to be copied from the Response which caused the reply, which binds CHAP. It states nothing about a PAP Authenticate-Ack or Authenticate-Nak |
 | [`RFC1334-2.3-4`](#rfc1334-2.3-4) It is intended to be human readable, and MUST NOT affect operation of the protocol. (Section 2.3) | dropped | not stated | RFC 1994 Section 4.2 carries the same MUST NOT for the Message field of a CHAP Success or Failure packet. It states nothing about the PAP Ack and Nak Message field, which RFC 1334 still defines |
-| [`RFC1334-2.3-5`](#rfc1334-2.3-5) Authenticator should take action to terminate the link on Nak (Section 2.3) | dropped | not stated | RFC 1994 Section 4.2 says a CHAP implementation SHOULD take action to terminate the link when it transmits a Failure. That binds the CHAP exchange, and RFC 1994 states nothing about a PAP Authenticate-Nak |
-| [`RFC1334-2.3-6`](#rfc1334-2.3-6) Message field may be empty (Section 2.3) | dropped | not stated | RFC 1994 Section 4.2 says the Message field of a CHAP Success or Failure is zero or more octets. It states nothing about the PAP Ack and Nak Message field |
-| [`RFC1334-2.2-2`](#rfc1334-2.2-2) Implementations may retry Authenticate-Request at implementation-defined intervals (Section 2.2) | dropped | not stated | RFC 1994 Section 4.1 obliges the authenticator to send further Challenges until a valid Response arrives or a retry counter expires, which is a CHAP obligation on the authenticator. RFC 1994 states nothing about a peer retrying a PAP Authenticate-Request |
+| [`RFC1334-2.3-5`](#rfc1334-2.3-5) If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate- Nak), and SHOULD take action to terminate the link. (§2.2.2) | dropped | not stated | RFC 1994 Section 4.2 says a CHAP implementation SHOULD take action to terminate the link when it transmits a Failure. That binds the CHAP exchange, and RFC 1994 states nothing about a PAP Authenticate-Nak |
+| [`RFC1334-2.3-6`](#rfc1334-2.3-6) The Message field is zero or more octets, and its contents are implementation dependent. (§2.2.2) | dropped | not stated | RFC 1994 Section 4.2 says the Message field of a CHAP Success or Failure is zero or more octets. It states nothing about the PAP Ack and Nak Message field |
+| [`RFC1334-2.2-2`](#rfc1334-2.2-2) The peer is in control of the frequency and timing of the attempts. (§2) | dropped | not stated | RFC 1994 Section 4.1 obliges the authenticator to send further Challenges until a valid Response arrives or a retry counter expires, which is a CHAP obligation on the authenticator. RFC 1994 states nothing about a peer retrying a PAP Authenticate-Request |

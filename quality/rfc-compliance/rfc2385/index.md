@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 9 | of 9 gated MUSTs judged | 5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 9 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 15 |
 | Tagged units | 15 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 9 |
 | Discrimination records | 15 |
 | Summary | `rfc/short/rfc2385.md` |
 | Requirement shard | `rfc/requirements/rfc2385.md` |
@@ -106,16 +115,16 @@ No conformance gap is tracked.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2385-2.0-1` | The key must be known by both ends of the connection, so the same configured key is installed for the peer on the outbound socket and on the listening socket (§2.0) | MUST | 2.0 - Proposal | **positive:** `unit/verify` [`TestRFC2385MatchingKeysCarryASignedSession`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L76). **negative:** `unit/verify` [`TestRFC2385KeyOnOneEndOnlyCarriesNoSession`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L192) |
+| `RFC2385-2.0-1` | The nature of the key is deliberately left unspecified, but it must be known by both ends of the connection. (§2.0) | MUST | 2.0 - Proposal | **positive:** `unit/verify` [`TestRFC2385MatchingKeysCarryASignedSession`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L76). **negative:** `unit/verify` [`TestRFC2385KeyOnOneEndOnlyCarriesNoSession`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L192) |
 | `RFC2385-2.0-2` | Upon receiving a signed segment, the receiver must validate it by calculating its own digest from the same data (using its own key) and comparing the two digest. (§2.0) | MUST | 2.0 - Proposal | **positive:** `unit/verify` [`TestRFC2385MatchingKeysCarryASignedSession`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L79). **negative:** `unit/verify` [`TestRFC2385MismatchedKeyIsDroppedWithNoResponse`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L153) |
 | `RFC2385-2.0-3` | A failing comparison must result in the segment being dropped and must not produce any response back to the sender. (§2.0) | MUST | 2.0 - Proposal | **positive:** `unit/verify` [`TestRFC2385MismatchedKeyIsDroppedWithNoResponse`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L156). **negative:** `unit/verify` [`TestRFC2385MatchingKeysCarryASignedSession`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L82) |
 | `RFC2385-2.0-4` | Unlike other TCP extensions (e.g., the Window Scale option [RFC1323]), the absence of the option in the SYN,ACK segment must not cause the sender to disable its sending of signatures. (§2.0) | MUST NOT | 2.0 - Proposal | **positive:** `unit/verify` [`TestRFC2385FailedConnectDoesNotDisableSigning`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2385_test.go#L134). **negative:** no negative test. **{single-polarity}:** ze holds no code path that stops signing: the key is installed from the peer's settings on every dial attempt and is never cleared by anything the remote host does or fails to do, so there is no rejecting branch a negative test could reach |
 | `RFC2385-2.0-5` | More importantly, the sending of signatures must be under the complete control of the application, not at the mercy of the remote host not understanding the option. (§2.0) | MUST | 2.0 - Proposal | **positive:** `unit/verify` [`TestRFC2385ConfiguredKeyReachesBothSockets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2385_test.go#L40). **negative:** `unit/verify` [`TestRFC2385NoKeyWithoutConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2385_test.go#L90) |
-| `RFC2385-2.0-6` | Every segment sent on a protected connection carries the 16-byte MD5 digest of the TCP pseudo-header, the TCP header with a zero checksum, the segment data and the key, in that order (§2.0) | MUST | 2.0 - Proposal | **positive:** `unit/verify` [`TestRFC2385MatchingKeysCarryASignedSession`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L84). **negative:** `unit/verify` [`TestRFC2385MismatchedKeyIsDroppedWithNoResponse`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L159) |
-| `RFC2385-3.0-1` | The option is Kind 19, Length 18, carrying a 16-byte digest, and it appears in every segment of the connection (§3.0) | MUST | 3.0 - Syntax | **positive:** `unit/verify` [`TestRFC2385MatchingKeysCarryASignedSession`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L87). **negative:** `unit/verify` [`TestRFC2385MismatchedKeyIsDroppedWithNoResponse`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L162) |
+| `RFC2385-2.0-6` | Every segment sent on a TCP connection to be protected against spoofing will contain the 16-byte MD5 digest produced by applying the MD5 algorithm to these items in the following order: 1. the TCP pseudo-header (in the order: source IP address, destination IP address, zero-padded protocol number, and segment length) 2. the TCP header, excluding options, and assuming a checksum of zero 3. the TCP segment data (if any) 4. an independently-specified key or password, known to both TCPs and presumably connection-specific (§2.0) | MUST | 2.0 - Proposal | **positive:** `unit/verify` [`TestRFC2385MatchingKeysCarryASignedSession`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L84). **negative:** `unit/verify` [`TestRFC2385MismatchedKeyIsDroppedWithNoResponse`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L159) |
+| `RFC2385-3.0-1` | The proposed option has the following format: +---------+---------+-------------------+ \| Kind=19 \|Length=18\| MD5 digest... \| +---------+---------+-------------------+ \| \| +---------------------------------------+ \| \| +---------------------------------------+ \| \| +-------------------+-------------------+ \| \| +-------------------+ The MD5 digest is always 16 bytes in length, and the option would appear in every segment of a connection. (§3.0) | MUST | 3.0 - Syntax | **positive:** `unit/verify` [`TestRFC2385MatchingKeysCarryASignedSession`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L87). **negative:** `unit/verify` [`TestRFC2385MismatchedKeyIsDroppedWithNoResponse`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L162) |
 | `RFC2385-4.3-1` | As with other options that are added to every segment, the size of the MD5 option must be factored into the MSS offered to the other side during connection negotiation. (§4.3) | MUST | 4.3 - TCP Header Size | **positive:** `unit/verify` [`TestRFC2385MatchingKeysCarryASignedSession`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L90). **negative:** no negative test. **{single-polarity}:** the MSS is chosen by the kernel that signs the segments, and ze holds no code that lowers, rejects or recomputes an MSS, so there is no rejecting branch a negative test could reach |
 | `RFC2385-4.3-2` | This means that the total size of the header plus option must be less than or equal to 60 bytes -- this leaves 40 bytes for options. (§4.3) | MUST | 4.3 - TCP Header Size | **positive:** `unit/verify` [`TestRFC2385MatchingKeysCarryASignedSession`](https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L93). **negative:** no negative test. **{single-polarity}:** the option list is assembled by the kernel and ze contributes no TCP option of its own, so there is no rejecting branch a negative test could reach |
-| `RFC2385-4.5-1` | It is strongly recommended that an implementation support at minimum a key composed of a string of printable ASCII of 80 bytes or less (§4.5) | SHOULD | 4.5 - Key configuration | **positive:** no positive test. **negative:** no negative test |
+| `RFC2385-4.5-1` | It is strongly recommended that an implementation be able to support at minimum a key composed of a string of printable ASCII of 80 bytes or less, as this is current practice. (§4.5) | SHOULD | 4.5 - Key configuration | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -127,9 +136,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC2385-2.0-1`](#rfc2385-2.0-1)
 
-The key must be known by both ends of the connection, so the same configured key is installed for the peer on the outbound socket and on the listening socket (§2.0)
+The nature of the key is deliberately left unspecified, but it must be known by both ends of the connection. (§2.0)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Sentence: the key must be known by both ends of the connection. Forbidden: a session carried when only one end holds the key. Negative TestRFC2385KeyOnOneEndOnlyCarriesNoSession (listener keyed, dialer unkeyed) requires a net.Error Timeout, red if the unsigned dial established. Positive TestRFC2385MatchingKeysCarryASignedSession installs the same key through rfc2385Listener and RealDialer.MD5Key (ze's producers) and requires 256 KiB received.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -140,7 +149,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Upon receiving a signed segment, the receiver must validate it by calculating its own digest from the same data (using its own key) and comparing the two digest. (§2.0)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Sentence: the receiver must validate a signed segment by computing its own digest with its own key and comparing. Forbidden: accepting a segment whose digest does not match. Negative TestRFC2385MismatchedKeyIsDroppedWithNoResponse (listener and dialer keys differ) requires a Timeout, red if the listener accepted the mismatched segment; positive TestRFC2385MatchingKeysCarryASignedSession requires the verified session to carry the payload. Validation is Linux TCP_MD5SIG on the socket ze keys (whole-stack ruling).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -151,7 +160,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A failing comparison must result in the segment being dropped and must not produce any response back to the sender. (§2.0)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Sentence: a failing comparison must drop the segment and must not produce any response. Clause 'dropped': TestRFC2385MismatchedKeyIsDroppedWithNoResponse requires the dial to end in a net.Error Timeout (no session). Clause 'no response': the same unit fails on errors.Is ECONNREFUSED or ECONNRESET, i.e. on an RST coming back. Negative polarity: the matching-key unit requires the verified payload to arrive whole.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -162,7 +171,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Unlike other TCP extensions (e.g., the Window Scale option [RFC1323]), the absence of the option in the SYN,ACK segment must not cause the sender to disable its sending of signatures. (§2.0)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: absence of the option in the SYN,ACK must not cause the sender to disable its sending of signatures. Forbidden: after an unsigned SYN,ACK the next segments/attempts go out unsigned. TestRFC2385FailedConnectDoesNotDisableSigning dials a closed port and asserts only that session.dialer.MD5Key and PeerAddr are unchanged afterwards: it never presents an unsigned SYN,ACK and never observes that the following SYN carries the option (the tag prose claims 'the next attempt is signed', which no assertion reads). Single-polarity marker is on the row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -172,7 +181,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 More importantly, the sending of signatures must be under the complete control of the application, not at the mercy of the remote host not understanding the option. (§2.0)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: sending of signatures must be under the complete control of the application, not at the mercy of the remote host not understanding the option. Clause 'application control' enforced: TestRFC2385ConfiguredKeyReachesBothSockets asserts the configured password on the dialer and in md5PeersForListener; TestRFC2385NoKeyWithoutConfiguration asserts no key on either when unconfigured. Clause 'not at the mercy of the remote host': no unit tagged 2.0-5 involves a remote host that does not understand the option; the nearest unit (TestRFC2385FailedConnectDoesNotDisableSigning) is tagged 2.0-4 only and itself reads config rather than the wire.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -181,9 +190,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2385-2.0-6`](#rfc2385-2.0-6)
 
-Every segment sent on a protected connection carries the 16-byte MD5 digest of the TCP pseudo-header, the TCP header with a zero checksum, the segment data and the key, in that order (§2.0)
+Every segment sent on a TCP connection to be protected against spoofing will contain the 16-byte MD5 digest produced by applying the MD5 algorithm to these items in the following order: 1. the TCP pseudo-header (in the order: source IP address, destination IP address, zero-padded protocol number, and segment length) 2. the TCP header, excluding options, and assuming a checksum of zero 3. the TCP segment data (if any) 4. an independently-specified key or password, known to both TCPs and presumably connection-specific (§2.0)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Quoted span: every segment contains the 16-byte MD5 digest over pseudo-header, TCP header without options and zero checksum, segment data, then key, in that order. 'Every segment signed' is enforced: TestRFC2385MatchingKeysCarryASignedSession moves 256 KiB between two TCP_MD5SIG sockets, which drop unsigned segments, and the mismatched-key unit times out. The digest composition and order is not: both ends are the same Linux kernel, so an implementation that hashed the items in another order or with the checksum included would still verify against itself. No unit recomputes the digest from a captured segment or runs against an independent stack.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -192,9 +201,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2385-3.0-1`](#rfc2385-3.0-1)
 
-The option is Kind 19, Length 18, carrying a 16-byte digest, and it appears in every segment of the connection (§3.0)
+The proposed option has the following format: +---------+---------+-------------------+ | Kind=19 |Length=18| MD5 digest... | +---------+---------+-------------------+ | | +---------------------------------------+ | | +---------------------------------------+ | | +-------------------+-------------------+ | | +-------------------+ The MD5 digest is always 16 bytes in length, and the option would appear in every segment of a connection. (§3.0)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Quoted span: option Kind=19, Length=18, 16-byte digest, appearing in every segment. Presence on every segment follows from the matching-key payload crossing (unsigned segments are dropped) and the mismatched-key timeout (acceptance rests on the digest). Kind 19, Length 18 and the 16-octet digest are never read: both ends are the same kernel, so a different kind or length used symmetrically would pass. No unit captures a segment and asserts the option bytes 0x13 0x12 plus 16 octets.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -205,7 +214,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 As with other options that are added to every segment, the size of the MD5 option must be factored into the MSS offered to the other side during connection negotiation. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: the MD5 option size must be factored into the MSS offered during connection negotiation. Forbidden: an MSS offered as if the 18-octet option were absent. TestRFC2385MatchingKeysCarryASignedSession only asserts 256 KiB crosses a loopback connection (MTU 65536); no assertion reads the MSS option in the SYN or TCP_MAXSEG, and an unreduced MSS on loopback would not visibly fail. Single-polarity marker on the row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -215,7 +224,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This means that the total size of the header plus option must be less than or equal to 60 bytes -- this leaves 40 bytes for options. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity positive (marker on the row). Sentence: total header plus options must be at most 60 bytes. Forbidden: a SYN whose options (with MD5) do not fit, which the kernel can only resolve by omitting the MD5 option. TestRFC2385MatchingKeysCarryASignedSession dials a listener that holds the key and so drops any unsigned SYN; the dial succeeding (t.Fatalf on DialContext error) proves the SYN, the most option-loaded segment, carried the MD5 option within the 60-octet header.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 38 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 38 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 28 | of 38 gated MUSTs judged | 16 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 38 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 38 |
 | Not applicable, so out of scope | 6 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 68 |
 | Tagged units | 68 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 28 |
 | Discrimination records | 17 |
 | Summary | `rfc/short/rfc1195.md` |
 | Requirement shard | `rfc/requirements/rfc1195.md` |
@@ -104,19 +113,19 @@ Experimental pending current integration, discrimination and deployment evidence
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC1195-5.2-1` | Include Protocols Supported (129) in all Hellos, all LSP number 0, and point-to-point ISHs (Section 5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestISISOriginateOnAdjacencyUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_test.go#L122). **negative:** no negative test. **{single-polarity}:** ze unconditionally emits the Protocols Supported TLV 129 with NLPID 0xCC for every IP-capable circuit IIH (internal/plugins/isis/circuit/hello.go:97-104) and LSP fragment 0 (internal/plugins/isis/lsdb/origination.go:407-409); there is no code path that omits TLV 129 or emits a non-0xCC IPv4 NLPID, so there is no negative form to reject |
-| `RFC1195-5.2-2` | Include IP Interface Address (132) in every IP-capable router's LSPs (Section 5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestISISOriginateOnAdjacencyUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_test.go#L110). **positive:** `unit/verify` [`TestISISTLVIPv4InterfaceAddr`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_test.go#L19). **negative:** no negative test. **{single-polarity}:** ze packs the IP Interface Address TLV 132 into LSP fragment 0 from the node's own interface addresses (internal/plugins/isis/lsdb/origination.go:433-438) and the codec reads it back verbatim (internal/plugins/isis/packet/tlv_ipv4.go DecodeIPv4InterfaceAddrTLV); this is an emit obligation with no decode-side reject-on-absence path, so there is no negative form to drive |
-| `RFC1195-5.2-3` | Advertise the same IP address(es) at Level 1 and Level 2 when the router is both (Section 5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestISISEngineOriginateOnAdjacencyUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L85). **negative:** no negative test. **{single-polarity}:** ze collects interface addresses level-independently (internal/plugins/isis/lsdb_wiring.go:436-448) so the same set is advertised at both levels by construction; there is no per-level divergence code path to drive a negative |
-| `RFC1195-5.3.4-1` | Set the I/E bit to 0 in IP Internal Reachability (128) entries (Section 5.3.4) | MUST | 5.3.4 | **positive:** `unit/verify` [`TestRFC1195NarrowLeakedMetricClamps`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L311). **negative:** `unit/verify` [`TestRFC1195InternalOriginatorClearsExternalMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L411) |
-| `RFC1195-5.3.4-2` | Place codes 128, 130, 131 in pseudonode LSPs (Section 5.3.4, Section 5.3.5) | MUST NOT | 5.3.4 | **positive:** `unit/verify` [`TestRFC1195PseudonodeCannotInheritRouterPrefixes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L447). **negative:** `unit/verify` [`TestRFC1195PseudonodeCannotInheritRouterPrefixes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L448) |
-| `RFC1195-5.2-4` | Carry a default metric in every reachability entry (Section 5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestISISTLVIPv4RoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_test.go#L66). **negative:** `unit/verify` [`TestRFC1195MissingDefaultMetricCannotRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L245) |
+| `RFC1195-5.2-1` | The "Protocols Supported" field identifies the protocols which are supported by each router. This field must be included in all IS-IS Hello packets and all LSPs with LSP number 0 transmitted by IP- capable routers. If this field is not included in an IS-IS Hello packet or an LSP with LSP number 0, it may be assumed that the packet was transmitted by an OSI-only router. The "Protocols Supported" field must also be included in ISO 9542 ISHs send by IP-capable routers over point-to-point links to other IS-IS routers. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestISISOriginateOnAdjacencyUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_test.go#L122). **negative:** no negative test. **{single-polarity}:** ze unconditionally emits the Protocols Supported TLV 129 with NLPID 0xCC for every IP-capable circuit IIH (internal/plugins/isis/circuit/hello.go:97-104) and LSP fragment 0 (internal/plugins/isis/lsdb/origination.go:407-409); there is no code path that omits TLV 129 or emits a non-0xCC IPv4 NLPID, so there is no negative form to reject |
+| `RFC1195-5.2-2` | In Link State Packets, this field contains a list of one or more IP addresses corresponding to one or more interfaces of the router which originates the LSP. Each IP-capable router must include this field in its LSPs. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestISISOriginateOnAdjacencyUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_test.go#L110). **positive:** `unit/verify` [`TestISISTLVIPv4InterfaceAddr`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_test.go#L19). **negative:** no negative test. **{single-polarity}:** ze packs the IP Interface Address TLV 132 into LSP fragment 0 from the node's own interface addresses (internal/plugins/isis/lsdb/origination.go:433-438) and the codec reads it back verbatim (internal/plugins/isis/packet/tlv_ipv4.go DecodeIPv4InterfaceAddrTLV); this is an emit obligation with no decode-side reject-on-absence path, so there is no negative form to drive |
+| `RFC1195-5.2-3` | Where a single router operates as both a level 1 and a level 2 router, it is required to include the same IP address(es) in its level 1 and level 2 LSPs. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestISISEngineOriginateOnAdjacencyUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L85). **negative:** no negative test. **{single-polarity}:** ze collects interface addresses level-independently (internal/plugins/isis/lsdb_wiring.go:436-448) so the same set is advertised at both levels by construction; there is no per-level divergence code path to drive a negative |
+| `RFC1195-5.3.4-1` | Bit 7 of this field (marked I/E) indicates the metric type (internal or external) for all four TOS metrics, and must be set to zero indicating internal metrics. (§5.3.4) | MUST | 5.3.4 | **positive:** `unit/verify` [`TestRFC1195NarrowLeakedMetricClamps`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L311). **negative:** `unit/verify` [`TestRFC1195InternalOriginatorClearsExternalMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L411) |
+| `RFC1195-5.3.4-2` | IP Internal Reachability Information -- IP addresses within the routing domain reachable directly via one or more interfaces on this Intermediate system. This is permitted to appear multiple times, and in an LSP with any LSP number. However, this field must not appear in pseudonode LSPs. (§5.3.4) | MUST NOT | 5.3.4 | **positive:** `unit/verify` [`TestRFC1195PseudonodeCannotInheritRouterPrefixes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L447). **negative:** `unit/verify` [`TestRFC1195PseudonodeCannotInheritRouterPrefixes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L448) |
+| `RFC1195-5.2-4` | Each entry must contain a default metric (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestISISTLVIPv4RoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_test.go#L66). **negative:** `unit/verify` [`TestRFC1195MissingDefaultMetricCannotRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L245) |
 | `RFC1195-3.2-1` | Note: If this sum results in a metric value greater than 63 (the maximum value that can be reported in level 2 LSPs), then the value 63 must be used. (Section 3.2; wide metrics use RFC 5305's separate bound) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC1195NarrowLeakedMetricClamps`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L310). **negative:** `unit/verify` [`TestRFC1195NarrowLeakedMetricBelowCeiling`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L319) |
-| `RFC1195-3.9-1` | Discard a packet with invalid authentication information (Section 3.9) | MUST | 3.9 | **positive:** `unit/verify` [`TestISISAuthSignVerifyHMACMD5`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L134). **negative:** `unit/verify` [`TestISISAuthConstantTimeCompare`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L611) |
-| `RFC1195-3.1-1` | Ignore unrecognised codes and pass them unchanged in forwarded LSPs (Section 3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestISISUnknownTLVPassthrough`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_opaque_test.go#L16). **negative:** no negative test. **{single-polarity}:** the codec retains every TLV type it does not recognize as an opaque span and re-encodes it byte-for-byte (internal/plugins/isis/packet/tlv.go:66-89 iterator plus DecodeTLVs / writeTLVs) so the LSDB re-floods unknown TLVs verbatim (internal/plugins/isis/lsdb/flooding.go:342-360); preserving unrecognized codes IS the requirement and there is no reject path for an unknown TLV, so no negative form exists |
+| `RFC1195-3.9-1` | If a packet is received which contains invalid authentication information, then the entire packet is discarded. (§3.9) | MUST | 3.9 | **positive:** `unit/verify` [`TestISISAuthSignVerifyHMACMD5`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L134). **negative:** `unit/verify` [`TestISISAuthConstantTimeCompare`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L611) |
+| `RFC1195-3.1-1` | Any codes in a received PDU that are not recognised shall be ignored and, for those packets which are forwarded (specifically Link State Packets), passed on unchanged. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestISISUnknownTLVPassthrough`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_opaque_test.go#L16). **negative:** no negative test. **{single-polarity}:** the codec retains every TLV type it does not recognize as an opaque span and re-encodes it byte-for-byte (internal/plugins/isis/packet/tlv.go:66-89 iterator plus DecodeTLVs / writeTLVs) so the LSDB re-floods unknown TLVs verbatim (internal/plugins/isis/lsdb/flooding.go:342-360); preserving unrecognized codes IS the requirement and there is no reject path for an unknown TLV, so no negative form exists |
 | `RFC1195-1.4-1` | Within a dual domain, if both IP and OSI traffic are to be routed between areas then all level 2 routers must be dual. (Section 1.4) | MUST | 1.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze runs pure-IP Integrated IS-IS and routes no OSI/CLNP traffic (no CLNP forwarding code path), so the dual-domain topology constraint does not apply |
 | `RFC1195-1.2-1` | External links (to other routing domains) must be from level 2 routers (Section 1.2) | MUST | 1.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 2966 Section 2.2, which updates this rule, "loosens the restrictions in RFC 1195, and allows for the inclusion of the "IP External Reachability Information" TLV in L1 LSPs"; ze advertises redistributed routes at every origination level (internal/plugins/isis/redistribute/consumer.go::InjectRoute), which the updated rule permits, and configures no circuit to another routing domain |
 | `RFC1195-1.4-2` | In a pure IP routing domain, all routers must be IP-capable (Section 1.4) | MUST | 1.4 | **positive:** `unit/verify` [`TestRFC1195PureIPAdvertisesIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L185). **negative:** `unit/verify` [`TestRFC1195IPv6SelectionDoesNotRemoveIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L198) |
-| `RFC1195-3.2-2` | If multiple L1 routers advertise the same [IP address, subnet mask] pair and it is not superseded by a manually configured entry, include one such entry in the L2 LSP with the minimum metric (Section 3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC1195SpecificLeakCollapsesDuplicatePrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L436). **negative:** `unit/verify` [`TestRFC1195SpecificLeakCollapsesDuplicatePrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L437) |
+| `RFC1195-3.2-2` | In general, the same [IP address, subnet mask] pair may be announced in level 1 LSPs sent by multiple level 1 routers in the same area. In this case (assuming the entry is not superceded by a manually configured entry), then only one such entry shall be included in the level 2 LSP. The metric value(s) announced in level 2 LSPs correspond to the minimum of the metric value(s) that would be calculated for each of the level 1 LSP entries. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC1195SpecificLeakCollapsesDuplicatePrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L436). **negative:** `unit/verify` [`TestRFC1195SpecificLeakCollapsesDuplicatePrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L437) |
 | `RFC1195-3.2-3` | If a level 2 router receives an IP packet whose IP address matches a manually configured address which it is including in its level 2 LSP, but which is not reachable via level 1 routing in the area, then the packet must be discarded. (Section 3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Keep specific prefixes". Section 3.2 makes manual summary configuration optional ("Each level 2 router may be configured with one or more [IP address, subnet mask, metric] entries"). internal/plugins/isis/yang/ze-isis-conf.yang has no manual-summary configuration; spf.LeakPrefixes and lsdb.Originator.fragmentTLVs originate specific prefixes, so no locally configured summary exists to match this conditional discard rule. |
 | `RFC1195-3.3-1` | The reserved field must contain "00 00", as specified in GOSIP version 2.0. (Section 3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC1195ISHGOSIPReservedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/ish_test.go#L15). **negative:** `unit/verify` [`TestRFC1195ISHGOSIPReservedRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/ish_test.go#L39) |
 | `RFC1195-3.3-2` | IEEE 802 addresses, if used, must appear in IEEE canonical format (Section 3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC1195ISHCanonicalIEEEIdentifier`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/ish_test.go#L60). **negative:** `unit/verify` [`TestRFC1195ISHDoesNotReverseIdentifierBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/ish_test.go#L84) |
@@ -130,19 +139,19 @@ Experimental pending current integration, discrimination and deployment evidence
 | `RFC1195-4.4-1` | IP-capable IS-IS routers therefore must be able to forward IP packets over existing adjacencies to routers with which they share physical connectivity, even when the IP address of the adjacent interface of the neighboring router is on a different logical IP subnet. (Section 4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L36). **negative:** `unit/verify` [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L37) |
 | `RFC1195-4.4-2` | All IS-IS routers are therefore required to transmit and receive ISO 9542 ISH packets on point-to-point links. (Section 4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC1195ISHConfiguredPassword`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/ish_auth_rfc1195_test.go#L22). **positive:** `unit/verify` [`TestRFC1195ISHTransmitReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L233). **positive:** `unit/verify` [`TestRFC1195ISHVethTransport`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/transport/ish_integration_linux_test.go#L19). **negative:** `unit/verify` [`TestRFC1195ISHRejectsCorruptionAndWrongCircuit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L314). **negative:** `unit/verify` [`TestRFC1195ISHWrongPassword`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/ish_auth_rfc1195_test.go#L64) |
 | `RFC1195-4.4-3` | Thus, the value of the "protocols supported" field must be identical on every link (i.e., for any one router running IS-IS, all of the Hellos and LSPs transmitted by it must contain the same "protocols supported" values). (Section 4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC1195NodeProtocolsAcrossInterfaces`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L135). **negative:** `unit/verify` [`TestRFC1195NodeProtocolsReload`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L165) |
-| `RFC1195-4.5-1` | A packet that has to be forwarded to a router which does not support its protocol suite must be discarded (Section 4.5) | MUST | 4.5 | **positive:** `unit/verify` [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L38). **positive:** `unit/verify` [`TestRFC1195CapabilityChangesInstalledRouteDisposition`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L494). **positive:** `unit/verify` [`TestRFC1195OSINeighborIsTerminalIPv4NextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency_protocol_rfc1195_test.go#L39). **negative:** `unit/verify` [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L39). **negative:** `unit/verify` [`TestRFC1195CapabilityChangesInstalledRouteDisposition`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L495). **negative:** `unit/verify` [`TestRFC1195NeighborProtocolTransitions`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency_protocol_rfc1195_test.go#L56) |
+| `RFC1195-4.5-1` | There may be times when a dual router has to forward an IP packet to an OSI-only router, or forward an OSI packet to an IP-only router. In this case the packet must be discarded. (§4.5) | MUST | 4.5 | **positive:** `unit/verify` [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L38). **positive:** `unit/verify` [`TestRFC1195CapabilityChangesInstalledRouteDisposition`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L494). **positive:** `unit/verify` [`TestRFC1195OSINeighborIsTerminalIPv4NextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency_protocol_rfc1195_test.go#L39). **negative:** `unit/verify` [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L39). **negative:** `unit/verify` [`TestRFC1195CapabilityChangesInstalledRouteDisposition`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L495). **negative:** `unit/verify` [`TestRFC1195NeighborProtocolTransitions`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency_protocol_rfc1195_test.go#L56) |
 | `RFC1195-5.3.4-3` | Bit 8 of this field is reserved, and must be set to zero on tranmission and ignored on reception. (Section 5.3.4), with default-metric bit 8 reassigned to up/down by RFC 2966 section 2 | MUST | 5.3.4 | **positive:** `unit/verify` [`TestRFC1195NarrowMetricReservedTransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_narrow_ipv4_test.go#L14). **negative:** `unit/verify` [`TestRFC1195NarrowMetricReservedReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_narrow_ipv4_test.go#L32) |
-| `RFC1195-7-1` | The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet). (Section 7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC1195CSNPEntriesAscending`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/snp_rfc1195_test.go#L31). **negative:** `unit/verify` [`TestRFC1195PSNPEntriesAscendingAcrossLists`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/snp_rfc1195_test.go#L59) |
-| `RFC1195-7-2` | However, a full update must be done periodically to ensure recovery from data corruption, and studies suggest that with a very small number of link changes (perhaps 2) the expected computation complexity of the incremental update exceeds the complete recalculation. (Section 7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC1195PeriodicSPFRecoversMissedUpdate`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L331). **negative:** `unit/verify` [`TestRFC1195PeriodicSPFRecoversMissedUpdate`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L332) |
-| `RFC1195-7-3` | The 8 octet system identifiers which specify IP reachability entries must always be distinguishable from other system identifiers (Section 7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L93). **negative:** `unit/verify` [`TestRFC1195PrefixCannotBridgeDisconnectedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L142) |
-| `RFC1195-7-4` | IP-capable level 2 routers must keep level 2 internal IP routes separate from level 2 external IP routes (Section 7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC1195InternalMetricOutranksExternal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L170). **negative:** `unit/verify` [`TestRFC1195ExternalReachabilityWithInternalMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L179) |
-| `RFC1195-7-5` | Each entry made to TENT must be marked as being either an End System or a router (Section 7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L97). **negative:** `unit/verify` [`TestRFC1195PrefixCannotBridgeDisconnectedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L143) |
-| `RFC1195-7-6` | The password shall be configured on a per-link, per-area, and per- domain basis. (Section 7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC1195PasswordScopesResolved`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L49). **negative:** `unit/verify` [`TestRFC1195PasswordScopesDoNotLeak`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L71) |
-| `RFC1195-7-7` | IS-IS Hello and 9542 IS Hello packets shall carry the per-link password, Level 1 LSPs and Sequence Number Packets the per-area password, and Level 2 LSPs and Sequence Number Packets the per-domain password (Section 7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC1195PDUClassSignedWithItsScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L95). **negative:** `unit/verify` [`TestRFC1195PDUClassRefusedUnderOtherScopes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L132) |
-| `RFC1195-7-8` | Also, each of these three passwords shall be configured with: (i) "Transmit Password", whose value is a single password, and (ii) "Receive Passwords", whose value is a set of passwords. (Section 7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC1195OneTransmitPasswordManyReceivePasswords`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L204). **negative:** `unit/verify` [`TestRFC1195KeyOutsideReceiveSetRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L230) |
-| `RFC1195-8-1` | An Inter-Domain Routing Protocol Information entry of the AS-number type must contain precisely one 2 octet AS number, which tags all subsequent External IP Reachability entries (Section 8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Do not originate IDRPI". Section 5.2 says the IDRPI field "may be present" and "is not used by the IS-IS". internal/plugins/isis/lsdb/origination.go emits no TLV 131 and spf/graph.go has no IDRPI consumer; packet.DecodeTLVs retains unknown TLV 131 only for unchanged flooding. No AS-number association role is selected. |
-| `RFC1195-8-2` | Type = 0 is reserved (must not be sent, and must be ignored on receipt). (Section 8) | MUST NOT | 8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Do not originate IDRPI". Section 5.2 makes the IDRPI field optional ("may be present"). internal/plugins/isis/lsdb/origination.go has no TLV 131 producer; spf/graph.go consumes no IDRPI types, and packet.DecodeTLVs only retains the opaque field for unchanged flooding. Ze therefore neither originates type 0 nor interprets a received type 0. |
-| `RFC1195-5.3.5-1` | Set the I/E bit to 0 or 1 in IP External Reachability (130) entries (Section 5.3.5) | MAY | 5.3.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1195-7-1` | The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet). (§B.1) | MUST | B.1 - Annex subsection B.1 | **positive:** `unit/verify` [`TestRFC1195CSNPEntriesAscending`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/snp_rfc1195_test.go#L31). **negative:** `unit/verify` [`TestRFC1195PSNPEntriesAscendingAcrossLists`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/snp_rfc1195_test.go#L59) |
+| `RFC1195-7-2` | However, a full update must be done periodically to ensure recovery from data corruption, and studies suggest that with a very small number of link changes (perhaps 2) the expected computation complexity of the incremental update exceeds the complete recalculation. (§C.1) | MUST | C.1 - Annex subsection C.1 | **positive:** `unit/verify` [`TestRFC1195PeriodicSPFRecoversMissedUpdate`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L331). **negative:** `unit/verify` [`TestRFC1195PeriodicSPFRecoversMissedUpdate`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L332) |
+| `RFC1195-7-3` | The 8 octet system identifiers which specify IP reachability entries must always be distinguishable from other system identifiers (§C.1.1) | MUST | C.1.1 - Annex subsection C.1.1 | **positive:** `unit/verify` [`TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L93). **negative:** `unit/verify` [`TestRFC1195PrefixCannotBridgeDisconnectedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L142) |
+| `RFC1195-7-4` | IP-capable level 2 routers must keep level 2 internal IP routes separate from level 2 external IP routes (§C.1.4) | MUST | C.1.4 - Annex subsection C.1.4 | **positive:** `unit/verify` [`TestRFC1195InternalMetricOutranksExternal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L170). **negative:** `unit/verify` [`TestRFC1195ExternalReachabilityWithInternalMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L179) |
+| `RFC1195-7-5` | Each entry made to TENT must be marked as being either an End System or a router (§C.1.4) | MUST | C.1.4 - Annex subsection C.1.4 | **positive:** `unit/verify` [`TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L97). **negative:** `unit/verify` [`TestRFC1195PrefixCannotBridgeDisconnectedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L143) |
+| `RFC1195-7-6` | The password shall be configured on a per-link, per-area, and per- domain basis. (§D.2) | MUST | D.2 - Annex subsection D.2 | **positive:** `unit/verify` [`TestRFC1195PasswordScopesResolved`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L49). **negative:** `unit/verify` [`TestRFC1195PasswordScopesDoNotLeak`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L71) |
+| `RFC1195-7-7` | Specifically, when this form of authentication is used: - IS-IS Hello and 9542 IS Hello packets shall contain the per-link password - Level 1 Link State Packets shall contain the per-area password - Level 2 Link State Packets shall contain the per-domain password - Level 1 Sequence Number Packets shall contain the per-area password - Level 2 Sequence Number Packets shall contain the per-domain password (§D.2) | MUST | D.2 - Annex subsection D.2 | **positive:** `unit/verify` [`TestRFC1195PDUClassSignedWithItsScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L95). **negative:** `unit/verify` [`TestRFC1195PDUClassRefusedUnderOtherScopes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L132) |
+| `RFC1195-7-8` | Also, each of these three passwords shall be configured with: (i) "Transmit Password", whose value is a single password, and (ii) "Receive Passwords", whose value is a set of passwords. (§D.2) | MUST | D.2 - Annex subsection D.2 | **positive:** `unit/verify` [`TestRFC1195OneTransmitPasswordManyReceivePasswords`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L204). **negative:** `unit/verify` [`TestRFC1195KeyOutsideReceiveSetRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L230) |
+| `RFC1195-8-1` | Type = 2 indicates that the external information field contains an autonomous system number tag, to be applied to subsequent IP external reachability information entries. In this case, this "inter-domain routing protocol information" entry must contain precisely one 2 octet AS number. The AS tag is associated with subsequent IP External Reachability entries, until the end of the LSP, or until the next occurence of the Inter-Domain Routing Protocol Information field. (§A.2) | MUST | A.2 - Annex subsection A.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Do not originate IDRPI". Section 5.2 says the IDRPI field "may be present" and "is not used by the IS-IS". internal/plugins/isis/lsdb/origination.go emits no TLV 131 and spf/graph.go has no IDRPI consumer; packet.DecodeTLVs retains unknown TLV 131 only for unchanged flooding. No AS-number association role is selected. |
+| `RFC1195-8-2` | Type = 0 is reserved (must not be sent, and must be ignored on receipt). (Section A.2) | MUST NOT | A.2 - Annex subsection A.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Do not originate IDRPI". Section 5.2 makes the IDRPI field optional ("may be present"). internal/plugins/isis/lsdb/origination.go has no TLV 131 producer; spf/graph.go consumes no IDRPI types, and packet.DecodeTLVs only retains the opaque field for unchanged flooding. Ze therefore neither originates type 0 nor interprets a received type 0. |
+| `RFC1195-5.3.5-1` | Bit 7 of this field indicates the metric type (internal or external) for all four TOS metrics, and may be set to zero indicating internal metrics, or may be set to 1 indicating external metrics. (§5.3.5) | MAY | 5.3.5 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -152,8 +161,8 @@ Experimental pending current integration, discrimination and deployment evidence
 | [`RFC1195-1.2-1`](#rfc1195-1.2-1) External links (to other routing domains) must be from level 2 routers (Section 1.2) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 2966 Section 2.2, which updates this rule, "loosens the restrictions in RFC 1195, and allows for the inclusion of the "IP External Reachability Information" TLV in L1 LSPs"; ze advertises redistributed routes at every origination level (internal/plugins/isis/redistribute/consumer.go::InjectRoute), which the updated rule permits, and configures no circuit to another routing domain |
 | [`RFC1195-3.2-3`](#rfc1195-3.2-3) If a level 2 router receives an IP packet whose IP address matches a manually configured address which it is including in its level 2 LSP, but which is not reachable via level 1 routing in the area, then the packet must be discarded. (Section 3.2) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Keep specific prefixes". Section 3.2 makes manual summary configuration optional ("Each level 2 router may be configured with one or more [IP address, subnet mask, metric] entries"). internal/plugins/isis/yang/ze-isis-conf.yang has no manual-summary configuration; spf.LeakPrefixes and lsdb.Originator.fragmentTLVs originate specific prefixes, so no locally configured summary exists to match this conditional discard rule. |
 | [`RFC1195-3.10.2-1`](#rfc1195-3.10.2-1) 3) If the specified destination is not reachable via level 1 routing, and the manually configured summary address advertised by this router (the router which has received the packet and is trying to forward it) represents the most desireable route, then the destination is unreachable and the packet must be discarded. (Section 3.10.2) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Keep specific prefixes". The optional manual summaries described by section 3.2 ("Each level 2 router may be configured") have no configuration or origination path in internal/plugins/isis/yang/ze-isis-conf.yang, spf.LeakPrefixes, or lsdb.Originator.fragmentTLVs. There is no local manual-summary candidate to become the most desirable route; specific-prefix forwarding remains subject to normal reachability and protocol-suite rejection. |
-| [`RFC1195-8-1`](#rfc1195-8-1) An Inter-Domain Routing Protocol Information entry of the AS-number type must contain precisely one 2 octet AS number, which tags all subsequent External IP Reachability entries (Section 8) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Do not originate IDRPI". Section 5.2 says the IDRPI field "may be present" and "is not used by the IS-IS". internal/plugins/isis/lsdb/origination.go emits no TLV 131 and spf/graph.go has no IDRPI consumer; packet.DecodeTLVs retains unknown TLV 131 only for unchanged flooding. No AS-number association role is selected. |
-| [`RFC1195-8-2`](#rfc1195-8-2) Type = 0 is reserved (must not be sent, and must be ignored on receipt). (Section 8) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Do not originate IDRPI". Section 5.2 makes the IDRPI field optional ("may be present"). internal/plugins/isis/lsdb/origination.go has no TLV 131 producer; spf/graph.go consumes no IDRPI types, and packet.DecodeTLVs only retains the opaque field for unchanged flooding. Ze therefore neither originates type 0 nor interprets a received type 0. |
+| [`RFC1195-8-1`](#rfc1195-8-1) Type = 2 indicates that the external information field contains an autonomous system number tag, to be applied to subsequent IP external reachability information entries. In this case, this "inter-domain routing protocol information" entry must contain precisely one 2 octet AS number. The AS tag is associated with subsequent IP External Reachability entries, until the end of the LSP, or until the next occurence of the Inter-Domain Routing Protocol Information field. (§A.2) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Do not originate IDRPI". Section 5.2 says the IDRPI field "may be present" and "is not used by the IS-IS". internal/plugins/isis/lsdb/origination.go emits no TLV 131 and spf/graph.go has no IDRPI consumer; packet.DecodeTLVs retains unknown TLV 131 only for unchanged flooding. No AS-number association role is selected. |
+| [`RFC1195-8-2`](#rfc1195-8-2) Type = 0 is reserved (must not be sent, and must be ignored on receipt). (Section A.2) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Do not originate IDRPI". Section 5.2 makes the IDRPI field optional ("may be present"). internal/plugins/isis/lsdb/origination.go has no TLV 131 producer; spf/graph.go consumes no IDRPI types, and packet.DecodeTLVs only retains the opaque field for unchanged flooding. Ze therefore neither originates type 0 nor interprets a received type 0. |
 
 ## Proof state
 
@@ -161,9 +170,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC1195-5.2-1`](#rfc1195-5.2-1)
 
-Include Protocols Supported (129) in all Hellos, all LSP number 0, and point-to-point ISHs (Section 5.2)
+The "Protocols Supported" field identifies the protocols which are supported by each router. This field must be included in all IS-IS Hello packets and all LSPs with LSP number 0 transmitted by IP- capable routers. If this field is not included in an IS-IS Hello packet or an LSP with LSP number 0, it may be assumed that the packet was transmitted by an OSI-only router. The "Protocols Supported" field must also be included in ISO 9542 ISHs send by IP-capable routers over point-to-point links to other IS-IS routers. (§5.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The tagged unit lsdb TestISISOriginateOnAdjacencyUp proves only the LSP-number-0 clause (TLV 129 with NLPID 0xCC in fragment 0). The quoted span also obliges Protocols Supported in every IS-IS Hello and in ISO 9542 ISHs on point-to-point links; those clauses are asserted by TestRFC1195NodeProtocolsAcrossInterfaces and TestRFC1195ISHTransmitReceive, which carry other tags, not this one.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -171,9 +180,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-5.2-2`](#rfc1195-5.2-2)
 
-Include IP Interface Address (132) in every IP-capable router's LSPs (Section 5.2)
+In Link State Packets, this field contains a list of one or more IP addresses corresponding to one or more interfaces of the router which originates the LSP. Each IP-capable router must include this field in its LSPs. (§5.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. lsdb TestISISOriginateOnAdjacencyUp fails if the Originator omits TLV 132 when the test hands it InterfaceAddrs, but it checks only the TLV type, not the addresses, and the engine path that collects the router's interface addresses (lsdb_wiring.go) is not exercised by any tagged unit, so an engine that passed none stays green. The codec test proves decoding only.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -182,9 +191,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-5.2-3`](#rfc1195-5.2-3)
 
-Advertise the same IP address(es) at Level 1 and Level 2 when the router is both (Section 5.2)
+Where a single router operates as both a level 1 and a level 2 router, it is required to include the same IP address(es) in its level 1 and level 2 LSPs. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestISISEngineOriginateOnAdjacencyUp checks that fragment 0 exists at Level 1 and Level 2 but never compares the TLV 132 address sets of the two levels; it would pass if the levels advertised different addresses.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -192,9 +201,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-5.3.4-1`](#rfc1195-5.3.4-1)
 
-Set the I/E bit to 0 in IP Internal Reachability (128) entries (Section 5.3.4)
+Bit 7 of this field (marked I/E) indicates the metric type (internal or external) for all four TOS metrics, and must be set to zero indicating internal metrics. (§5.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: a leaked internal L2 entry is decoded with ExternalMetric false. Negative: a producer asking for ExternalMetric on an internal prefix still emits TLV 128 with bit 0x40 clear. Both would fail if the originator set I/E.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -203,9 +212,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-5.3.4-2`](#rfc1195-5.3.4-2)
 
-Place codes 128, 130, 131 in pseudonode LSPs (Section 5.3.4, Section 5.3.5)
+IP Internal Reachability Information -- IP addresses within the routing domain reachable directly via one or more interfaces on this Intermediate system. This is permitted to appear multiple times, and in an LSP with any LSP number. However, this field must not appear in pseudonode LSPs. (§5.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC1195PseudonodeCannotInheritRouterPrefixes fails if the pseudonode LSP carries TLV 128 (also 130, 131) while the router LSP carries the prefixes. Positive and negative tags sit on the same assertion; the input is the violation attempt, so the one test discriminates.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -214,9 +223,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-5.2-4`](#rfc1195-5.2-4)
 
-Carry a default metric in every reachability entry (Section 5.2)
+Each entry must contain a default metric (§5.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The positive TestISISTLVIPv4RoundTrip round-trips TLV 135 (RFC 5305 extended reachability), which is not an RFC 1195 reachability entry. The negative TestRFC1195MissingDefaultMetricCannotRoute truncates a received TLV 128 so its length is no longer a multiple of 12, a structural error, and asserts receive-side rejection. Neither asserts that Ze's originated TLV 128/130 entries carry a default metric.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -227,7 +236,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Note: If this sum results in a metric value greater than 63 (the maximum value that can be reported in level 2 LSPs), then the value 63 must be used. (Section 3.2; wide metrics use RFC 5305's separate bound)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: L1 path 50+40 leaked to L2 with metric 63. Negative: 10+5 preserved as 15. Both fail if the clamp is removed or applied wrongly.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -236,9 +245,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-3.9-1`](#rfc1195-3.9-1)
 
-Discard a packet with invalid authentication information (Section 3.9)
+If a packet is received which contains invalid authentication information, then the entire packet is discarded. (§3.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The negative asserts only that VerifyPDU returns an error on a flipped digest bit. The obligation is that the entire packet is discarded; no tagged unit drives a bad-auth PDU through the receive path and asserts it changed no LSDB/adjacency state, so a caller that ignored the error stays green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -247,9 +256,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-3.1-1`](#rfc1195-3.1-1)
 
-Ignore unrecognised codes and pass them unchanged in forwarded LSPs (Section 3.1)
+Any codes in a received PDU that are not recognised shall be ignored and, for those packets which are forwarded (specifically Link State Packets), passed on unchanged. (§5.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause 'ignored': DecodeTLVs returns no error on TLV 199/250, asserted. Clause 'forwarded LSPs passed on unchanged': TestISISUnknownTLVPassthrough only round-trips the codec (DecodeTLVs/writeTLVs); no tagged unit floods a received LSP carrying an unknown TLV and compares the bytes sent on another circuit, so a flooding path that rebuilt or stripped the LSP stays green. Tag prose still says 'sec 3.1' while the row cites 5.2.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -284,9 +293,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-3.2-2`](#rfc1195-3.2-2)
 
-If multiple L1 routers advertise the same [IP address, subnet mask] pair and it is not superseded by a manually configured entry, include one such entry in the L2 LSP with the minimum metric (Section 3.2)
+In general, the same [IP address, subnet mask] pair may be announced in level 1 LSPs sent by multiple level 1 routers in the same area. In this case (assuming the entry is not superceded by a manually configured entry), then only one such entry shall be included in the level 2 LSP. The metric value(s) announced in level 2 LSPs correspond to the minimum of the metric value(s) that would be calculated for each of the level 1 LSP entries. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Both clauses have a red assertion: metricLeak fails unless exactly one L2 entry is originated, and the test fails unless its metric is the minimum 9. But the positive and negative tags sit on the same assertion over the same input (one test wearing two hats, not a pair) and the row carries no {single-polarity} marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -305,7 +314,7 @@ No test carries RFC1195-3.2-3, so no unit is bound to it.
 
 The reserved field must contain "00 00", as specified in GOSIP version 2.0. (Section 3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Encoder emits the GOSIP NET with reserved octets zero; ParseNET and DecodeISH refuse either nonzero reserved octet with ErrNETReserved.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -349,7 +358,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If level 2 routes must be used, then routes within the routing domain (specifically, those routes using internal metrics) are prefered to routes outside of the routing domain (using external metrics). (Section 3.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. A costly internal-metric L2 prefix beats a cheap external-metric one in the installed Loc-RIB; an external TLV with an internal metric is not penalized. Both fail if metric type is ignored.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -360,7 +369,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 However, the default metric must always be available. (Section 3.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Positive (TestRFC1195RouteForEachReachabilityEntry) proves SPF uses each entry's default metric (11/12/18). The negative truncates TLV 128 so its length is no longer a multiple of 12: the whole TLV fails a structural length rule first (question 3), so nothing isolates an entry lacking its default metric; same confound as 5.2-4.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -379,7 +388,7 @@ No test carries RFC1195-3.10.2-1, so no unit is bound to it.
 
 This implies that all IS-IS routers, including IP-only routers, must be able to receive IS-IS packets using the normal encapsulation for OSI packets. (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The positive proves ParseFrame accepts the normal OSI 802.3/LLC encapsulation. The negative asserts refusal of Ethernet II and SNAP frames, which the sentence does not require; it is a neighbouring strictness property, so there is no negative for this capability obligation (a {single-polarity} marker would fit).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -390,7 +399,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 However, IP-capable routers must be able to interact correctly with other routers which assign multiple IP addresses per physical interface (up to the maximum of 63 addresses per interface). (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Both units exercise only DecodeIPv4InterfaceAddrTLV: 63 addresses decode, a truncated TLV is refused with ErrLength. Neither shows correct interaction (adjacency, next-hop choice) with a neighbor carrying several addresses per interface; the negative tests a malformed-length rule, not this one.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -401,7 +410,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 IP-capable IS-IS routers therefore must be able to forward IP packets over existing adjacencies to routers with which they share physical connectivity, even when the IP address of the adjacent interface of the neighboring router is on a different logical IP subnet. (Section 4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestFIBOnLinkAdjacencyAndUnsupportedPrefix inserts a Loc-RIB path with OnLink=true by hand and proves the FIB/kernel forwards to the off-subnet gateway (and flips when the mark is cleared). Nothing tagged 4.4-1 shows IS-IS itself marks an adjacency next hop on a different logical subnet OnLink, so an IS-IS resolver that recursed instead stays green. Linux, CAP_NET_ADMIN only.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -412,7 +421,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 All IS-IS routers are therefore required to transmit and receive ISO 9542 ISH packets on point-to-point links. (Section 4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Positive clauses are asserted: TestRFC1195ISHTransmitReceive fails if no ISH is sent to AllESs before the IIH or if a received ISH does not initialize the adjacency; the veth test covers the AF_PACKET path. The negatives (corrupt ISH, wrong circuit, wrong/missing password) prove neighbouring rules, not a failure to transmit or receive ISH, and the row has no {single-polarity} marker. ish_auth tests prove the per-link password (7-7).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -426,7 +435,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Thus, the value of the "protocols supported" field must be identical on every link (i.e., for any one router running IS-IS, all of the Hellos and LSPs transmitted by it must contain the same "protocols supported" values). (Section 4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Enabling IPv6 on one interface gives identical NLPIDs in both IIHs and the LSP; after reload no stale IPv6 capability remains on the unchanged circuit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -435,9 +444,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-4.5-1`](#rfc1195-4.5-1)
 
-A packet that has to be forwarded to a router which does not support its protocol suite must be discarded (Section 4.5)
+There may be times when a dual router has to forward an IP packet to an OSI-only router, or forward an OSI packet to an IP-only router. In this case the packet must be discarded. (§4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. IP half: TestRFC1195OSINeighborIsTerminalIPv4NextHop fails if an OSI-only neighbor resolves to a usable IPv4 next hop; TestRFC1195CapabilityChangesInstalledRouteDisposition fails unless the installed route becomes Unreachable (production LSDB/SPF/installer) and returns to unicast when IPv4 support returns; the FIB integration test fails unless the kernel answers EHOSTUNREACH instead of the default and restores it on removal. OSI half: Ze forwards no OSI/CLNP packets, so no code path can violate it.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -452,7 +461,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Bit 8 of this field is reserved, and must be set to zero on tranmission and ignored on reception. (Section 5.3.4), with default-metric bit 8 reassigned to up/down by RFC 2966 section 2
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The row quotes the DEFAULT METRIC bit-8 rule. The tagged units encode and decode bit 7 (0x40) of the DELAY, EXPENSE and ERROR metrics, which is a different sentence of 5.3.4 ('Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception'). Nothing tagged asserts default-metric bit 8, which RFC 2966 section 2 reassigns to up/down.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -461,9 +470,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-7-1`](#rfc1195-7-1)
 
-The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet). (Section 7)
+The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet). (§B.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from §8 to §B.1, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: SNP entries in any order but ascending LSPID with the LSP number least significant. TestRFC1195CSNPEntriesAscending asserts the exact order [20.0, 20.1, 30.0, 40.0] from reverse inserts; TestRFC1195PSNPEntriesAscendingAcrossLists asserts [request, ack-only, ack] where list order would be (30, 10, 20). Enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -472,9 +481,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-7-2`](#rfc1195-7-2)
 
-However, a full update must be done periodically to ensure recovery from data corruption, and studies suggest that with a very small number of link changes (perhaps 2) the expected computation complexity of the incremental update exceeds the complete recalculation. (Section 7)
+However, a full update must be done periodically to ensure recovery from data corruption, and studies suggest that with a very small number of link changes (perhaps 2) the expected computation complexity of the incremental update exceeds the complete recalculation. (§C.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from §8 to §C.1, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Still weak: TestRFC1195PeriodicSPFRecoversMissedUpdate carries both tags over one assertion (stale metric 11 repaired to 15 by the periodic pass), and the row carries no {single-polarity} marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -483,9 +492,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-7-3`](#rfc1195-7-3)
 
-The 8 octet system identifiers which specify IP reachability entries must always be distinguishable from other system identifiers (Section 7)
+The 8 octet system identifiers which specify IP reachability entries must always be distinguishable from other system identifiers (§C.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from §8 to §C.1.1, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: an IP reachability entry whose identifier collides with a router's system identifier. TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix gives router B a System ID spelling 10.4.0.0/24 and asserts 3 settled router vertices, B at metric 10, C at 15 through B, and one prefix route at 11: a merged identifier space changes the vertex count. TestRFC1195PrefixCannotBridgeDisconnectedRouters asserts a lookalike prefix does not make a disconnected router's 198.51.100.0/24 reachable. Enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -494,9 +503,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-7-4`](#rfc1195-7-4)
 
-IP-capable level 2 routers must keep level 2 internal IP routes separate from level 2 external IP routes (Section 7)
+IP-capable level 2 routers must keep level 2 internal IP routes separate from level 2 external IP routes (§C.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from §8 to §C.1.4, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: level 2 internal and external routes compared as one set. TestRFC1195InternalMetricOutranksExternal asserts the internal route at cost 163 wins over an external-metric route at cost 2 (metricWinner id 2, 163): merging the sets by cost goes red. The negative tag, TestRFC1195ExternalReachabilityWithInternalMetric, asserts an external-reachability route with an INTERNAL metric wins on cost, which is the §3.10.2 NOTE that such routes are treated as internal, a neighbouring rule, not a case where keeping the sets separate is violated. Weak: one polarity proves the row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -505,9 +514,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-7-5`](#rfc1195-7-5)
 
-Each entry made to TENT must be marked as being either an End System or a router (Section 7)
+Each entry made to TENT must be marked as being either an End System or a router (§C.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from §8 to §C.1.4, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: a TENT entry not marked end system versus router, so an end system (a reachability entry) is used as a transit router. TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix asserts the settled set holds 3 routers only and the entry is reached through its advertising router; TestRFC1195PrefixCannotBridgeDisconnectedRouters asserts a prefix leaf does not bridge to a disconnected router's prefix. Enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -516,9 +525,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-7-6`](#rfc1195-7-6)
 
-The password shall be configured on a per-link, per-area, and per- domain basis. (Section 7)
+The password shall be configured on a per-link, per-area, and per- domain basis. (§D.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from §8 to §D.2, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: one password shared across link, area and domain scopes. TestRFC1195PasswordScopesResolved asserts three distinct chains iih/area/domain with distinct key ids; TestRFC1195PasswordScopesDoNotLeak asserts eth1 resolves no eth0 link chain at either level and the L2 chain is not the L1 chain. Enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -527,9 +536,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-7-7`](#rfc1195-7-7)
 
-IS-IS Hello and 9542 IS Hello packets shall carry the per-link password, Level 1 LSPs and Sequence Number Packets the per-area password, and Level 2 LSPs and Sequence Number Packets the per-domain password (Section 7)
+Specifically, when this form of authentication is used: - IS-IS Hello and 9542 IS Hello packets shall contain the per-link password - Level 1 Link State Packets shall contain the per-area password - Level 2 Link State Packets shall contain the per-domain password - Level 1 Sequence Number Packets shall contain the per-area password - Level 2 Sequence Number Packets shall contain the per-domain password (§D.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from §8 to §D.2, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Still weak: the tagged units prove IS-IS Hello, L1/L2 LSP and L1/L2 CSNP/PSNP are signed with their scope's password and refused under another scope. The ISO 9542 IS Hello clause is proven only by TestRFC1195ISHConfiguredPassword and TestRFC1195ISHWrongPassword, which are tagged RFC1195-4.4-2, not this row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -538,9 +547,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-7-8`](#rfc1195-7-8)
 
-Also, each of these three passwords shall be configured with: (i) "Transmit Password", whose value is a single password, and (ii) "Receive Passwords", whose value is a set of passwords. (Section 7)
+Also, each of these three passwords shall be configured with: (i) "Transmit Password", whose value is a single password, and (ii) "Receive Passwords", whose value is a set of passwords. (§D.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from §8 to §D.2, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: several transmit passwords, or a receive set of one. TestRFC1195OneTransmitPasswordManyReceivePasswords asserts sign key 1 only and a receive set of two that verifies both; TestRFC1195KeyOutsideReceiveSetRefused asserts a key outside the set is refused and the transmit key alone does not verify a key-2 PDU. Enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -549,7 +558,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1195-8-1`](#rfc1195-8-1)
 
-An Inter-Domain Routing Protocol Information entry of the AS-number type must contain precisely one 2 octet AS number, which tags all subsequent External IP Reachability entries (Section 8)
+Type = 2 indicates that the external information field contains an autonomous system number tag, to be applied to subsequent IP external reachability information entries. In this case, this "inter-domain routing protocol information" entry must contain precisely one 2 octet AS number. The AS tag is associated with subsequent IP External Reachability entries, until the end of the LSP, or until the next occurence of the Inter-Domain Routing Protocol Information field. (§A.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -557,7 +566,7 @@ No test carries RFC1195-8-1, so no unit is bound to it.
 
 ### [`RFC1195-8-2`](#rfc1195-8-2)
 
-Type = 0 is reserved (must not be sent, and must be ignored on receipt). (Section 8)
+Type = 0 is reserved (must not be sent, and must be ignored on receipt). (Section A.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -568,7 +577,7 @@ No test carries RFC1195-8-2, so no unit is bound to it.
 | Field | Value |
 |---|---|
 | Reviewer | claude |
-| Signed off | 2026-09-21 |
+| Signed off | 2026-09-27 |
 | Register | prose |
 | Source | rfc/full/rfc1195.txt |
 | Source fingerprint | 4adf2025be11a7dd |
@@ -624,8 +633,28 @@ No test carries RFC1195-8-2, so no unit is bound to it.
 | `5.3.9` | not stated | 0 | walked | not stated |
 | `5.3.10` | not stated | 0 | walked | not stated |
 | `6` | not stated | 0 | walked | not stated |
-| `7` | not stated | 22 | walked | not stated |
-| `8` | not stated | 4 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `A.1` | Annex subsection A.1 | 1 | walked | Annex subsection A.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `A.2` | Annex subsection A.2 | 2 | walked | Annex subsection A.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `B.1` | Annex subsection B.1 | 2 | walked | Annex subsection B.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `B.2` | Annex subsection B.2 | 2 | walked | Annex subsection B.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `B.3` | Annex subsection B.3 | 2 | walked | Annex subsection B.3. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `B.4` | Annex subsection B.4 | 2 | walked | Annex subsection B.4. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `C.1` | Annex subsection C.1 | 1 | walked | Annex subsection C.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `C.1.1` | Annex subsection C.1.1 | 1 | walked | Annex subsection C.1.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `C.1.2` | Annex subsection C.1.2 | 0 | walked | Annex subsection C.1.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `C.1.3` | Annex subsection C.1.3 | 0 | walked | Annex subsection C.1.3. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `C.1.4` | Annex subsection C.1.4 | 6 | walked | Annex subsection C.1.4. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 6 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `C.2` | Annex subsection C.2 | 0 | walked | Annex subsection C.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `C.2.1` | Annex subsection C.2.1 | 0 | walked | Annex subsection C.2.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `C.2.2` | Annex subsection C.2.2 | 0 | walked | Annex subsection C.2.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `D.1` | Annex subsection D.1 | 0 | walked | Annex subsection D.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `D.2` | Annex subsection D.2 | 7 | walked | Annex subsection D.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 7 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `E.1` | Annex subsection E.1 | 0 | walked | Annex subsection E.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `E.2` | Annex subsection E.2 | 0 | walked | Annex subsection E.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `E.2.1` | Annex subsection E.2.1 | 0 | walked | Annex subsection E.2.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `E.2.2` | Annex subsection E.2.2 | 0 | walked | Annex subsection E.2.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
 
 ### Excluded sentences
 
@@ -682,22 +711,22 @@ No test carries RFC1195-8-2, so no unit is bound to it.
 | `5.3.5:17` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the reserved-bit rule repeated for a TOS metric octet | Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception. |
 | `5.3.5:18` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the unsupported-metric S bit rule repeated for a TOS metric octet; the TOS feature is out of scope as recorded at site 5.3.4:5 | If this IS does not support this metric it shall set the bit "S" to 1 to indicate that the metric is unsupported. |
 | `5.3.5:19` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the reserved-bit rule repeated for the last TOS metric octet | Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception. |
-| `7:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule, repeated for the option fields of the same Sequence Number PDU description | if they appear more than once, shall appear sorted into ascending LSPID order. |
-| `7:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule repeated for the next Sequence Number PDU type | The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet). |
-| `7:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule repeated for the option fields of that PDU type | if they appear more than once, shall appear sorted into ascending LSPID order. |
-| `7:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule repeated for the next Sequence Number PDU type | The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet). |
-| `7:6` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule repeated for the option fields of that PDU type | if they appear more than once, shall appear sorted into ascending LSPID order. |
-| `7:7` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule repeated for the last Sequence Number PDU type | The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet). |
-| `7:10` | `feature-out-of-scope` (never bound Ze): the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it | running the Decision Process once per supported routing metric is an obligation conditional on supporting more than the default metric, and RFC 1195 section 3.5 makes that optional: 'The support for TOS/QOS is optional.' ze supports the default metric only (internal/plugins/isis/types/metric.go), so the algorithm runs once | The Decision Process Algorithm must be run once for each supported routing metric (i.e., for each supported Type of Service). |
-| `7:12` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | a note deriving a consequence ('Note that this implies that routers ... must run the SPF algorithm 8 times') from the rule at site 7:10; it adds no obligation of its own | Note that this implies that routers which are both level 1 and level 2 routers, and which support all four routing metrics, must run the SPF algorithm 8 times (assuming partition repair is not implemented). |
-| `7:13` | `feature-out-of-scope` (never bound Ze): the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it | the sentence names the feature as optional itself: 'If this system is a Level 2 Router which supports the partition repair optional function the Decision Process algorithm for computing Level 1 paths must be run twice for the default metric.' ze implements no partition repair: internal/plugins/isis holds no partition-repair path, only the L1/L2 decision process | If this system is a Level 2 Router which supports the partition repair optional function the Decision Process algorithm for computing Level 1 paths must be run twice for the default metric. |
-| `7:15` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | a mathematical note about the Dijkstra invariant ('d(N) must be less than dist(P,N), or else N would not have been put into PATHS'), not an obligation on an implementation | Note: d(N) must be less than dist(P,N), or else N would not have been put into PATHS. |
-| `7:18` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | one bullet of the same per-PDU password list, for Level 1 Link State Packets | - Level 1 Link State Packets shall contain the per-area password |
-| `7:19` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | one bullet of the same per-PDU password list, for Level 2 Link State Packets | - Level 2 Link State Packets shall contain the per-domain password |
-| `7:20` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | one bullet of the same per-PDU password list, for Level 1 Sequence Number Packets | - Level 1 Sequence Number Packets shall contain the per-area password |
-| `7:21` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | one bullet of the same per-PDU password list, for Level 2 Sequence Number Packets | - Level 2 Sequence Number Packets shall contain the per-domain password |
-| `8:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | restates the single 2 octet AS number rule for the same Inter-Domain Information Type | In this case, this "inter-domain routing protocol information" entry must contain precisely one 2 octet AS number. |
-| `8:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule for option fields, already carried by the Sequence Number PDU row | The option fields, if they appear more than once, shall appear sorted into ascending LSPID order. |
+| `A.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | restates the single 2 octet AS number rule for the same Inter-Domain Information Type | In this case, this "inter-domain routing protocol information" entry must contain precisely one 2 octet AS number. |
+| `B.1:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule for option fields, already carried by the Sequence Number PDU row | The option fields, if they appear more than once, shall appear sorted into ascending LSPID order. |
+| `B.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule, repeated for the option fields of the same Sequence Number PDU description | The option fields, if they appear more than once, shall appear sorted into ascending LSPID order. |
+| `B.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule repeated for the next Sequence Number PDU type | The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet). |
+| `B.3:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule repeated for the option fields of that PDU type | The option fields, if they appear more than once, shall appear sorted into ascending LSPID order. |
+| `B.3:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule repeated for the next Sequence Number PDU type | The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet). |
+| `B.4:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule repeated for the option fields of that PDU type | The option fields, if they appear more than once, shall appear sorted into ascending LSPID order. |
+| `B.4:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the ascending LSPID ordering rule repeated for the last Sequence Number PDU type | The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet). |
+| `C.1.4:1` | `feature-out-of-scope` (never bound Ze): the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it | running the Decision Process once per supported routing metric is an obligation conditional on supporting more than the default metric, and RFC 1195 section 3.5 makes that optional: 'The support for TOS/QOS is optional.' ze supports the default metric only (internal/plugins/isis/types/metric.go), so the algorithm runs once | The Decision Process Algorithm must be run once for each supported routing metric (i.e., for each supported Type of Service). |
+| `C.1.4:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | a note deriving a consequence ('Note that this implies that routers ... must run the SPF algorithm 8 times') from the rule at site 7:10; it adds no obligation of its own | Note that this implies that routers which are both level 1 and level 2 routers, and which support all four routing metrics, must run the SPF algorithm 8 times (assuming partition repair is not implemented). |
+| `C.1.4:4` | `feature-out-of-scope` (never bound Ze): the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it | the sentence names the feature as optional itself: 'If this system is a Level 2 Router which supports the partition repair optional function the Decision Process algorithm for computing Level 1 paths must be run twice for the default metric.' ze implements no partition repair: internal/plugins/isis holds no partition-repair path, only the L1/L2 decision process | If this system is a Level 2 Router which supports the partition repair optional function the Decision Process algorithm for computing Level 1 paths must be run twice for the default metric. |
+| `C.1.4:6` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | a mathematical note about the Dijkstra invariant ('d(N) must be less than dist(P,N), or else N would not have been put into PATHS'), not an obligation on an implementation | Note: d(N) must be less than dist(P,N), or else N would not have been put into PATHS. |
+| `D.2:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | one bullet of the same per-PDU password list, for Level 1 Link State Packets | - Level 1 Link State Packets shall contain the per-area password |
+| `D.2:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | one bullet of the same per-PDU password list, for Level 2 Link State Packets | - Level 2 Link State Packets shall contain the per-domain password |
+| `D.2:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | one bullet of the same per-PDU password list, for Level 1 Sequence Number Packets | - Level 1 Sequence Number Packets shall contain the per-area password |
+| `D.2:6` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | one bullet of the same per-PDU password list, for Level 2 Sequence Number Packets | - Level 2 Sequence Number Packets shall contain the per-domain password |
 
 ## Superseded
 

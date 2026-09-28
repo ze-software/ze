@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 4 | of 4 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 4 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 8 |
 | Tagged units | 8 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 4 |
 | Discrimination records | 8 |
 | Summary | `rfc/short/draft-ietf-idr-bgp-bfd-strict-mode.md` |
 | Requirement shard | `rfc/requirements/draft-ietf-idr-bgp-bfd-strict-mode.md` |
@@ -103,8 +112,8 @@ Enrolled: BFD Strict-Mode for BGP (capability code 74): four MUST-level requirem
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1` | "If BfdEnabled is FALSE, this event MUST NOT occur. When BFD has been disabled, the local system will trigger a BfdAdminDown event instead" (§4, Event 35) | MUST NOT | 4 | **positive:** `unit/verify` [`TestSessionBFDStrictConfigChangedUsesConfigSubcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L413). **negative:** `unit/verify` [`TestSessionBFDStrictConfigChangedWithBFDDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L495) |
-| `DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1` | A BGP speaker which supports capabilities advertisement and has BFD strict-mode enabled MUST include the BFD Strict-Mode Capability in its OPEN message. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestBFDSettingsStrictParse`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L57). **negative:** `unit/verify` [`TestBFDSettingsStrictDisabledAdvertisesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L108) |
+| `DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1` | If BfdEnabled is FALSE, this event MUST NOT occur. When BFD has been disabled, the local system will trigger a BfdAdminDown event instead. (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestSessionBFDStrictConfigChangedUsesConfigSubcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L413). **negative:** `unit/verify` [`TestSessionBFDStrictConfigChangedWithBFDDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L495) |
+| `DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1` | A BGP speaker which supports capabilities advertisement and has BFD strict-mode enabled MUST include the BFD Strict-Mode Capability in its OPEN message. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestBFDSettingsStrictParse`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L58). **negative:** `unit/verify` [`TestBFDSettingsStrictDisabledAdvertisesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L109) |
 | `DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1` | To avoid deadlock when utilizing both BFD hold-down and BFD strict- mode, when strict-mode is enabled for a peer, the BGP FSM MUST be enabled. (§10) | MUST | 10 | **positive:** `unit/verify` [`TestSessionBFDStrictWithholdsKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L185). **negative:** `unit/verify` [`TestSessionBFDStrictSendsKeepaliveOnBFDUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L221) |
 | `DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2` | That is, BFD hold-down procedures MUST NOT prevent BGP from establishing a connection with the remote BGP speaker. (§10) | MUST NOT | 10 | **positive:** `unit/verify` [`TestSessionBFDStrictWithholdsKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L190). **negative:** `unit/verify` [`TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L289) |
 
@@ -118,9 +127,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1`](#draft-ietf-idr-bgp-bfd-strict-mode-4-1)
 
-"If BfdEnabled is FALSE, this event MUST NOT occur. When BFD has been disabled, the local system will trigger a BfdAdminDown event instead" (§4, Event 35)
+If BfdEnabled is FALSE, this event MUST NOT occur. When BFD has been disabled, the local system will trigger a BfdAdminDown event instead. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause 1 (MUST NOT occur with BfdEnabled FALSE) is enforced: TestSessionBFDStrictConfigChangedWithBFDDisabled calls raiseBFDStrictConfigChanged on an OpenSent session with BFD.Enabled false and asserts the state stays OpenSent and no message is written; raising Event 35 would take the fsm.go OpenSent arm (crc.Reset, change to Idle, Cease/Other Configuration Change on the wire), so both assertions go red. Clause 2 (the local system triggers a BfdAdminDown instead) has no discriminating assertion: the session has no pending BFD sub-state, where handleBFDEvent treats BfdAdminDown as a no-op, so a producer that raised no event at all, or any other inert event, passes. A case with a pending sub-state (SubStateOpenSentBfdUpPending, where BfdAdminDown advances) is needed to prove the substitution.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -131,18 +140,18 @@ Audit verdict: not audited: no reader has judged these tests
 
 A BGP speaker which supports capabilities advertisement and has BFD strict-mode enabled MUST include the BFD Strict-Mode Capability in its OPEN message. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a speaker with strict-mode enabled sending an OPEN without capability 74. TestBFDSettingsStrictParse asserts only that parsePeerFromTree puts capability.BFDStrictMode in PeerSettings.Capabilities (peerAdvertisesBFDStrict walks that slice); no tagged assertion reads the OPEN message sendOpen builds, so a sendOpen that dropped or mis-encoded code 74 stays green. Negatives (TestBFDSettingsStrictDisabledAdvertisesNothing) likewise read the settings slice.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestBFDSettingsStrictDisabledAdvertisesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L108) | unit/verify | revert, verified |
-| positive | [`TestBFDSettingsStrictParse`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L57) | unit/verify | revert, verified |
+| negative | [`TestBFDSettingsStrictDisabledAdvertisesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L109) | unit/verify | revert, verified |
+| positive | [`TestBFDSettingsStrictParse`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L58) | unit/verify | revert, verified |
 
 ### [`DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1`](#draft-ietf-idr-bgp-bfd-strict-mode-10-1)
 
 To avoid deadlock when utilizing both BFD hold-down and BFD strict- mode, when strict-mode is enabled for a peer, the BGP FSM MUST be enabled. (§10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a peer with strict-mode enabled whose BGP FSM is not enabled (stays Idle or never exchanges OPEN while BFD is not Up). TestSessionBFDStrictWithholdsKeepalive asserts, with bfd state Down and strict negotiated, session.State() == fsm.StateOpenSent after handleOpen, red on an FSM that held in Idle or refused the connection; TestSessionBFDStrictSendsKeepaliveOnBFDUp asserts the held session reaches OpenConfirm on BfdUp, so the enabled FSM is not parked in an unleavable state.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -153,7 +162,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 That is, BFD hold-down procedures MUST NOT prevent BGP from establishing a connection with the remote BGP speaker. (§10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The sentence is about BFD hold-down procedures. Both tagged units (TestSessionBFDStrictWithholdsKeepalive, TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise) build the session through newStrictSession, which passes a hold-down of 0 to newStrictSessionOn, so no tagged case has a hold-down configured. They prove that a Down BFD session does not stop the connection and OPEN exchange; a hold-down implementation that delayed the TCP connection or OPEN until the interval elapsed would leave every tagged assertion green. TestSessionBFDStrictHoldDownDelaysEstablishment configures 400 ms but is not tagged and asserts the delay, not that the connection is made during it.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

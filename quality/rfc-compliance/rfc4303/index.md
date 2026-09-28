@@ -1,6 +1,6 @@
 # RFC 4303 - IP Encapsulating Security Payload (ESP)
 
-Supported. Every requirement this repository extracted from RFC 4303, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Partial. Every requirement this repository extracted from RFC 4303, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 22 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 22 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 9 | of 22 gated MUSTs judged | 5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 22 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,23 +52,24 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Supported |
+| Public status | Partial |
 | Enrolment | Enrolled |
 | Requirements | 25 |
 | Gated MUST-level | 22 |
 | Not applicable, so out of scope | 14 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 17 |
 | Tagged units | 17 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 9 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc4303.md` |
 | Requirement shard | `rfc/requirements/rfc4303.md` |
@@ -72,15 +81,15 @@ Enrolled: IP Encapsulating Security Payload (RFC 4303): 1 MET (SPI 0/reserved ne
 
 ## What the public ledger says
 
-**Status:** Supported
+**Status:** Partial
 
 **What the ledger says is covered:**
 
 ESP SA parameter model, protocol 50, tunnel and transport modes, XFRM installation, OSPFv3 manual ESP.
 
-**What the ledger says remains:**
+**What the ledger says remains**
 
-No tracked gap in current source anchors.
+No test proves the address-match indication used for the inbound SA lookup ([`RFC4303-2.1-2`](#rfc4303-2.1-2): its tagged test checks the traffic selector, not the lookup key). Integrity-only ESP is configurable on OSPFv3 manual SAs but not negotiable in IKEv2, whose ESP vocabulary has no ENCR_NULL ([`RFC4303-1-1`](#rfc4303-1-1)). Protocol 50, SPI 0 and anti-replay-needs-integrity are proven on one SA producer each ([`RFC4303-2-1`](#rfc4303-2-1), [`RFC4303-2.1-1`](#rfc4303-2.1-1), [`RFC4303-3.4.3-2`](#rfc4303-3.4.3-2)).
 
 ## Coverage
 
@@ -102,50 +111,50 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC4303-1-1` | Integrity-only ESP MUST be offered as a service selection option and MUST be configurable via management interfaces (§1) | MUST | 1 - Introduction | **positive:** `unit/verify` [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L127). **negative:** `unit/verify` [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L112) |
+| `RFC4303-1-1` | Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols and MUST be configurable via management interfaces. (§1) | MUST | 1 - Introduction | **positive:** `unit/verify` [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L127). **negative:** `unit/verify` [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L112) |
 | `RFC4303-2-1` | The (outer) protocol header (IPv4, IPv6, or Extension) that immediately precedes the ESP header SHALL contain the value 50 in its Protocol (IPv4) or Next Header (IPv6, Extension) field (see IANA web page at http://www.iana.org/assignments/protocol-numbers). (§2) | SHALL | 2 - Packet format | **positive:** `unit/verify` [`TestIPsecSAProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L362). **negative:** `unit/verify` [`TestIPsecSAProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L367) |
 | `RFC4303-2.1-1` | The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire. (§2.1) | MUST NOT | 2.1 - Security Parameters Index | **positive:** `unit/verify` [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L250). **positive:** `unit/verify` [`TestIPsecSPIBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L192). **negative:** `unit/verify` [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L264). **negative:** `unit/verify` [`TestIPsecSPIBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L186) |
 | `RFC4303-2.1-2` | The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or Group Domain of Interpretation (GDOI) [RFC3547]. (§2.1) | MUST | 2.1 - Security Parameters Index | **positive:** `unit/verify` [`TestIPsecSAAddressMatchIndication`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L392). **negative:** `unit/verify` [`TestIPsecSAAddressMatchIndication`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L398) |
 | `RFC4303-2.2-1` | For a unicast SA or a single-sender multicast SA, the sender MUST increment this field for every transmitted packet. (§2.2) | MUST | 2.2 - Sequence Number | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the per-SA sequence counter is kernel XFRM/ESP per-packet state; ze installs the SA but never touches sequence numbers (internal/component/ike/dataplane/dataplane.go:80-108 has no sequence field) |
-| `RFC4303-2.2-2` | Sender MUST NOT send a packet that would cause the sequence counter to cycle (overflow) (§2.2) | MUST NOT | 2.2 - Sequence Number | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** 32-bit counter overflow protection is enforced by the kernel XFRM datapath (it expires the state rather than wrapping); ze's control plane holds no per-packet counter |
-| `RFC4303-2.2-3` | Counter and receiver window MUST be reset before the 2^32nd packet on a non-ESN SA (§2.2) | MUST | 2.2 - Sequence Number | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the sequence counter and receive window are kernel per-packet SA state; the kernel enforces the 2^32 boundary and a fresh counter/window arises from installing a new SA |
-| `RFC4303-2.4-1` | Padding MUST bring plaintext to the block size of the cipher and ensure 4-byte alignment of the resulting ciphertext (§2.4) | MUST | 2.4 - Padding for encryption | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ESP padding is applied by the kernel encryption datapath during packet construction; ze projects only the algorithm choice and never builds ESP payloads |
-| `RFC4303-2.6-1` | Transmitter MUST be capable of generating dummy packets (Next Header = 59) for traffic-flow confidentiality (§2.6) | MUST | 2.6 - Next Header | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** dummy/TFC packet generation is an ESP transmit-datapath function; ze emits no ESP packets, so it plays no role in producing Next-Header-59 dummies |
-| `RFC4303-2.6-2` | Receiver MUST silently discard dummy packets (Next Header = 59) (§2.6) | MUST | 2.6 - Next Header | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** inbound Next-Header-59 dummy discard occurs in the kernel ESP receive path after decryption; ze processes no inbound ESP payloads |
-| `RFC4303-3.2-1` | The encryption and integrity algorithms MUST NOT both be NULL; at least one ESP service is always selected (§3.2) | MUST NOT | 3.2 - Algorithms | **positive:** `unit/verify` [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L131). **negative:** `unit/verify` [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L108) |
-| `RFC4303-3.3.3-1` | Sender initializes sequence counter to 0 at SA establishment; first transmitted packet carries Sequence Number 1 (§3.3.3) | MUST | 3.3.3 - Sequence Number generation | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the kernel initializes the sequence counter when the SA state is added; ze installs a fresh SA with no seq field and never sets or reads the counter (internal/component/ike/dataplane/xfrm_linux.go:21-86) |
-| `RFC4303-3.3.4-1` | Transport-mode ESP is applied only to whole IP datagrams, never to fragments (§3.3.4) | MUST | 3.3.4 - Fragmentation | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ordering ESP relative to fragmentation is an outbound kernel datapath decision; ze selects transport vs tunnel mode as an SA parameter but does not apply ESP to packets (internal/plugins/ospf/ipsec_install.go:413) |
-| `RFC4303-3.3.4-2` | Implementation MUST support Path MTU Discovery (§3.3.4) | MUST | 3.3.4 - Fragmentation | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Path MTU Discovery is provided by the kernel networking/XFRM stack; ze's control plane installs SAs and does not run the datapath MTU machinery |
-| `RFC4303-3.4.3-1` | Anti-replay sliding window: minimum window size of 32 packets MUST be supported (§3.4.3) | MUST | 3.4.3 - Sequence Number verification, the anti-replay section | **positive:** `unit/verify` [`TestChildSAReplayWindowDefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L315). **negative:** no negative test. **{single-polarity}:** ze projects a 64-packet anti-replay window on IKE child SAs (ReplayWin=64) to the kernel state, which exceeds the minimum at the SA-parameter level, while the sliding-window check itself runs in the kernel (internal/component/ike/engine/child.go:62, :377, :444, internal/component/ike/dataplane/xfrm_linux.go:132-133) |
+| `RFC4303-2.2-2` | In other words, the sender MUST NOT send a packet on an SA if doing so would cause the sequence number to cycle. (§3.3.3) | MUST NOT | 3.3.3 - Sequence Number generation | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** 32-bit counter overflow protection is enforced by the kernel XFRM datapath (it expires the state rather than wrapping); ze's control plane holds no per-packet counter |
+| `RFC4303-2.2-3` | Thus, the sender's counter and the receiver's counter MUST be reset (by establishing a new SA and thus a new key) prior to the transmission of the 2^32nd packet on an SA. (§2.2) | MUST | 2.2 - Sequence Number | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the sequence counter and receive window are kernel per-packet SA state; the kernel enforces the 2^32 boundary and a fresh counter/window arises from installing a new SA |
+| `RFC4303-2.4-1` | If an encryption algorithm is employed that requires the plaintext to be a multiple of some number of bytes, e.g., the block size of a block cipher, the Padding field is used to fill the plaintext (consisting of the Payload Data, Padding, Pad Length, and Next Header fields) to the size required by the algorithm. o Padding also may be required, irrespective of encryption algorithm requirements, to ensure that the resulting ciphertext terminates on a 4-byte boundary. Specifically, the Pad Length and Next Header fields must be right aligned within a 4-byte word, as illustrated in the ESP packet format figures above, to ensure that the ICV field (if present) is aligned on a 4-byte boundary. Padding beyond that required for the algorithm or alignment reasons cited above could be used to conceal the actual length of the payload, in support of TFC. However, the Padding field described is too limited to be effective for TFC and thus should not be used for that purpose. Instead, the separate mechanism described below (see Section 2.7) should be used when TFC is required. The sender MAY add 0 to 255 bytes of padding. Inclusion of the Padding field in an ESP packet is optional, subject to the requirements noted above, but all implementations MUST support generation and consumption of padding. (§2.4) | MUST | 2.4 - Padding for encryption | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ESP padding is applied by the kernel encryption datapath during packet construction; ze projects only the algorithm choice and never builds ESP payloads |
+| `RFC4303-2.6-1` | the protocol value 59 (which means "no next header") MUST be used to designate a "dummy" packet. A transmitter MUST be capable of generating dummy packets marked with this value in the next protocol field (§2.6) | MUST | 2.6 - Next Header | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** dummy/TFC packet generation is an ESP transmit-datapath function; ze emits no ESP packets, so it plays no role in producing Next-Header-59 dummies |
+| `RFC4303-2.6-2` | a receiver MUST be prepared to discard such packets, without indicating an error. (§2.6) | MUST | 2.6 - Next Header | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** inbound Next-Header-59 dummy discard occurs in the kernel ESP receive path after decryption; ze processes no inbound ESP payloads |
+| `RFC4303-3.2-1` | Note that although both confidentiality and integrity are optional, at least one of these services MUST be selected, hence both algorithms MUST NOT be simultaneously NULL. (§3.2) | MUST NOT | 3.2 - Algorithms | **positive:** `unit/verify` [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L131). **negative:** `unit/verify` [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L108) |
+| `RFC4303-3.3.3-1` | The sender's counter is initialized to 0 when an SA is established. The sender increments the sequence number (or ESN) counter for this SA and inserts the low-order 32 bits of the value into the Sequence Number field. Thus, the first packet sent using a given SA will contain a sequence number of 1. (§3.3.3) | MUST | 3.3.3 - Sequence Number generation | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the kernel initializes the sequence counter when the SA state is added; ze installs a fresh SA with no seq field and never sets or reads the counter (internal/component/ike/dataplane/xfrm_linux.go:21-86) |
+| `RFC4303-3.3.4-1` | Thus, transport mode ESP is applied only to whole IP datagrams (not to IP fragments). (§3.3.4) | MUST | 3.3.4 - Fragmentation | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ordering ESP relative to fragmentation is an outbound kernel datapath decision; ze selects transport vs tunnel mode as an SA parameter but does not apply ESP to packets (internal/plugins/ospf/ipsec_install.go:413) |
+| `RFC4303-3.3.4-2` | In any case, an ESP implementation MUST support generation of ICMP PMTU messages (or equivalent internal signaling for native host implementations) to minimize the likelihood of fragmentation. (§3.3.4) | MUST | 3.3.4 - Fragmentation | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Path MTU Discovery is provided by the kernel networking/XFRM stack; ze's control plane installs SAs and does not run the datapath MTU machinery |
+| `RFC4303-3.4.3-1` | A minimum window size of 32 packets MUST be supported when 32-bit sequence numbers are employed (§3.4.3) | MUST | 3.4.3 - Sequence Number verification, the anti-replay section | **positive:** `unit/verify` [`TestChildSAReplayWindowDefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L315). **negative:** no negative test. **{single-polarity}:** ze projects a 64-packet anti-replay window on IKE child SAs (ReplayWin=64) to the kernel state, which exceeds the minimum at the SA-parameter level, while the sliding-window check itself runs in the kernel (internal/component/ike/engine/child.go:62, :377, :444, internal/component/ike/dataplane/xfrm_linux.go:132-133) |
 | `RFC4303-3.4.3-2` | This service MUST NOT be enabled unless the ESP integrity service also is enabled for the SA, because otherwise the Sequence Number field has not been integrity protected. (§3.4.3) | MUST NOT | 3.4.3 - Sequence Number verification, the anti-replay section | **positive:** `unit/verify` [`TestChildSAReplayRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L341). **negative:** no negative test. **{single-polarity}:** ze's ESP SA model always projects integrity (planStateAlgos returns Crypt+Auth or AEAD for ESP) and the replay window is set only on those integrity-bearing child SAs, so anti-replay is structurally never enabled without integrity (internal/component/ike/dataplane/dataplane.go:53-62, internal/component/ike/engine/child.go:218-261) |
-| `RFC4303-3.4.3-3` | Window advance occurs only after integrity verification succeeds (never on unverified packets) (§3.4.3) | MUST | 3.4.3 - Sequence Number verification, the anti-replay section | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** window advancement is gated on per-packet ICV verification inside the kernel ESP receive path; ze has no control over when the window advances |
-| `RFC4303-3.4.2-1` | For unicast, SA lookup uses SPI (or SPI plus protocol); invalid SA causes discard (auditable event) (§3.4.2) | MUST | 3.4.2 - Inbound SA lookup | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** inbound SAD lookup by SPI and discard/audit on miss is performed per packet by the kernel; ze installs SAs keyed by SPI but never performs the lookup (internal/plugins/ospf/ipsec_install.go:484-498 samples kernel drop counters only) |
-| `RFC4303-3.4.2-2` | For multicast, destination address is also used in SA lookup (§3.4.2) | MUST | 3.4.2 - Inbound SA lookup | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** multicast SA resolution is a kernel per-packet lookup; ze only installs the wildcard state and proto-89 selector that lets the kernel resolve OSPFv3 multicast flows (internal/plugins/ospf/ipsec_install.go:415-419) |
-| `RFC4303-3.4.4.1-1` | Separate-algorithm processing: verify ICV first, then decrypt, then check padding (§3.4.4.1) | MUST | 3.4.4.1 - Separate confidentiality and integrity algorithms, inbound | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the verify-then-decrypt-then-check-padding ordering is executed by the kernel ESP inbound datapath; ze projects the crypt+auth algorithm pair but does no packet processing (internal/component/ike/dataplane/xfrm_linux.go:59-71) |
-| `RFC4303-3.4.4.2-1` | Combined-mode processing: decrypt and verify integrity in a single algorithm call (§3.4.4.2) | MUST | 3.4.4.2 - Combined confidentiality and integrity algorithms, inbound | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the single AEAD decrypt-and-verify call is performed by the kernel; ze projects the AEAD transform name and ICV length as SA parameters only (internal/component/ike/dataplane/xfrm_linux.go:52-58) |
-| `RFC4303-2.2.1-1` | Extended Sequence Numbers (64-bit) SHOULD be implemented (§2.2.1) | SHOULD | 2.2.1 - Extended (64-bit) Sequence Number | **positive:** no positive test. **negative:** no negative test |
-| `RFC4303-2.2.1-2` | ESN use MUST be negotiated by the SA management protocol (e.g., IKEv2) (§2.2.1) | MUST | 2.2.1 - Extended (64-bit) Sequence Number | **positive:** `unit/verify` [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L152). **negative:** `unit/verify` [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L156) |
-| `RFC4303-3.4.3-4` | A window size of 64 is preferred and SHOULD be employed as the default (§3.4.3) | SHOULD | 3.4.3 - Sequence Number verification, the anti-replay section | **positive:** `unit/verify` [`TestChildSAReplayWindowDefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L318). **negative:** no negative test. **{single-polarity}:** a default value has no conforming negative. The requirement is met or it is not, and there is no input a receiver must refuse, so the sibling rows -3.4.3-1 and -3.4.3-2 carry the same annotation. Proven by the production Child SA path installing ReplayWin=64 on both directions (internal/component/ike/engine/child.go:62, :377, :444) |
-| `RFC4303-3.3.4-3` | Tunnel-mode ESP may encapsulate a fragment (§3.3.4) | MAY | 3.3.4 - Fragmentation | **positive:** no positive test. **negative:** no negative test |
+| `RFC4303-3.4.3-3` | The receive window is updated only if the integrity verification succeeds. (§3.4.3) | MUST | 3.4.3 - Sequence Number verification, the anti-replay section | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** window advancement is gated on per-packet ICV verification inside the kernel ESP receive path; ze has no control over when the window advances |
+| `RFC4303-3.4.2-1` | For a unicast SA, this determination is based on the SPI or the SPI plus protocol field, as described in Section 2.1. If an implementation supports multicast traffic, the destination address is also employed in the lookup (in addition to the SPI), and the sender address also may be employed, as described in Section 2.1. (This process is described in more detail in the Security Architecture document.) The SAD entry for the SA also indicates whether the Sequence Number field will be checked, whether 32- or 64-bit sequence numbers are employed for the SA, and whether the (explicit) ICV field should be present (and if so, its size). Also, the SAD entry will specify the algorithms and keys to be employed for decryption and ICV computation (if applicable). If no valid Security Association exists for this packet, the receiver MUST discard the packet; this is an auditable event. (§3.4.2) | MUST | 3.4.2 - Inbound SA lookup | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** inbound SAD lookup by SPI and discard/audit on miss is performed per packet by the kernel; ze installs SAs keyed by SPI but never performs the lookup (internal/plugins/ospf/ipsec_install.go:484-498 samples kernel drop counters only) |
+| `RFC4303-3.4.2-2` | If an implementation supports multicast traffic, the destination address is also employed in the lookup (in addition to the SPI), and the sender address also may be employed, as described in Section 2.1. (§3.4.2) | MUST | 3.4.2 - Inbound SA lookup | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** multicast SA resolution is a kernel per-packet lookup; ze only installs the wildcard state and proto-89 selector that lets the kernel resolve OSPFv3 multicast flows (internal/plugins/ospf/ipsec_install.go:415-419) |
+| `RFC4303-3.4.4.1-1` | If separate confidentiality and integrity algorithms are employed processing proceeds as follows: 1. If integrity has been selected, the receiver computes the ICV over the ESP packet minus the ICV, using the specified integrity algorithm and verifies that it is the same as the ICV carried in the packet. Details of the computation are provided below. If the computed and received ICVs match, then the datagram is valid, and it is accepted. If the test fails, then the receiver MUST discard the received IP datagram as invalid; this is an auditable event. The log data SHOULD include the SPI value, date/time received, Source Address, Destination Address, the Sequence Number, and (for IPv6) the cleartext Flow ID. Implementation Note: Implementations can use any set of steps that results in the same result as the following set of steps. Begin by removing and saving the ICV field. Next check the overall length of the ESP packet minus the ICV field. If implicit padding is required, based on the block size of the integrity algorithm, append zero-filled bytes to the end of the ESP packet directly after the Next Header field, or after the high-order 32 bits of the sequence number if ESN is selected. Perform the ICV computation and compare the result with the saved value, using the comparison rules defined by the algorithm specification. 2. The receiver decrypts the ESP Payload Data, Padding, Pad Length, and Next Header using the key, encryption algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. As in Section 3.3.2, we speak here in terms of encryption always being applied because of the formatting implications. This is done with the understanding that "no confidentiality" is offered by using the NULL encryption algorithm (RFC 2410). - If explicit cryptographic synchronization data, e.g., an IV, is indicated, it is taken from the Payload field and input to the decryption algorithm as per the algorithm specification. - If implicit cryptographic synchronization data is indicated, a local version of the IV is constructed and input to the decryption algorithm as per the algorithm specification. 3. The receiver processes any Padding as specified in the encryption algorithm specification. (§3.4.4.1) | MUST | 3.4.4.1 - Separate confidentiality and integrity algorithms, inbound | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the verify-then-decrypt-then-check-padding ordering is executed by the kernel ESP inbound datapath; ze projects the crypt+auth algorithm pair but does no packet processing (internal/component/ike/dataplane/xfrm_linux.go:59-71) |
+| `RFC4303-3.4.4.2-1` | Decrypts and integrity checks the ESP Payload Data, Padding, Pad Length, and Next Header, using the key, algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. (§3.4.4.2) | MUST | 3.4.4.2 - Combined confidentiality and integrity algorithms, inbound | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the single AEAD decrypt-and-verify call is performed by the kernel; ze projects the AEAD transform name and ICV length as SA parameters only (internal/component/ike/dataplane/xfrm_linux.go:52-58) |
+| `RFC4303-2.2.1-1` | To support high-speed IPsec implementations, Extended Sequence Numbers (ESNs) SHOULD be implemented, as an extension to the current, 32-bit sequence number field. (§2.2.1) | SHOULD | 2.2.1 - Extended (64-bit) Sequence Number | **positive:** no positive test. **negative:** no negative test |
+| `RFC4303-2.2.1-2` | Use of an ESN MUST be negotiated by an SA management protocol. (§2.2.1) | MUST | 2.2.1 - Extended (64-bit) Sequence Number | **positive:** `unit/verify` [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L152). **negative:** `unit/verify` [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L156) |
+| `RFC4303-3.4.3-4` | a window size of 64 is preferred and SHOULD be employed as the default (§3.4.3) | SHOULD | 3.4.3 - Sequence Number verification, the anti-replay section | **positive:** `unit/verify` [`TestChildSAReplayWindowDefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L318). **negative:** no negative test. **{single-polarity}:** a default value has no conforming negative. The requirement is met or it is not, and there is no input a receiver must refuse, so the sibling rows -3.4.3-1 and -3.4.3-2 carry the same annotation. Proven by the production Child SA path installing ReplayWin=64 on both directions (internal/component/ike/engine/child.go:62, :377, :444) |
+| `RFC4303-3.3.4-3` | In tunnel mode, ESP is applied to an IP packet, which may be a fragment of an IP datagram. (§3.3.4) | MAY | 3.3.4 - Fragmentation | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC4303-2.2-1`](#rfc4303-2.2-1) For a unicast SA or a single-sender multicast SA, the sender MUST increment this field for every transmitted packet. (§2.2) | no test | no test carries this requirement id; annotated {not-applicable}: the per-SA sequence counter is kernel XFRM/ESP per-packet state; ze installs the SA but never touches sequence numbers (internal/component/ike/dataplane/dataplane.go:80-108 has no sequence field) |
-| [`RFC4303-2.2-2`](#rfc4303-2.2-2) Sender MUST NOT send a packet that would cause the sequence counter to cycle (overflow) (§2.2) | no test | no test carries this requirement id; annotated {not-applicable}: 32-bit counter overflow protection is enforced by the kernel XFRM datapath (it expires the state rather than wrapping); ze's control plane holds no per-packet counter |
-| [`RFC4303-2.2-3`](#rfc4303-2.2-3) Counter and receiver window MUST be reset before the 2^32nd packet on a non-ESN SA (§2.2) | no test | no test carries this requirement id; annotated {not-applicable}: the sequence counter and receive window are kernel per-packet SA state; the kernel enforces the 2^32 boundary and a fresh counter/window arises from installing a new SA |
-| [`RFC4303-2.4-1`](#rfc4303-2.4-1) Padding MUST bring plaintext to the block size of the cipher and ensure 4-byte alignment of the resulting ciphertext (§2.4) | no test | no test carries this requirement id; annotated {not-applicable}: ESP padding is applied by the kernel encryption datapath during packet construction; ze projects only the algorithm choice and never builds ESP payloads |
-| [`RFC4303-2.6-1`](#rfc4303-2.6-1) Transmitter MUST be capable of generating dummy packets (Next Header = 59) for traffic-flow confidentiality (§2.6) | no test | no test carries this requirement id; annotated {not-applicable}: dummy/TFC packet generation is an ESP transmit-datapath function; ze emits no ESP packets, so it plays no role in producing Next-Header-59 dummies |
-| [`RFC4303-2.6-2`](#rfc4303-2.6-2) Receiver MUST silently discard dummy packets (Next Header = 59) (§2.6) | no test | no test carries this requirement id; annotated {not-applicable}: inbound Next-Header-59 dummy discard occurs in the kernel ESP receive path after decryption; ze processes no inbound ESP payloads |
-| [`RFC4303-3.3.3-1`](#rfc4303-3.3.3-1) Sender initializes sequence counter to 0 at SA establishment; first transmitted packet carries Sequence Number 1 (§3.3.3) | no test | no test carries this requirement id; annotated {not-applicable}: the kernel initializes the sequence counter when the SA state is added; ze installs a fresh SA with no seq field and never sets or reads the counter (internal/component/ike/dataplane/xfrm_linux.go:21-86) |
-| [`RFC4303-3.3.4-1`](#rfc4303-3.3.4-1) Transport-mode ESP is applied only to whole IP datagrams, never to fragments (§3.3.4) | no test | no test carries this requirement id; annotated {not-applicable}: ordering ESP relative to fragmentation is an outbound kernel datapath decision; ze selects transport vs tunnel mode as an SA parameter but does not apply ESP to packets (internal/plugins/ospf/ipsec_install.go:413) |
-| [`RFC4303-3.3.4-2`](#rfc4303-3.3.4-2) Implementation MUST support Path MTU Discovery (§3.3.4) | no test | no test carries this requirement id; annotated {not-applicable}: Path MTU Discovery is provided by the kernel networking/XFRM stack; ze's control plane installs SAs and does not run the datapath MTU machinery |
-| [`RFC4303-3.4.3-3`](#rfc4303-3.4.3-3) Window advance occurs only after integrity verification succeeds (never on unverified packets) (§3.4.3) | no test | no test carries this requirement id; annotated {not-applicable}: window advancement is gated on per-packet ICV verification inside the kernel ESP receive path; ze has no control over when the window advances |
-| [`RFC4303-3.4.2-1`](#rfc4303-3.4.2-1) For unicast, SA lookup uses SPI (or SPI plus protocol); invalid SA causes discard (auditable event) (§3.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: inbound SAD lookup by SPI and discard/audit on miss is performed per packet by the kernel; ze installs SAs keyed by SPI but never performs the lookup (internal/plugins/ospf/ipsec_install.go:484-498 samples kernel drop counters only) |
-| [`RFC4303-3.4.2-2`](#rfc4303-3.4.2-2) For multicast, destination address is also used in SA lookup (§3.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: multicast SA resolution is a kernel per-packet lookup; ze only installs the wildcard state and proto-89 selector that lets the kernel resolve OSPFv3 multicast flows (internal/plugins/ospf/ipsec_install.go:415-419) |
-| [`RFC4303-3.4.4.1-1`](#rfc4303-3.4.4.1-1) Separate-algorithm processing: verify ICV first, then decrypt, then check padding (§3.4.4.1) | no test | no test carries this requirement id; annotated {not-applicable}: the verify-then-decrypt-then-check-padding ordering is executed by the kernel ESP inbound datapath; ze projects the crypt+auth algorithm pair but does no packet processing (internal/component/ike/dataplane/xfrm_linux.go:59-71) |
-| [`RFC4303-3.4.4.2-1`](#rfc4303-3.4.4.2-1) Combined-mode processing: decrypt and verify integrity in a single algorithm call (§3.4.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: the single AEAD decrypt-and-verify call is performed by the kernel; ze projects the AEAD transform name and ICV length as SA parameters only (internal/component/ike/dataplane/xfrm_linux.go:52-58) |
+| [`RFC4303-2.2-2`](#rfc4303-2.2-2) In other words, the sender MUST NOT send a packet on an SA if doing so would cause the sequence number to cycle. (§3.3.3) | no test | no test carries this requirement id; annotated {not-applicable}: 32-bit counter overflow protection is enforced by the kernel XFRM datapath (it expires the state rather than wrapping); ze's control plane holds no per-packet counter |
+| [`RFC4303-2.2-3`](#rfc4303-2.2-3) Thus, the sender's counter and the receiver's counter MUST be reset (by establishing a new SA and thus a new key) prior to the transmission of the 2^32nd packet on an SA. (§2.2) | no test | no test carries this requirement id; annotated {not-applicable}: the sequence counter and receive window are kernel per-packet SA state; the kernel enforces the 2^32 boundary and a fresh counter/window arises from installing a new SA |
+| [`RFC4303-2.4-1`](#rfc4303-2.4-1) If an encryption algorithm is employed that requires the plaintext to be a multiple of some number of bytes, e.g., the block size of a block cipher, the Padding field is used to fill the plaintext (consisting of the Payload Data, Padding, Pad Length, and Next Header fields) to the size required by the algorithm. o Padding also may be required, irrespective of encryption algorithm requirements, to ensure that the resulting ciphertext terminates on a 4-byte boundary. Specifically, the Pad Length and Next Header fields must be right aligned within a 4-byte word, as illustrated in the ESP packet format figures above, to ensure that the ICV field (if present) is aligned on a 4-byte boundary. Padding beyond that required for the algorithm or alignment reasons cited above could be used to conceal the actual length of the payload, in support of TFC. However, the Padding field described is too limited to be effective for TFC and thus should not be used for that purpose. Instead, the separate mechanism described below (see Section 2.7) should be used when TFC is required. The sender MAY add 0 to 255 bytes of padding. Inclusion of the Padding field in an ESP packet is optional, subject to the requirements noted above, but all implementations MUST support generation and consumption of padding. (§2.4) | no test | no test carries this requirement id; annotated {not-applicable}: ESP padding is applied by the kernel encryption datapath during packet construction; ze projects only the algorithm choice and never builds ESP payloads |
+| [`RFC4303-2.6-1`](#rfc4303-2.6-1) the protocol value 59 (which means "no next header") MUST be used to designate a "dummy" packet. A transmitter MUST be capable of generating dummy packets marked with this value in the next protocol field (§2.6) | no test | no test carries this requirement id; annotated {not-applicable}: dummy/TFC packet generation is an ESP transmit-datapath function; ze emits no ESP packets, so it plays no role in producing Next-Header-59 dummies |
+| [`RFC4303-2.6-2`](#rfc4303-2.6-2) a receiver MUST be prepared to discard such packets, without indicating an error. (§2.6) | no test | no test carries this requirement id; annotated {not-applicable}: inbound Next-Header-59 dummy discard occurs in the kernel ESP receive path after decryption; ze processes no inbound ESP payloads |
+| [`RFC4303-3.3.3-1`](#rfc4303-3.3.3-1) The sender's counter is initialized to 0 when an SA is established. The sender increments the sequence number (or ESN) counter for this SA and inserts the low-order 32 bits of the value into the Sequence Number field. Thus, the first packet sent using a given SA will contain a sequence number of 1. (§3.3.3) | no test | no test carries this requirement id; annotated {not-applicable}: the kernel initializes the sequence counter when the SA state is added; ze installs a fresh SA with no seq field and never sets or reads the counter (internal/component/ike/dataplane/xfrm_linux.go:21-86) |
+| [`RFC4303-3.3.4-1`](#rfc4303-3.3.4-1) Thus, transport mode ESP is applied only to whole IP datagrams (not to IP fragments). (§3.3.4) | no test | no test carries this requirement id; annotated {not-applicable}: ordering ESP relative to fragmentation is an outbound kernel datapath decision; ze selects transport vs tunnel mode as an SA parameter but does not apply ESP to packets (internal/plugins/ospf/ipsec_install.go:413) |
+| [`RFC4303-3.3.4-2`](#rfc4303-3.3.4-2) In any case, an ESP implementation MUST support generation of ICMP PMTU messages (or equivalent internal signaling for native host implementations) to minimize the likelihood of fragmentation. (§3.3.4) | no test | no test carries this requirement id; annotated {not-applicable}: Path MTU Discovery is provided by the kernel networking/XFRM stack; ze's control plane installs SAs and does not run the datapath MTU machinery |
+| [`RFC4303-3.4.3-3`](#rfc4303-3.4.3-3) The receive window is updated only if the integrity verification succeeds. (§3.4.3) | no test | no test carries this requirement id; annotated {not-applicable}: window advancement is gated on per-packet ICV verification inside the kernel ESP receive path; ze has no control over when the window advances |
+| [`RFC4303-3.4.2-1`](#rfc4303-3.4.2-1) For a unicast SA, this determination is based on the SPI or the SPI plus protocol field, as described in Section 2.1. If an implementation supports multicast traffic, the destination address is also employed in the lookup (in addition to the SPI), and the sender address also may be employed, as described in Section 2.1. (This process is described in more detail in the Security Architecture document.) The SAD entry for the SA also indicates whether the Sequence Number field will be checked, whether 32- or 64-bit sequence numbers are employed for the SA, and whether the (explicit) ICV field should be present (and if so, its size). Also, the SAD entry will specify the algorithms and keys to be employed for decryption and ICV computation (if applicable). If no valid Security Association exists for this packet, the receiver MUST discard the packet; this is an auditable event. (§3.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: inbound SAD lookup by SPI and discard/audit on miss is performed per packet by the kernel; ze installs SAs keyed by SPI but never performs the lookup (internal/plugins/ospf/ipsec_install.go:484-498 samples kernel drop counters only) |
+| [`RFC4303-3.4.2-2`](#rfc4303-3.4.2-2) If an implementation supports multicast traffic, the destination address is also employed in the lookup (in addition to the SPI), and the sender address also may be employed, as described in Section 2.1. (§3.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: multicast SA resolution is a kernel per-packet lookup; ze only installs the wildcard state and proto-89 selector that lets the kernel resolve OSPFv3 multicast flows (internal/plugins/ospf/ipsec_install.go:415-419) |
+| [`RFC4303-3.4.4.1-1`](#rfc4303-3.4.4.1-1) If separate confidentiality and integrity algorithms are employed processing proceeds as follows: 1. If integrity has been selected, the receiver computes the ICV over the ESP packet minus the ICV, using the specified integrity algorithm and verifies that it is the same as the ICV carried in the packet. Details of the computation are provided below. If the computed and received ICVs match, then the datagram is valid, and it is accepted. If the test fails, then the receiver MUST discard the received IP datagram as invalid; this is an auditable event. The log data SHOULD include the SPI value, date/time received, Source Address, Destination Address, the Sequence Number, and (for IPv6) the cleartext Flow ID. Implementation Note: Implementations can use any set of steps that results in the same result as the following set of steps. Begin by removing and saving the ICV field. Next check the overall length of the ESP packet minus the ICV field. If implicit padding is required, based on the block size of the integrity algorithm, append zero-filled bytes to the end of the ESP packet directly after the Next Header field, or after the high-order 32 bits of the sequence number if ESN is selected. Perform the ICV computation and compare the result with the saved value, using the comparison rules defined by the algorithm specification. 2. The receiver decrypts the ESP Payload Data, Padding, Pad Length, and Next Header using the key, encryption algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. As in Section 3.3.2, we speak here in terms of encryption always being applied because of the formatting implications. This is done with the understanding that "no confidentiality" is offered by using the NULL encryption algorithm (RFC 2410). - If explicit cryptographic synchronization data, e.g., an IV, is indicated, it is taken from the Payload field and input to the decryption algorithm as per the algorithm specification. - If implicit cryptographic synchronization data is indicated, a local version of the IV is constructed and input to the decryption algorithm as per the algorithm specification. 3. The receiver processes any Padding as specified in the encryption algorithm specification. (§3.4.4.1) | no test | no test carries this requirement id; annotated {not-applicable}: the verify-then-decrypt-then-check-padding ordering is executed by the kernel ESP inbound datapath; ze projects the crypt+auth algorithm pair but does no packet processing (internal/component/ike/dataplane/xfrm_linux.go:59-71) |
+| [`RFC4303-3.4.4.2-1`](#rfc4303-3.4.4.2-1) Decrypts and integrity checks the ESP Payload Data, Padding, Pad Length, and Next Header, using the key, algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. (§3.4.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: the single AEAD decrypt-and-verify call is performed by the kernel; ze projects the AEAD transform name and ICV length as SA parameters only (internal/component/ike/dataplane/xfrm_linux.go:52-58) |
 
 ## Proof state
 
@@ -153,9 +162,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC4303-1-1`](#rfc4303-1-1)
 
-Integrity-only ESP MUST be offered as a service selection option and MUST be configurable via management interfaces (§1)
+Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols and MUST be configurable via management interfaces. (§1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Two clauses. Configurable via management interfaces: forbidden behaviour is refusing an integrity-only ESP configuration; TestIPsecESPRequiresIntegrity (ospf/config_ipsec_test.go) fails via t.Fatalf when validateConfig rejects esp null-cipher + sha256, so that clause is proven. Offered as a service selection option, e.g. negotiable in SA management protocols: no tagged assertion, and Ze's IKEv2 ESP vocabulary has no ENCR_NULL (ike/ipsec/types.go EncryptionAlgo), so integrity-only ESP is not negotiable. The negative tag (null cipher with no integrity refused) proves the neighbouring RFC4303-3.2-1 rule, not a violation of this one.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -166,7 +175,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The (outer) protocol header (IPv4, IPv6, or Extension) that immediately precedes the ESP header SHALL contain the value 50 in its Protocol (IPv4) or Next Header (IPv6, Extension) field (see IANA web page at http://www.iana.org/assignments/protocol-numbers). (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an ESP SA installed so the header preceding ESP carries a value other than 50. TestIPsecSAProtocolNumber (ospf/ipsec_install_test.go) asserts esp.Proto == 50 for the OSPFv3 manual SA only; the IKE Child SA producer (engine/child.go installChildSA, Proto: protoESP) has no tagged assertion. The negative tag (ah SA carries 51) catches a blanket-50 installer, which violates RFC 4302 Section 2, not this sentence, so the negative polarity proves a neighbouring rule. Assertion is at SAParams.Proto; the kernel projection (xfrm_linux.go:149) is outside the unit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -177,7 +186,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire. (§2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: SPI 0 on the wire. OSPF: TestIPsecSPIBoundary tests spi 255 (refused) and 256 (accepted) but never spi 0; removing the whole guard reddens it, a guard that admitted 0 alone would not. IKE: TestGenerateESPSPI checks 100 random draws for spi == 0; with the spi != 0 loop in generateESPSPI (engine/child.go:211) removed the chance of a red run is about 100/2^32, so the assertion cannot fail on the break (question 2). The outbound SPI Ze sends on the wire is the peer's; the refusals of a peer SPI 0 (child.go:287, responder.go:924, rekey.go:321, :495) have no tagged assertion.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -190,7 +199,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or Group Domain of Interpretation (GDOI) [RFC3547]. (§2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The sentence governs the SA identifier used for the inbound SAD lookup: whether destination, or destination and source, addresses are matched in addition to the SPI. TestIPsecSAAddressMatchIndication (ospf/ipsec_install_test.go) asserts the state's traffic selector (sa.Sel non-nil, Src /0, UpperProto 89), which restricts which inner traffic may use the SA after lookup (RFC 4301 traffic selectors). It asserts nothing about the lookup key (SAParams Dst/SPI identity) or about which address-match indication the manual configuration sets; a change that made the lookup key also match the source, or dropped the destination, stays green. The unit proves a neighbouring rule. Sibling agent reached the same reading; confirmed independently.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -207,7 +216,7 @@ No test carries RFC4303-2.2-1, so no unit is bound to it.
 
 ### [`RFC4303-2.2-2`](#rfc4303-2.2-2)
 
-Sender MUST NOT send a packet that would cause the sequence counter to cycle (overflow) (§2.2)
+In other words, the sender MUST NOT send a packet on an SA if doing so would cause the sequence number to cycle. (§3.3.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -215,7 +224,7 @@ No test carries RFC4303-2.2-2, so no unit is bound to it.
 
 ### [`RFC4303-2.2-3`](#rfc4303-2.2-3)
 
-Counter and receiver window MUST be reset before the 2^32nd packet on a non-ESN SA (§2.2)
+Thus, the sender's counter and the receiver's counter MUST be reset (by establishing a new SA and thus a new key) prior to the transmission of the 2^32nd packet on an SA. (§2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -223,7 +232,7 @@ No test carries RFC4303-2.2-3, so no unit is bound to it.
 
 ### [`RFC4303-2.4-1`](#rfc4303-2.4-1)
 
-Padding MUST bring plaintext to the block size of the cipher and ensure 4-byte alignment of the resulting ciphertext (§2.4)
+If an encryption algorithm is employed that requires the plaintext to be a multiple of some number of bytes, e.g., the block size of a block cipher, the Padding field is used to fill the plaintext (consisting of the Payload Data, Padding, Pad Length, and Next Header fields) to the size required by the algorithm. o Padding also may be required, irrespective of encryption algorithm requirements, to ensure that the resulting ciphertext terminates on a 4-byte boundary. Specifically, the Pad Length and Next Header fields must be right aligned within a 4-byte word, as illustrated in the ESP packet format figures above, to ensure that the ICV field (if present) is aligned on a 4-byte boundary. Padding beyond that required for the algorithm or alignment reasons cited above could be used to conceal the actual length of the payload, in support of TFC. However, the Padding field described is too limited to be effective for TFC and thus should not be used for that purpose. Instead, the separate mechanism described below (see Section 2.7) should be used when TFC is required. The sender MAY add 0 to 255 bytes of padding. Inclusion of the Padding field in an ESP packet is optional, subject to the requirements noted above, but all implementations MUST support generation and consumption of padding. (§2.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -231,7 +240,7 @@ No test carries RFC4303-2.4-1, so no unit is bound to it.
 
 ### [`RFC4303-2.6-1`](#rfc4303-2.6-1)
 
-Transmitter MUST be capable of generating dummy packets (Next Header = 59) for traffic-flow confidentiality (§2.6)
+the protocol value 59 (which means "no next header") MUST be used to designate a "dummy" packet. A transmitter MUST be capable of generating dummy packets marked with this value in the next protocol field (§2.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -239,7 +248,7 @@ No test carries RFC4303-2.6-1, so no unit is bound to it.
 
 ### [`RFC4303-2.6-2`](#rfc4303-2.6-2)
 
-Receiver MUST silently discard dummy packets (Next Header = 59) (§2.6)
+a receiver MUST be prepared to discard such packets, without indicating an error. (§2.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -247,9 +256,9 @@ No test carries RFC4303-2.6-2, so no unit is bound to it.
 
 ### [`RFC4303-3.2-1`](#rfc4303-3.2-1)
 
-The encryption and integrity algorithms MUST NOT both be NULL; at least one ESP service is always selected (§3.2)
+Note that although both confidentiality and integrity are optional, at least one of these services MUST be selected, hence both algorithms MUST NOT be simultaneously NULL. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: an ESP SA with both encryption and integrity NULL. Negative: TestIPsecESPRequiresIntegrity requires validateConfig(esp, encryption-algorithm null, no integrity) to return ErrIPsecAuthAlgo, t.Fatalf otherwise, so accepting the forbidden pair goes red. Positive: null cipher + sha256 accepted (exactly one service). The only producer that admits a NULL cipher is the OSPFv3 manual path; the IKE ESP vocabulary has no ENCR_NULL (ike/ipsec/types.go), so every IKE Child SA carries encryption. Both clauses (at least one selected; not both NULL) are the same obligation and both are covered.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -258,7 +267,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4303-3.3.3-1`](#rfc4303-3.3.3-1)
 
-Sender initializes sequence counter to 0 at SA establishment; first transmitted packet carries Sequence Number 1 (§3.3.3)
+The sender's counter is initialized to 0 when an SA is established. The sender increments the sequence number (or ESN) counter for this SA and inserts the low-order 32 bits of the value into the Sequence Number field. Thus, the first packet sent using a given SA will contain a sequence number of 1. (§3.3.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -266,7 +275,7 @@ No test carries RFC4303-3.3.3-1, so no unit is bound to it.
 
 ### [`RFC4303-3.3.4-1`](#rfc4303-3.3.4-1)
 
-Transport-mode ESP is applied only to whole IP datagrams, never to fragments (§3.3.4)
+Thus, transport mode ESP is applied only to whole IP datagrams (not to IP fragments). (§3.3.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -274,7 +283,7 @@ No test carries RFC4303-3.3.4-1, so no unit is bound to it.
 
 ### [`RFC4303-3.3.4-2`](#rfc4303-3.3.4-2)
 
-Implementation MUST support Path MTU Discovery (§3.3.4)
+In any case, an ESP implementation MUST support generation of ICMP PMTU messages (or equivalent internal signaling for native host implementations) to minimize the likelihood of fragmentation. (§3.3.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -282,9 +291,9 @@ No test carries RFC4303-3.3.4-2, so no unit is bound to it.
 
 ### [`RFC4303-3.4.3-1`](#rfc4303-3.4.3-1)
 
-Anti-replay sliding window: minimum window size of 32 packets MUST be supported (§3.4.3)
+A minimum window size of 32 packets MUST be supported when 32-bit sequence numbers are employed (§3.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: Ze unable to run a receive window of at least 32 on a 32-bit-sequence SA (e.g. installing a smaller window). TestChildSAReplayWindowDefault (engine/child_test.go) asserts ReplayWin == 64 on both installed SAs; a window below 32 fails it. Ze never negotiates ESN, so every SA uses 32-bit sequence numbers. Single-polarity marker present. The assertion is at SAParams; xfrmStateFromParams projects it to the kernel (xfrm_linux.go:132).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -294,7 +303,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This service MUST NOT be enabled unless the ESP integrity service also is enabled for the SA, because otherwise the Sequence Number field has not been integrity protected. (§3.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an SA with anti-replay enabled and no ESP integrity. IKE: TestChildSAReplayRequiresIntegrity asserts every installed SA with ReplayWin > 0 has AEAD or AuthAlgo+AuthKey, red if integrity were dropped. OSPFv3 manual SAs also enable anti-replay from the replay-window leaf (buildIPsecSA, TestIPsecSAReplayWindow); that producer is guarded only by the integrity-required validation, which no RFC4303-3.4.3-2-tagged unit asserts (a replay-window + null cipher + no integrity ESP interface is never tested under this tag).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -302,7 +311,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4303-3.4.3-3`](#rfc4303-3.4.3-3)
 
-Window advance occurs only after integrity verification succeeds (never on unverified packets) (§3.4.3)
+The receive window is updated only if the integrity verification succeeds. (§3.4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -310,7 +319,7 @@ No test carries RFC4303-3.4.3-3, so no unit is bound to it.
 
 ### [`RFC4303-3.4.2-1`](#rfc4303-3.4.2-1)
 
-For unicast, SA lookup uses SPI (or SPI plus protocol); invalid SA causes discard (auditable event) (§3.4.2)
+For a unicast SA, this determination is based on the SPI or the SPI plus protocol field, as described in Section 2.1. If an implementation supports multicast traffic, the destination address is also employed in the lookup (in addition to the SPI), and the sender address also may be employed, as described in Section 2.1. (This process is described in more detail in the Security Architecture document.) The SAD entry for the SA also indicates whether the Sequence Number field will be checked, whether 32- or 64-bit sequence numbers are employed for the SA, and whether the (explicit) ICV field should be present (and if so, its size). Also, the SAD entry will specify the algorithms and keys to be employed for decryption and ICV computation (if applicable). If no valid Security Association exists for this packet, the receiver MUST discard the packet; this is an auditable event. (§3.4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -318,7 +327,7 @@ No test carries RFC4303-3.4.2-1, so no unit is bound to it.
 
 ### [`RFC4303-3.4.2-2`](#rfc4303-3.4.2-2)
 
-For multicast, destination address is also used in SA lookup (§3.4.2)
+If an implementation supports multicast traffic, the destination address is also employed in the lookup (in addition to the SPI), and the sender address also may be employed, as described in Section 2.1. (§3.4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -326,7 +335,7 @@ No test carries RFC4303-3.4.2-2, so no unit is bound to it.
 
 ### [`RFC4303-3.4.4.1-1`](#rfc4303-3.4.4.1-1)
 
-Separate-algorithm processing: verify ICV first, then decrypt, then check padding (§3.4.4.1)
+If separate confidentiality and integrity algorithms are employed processing proceeds as follows: 1. If integrity has been selected, the receiver computes the ICV over the ESP packet minus the ICV, using the specified integrity algorithm and verifies that it is the same as the ICV carried in the packet. Details of the computation are provided below. If the computed and received ICVs match, then the datagram is valid, and it is accepted. If the test fails, then the receiver MUST discard the received IP datagram as invalid; this is an auditable event. The log data SHOULD include the SPI value, date/time received, Source Address, Destination Address, the Sequence Number, and (for IPv6) the cleartext Flow ID. Implementation Note: Implementations can use any set of steps that results in the same result as the following set of steps. Begin by removing and saving the ICV field. Next check the overall length of the ESP packet minus the ICV field. If implicit padding is required, based on the block size of the integrity algorithm, append zero-filled bytes to the end of the ESP packet directly after the Next Header field, or after the high-order 32 bits of the sequence number if ESN is selected. Perform the ICV computation and compare the result with the saved value, using the comparison rules defined by the algorithm specification. 2. The receiver decrypts the ESP Payload Data, Padding, Pad Length, and Next Header using the key, encryption algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. As in Section 3.3.2, we speak here in terms of encryption always being applied because of the formatting implications. This is done with the understanding that "no confidentiality" is offered by using the NULL encryption algorithm (RFC 2410). - If explicit cryptographic synchronization data, e.g., an IV, is indicated, it is taken from the Payload field and input to the decryption algorithm as per the algorithm specification. - If implicit cryptographic synchronization data is indicated, a local version of the IV is constructed and input to the decryption algorithm as per the algorithm specification. 3. The receiver processes any Padding as specified in the encryption algorithm specification. (§3.4.4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -334,7 +343,7 @@ No test carries RFC4303-3.4.4.1-1, so no unit is bound to it.
 
 ### [`RFC4303-3.4.4.2-1`](#rfc4303-3.4.4.2-1)
 
-Combined-mode processing: decrypt and verify integrity in a single algorithm call (§3.4.4.2)
+Decrypts and integrity checks the ESP Payload Data, Padding, Pad Length, and Next Header, using the key, algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. (§3.4.4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -342,9 +351,9 @@ No test carries RFC4303-3.4.4.2-1, so no unit is bound to it.
 
 ### [`RFC4303-2.2.1-2`](#rfc4303-2.2.1-2)
 
-ESN use MUST be negotiated by the SA management protocol (e.g., IKEv2) (§2.2.1)
+Use of an ESN MUST be negotiated by an SA management protocol. (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: keying an SA with ESN that the SA management protocol did not negotiate. Negative: TestEsnInitiatorRefusesAnESNValueItNeverOffered requires verifyAcceptedOffer to return errAcceptedOfferESN for an answer selecting ESN (and for two ESN values), t.Fatalf otherwise. Positive: the offered non-ESN value is accepted and the offer is pinned to the single value. Ze never offers ESN and manual OSPFv3 SAs set none, so no un-negotiated ESN path exists.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -353,9 +362,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4303-3.4.3-4`](#rfc4303-3.4.3-4)
 
-A window size of 64 is preferred and SHOULD be employed as the default (§3.4.3)
+a window size of 64 is preferred and SHOULD be employed as the default (§3.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour (SHOULD): a default window other than 64. TestChildSAReplayWindowDefault asserts ReplayWin == 64 on both IKE Child SAs with no window configured; any other default goes red. Single-polarity marker present. The OSPFv3 manual path defaults to no anti-replay, which RFC 4303 Section 3.3.3 advises for manually keyed SAs, so the default-window sentence binds the IKE path.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -365,8 +374,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Field | Value |
 |---|---|
-| Reviewer | ze-work agent, spec-rfcgate-6 phase 2, rfc4303 |
-| Signed off | 2026-08-31 |
+| Reviewer | claude |
+| Signed off | 2026-09-27 |
 | Register | rfc2119 |
 | Source | rfc/full/rfc4303.txt |
 | Source fingerprint | ec4c9d4414570513 |
@@ -422,7 +431,16 @@ Audit verdict: not audited: no reader has judged these tests
 | `9` | Acknowledgements | 0 | skipped (acknowledgements) | Acknowledgements. |
 | `10` | References heading | 0 | skipped (references) | References heading. |
 | `10.1` | not stated | 0 | skipped (references) | Normative References: RFC 2119, RFC 4301, RFC 4302, RFC 2434 and the ESP algorithm requirements document. |
-| `10.2` | not stated | 0 | walked | The derived span carries the Informative References and Appendix A, Extended (64-bit) Sequence Numbers. The appendix describes the receiver's ESN window management and its optional resynchronisation heuristic. It states no MUST-level obligation: no capitalised MUST, SHALL or REQUIRED appears anywhere after the section 10 heading. |
+| `10.2` | Informative References | 0 | walked | Informative References. A reference list: no capitalised MUST, SHALL or REQUIRED appears in it. Appendix A, which this span carried until the heading reader read its heading on 2026-09-27, is its own sections now. |
+| `A` | Appendix A | 0 | walked | Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A1` | Appendix A1 | 0 | walked | Appendix A1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A2` | Appendix A2 | 0 | walked | Appendix A2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A2.1` | Appendix A2.1 | 0 | walked | Appendix A2.1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A2.2` | Appendix A2.2 | 0 | walked | Appendix A2.2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A2.3` | Appendix A2.3 | 0 | walked | Appendix A2.3. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A3` | Appendix A3 | 0 | walked | Appendix A3. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A3.1` | Appendix A3.1 | 0 | walked | Appendix A3.1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A3.2` | Appendix A3.2 | 0 | walked | Appendix A3.2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
 
 ### Excluded sentences
 

@@ -1308,8 +1308,13 @@ Persistent config, versions, pointers and plugin state use key expectations:
 expect=key:path=meta/config/router.conf/active:exists=true
 expect=key:path=meta/config/router.conf/candidate:absent=true
 expect=key:glob=file/[0-9]*/router.conf:count=2
-expect=key:glob=file/[0-9]*/router.conf:contains=router-id 1.2.3.4
+expect=key:glob=object/*:count=2
+expect=key:glob=object/*:contains=router-id 1.2.3.4
 ```
+
+A dated history entry holds `sha256:<hex>`, not the config: the bytes live in
+`object/<hex>` (`docs/architecture/storage-backends.md`, "Content-addressed
+history"). Count versions on the entries and assert config text on `object/*`.
 
 Key expectations resolve beneath `database/` in the work directory and decode
 the complete netcapstring frame before inspecting its value. A bad CRC or

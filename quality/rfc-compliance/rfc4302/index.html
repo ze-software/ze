@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4302 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4302 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4302 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>6.2%</strong><b>2 of 32 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>9</strong><b>of 32 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 32 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>2</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>18</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>9</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>18</td>
@@ -306,7 +310,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L375" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2-2">RFC4302-2-2</code></td><td colspan="3"><span class="rfc-subject">AH carries no version number, so backward-compatibility concerns MUST be addressed by a signaling mechanism between the two peers, an SA management protocol or an out-of-band configuration mechanism (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2-2">RFC4302-2-2</code></td><td colspan="3"><span class="rfc-subject">AH does not contain a version number, therefore if there are concerns about backward compatibility, they MUST be addressed by using a signaling mechanism between the two IPsec peers to ensure compatible versions of AH, e.g., IKE [IKEv2] or an out-of-band configuration mechanism. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -315,7 +319,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L179" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHParametersComeFromConfiguration</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.3-1">RFC4302-2.3-1</code></td><td colspan="3"><span class="rfc-subject">The RESERVED field MUST be set to zero by the sender (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.3-1">RFC4302-2.3-1</code></td><td colspan="3"><span class="rfc-subject">It MUST be set to &#34;zero&#34; by the sender (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3</td>
@@ -351,7 +355,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes a state Linux XFRM keys by destination, SPI and protocol, and Linux XFRM de-multiplexes on that key, so a group SA and a unicast SA that share an SPI stay distinct entries</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.4-4">RFC4302-2.4-4</code></td><td colspan="3"><span class="rfc-subject">An accelerated SAD search MUST be functionally equivalent, in externally visible behavior, to searching the SAD in the order given (§2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.4-4">RFC4302-2.4-4</code></td><td colspan="3"><span class="rfc-subject">any method to accelerate this search, although its externally visible behavior MUST be functionally equivalent to having searched the SAD in the above order. (§2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.4</td>
@@ -441,7 +445,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes the per-SA replay window the interface replay-window leaf asks for, and Linux XFRM refuses to send a packet on that state once the sequence number would cycle; ze emits no AH packet of its own</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.3.3.1-1">RFC4302-3.3.3.1-1</code></td><td colspan="3"><span class="rfc-subject">For the ICV computation a field that may be modified in transit is set to zero, a mutable but predictable field is set to the value it will have at the receiver, and the ICV field itself is set to zero (§3.3.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.3.3.1-1">RFC4302-3.3.3.1-1</code></td><td colspan="3"><span class="rfc-subject">If a field may be modified during transit, the value of the field is set to zero for purposes of the ICV computation. If a field is mutable, but its value at the (IPsec) receiver is predictable, then that value is inserted into the field for purposes of the ICV calculation. The Integrity Check Value field is also set to zero in preparation for this computation. (§3.3.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3.3.1</td>
@@ -477,7 +481,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams names the integrity algorithm, and the kernel&#39;s implementation of that algorithm decides whether implicit padding is required</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.3.3.2.2-4">RFC4302-3.3.3.2.2-4</code></td><td colspan="3"><span class="rfc-subject">When that document gives no answer, implicit padding is assumed to be required and its octets MUST have a value of zero (§3.3.3.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.3.3.2.2-4">RFC4302-3.3.3.2.2-4</code></td><td colspan="3"><span class="rfc-subject">If the document does not specify an answer to this, then the default is to assume that implicit padding is required (as needed to match the packet length to the algorithm&#39;s blocksize.) If padding bytes are needed but the algorithm does not specify the padding contents, then the padding octets MUST have a value of zero. (§3.3.3.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3.3.2.2</td>
@@ -549,7 +553,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs the integrity transform the kernel validates the ICV with, and the kernel discards the datagram when that validation fails; Ze holds no rejecting branch of its own</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.3-5">RFC4302-3.4.3-5</code></td><td colspan="3"><span class="rfc-subject">A minimum replay window size of 32 packets MUST be supported (§3.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.3-5">RFC4302-3.4.3-5</code></td><td colspan="3"><span class="rfc-subject">A MINIMUM window size of 32 packets MUST be supported (§3.4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.4.3</td>
@@ -585,25 +589,25 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{rollup}:</strong> RFC4302-2.4-2, RFC4302-2.4-3, RFC4302-2.4-4; Section 5 binds a multicast implementation to &#34;the additional requirements specified for support of such traffic&#34;, which are the three multicast rows of Section 2.4</p><p class="rfc-mark"><strong>derived:</strong> met</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-a2-1">RFC4302-A2-1</code></td><td colspan="3"><span class="rfc-subject">When the IP implementation leaves a Fragmentation Extension Header in place after reassembly, AH MUST remove or skip it and repair the preceding Next Header before ICV processing (§A2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-a2-1">RFC4302-A2-1</code></td><td colspan="3"><span class="rfc-subject">Note that on the receive side, the IP implementation could leave a Fragmentation Extension Header in place when it does re-assembly. If this happens, then when AH receives the packet, before doing ICV processing, AH MUST &#34;remove&#34; (or skip over) this header and change the previous header&#39;s &#34;Next Header&#34; field to be the &#34;Next Header&#34; field in the Fragmentation Extension Header. (§A2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>A2</td>
+<td>A2 - Appendix A2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-A2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the transport-mode AH SA, and the kernel&#39;s IPv6 AH input skips a Fragmentation Extension Header the IP layer left in place and repairs the preceding Next Header</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-a2-2">RFC4302-A2-2</code></td><td colspan="3"><span class="rfc-subject">When the IP implementation hands AH a send-side packet carrying a Fragmentation Extension Header with Offset zero and More Fragments zero, AH MUST remove or skip it and repair the preceding Next Header before ICV processing (§A2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-a2-2">RFC4302-A2-2</code></td><td colspan="3"><span class="rfc-subject">Note that on the send side, the IP implementation could give the IPsec code a packet with a Fragmentation Extension Header with Offset of 0 (first fragment) and a More Fragments Flag of 0 (last fragment). If this happens, then before doing ICV processing, AH MUST first &#34;remove&#34; (or skip over) this header and change the previous header&#39;s &#34;Next Header&#34; field to be the &#34;Next Header&#34; field in the Fragmentation Extension Header. (§A2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>A2</td>
+<td>A2 - Appendix A2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-A2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the transport-mode AH SA, and the kernel&#39;s IPv6 AH output skips a Fragmentation Extension Header the IP layer handed it and repairs the preceding Next Header</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.3-2">RFC4302-2.3-2</code></td><td colspan="3"><span class="rfc-subject">The RESERVED field SHOULD be ignored by the recipient (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.3-2">RFC4302-2.3-2</code></td><td colspan="3"><span class="rfc-subject">it SHOULD be ignored by the recipient (§2.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.3</td>
@@ -612,7 +616,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.5.1-2">RFC4302-2.5.1-2</code></td><td colspan="3"><span class="rfc-subject">A 64-bit sequence number option SHOULD be offered as an extension to the 32-bit Sequence Number field (§2.5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.5.1-2">RFC4302-2.5.1-2</code></td><td colspan="3"><span class="rfc-subject">To support high-speed IPsec implementations, a new option for sequence numbers SHOULD be offered, as an extension to the current, 32-bit sequence number field. (§2.5.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.5.1</td>
@@ -621,7 +625,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.3-6">RFC4302-3.4.3-6</code></td><td colspan="3"><span class="rfc-subject">A replay window size of 64 is preferred and SHOULD be employed as the default (§3.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.3-6">RFC4302-3.4.3-6</code></td><td colspan="3"><span class="rfc-subject">a window size of 64 is preferred and SHOULD be employed as the default. (§3.4.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.4.3</td>
@@ -630,7 +634,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.3-7">RFC4302-3.4.3-7</code></td><td colspan="3"><span class="rfc-subject">The replay check SHOULD be the first AH check applied to a packet once it is matched to an SA (§3.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.3-7">RFC4302-3.4.3-7</code></td><td colspan="3"><span class="rfc-subject">This SHOULD be the first AH check applied to a packet after it has been matched to an SA, to speed rejection of duplicate packets. (§3.4.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.4.3</td>
@@ -639,7 +643,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.3-8">RFC4302-3.4.3-8</code></td><td colspan="3"><span class="rfc-subject">When an SA establishment protocol is in use, a receiver that will not provide anti-replay protection SHOULD say so during SA establishment (§3.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.3-8">RFC4302-3.4.3-8</code></td><td colspan="3"><span class="rfc-subject">if an SA establishment protocol such as IKE is employed, the receiver SHOULD notify the sender, during SA establishment, if the receiver will not provide anti-replay protection. (§3.4.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.4.3</td>
@@ -648,7 +652,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-5-3">RFC4302-5-3</code></td><td colspan="3"><span class="rfc-subject">A compliant implementation SHOULD NOT provide the anti-replay service with an SA that is manually keyed (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-5-3">RFC4302-5-3</code></td><td colspan="3"><span class="rfc-subject">If the key used to compute an ICV is manually distributed, correct provision of the anti-replay service would require correct maintenance of the counter state at the sender, until the key is replaced, and there likely would be no automated recovery provision if counter overflow were imminent. Thus, a compliant implementation SHOULD NOT provide this service in conjunction with SAs that are manually keyed. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>5</td>
@@ -657,7 +661,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.4-7">RFC4302-2.4-7</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY choose any method to accelerate the SAD search (§2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.4-7">RFC4302-2.4-7</code></td><td colspan="3"><span class="rfc-subject">an implementation MAY choose any method to accelerate this search (§2.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.4</td>
@@ -666,7 +670,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.3.4-2">RFC4302-3.3.4-2</code></td><td colspan="3"><span class="rfc-subject">An AH implementation MAY choose not to support fragmentation and MAY mark transmitted packets with the DF bit (§3.3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.3.4-2">RFC4302-3.3.4-2</code></td><td colspan="3"><span class="rfc-subject">an AH implementation MAY choose to not support fragmentation and may mark transmitted packets with the DF bit, to facilitate Path MTU (PMTU) discovery. (§3.3.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.3.4</td>
@@ -675,7 +679,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.3-9">RFC4302-3.4.3-9</code></td><td colspan="3"><span class="rfc-subject">A replay window larger than the minimum MAY be chosen by the receiver (§3.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.3-9">RFC4302-3.4.3-9</code></td><td colspan="3"><span class="rfc-subject">Another window size (larger than the MINIMUM) MAY be chosen by the receiver. (§3.4.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.4.3</td>
@@ -684,7 +688,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-5-4">RFC4302-5-4</code></td><td colspan="3"><span class="rfc-subject">Algorithms beyond those mandated for AH MAY be supported (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-5-4">RFC4302-5-4</code></td><td colspan="3"><span class="rfc-subject">Additional algorithms, beyond those mandated for AH, MAY be supported. (§5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5</td>
@@ -702,7 +706,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc4302-2.3-1"><code>RFC4302-2.3-1</code></a> The RESERVED field MUST be set to zero by the sender (§2.3)</td>
+<tr><td><a href="#rfc4302-2.3-1"><code>RFC4302-2.3-1</code></a> It MUST be set to &#34;zero&#34; by the sender (§2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the transport-mode AH SA, and the kernel&#39;s AH output builds every AH header from it, so no value Ze writes decides this field</td>
 </tr>
@@ -714,7 +718,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes a state Linux XFRM keys by destination, SPI and protocol, and Linux XFRM de-multiplexes on that key, so a group SA and a unicast SA that share an SPI stay distinct entries</td>
 </tr>
-<tr><td><a href="#rfc4302-2.4-4"><code>RFC4302-2.4-4</code></a> An accelerated SAD search MUST be functionally equivalent, in externally visible behavior, to searching the SAD in the order given (§2.4)</td>
+<tr><td><a href="#rfc4302-2.4-4"><code>RFC4302-2.4-4</code></a> any method to accelerate this search, although its externally visible behavior MUST be functionally equivalent to having searched the SAD in the above order. (§2.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs the SAD entries, and Linux XFRM owns both the search and whatever hashing accelerates it, so the equivalence this sentence demands is the kernel&#39;s to keep</td>
 </tr>
@@ -746,7 +750,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes the per-SA replay window the interface replay-window leaf asks for, and Linux XFRM refuses to send a packet on that state once the sequence number would cycle; ze emits no AH packet of its own</td>
 </tr>
-<tr><td><a href="#rfc4302-3.3.3.1-1"><code>RFC4302-3.3.3.1-1</code></a> For the ICV computation a field that may be modified in transit is set to zero, a mutable but predictable field is set to the value it will have at the receiver, and the ICV field itself is set to zero (§3.3.3.1)</td>
+<tr><td><a href="#rfc4302-3.3.3.1-1"><code>RFC4302-3.3.3.1-1</code></a> If a field may be modified during transit, the value of the field is set to zero for purposes of the ICV computation. If a field is mutable, but its value at the (IPsec) receiver is predictable, then that value is inserted into the field for purposes of the ICV calculation. The Integrity Check Value field is also set to zero in preparation for this computation. (§3.3.3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the transport-mode AH SA, and the kernel&#39;s AH code zeroes the mutable fields and the ICV field before it computes the ICV</td>
 </tr>
@@ -762,7 +766,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams names the integrity algorithm, and the kernel&#39;s implementation of that algorithm decides whether implicit padding is required</td>
 </tr>
-<tr><td><a href="#rfc4302-3.3.3.2.2-4"><code>RFC4302-3.3.3.2.2-4</code></a> When that document gives no answer, implicit padding is assumed to be required and its octets MUST have a value of zero (§3.3.3.2.2)</td>
+<tr><td><a href="#rfc4302-3.3.3.2.2-4"><code>RFC4302-3.3.3.2.2-4</code></a> If the document does not specify an answer to this, then the default is to assume that implicit padding is required (as needed to match the packet length to the algorithm&#39;s blocksize.) If padding bytes are needed but the algorithm does not specify the padding contents, then the padding octets MUST have a value of zero. (§3.3.3.2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams names the integrity algorithm, and the kernel&#39;s implementation of that algorithm supplies the default when the algorithm gives no answer</td>
 </tr>
@@ -794,11 +798,11 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>no test</td>
 <td>no test carries this requirement id; annotated {rollup}: RFC4302-2.4-2, RFC4302-2.4-3, RFC4302-2.4-4; Section 5 binds a multicast implementation to &#34;the additional requirements specified for support of such traffic&#34;, which are the three multicast rows of Section 2.4</td>
 </tr>
-<tr><td><a href="#rfc4302-a2-1"><code>RFC4302-A2-1</code></a> When the IP implementation leaves a Fragmentation Extension Header in place after reassembly, AH MUST remove or skip it and repair the preceding Next Header before ICV processing (§A2)</td>
+<tr><td><a href="#rfc4302-a2-1"><code>RFC4302-A2-1</code></a> Note that on the receive side, the IP implementation could leave a Fragmentation Extension Header in place when it does re-assembly. If this happens, then when AH receives the packet, before doing ICV processing, AH MUST &#34;remove&#34; (or skip over) this header and change the previous header&#39;s &#34;Next Header&#34; field to be the &#34;Next Header&#34; field in the Fragmentation Extension Header. (§A2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the transport-mode AH SA, and the kernel&#39;s IPv6 AH input skips a Fragmentation Extension Header the IP layer left in place and repairs the preceding Next Header</td>
 </tr>
-<tr><td><a href="#rfc4302-a2-2"><code>RFC4302-A2-2</code></a> When the IP implementation hands AH a send-side packet carrying a Fragmentation Extension Header with Offset zero and More Fragments zero, AH MUST remove or skip it and repair the preceding Next Header before ICV processing (§A2)</td>
+<tr><td><a href="#rfc4302-a2-2"><code>RFC4302-A2-2</code></a> Note that on the send side, the IP implementation could give the IPsec code a packet with a Fragmentation Extension Header with Offset of 0 (first fragment) and a More Fragments Flag of 0 (last fragment). If this happens, then before doing ICV processing, AH MUST first &#34;remove&#34; (or skip over) this header and change the previous header&#39;s &#34;Next Header&#34; field to be the &#34;Next Header&#34; field in the Fragmentation Extension Header. (§A2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the transport-mode AH SA, and the kernel&#39;s IPv6 AH output skips a Fragmentation Extension Header the IP layer handed it and repairs the preceding Next Header</td>
 </tr>
@@ -810,7 +814,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc4302-2-1"><code>RFC4302-2-1</code></a></h3>
 <p>The protocol header (IPv4, IPv6, or IPv6 Extension) immediately preceding the AH header SHALL contain the value 51 in its Protocol (IPv4) or Next Header (IPv6, Extension) fields [DH98]. (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: an AH SA whose protocol is not 51, so the kernel writes another value in the header preceding AH. (b) TestIPsecSAProtocolNumber: ah.Proto != 51 goes red; the esp case (Proto 50) goes red on a blanket-51 installer. Ze&#39;s boundary is the SA protocol number; Linux XFRM writes the Next Header from it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -829,8 +833,8 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 </table>
 </div>
 <h3><a href="#rfc4302-2-2"><code>RFC4302-2-2</code></a></h3>
-<p>AH carries no version number, so backward-compatibility concerns MUST be addressed by a signaling mechanism between the two peers, an SA management protocol or an out-of-band configuration mechanism (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>AH does not contain a version number, therefore if there are concerns about backward compatibility, they MUST be addressed by using a signaling mechanism between the two IPsec peers to ensure compatible versions of AH, e.g., IKE [IKEv2] or an out-of-band configuration mechanism. (§2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: AH parameters settled without a signalling or out-of-band mechanism both peers hold, e.g. a defaulted integrity algorithm. (b) TestAHParametersComeFromConfiguration: protocol, SPI, algorithm and key length are asserted from the parsed RFC 4552 block (positive), and an AH block with no algorithm must fail with ErrIPsecAuthAlgo (negative). Ze uses the out-of-band configuration mechanism the sentence names; it runs no AH signalling.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -849,12 +853,12 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 </table>
 </div>
 <h3><a href="#rfc4302-2.3-1"><code>RFC4302-2.3-1</code></a></h3>
-<p>The RESERVED field MUST be set to zero by the sender (§2.3)</p>
+<p>It MUST be set to &#34;zero&#34; by the sender (§2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4302-2.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4302-2.4-1"><code>RFC4302-2.4-1</code></a></h3>
 <p>The SPI field is mandatory, and this mechanism for mapping inbound traffic to unicast SAs described above MUST be supported by all AH implementations. (§2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an AH implementation that cannot map inbound traffic to a UNICAST SA by its SPI (alone or with the protocol). (b) TestAHSAIdentifiedBySPIAndProtocol asserts SPI, Proto AH, Dst and wildcard Src, but only for the ff02::5 AllSPFRouters state, a multicast destination. The unicast state setConfig also builds (buildIPsecSA(ifindex, local, SADirIn, c), ipsec_install.go) is never asserted, so the unicast clause the sentence is about has no red assertion.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -881,12 +885,12 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4302-2.4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4302-2.4-4"><code>RFC4302-2.4-4</code></a></h3>
-<p>An accelerated SAD search MUST be functionally equivalent, in externally visible behavior, to searching the SAD in the order given (§2.4)</p>
+<p>any method to accelerate this search, although its externally visible behavior MUST be functionally equivalent to having searched the SAD in the above order. (§2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4302-2.4-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4302-2.4-5"><code>RFC4302-2.4-5</code></a></h3>
 <p>The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or Group Domain of Interpretation (GDOI) [RFC3547]. (§2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The sentence is about the SAD entry&#39;s indication of which addresses join the SPI in the inbound SA lookup; in XFRM that is the state&#39;s daddr and whether its saddr is wildcarded (SAParams.Src/Dst). TestAHSAAddressMatchIndication asserts the state&#39;s traffic selector (Sel.Src/Sel.Dst ::/0, Sel.UpperProto 89), which filters traffic on an SA already found and does not decide the lookup key. The Src-wildcard indication is asserted in TestAHSAIdentifiedBySPIAndProtocol, which is not tagged for this row. The negative (upper protocol 89) proves a neighbouring selector rule.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -906,7 +910,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 </div>
 <h3><a href="#rfc4302-2.4-6"><code>RFC4302-2.4-6</code></a></h3>
 <p>The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire. (§2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: an AH SA carrying SPI 0 installed and so sent on the wire. (b) TestAHSPIReservedRangeRefused: validateConfig on spi 0 must return ErrIPsecSPIReserved, else red; spi 256 must validate (positive bound). SPI 255 refusal is IANA-range, beyond this row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -953,7 +957,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4302-3.3.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4302-3.3.3.1-1"><code>RFC4302-3.3.3.1-1</code></a></h3>
-<p>For the ICV computation a field that may be modified in transit is set to zero, a mutable but predictable field is set to the value it will have at the receiver, and the ICV field itself is set to zero (§3.3.3.1)</p>
+<p>If a field may be modified during transit, the value of the field is set to zero for purposes of the ICV computation. If a field is mutable, but its value at the (IPsec) receiver is predictable, then that value is inserted into the field for purposes of the ICV calculation. The Integrity Check Value field is also set to zero in preparation for this computation. (§3.3.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4302-3.3.3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4302-3.3.3.2.2-1"><code>RFC4302-3.3.3.2.2-1</code></a></h3>
@@ -969,12 +973,12 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4302-3.3.3.2.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4302-3.3.3.2.2-4"><code>RFC4302-3.3.3.2.2-4</code></a></h3>
-<p>When that document gives no answer, implicit padding is assumed to be required and its octets MUST have a value of zero (§3.3.3.2.2)</p>
+<p>If the document does not specify an answer to this, then the default is to assume that implicit padding is required (as needed to match the packet length to the algorithm&#39;s blocksize.) If padding bytes are needed but the algorithm does not specify the padding contents, then the padding octets MUST have a value of zero. (§3.3.3.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4302-3.3.3.2.2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4302-3.3.4-1"><code>RFC4302-3.3.4-1</code></a></h3>
 <p>In any case, an AH implementation MUST support generation of ICMP PMTU messages (or equivalent internal signaling for native host implementations) to minimize the likelihood of fragmentation. (§3.3.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: an AH native-host implementation that gives the local sender no PMTU signal for the AH overhead. (b) TestAHPathMTUIsSignaledToTheLocalSender (real XFRM): the IPV6_MTU of a raw OSPF socket must drop by at least ahHeaderOctets after the installer writes the AH state and policy (protected &gt;= clear is red), and return to the clear value when the state is removed. Ze is transport-mode host only, so the internal-signalling alternative the sentence gives native hosts is the one owed; ICMP generation for forwarded traffic is not exercised.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -998,7 +1002,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <p>No test carries RFC4302-3.4.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4302-3.4.2-1"><code>RFC4302-3.4.2-1</code></a></h3>
 <p>If no valid Security Association exists for this packet the receiver MUST discard the packet; this is an auditable event. (§3.4.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The sentence covers a received packet CONTAINING an AH header whose SA lookup fails: the discard, and that it is an auditable event. TestAHInboundRequirePolicyInstalled asserts the SADirIn require-policy (proto AH, transport, upper proto 89, ifindex), which drops UNPROTECTED OSPF that arrives without AH (an RFC 4301 policy check), a neighbouring rule. An AH packet with an unknown SPI is dropped in the kernel&#39;s xfrm_input state lookup whatever policy Ze installs; no tagged unit sends one or observes the drop, and the auditable-event clause has no assertion at all.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1018,7 +1022,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 </div>
 <h3><a href="#rfc4302-3.4.3-1"><code>RFC4302-3.4.3-1</code></a></h3>
 <p>All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis. (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an AH implementation with no anti-replay, or one that cannot enable/disable it per SA. (b) TestIPsecSAReplayWindow asserts SAParams.ReplayWin 64 when configured and 0 when not, for ah and esp. Both per-SA directions are asserted, but only on the SAParams struct: xfrmStateFromParams (ike/dataplane/xfrm_linux.go) sets the kernel window only for a non-zero ReplayWin, and a break there stays green. The kernel-state assertion that exists (rfc4301_boundary_linux_test.go, ReplayWindow 64) is not tagged for this row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1049,8 +1053,8 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4302-3.4.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4302-3.4.3-5"><code>RFC4302-3.4.3-5</code></a></h3>
-<p>A minimum replay window size of 32 packets MUST be supported (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>A MINIMUM window size of 32 packets MUST be supported (§3.4.3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an implementation that cannot run an SA with a 32-packet replay window. (b) TestIPsecReplayWindowRange only asserts that validateConfig accepts replay-window 32; no tagged unit shows a 32 window reaching the SA or the kernel state. The negative (1 and 31 refused with ErrIPsecReplayWindow) does not violate this requirement: the RFC sets a minimum that must be SUPPORTED and forbids no smaller window, so the negative asserts a Ze policy, not the RFC.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1081,11 +1085,11 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4302-5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4302-a2-1"><code>RFC4302-A2-1</code></a></h3>
-<p>When the IP implementation leaves a Fragmentation Extension Header in place after reassembly, AH MUST remove or skip it and repair the preceding Next Header before ICV processing (§A2)</p>
+<p>Note that on the receive side, the IP implementation could leave a Fragmentation Extension Header in place when it does re-assembly. If this happens, then when AH receives the packet, before doing ICV processing, AH MUST &#34;remove&#34; (or skip over) this header and change the previous header&#39;s &#34;Next Header&#34; field to be the &#34;Next Header&#34; field in the Fragmentation Extension Header. (§A2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4302-A2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4302-a2-2"><code>RFC4302-A2-2</code></a></h3>
-<p>When the IP implementation hands AH a send-side packet carrying a Fragmentation Extension Header with Offset zero and More Fragments zero, AH MUST remove or skip it and repair the preceding Next Header before ICV processing (§A2)</p>
+<p>Note that on the send side, the IP implementation could give the IPsec code a packet with a Fragmentation Extension Header with Offset of 0 (first fragment) and a More Fragments Flag of 0 (last fragment). If this happens, then before doing ICV processing, AH MUST first &#34;remove&#34; (or skip over) this header and change the previous header&#39;s &#34;Next Header&#34; field to be the &#34;Next Header&#34; field in the Fragmentation Extension Header. (§A2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4302-A2-2, so no unit is bound to it.</p>
 </section>
@@ -1095,10 +1099,10 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Reviewer</td>
-<td>claude-opus-5 (ipsecwalk), spec-rfcgate-6-supported-extraction-signoff</td>
+<td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-08-31</td>
+<td>2026-09-27</td>
 </tr>
 <tr><td>Register</td>
 <td>rfc2119</td>
@@ -1392,9 +1396,81 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 </tr>
 <tr><td><code>9.2</code></td>
 <td>not stated</td>
-<td>2</td>
+<td>0</td>
 <td>walked</td>
 <td>not stated</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>Appendix A</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix A. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>A1</code></td>
+<td>Appendix A1</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix A1. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>A2</code></td>
+<td>Appendix A2</td>
+<td>2</td>
+<td>walked</td>
+<td>Appendix A2. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of section 9.2, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote.</td>
+</tr>
+<tr><td><code>B</code></td>
+<td>Appendix B</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix B. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>B1</code></td>
+<td>Appendix B1</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix B1. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>B2</code></td>
+<td>Appendix B2</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix B2. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>B2.1</code></td>
+<td>Appendix B2.1</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix B2.1. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>B2.2</code></td>
+<td>Appendix B2.2</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix B2.2. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>B2.3</code></td>
+<td>Appendix B2.3</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix B2.3. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>B3</code></td>
+<td>Appendix B3</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix B3. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>B3.1</code></td>
+<td>Appendix B3.1</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix B3.1. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>B3.2</code></td>
+<td>Appendix B3.2</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix B3.2. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
 </tr>
 </tbody>
 </table>
@@ -1455,7 +1531,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

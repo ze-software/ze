@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7911 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7911: Advertisement of Multiple Paths in BGP. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7911: Advertisement of Multiple Paths in BGP. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7911 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7911: Advertisement of Multiple Paths in BGP. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7911: Advertisement of Multiple Paths in BGP. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7911 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7911: Advertisement of Multiple Paths in BGP. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7911: Advertisement of Multiple Paths in BGP. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>9</strong><b>of 9 gated MUSTs judged</b><p>7 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>46</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>9</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -306,7 +314,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the RIB keys on (prefix, Path ID) so the paired negative would be a same-(prefix, Path ID) collapse-to-one assertion, but no such dedup/replacement test exists in the suite; TestPeerRIB_AddPath asserts only that distinct Path IDs yield distinct entries</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-2-2">RFC7911-2-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that re-advertises a route must generate its own Path Identifier (not reuse received) (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-2-2">RFC7911-2-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route. (Section 2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2 - How to Identify a Path</td>
@@ -330,7 +338,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L16" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkAddPathReadvertiseCollision</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-3-1">RFC7911-3-1</code></td><td colspan="3"><span class="rfc-subject">NLRI encoding must be extended by prepending the 4-octet Path Identifier field (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-3-1">RFC7911-3-1</code></td><td colspan="3"><span class="rfc-subject">In order to carry the Path Identifier in an UPDATE message, the NLRI encoding MUST be extended by prepending the Path Identifier field, which is of four octets. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - Extended NLRI Encodings</td>
@@ -353,7 +361,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L353" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathCapability</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-1">RFC7911-5-1</code></td><td colspan="3"><span class="rfc-subject">To send multiple paths, speaker must advertise ADD-PATH Capability with Send/Receive set to 2 or 3 (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-1">RFC7911-5-1</code></td><td colspan="3"><span class="rfc-subject">For a BGP speaker to be able to send multiple paths to its peer, that BGP speaker MUST advertise the ADD-PATH Capability with the Send/ Receive field set to either 2 or 3, and MUST receive from its peer the ADD-PATH Capability with the Send/Receive field set to either 1 or 3, for the corresponding &lt;AFI, SAFI&gt;. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - Operation</td>
@@ -363,7 +371,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/negotiated_test.go#L168" title="internal/core/bgp/context/negotiated_test.go" target="_blank" rel="noopener"><code>TestFromNegotiatedAddPath</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-2">RFC7911-5-2</code></td><td colspan="3"><span class="rfc-subject">To send multiple paths, speaker must receive ADD-PATH Capability with Send/Receive set to 1 or 3 from peer (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-2">RFC7911-5-2</code></td><td colspan="3"><span class="rfc-subject">For a BGP speaker to be able to send multiple paths to its peer, that BGP speaker MUST advertise the ADD-PATH Capability with the Send/ Receive field set to either 2 or 3, and MUST receive from its peer the ADD-PATH Capability with the Send/Receive field set to either 1 or 3, for the corresponding &lt;AFI, SAFI&gt;. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - Operation</td>
@@ -373,7 +381,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/negotiated_test.go#L170" title="internal/core/bgp/context/negotiated_test.go" target="_blank" rel="noopener"><code>TestFromNegotiatedAddPath</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-3">RFC7911-5-3</code></td><td colspan="3"><span class="rfc-subject">Speaker must follow RFC 4271 procedures unless ADD-PATH is negotiated for both send and receive (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-3">RFC7911-5-3</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular &lt;AFI, SAFI&gt; to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the &lt;AFI, SAFI&gt;, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the &lt;AFI, SAFI&gt; (Section 5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - Operation</td>
@@ -384,7 +392,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_body_test.go#L24" title="internal/component/bgp/reactor/forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitConvertsAddPathContext</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-4">RFC7911-5-4</code></td><td colspan="3"><span class="rfc-subject">When ADD-PATH is negotiated, speaker must generate route updates based on (address prefix, Path Identifier) combination using extended NLRI encodings (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-4">RFC7911-5-4</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular &lt;AFI, SAFI&gt; to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the &lt;AFI, SAFI&gt;, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the &lt;AFI, SAFI&gt;, in which case the speaker MUST generate a route update for the &lt;AFI, SAFI&gt; based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - Operation</td>
@@ -407,7 +415,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_addpath_test.go#L74" title="internal/component/bgp/reactor/rfc7606_session_addpath_test.go" target="_blank" rel="noopener"><code>TestEnforceRFC7606_MPAddPathLargePathIDAccepted</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-4-2">RFC7911-4-2</code></td><td colspan="3"><span class="rfc-subject">Invalid Send/Receive value (not 1, 2, or 3) should be treated as capability not understood and ignored per RFC 5492 (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-4-2">RFC7911-4-2</code></td><td colspan="3"><span class="rfc-subject">If any other value is received, then the capability SHOULD be treated as not understood and ignored [RFC5492]. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4 - ADD-PATH Capability</td>
@@ -416,7 +424,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-6">RFC7911-5-6</code></td><td colspan="3"><span class="rfc-subject">Withdraw with unknown Path Identifier should be silently ignored (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-6">RFC7911-5-6</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker receives a message to withdraw a prefix with a Path Identifier not seen before, it SHOULD silently ignore it. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5 - Operation</td>
@@ -425,7 +433,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-7">RFC7911-5-7</code></td><td colspan="3"><span class="rfc-subject">Best route per RFC 4271 should be included when more than one path is advertised, unless path was received from that neighbor (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-7">RFC7911-5-7</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker SHOULD include the best route [RFC4271] when more than one path is advertised to a neighbor, unless it is a path received from that neighbor. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5 - Operation</td>
@@ -434,7 +442,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-8">RFC7911-5-8</code></td><td colspan="3"><span class="rfc-subject">Implementation should take special care that forwarding plane of Receiving Speaker is not affected during graceful restart (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-8">RFC7911-5-8</code></td><td colspan="3"><span class="rfc-subject">As the Path Identifiers are locally assigned, and may or may not be persistent across a control plane restart of a BGP speaker, an implementation SHOULD take special care so that the underlying forwarding plane of a &#34;Receiving Speaker&#34; as described in [RFC4724] is not affected during the graceful restart of a BGP session. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5 - Operation</td>
@@ -454,7 +462,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7911-2-1"><code>RFC7911-2-1</code></a></h3>
 <p>However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor. (Section 2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. Sentence obliges the ADVERTISING speaker to assign Path Identifiers so that (Prefix, Path Identifier) uniquely identifies a path advertised to a neighbor; forbidden behaviour: ze advertising two different paths for one prefix to one neighbor under the same identifier. The only tagged unit, rib/storage TestPeerRIB_AddPath, inserts two RECEIVED NLRI with distinct ids into the Adj-RIB-In and asserts Len()==2: it proves receive-side keying, a neighbouring rule, and never looks at an identifier ze assigns. The assignment producer is the reactor forward path-id generator (forward_path_id.go); units that do prove this sentence (TestForwardPathIDReleaseReturnsValues, the churn and growth-probe tests, TestForwardPathIDsDifferForCollidingSources) are tagged RFC7911-2-2 instead, quoting this sentence in their prose.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -468,8 +476,8 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 </table>
 </div>
 <h3><a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a></h3>
-<p>A BGP speaker that re-advertises a route must generate its own Path Identifier (not reuse received) (Section 2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route. (Section 2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Sentence: a speaker that re-advertises a route MUST generate its own Path Identifier for it. Forbidden behaviour: relaying the received identifier. Negative TestForwardPathIDStableAcrossUpdates: require.NotEqual(uint32(receivedPathID=0xDEADBEEF), first) goes red if the received id is copied; positive TestForwardPathIDsDifferForCollidingSources: two sources both using id 1 must leave with different ids (require.NotEqual(first, second)), red under a relaying implementation. The .ci adj-rib-in-replay-addpath-source asserts ze&#39;s 0 against the source&#39;s 1 on a running daemon. Several other units tagged here quote and prove RFC7911-2-1&#39;s sentence instead (see findings).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -563,8 +571,8 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 </table>
 </div>
 <h3><a href="#rfc7911-3-1"><code>RFC7911-3-1</code></a></h3>
-<p>NLRI encoding must be extended by prepending the 4-octet Path Identifier field (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In order to carry the Path Identifier in an UPDATE message, the NLRI encoding MUST be extended by prepending the Path Identifier field, which is of four octets. (Section 3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Sentence: NLRI encoding MUST be extended by prepending the four-octet Path Identifier field. Forbidden: no field, a field of other size, or the field placed after the prefix. TestWriteNLRI_WithStoredPathID asserts buf[0..3]==0000002a and n==4+Len() (red if absent, mis-sized, or appended, since buf[0] would then be the prefix length); TestWriteNLRI_AddPath disabled subtest asserts n==Len() without ADD-PATH; TestINETWithAddPath decodes 00000001 then 8,10 as id 1 and 10.0.0.0/8; test/plugin/adj-rib-in-replay-addpath-source.ci asserts exact wire hex 00000000180A0000 vs 180A0000 per destination negotiation.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -609,7 +617,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 </div>
 <h3><a href="#rfc7911-4-1"><code>RFC7911-4-1</code></a></h3>
 <p>A BGP speaker that wishes to indicate support for multiple AFI/SAFIs MUST do so by including the information in a single instance of the ADD-PATH Capability. (Section 4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. Sentence obliges a speaker that WISHES TO INDICATE support for several AFI/SAFIs (the sender of OPEN) to put them in a single ADD-PATH capability instance; forbidden behaviour: ze emitting one code-69 capability per family. Both tagged units (TestAddPathCapability, TestAddPathMultipleFamilies in internal/core/bgp/capability/capability_test.go) drive Parse over hand-built bytes and assert len(caps)==1: they prove the DECODER accepts one instance, a neighbouring rule. No tagged unit encodes ze&#39;s own capability set for two ADD-PATH families and counts code-69 instances in the OPEN ze sends.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -628,8 +636,8 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 </table>
 </div>
 <h3><a href="#rfc7911-5-1"><code>RFC7911-5-1</code></a></h3>
-<p>To send multiple paths, speaker must advertise ADD-PATH Capability with Send/Receive set to 2 or 3 (Section 5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>For a BGP speaker to be able to send multiple paths to its peer, that BGP speaker MUST advertise the ADD-PATH Capability with the Send/ Receive field set to either 2 or 3, and MUST receive from its peer the ADD-PATH Capability with the Send/Receive field set to either 1 or 3, for the corresponding &lt;AFI, SAFI&gt;. (Section 5)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Quoted sentence: to send multiple paths the speaker MUST advertise Send/Receive 2 or 3 and MUST receive 1 or 3 from the peer, for the corresponding &lt;AFI, SAFI&gt;. Clause &#39;local advertises 2 or 3&#39;: TestFromNegotiatedAddPath rows Receive/Send and Receive/Both require wantSend false (red if a Receive-only local could send). Clause &#39;peer sent 1 or 3&#39;: rows Send/Send and Both/Send require wantSend false. Clause &#39;for the corresponding &lt;AFI, SAFI&gt;&#39;: no tagged unit negotiates ADD-PATH for one family on one side and another family on the other; baseCapsWithAddPath uses one family on both sides and only ipv4Family is read, so a family-blind Negotiate stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -653,8 +661,8 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 </table>
 </div>
 <h3><a href="#rfc7911-5-2"><code>RFC7911-5-2</code></a></h3>
-<p>To send multiple paths, speaker must receive ADD-PATH Capability with Send/Receive set to 1 or 3 from peer (Section 5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>For a BGP speaker to be able to send multiple paths to its peer, that BGP speaker MUST advertise the ADD-PATH Capability with the Send/ Receive field set to either 2 or 3, and MUST receive from its peer the ADD-PATH Capability with the Send/Receive field set to either 1 or 3, for the corresponding &lt;AFI, SAFI&gt;. (Section 5)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Same sentence as RFC7911-5-1 (the row&#39;s obligation is the second MUST: receive Send/Receive 1 or 3 from the peer). TestFromNegotiatedAddPath rows Send/Send and Both/Send require wantSend false, red if ze sends when the peer never advertised Receive; TestNegotiateAddPath asserts AddPathSend for Both/Receive. The per-&lt;AFI, SAFI&gt; clause has no assertion: every tagged case puts the same single family on both sides, so a Negotiate that paired the peer&#39;s Receive for IPv6 with local Send for IPv4 would pass.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -678,8 +686,8 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 </table>
 </div>
 <h3><a href="#rfc7911-5-3"><code>RFC7911-5-3</code></a></h3>
-<p>Speaker must follow RFC 4271 procedures unless ADD-PATH is negotiated for both send and receive (Section 5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular &lt;AFI, SAFI&gt; to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the &lt;AFI, SAFI&gt;, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the &lt;AFI, SAFI&gt; (Section 5)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Quoted span: MUST follow RFC 4271 procedures for an &lt;AFI, SAFI&gt; unless ADD-PATH send is advertised and receive is received for it. Forbidden: emitting Path Identifiers to a peer that did not negotiate. TestForwardSplitConvertsAddPathContext (negative) asserts every destination prefix is 4 bytes and equals the plain NLRI; TestForwardPathIDLeavesNonAddPathDestinationAlone likewise. Positive TestForwardSplitSameContextKeepsRawSplit asserts the extended encoding. Per-&lt;AFI, SAFI&gt; clause unasserted: fixtures set ADD-PATH for IPv4 unicast only and send only IPv4, so a family-blind generator passes. TestRFC7606Section54ReadsTypedNLRIUnderAddPath is tagged 5-3 positive but proves receive-side parsing (RFC7911-5-5&#39;s rule).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -708,8 +716,8 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 </table>
 </div>
 <h3><a href="#rfc7911-5-4"><code>RFC7911-5-4</code></a></h3>
-<p>When ADD-PATH is negotiated, speaker must generate route updates based on (address prefix, Path Identifier) combination using extended NLRI encodings (Section 5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular &lt;AFI, SAFI&gt; to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the &lt;AFI, SAFI&gt;, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the &lt;AFI, SAFI&gt;, in which case the speaker MUST generate a route update for the &lt;AFI, SAFI&gt; based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document. (Section 5)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Quoted sentence: follow RFC 4271 unless ADD-PATH negotiated for the &lt;AFI, SAFI&gt;, in which case MUST generate updates based on the combination of prefix and Path Identifier with the extended NLRI encoding. Plain encoding when not negotiated: TestWriteAnnounceUpdateWithAddPath nNoAddPath+4==nAddPath and TestSplitUpdateEndToEnd. Extended encoding when negotiated: TestSplitUpdateAddPathEndToEnd round-trips 4-octet ids. Unasserted: &#39;based on the combination of the address prefix and the Path Identifier&#39; (no 5-4 unit sends two paths for one prefix and asserts both are generated, so a prefix-keyed generator passes), and the per-&lt;AFI, SAFI&gt; clause. TestForwardPathIDWithdrawOfUnknownPathLeavesNothing is tagged 5-4 but quotes and proves RFC7911-5-6.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -744,7 +752,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 </div>
 <h3><a href="#rfc7911-5-5"><code>RFC7911-5-5</code></a></h3>
 <p>The peer SHALL act accordingly in processing an UPDATE message related to a particular &lt;AFI, SAFI&gt;. (Section 5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: the peer SHALL act accordingly in processing an UPDATE related to a particular &lt;AFI, SAFI&gt;. Forbidden: parsing a negotiated family&#39;s NLRI without the Path Identifier (or a non-negotiated one with it). TestEnforceRFC7606_MPAddPathLargePathIDAccepted and _IPv4BodyAddPathLargePathIDAccepted assert RFC7606ActionNone with ADD-PATH negotiated for that family and SessionReset for the same bytes on a session with no ADD-PATH at all. The per-&lt;AFI, SAFI&gt; clause is not isolated: the contrast session negotiates ADD-PATH for no family, so a receiver that applied one family&#39;s ADD-PATH state to every family stays green; no case sends a non-negotiated family&#39;s NLRI on a session that negotiated ADD-PATH for another family.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -943,7 +951,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

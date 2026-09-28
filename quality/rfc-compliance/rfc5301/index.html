@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5301 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5301: Dynamic Hostname Exchange Mechanism for IS-IS. 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5301: Dynamic Hostname Exchange Mechanism for IS-IS. 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5301 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5301: Dynamic Hostname Exchange Mechanism for IS-IS. 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5301: Dynamic Hostname Exchange Mechanism for IS-IS. 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5301 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5301: Dynamic Hostname Exchange Mechanism for IS-IS. 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5301: Dynamic Hostname Exchange Mechanism for IS-IS. 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +226,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>22</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -335,7 +338,7 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-startup-refused.ci#L16" title="test/isis/isis-hostname-startup-refused.ci" target="_blank" rel="noopener"><code>isis-hostname-startup-refused.ci</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5301-3-8">RFC5301-3-8</code></td><td colspan="3"><span class="rfc-subject">The string is not null-terminated (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5301-3-8">RFC5301-3-8</code></td><td colspan="3"><span class="rfc-subject">The string is not null- terminated. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3</td>
@@ -556,8 +559,8 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 </table>
 </div>
 <h3><a href="#rfc5301-3-8"><code>RFC5301-3-8</code></a></h3>
-<p>The string is not null-terminated (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The string is not null- terminated. (Section 3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) a TLV 137 value carrying a NUL terminator; (b) TestISISHostnameTLVFraming: bytes.IndexByte(value,0)&gt;=0 errors, len(value)!=len(name) errors, and the [137][len+1][name,0] run errors; TestISISHostnameTLVIsPrintableASCII rejects any octet outside 0x20..0x7e and requires exactly one [137][len][value] run.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -788,7 +791,7 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

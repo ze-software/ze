@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 9.3% | 9 of 97 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 22 | of 97 gated MUSTs judged | 17 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 97 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 97 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 9 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 167 |
 | Tagged units | 167 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 22 |
 | Discrimination records | 128 |
 | Summary | `rfc/short/rfc2661.md` |
 | Requirement shard | `rfc/requirements/rfc2661.md` |
@@ -113,26 +115,26 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2661-x-1` | Reserved bits 8-11 in L2TP header MUST be 0 (Wire Format) | MUST | x | **positive:** `unit/verify` [`TestWriteControlHeader`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/header_test.go#L230). **negative:** no negative test. **positive:** `functional/verify` [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L27). **{single-polarity}:** every control header is the fixed constant 0xC802 and every data header is built from verL2TP\|flags, so reserved bits are always emitted zero, and ze never rejects non-zero on receive (internal/component/l2tp/header.go:26, :148-155, :172-207) |
-| `RFC2661-4.1-1` | AVP reserved bits 2-5 MUST be zero on send; non-zero on receive means treat AVP as unrecognized (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestAVPCatalogRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/avp_test.go#L180). **negative:** `unit/verify` [`TestAVPIteratorReservedBits`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/avp_test.go#L107). **positive:** `functional/verify` [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L29) |
-| `RFC2661-4.1-2` | Message Type AVP (type 0) MUST be the first AVP in every control message. RFC 2661 Section 4.4.1: "The Message Type AVP MUST be the first AVP in a message, immediately following the control message header". The id anchor below is frozen and does NOT name Section 4.1, which is AVP Format (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestWriteICRPBody`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L945). **negative:** `unit/verify` [`TestReactor_MalformedSCCRQCreatesNoTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_test.go#L256). **positive:** `functional/verify` [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L24) |
-| `RFC2661-4.1-3` | If M=1 and AVP is unrecognized and session-scoped, send CDN and tear down session (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestSession_IncomingLNS_ICRQ`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L126). **negative:** `unit/verify` [`TestSession_UnknownMandatoryAVP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L559) |
-| `RFC2661-4.1-4` | If M=1 and AVP is unrecognized and tunnel-scoped, send StopCCN and tear down tunnel (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestTunnelInitiatorHandshake`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_test.go#L134). **negative:** `unit/verify` [`TestTunnelSCCCNUnknownMandatoryAVP_StopCCN`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_test.go#L253) |
+| `RFC2661-x-1` | All reserved bits MUST be set to 0 on outgoing messages and ignored on incoming messages. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestWriteControlHeader`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/header_test.go#L230). **negative:** no negative test. **positive:** `functional/verify` [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L27). **{single-polarity}:** every control header is the fixed constant 0xC802 and every data header is built from verL2TP\|flags, so reserved bits are always emitted zero, and ze never rejects non-zero on receive (internal/component/l2tp/header.go:26, :148-155, :172-207) |
+| `RFC2661-4.1-1` | Reserved bits MUST be set to 0. An AVP received with a reserved bit set to 1 MUST be treated as an unrecognized AVP. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestAVPCatalogRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/avp_test.go#L180). **negative:** `unit/verify` [`TestAVPIteratorReservedBits`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/avp_test.go#L107). **positive:** `functional/verify` [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L29) |
+| `RFC2661-4.1-2` | The Message Type AVP MUST be the first AVP in a message, immediately following the control message header (defined in section 3.1). (§4.4.1) | MUST | 4.4.1 | **positive:** `unit/verify` [`TestWriteICRPBody`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L945). **negative:** `unit/verify` [`TestReactor_MalformedSCCRQCreatesNoTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_test.go#L256). **positive:** `functional/verify` [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L24) |
+| `RFC2661-4.1-3` | If the M bit is set on an unrecognized AVP within a message associated with a particular session, the session associated with this message MUST be terminated. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestSession_IncomingLNS_ICRQ`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L126). **negative:** `unit/verify` [`TestSession_UnknownMandatoryAVP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L559) |
+| `RFC2661-4.1-4` | If the M bit is set on an unrecognized AVP within a message associated with the overall tunnel, the entire tunnel (and all sessions within) MUST be terminated. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestTunnelInitiatorHandshake`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_test.go#L134). **negative:** `unit/verify` [`TestTunnelSCCCNUnknownMandatoryAVP_StopCCN`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_test.go#L253) |
 | `RFC2661-5.8-1` | Each subsequent retransmission of a message MUST employ an exponential backoff interval. (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestTickBackoffSchedule`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L374). **negative:** no negative test. **{single-polarity}:** the engine doubles the retransmit timeout on each expiry, and exponential growth is a positive behavior with no meaningful negation on a correct implementation (internal/component/l2tp/reliable.go:591-595) |
 | `RFC2661-5.8-2` | This cap MUST be no less than 8 seconds per retransmission. (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestBackoffCapAtLeast8Seconds`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_seq_test.go#L94). **negative:** no negative test. **{single-polarity}:** the default backoff cap is the 16s constant and the reactor always constructs engines with RTimeoutCap unset, so the cap is always at least 8s with no config path or floor guard to test negatively (internal/component/l2tp/reliable_seq.go:19, reliable.go:291-292) |
-| `RFC2661-5.8-3` | After exhausting retransmissions without response, tunnel and all sessions MUST be cleared (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestPeerTeardownWithdrawsSubscriberRoute`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_test.go#L1204). **positive:** `unit/verify` [`TestTickMaxAttempts`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L414). **negative:** `unit/verify` [`TestTickMaxAttempts`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L417) |
+| `RFC2661-5.8-3` | If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared. (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestPeerTeardownWithdrawsSubscriberRoute`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_test.go#L1204). **positive:** `unit/verify` [`TestTickMaxAttempts`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L414). **negative:** `unit/verify` [`TestTickMaxAttempts`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L417) |
 | `RFC2661-5.8-4` | The retransmitted message contains the same Ns value, but the Nr value MUST be updated with the sequence number of the next expected message. (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestTickRetransmit`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L339). **negative:** `unit/verify` [`TestTickRetransmit`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L342) |
-| `RFC2661-5.8-5` | Duplicate control messages MUST be acknowledged (via ZLB or piggyback) even though not processed by upper layer (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestOnReceiveDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L146). **negative:** `unit/verify` [`TestOnReceiveDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L148) |
+| `RFC2661-5.8-5` | Such a message would be considered a duplicate of a message already received and ignored from processing. However, in order to ensure that all messages are acknowledged properly (particularly in the case of a lost ZLB ACK message), receipt of duplicate messages MUST be acknowledged by the reliable transport. This acknowledgement may either piggybacked on a message in queue, or explicitly via a ZLB ACK. (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestOnReceiveDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L146). **negative:** `unit/verify` [`TestOnReceiveDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L148) |
 | `RFC2661-5.8-6` | An implementation may support a receive window of only 1 (i.e., by sending out a Receive Window Size AVP with a value of 1), but MUST accept a window of up to 4 from its peer (e.g. have the ability to send 4 messages before backing off). (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestWindowAvailable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_window_test.go#L183). **negative:** `unit/verify` [`TestWindowPeerRWSZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_window_test.go#L112) |
 | `RFC2661-5.8-7` | When a tunnel is being shut down for reasons other than loss of connectivity, the state and reliable delivery mechanisms MUST be maintained and operated for the full retransmission interval after the final message exchange has occurred. (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestExpired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L560). **positive:** `unit/verify` [`TestPostTeardownAckRetention`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_integration_test.go#L191). **negative:** `unit/verify` [`TestExpired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L563). **negative:** `unit/verify` [`TestPostTeardownAckRetention`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_integration_test.go#L195) |
-| `RFC2661-4.3-1` | A Random Vector AVP (type 36) MUST precede any hidden AVP (H=1) in the same message (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the hidden-AVP MD5 cipher is implemented and unit-tested but is not wired into any control-message path -- no encoder sets H=1 or emits a Random Vector, and decoders skip hidden AVPs without decrypting or checking precedence (internal/component/l2tp/hidden.go:38 has no production caller; avp.go:156-168 skips hidden AVPs; AVPRandomVector avp.go:56 never emitted) |
-| `RFC2661-6.1-1` | Every AVP RFC 2661 Section 6.1 makes mandatory in an SCCRQ is required, and an SCCRQ missing one is answered with StopCCN rather than dropped in silence. RFC 2661 Section 6.1: "The following AVPs MUST be present in the SCCRQ: Message Type AVP, Protocol Version, Host Name, Framing Capabilities, Assigned Tunnel ID"; RFC 2661 Section 7.1: "Examples of a malformed control message include ... a message that is missing a required AVP", and receipt of one "should be logged appropriately and the control connection cleared to ensure recovery to a known state" (§6.1) | MUST | 6.1 | **positive:** `unit/verify` [`TestSCCRQWithEveryMandatoryAVPEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L108). **negative:** `unit/verify` [`TestSCCRQMissingMandatoryAVPIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L45). **negative:** `unit/verify` [`TestSCCRQWithShortFramingCapabilitiesIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L149). **positive:** `functional/verify` [`rfc2661-sccrq-mandatory-avp.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L28). **negative:** `functional/verify` [`rfc2661-sccrq-mandatory-avp.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L24) |
-| `RFC2661-6.2-1` | Every AVP RFC 2661 Section 6.2 makes mandatory in an SCCRP is required, and an SCCRP missing one tears the dialed tunnel down with StopCCN rather than establishing it. RFC 2661 Section 6.2: "The following AVPs MUST be present in the SCCRP: Message Type, Protocol Version, Framing Capabilities, Host Name, Assigned Tunnel ID"; RFC 2661 Section 7.2.1 gives wait-ctl-reply the row "Receive SCCRP, not acceptable \| Send StopCCN, Clean up \| idle" (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestSCCRPWithEveryMandatoryAVPEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go#L108). **negative:** `unit/verify` [`TestSCCRPMissingMandatoryAVPTearsTheTunnelDown`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go#L58) |
-| `RFC2661-24.10-1` | Assigned Tunnel ID of 0 in SCCRQ/SCCRP is a protocol error; reject with StopCCN. RFC 2661 Section 4.4.3: "The Assigned Tunnel ID is a 2 octet non-zero unsigned integer"; RFC 2661 Section 5.3: the value 0 "MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID". The id anchor below numbers no section of RFC 2661 and is frozen (§24.10) | MUST | 24.10 | **positive:** `unit/verify` [`TestSCCRQWithNonZeroAssignedTunnelIDEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_zero_tid_test.go#L117). **positive:** `unit/verify` [`TestTunnelInitiatorHandshake`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_test.go#L137). **negative:** `unit/verify` [`TestParseSCCRP_Rejects`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_test.go#L109). **negative:** `unit/verify` [`TestSCCRQWithZeroAssignedTunnelIDIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_zero_tid_test.go#L75). **positive:** `functional/verify` [`rfc2661-sccrq-tunnel-id-zero.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#L24). **negative:** `functional/verify` [`rfc2661-sccrq-tunnel-id-zero.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#L21) |
-| `RFC2661-24.12-1` | Unknown M=1 vendor AVP in a session context tears down the session with CDN, not the tunnel with StopCCN. RFC 2661 Section 4.1 states the session/tunnel split and RFC 2661 Section 4.2 states the consequence. The id anchor below numbers no section of RFC 2661 and is frozen (§24.12) | MUST | 24.12 | **positive:** `unit/verify` [`TestSession_UnknownMandatoryAVP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L561). **negative:** `unit/verify` [`TestSession_UnknownMandatoryAVP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L563) |
-| `RFC2661-10-1` | CDN is valid in any non-idle session state; receiving CDN destroys the session. RFC 2661 Section 5.6 states session teardown by CDN and RFC 2661 Section 7.4.2 gives the state table. The id anchor below is frozen and does NOT name Section 10, which is IANA Considerations (§10) | MUST | 10 | **positive:** `unit/verify` [`TestSession_CDN_AnyState`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L342). **positive:** `unit/verify` [`TestSession_CDN_EstablishedSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L313). **negative:** `unit/verify` [`TestSession_CDN_UnknownSessionDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L366) |
-| `RFC2661-9-1` | StopCCN cascades: all sessions in a tunnel are cleared when StopCCN is received. RFC 2661 Section 5.7: an implementation "may shut down an entire tunnel and all sessions on the tunnel by sending the StopCCN". The id anchor below is frozen and does NOT name Section 9, which is Security Considerations (§9) | MUST | 9 | **positive:** `unit/verify` [`TestSession_StopCCN_CascadeSessions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L403). **negative:** `unit/verify` [`TestStopCCNQueuesAllTeardowns`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L814) |
-| `RFC2661-10-2` | Session ID 0 is reserved and never assigned. RFC 2661 Section 5.3: "The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID". The id anchor below is frozen and does NOT name Section 10, which is IANA Considerations (§10) | MUST | 10 | **positive:** `unit/verify` [`TestSession_SIDBoundary_MaxUint16`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L1041). **negative:** `unit/verify` [`TestSession_SIDBoundary_Zero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L1055) |
+| `RFC2661-4.3-1` | If the H bit is set in any AVP(s) in a given control message, a Random Vector AVP must also be present in the message and MUST precede the first AVP having an H bit of 1. (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the hidden-AVP MD5 cipher is implemented and unit-tested but is not wired into any control-message path -- no encoder sets H=1 or emits a Random Vector, and decoders skip hidden AVPs without decrypting or checking precedence (internal/component/l2tp/hidden.go:38 has no production caller; avp.go:156-168 skips hidden AVPs; AVPRandomVector avp.go:56 never emitted) |
+| `RFC2661-6.1-1` | The following AVPs MUST be present in the SCCRQ: Message Type AVP Protocol Version Host Name Framing Capabilities Assigned Tunnel ID (§6.1) | MUST | 6.1 | **positive:** `unit/verify` [`TestSCCRQWithEveryMandatoryAVPEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L108). **negative:** `unit/verify` [`TestSCCRQMissingMandatoryAVPIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L45). **negative:** `unit/verify` [`TestSCCRQWithShortFramingCapabilitiesIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L149). **positive:** `functional/verify` [`rfc2661-sccrq-mandatory-avp.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L28). **negative:** `functional/verify` [`rfc2661-sccrq-mandatory-avp.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L24) |
+| `RFC2661-6.2-1` | The following AVPs MUST be present in the SCCRP: Message Type Protocol Version Framing Capabilities Host Name Assigned Tunnel ID (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestSCCRPWithEveryMandatoryAVPEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go#L108). **negative:** `unit/verify` [`TestSCCRPMissingMandatoryAVPTearsTheTunnelDown`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go#L58) |
+| `RFC2661-24.10-1` | The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID. (§5.3) | MUST NOT | 5.3 | **positive:** `unit/verify` [`TestSCCRQWithNonZeroAssignedTunnelIDEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_zero_tid_test.go#L117). **positive:** `unit/verify` [`TestTunnelInitiatorHandshake`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_test.go#L137). **negative:** `unit/verify` [`TestParseSCCRP_Rejects`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_test.go#L109). **negative:** `unit/verify` [`TestSCCRQWithZeroAssignedTunnelIDIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_zero_tid_test.go#L75). **positive:** `functional/verify` [`rfc2661-sccrq-tunnel-id-zero.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#L24). **negative:** `functional/verify` [`rfc2661-sccrq-tunnel-id-zero.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#L21) |
+| `RFC2661-24.12-1` | If the M bit is set on an unrecognized AVP within a message associated with a particular session, the session associated with this message MUST be terminated. If the M bit is set on an unrecognized AVP within a message associated with the overall tunnel, the entire tunnel (and all sessions within) MUST be terminated. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestSession_UnknownMandatoryAVP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L561). **negative:** `unit/verify` [`TestSession_UnknownMandatoryAVP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L563) |
+| `RFC2661-10-1` | The Call-Disconnect-Notify (CDN) message is an L2TP control message sent by either the LAC or LNS to request disconnection of a specific call within the tunnel. Its purpose is to inform the peer of the disconnection and the reason why the disconnection occurred. The peer MUST clean up any resources, and does not send back any indication of success or failure for such cleanup. (§6.12) | MUST | 6.12 | **positive:** `unit/verify` [`TestSession_CDN_AnyState`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L342). **positive:** `unit/verify` [`TestSession_CDN_EstablishedSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L313). **negative:** `unit/verify` [`TestSession_CDN_UnknownSessionDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L366) |
+| `RFC2661-9-1` | Stop-Control-Connection-Notification (StopCCN) is a control message sent by either the LAC or LNS to inform its peer that the tunnel is being shutdown and the control connection should be closed. In addition, all active sessions are implicitly cleared (without sending any explicit call control messages). (§6.4) | MUST | 6.4 | **positive:** `unit/verify` [`TestSession_StopCCN_CascadeSessions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L403). **negative:** `unit/verify` [`TestStopCCNQueuesAllTeardowns`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L814) |
+| `RFC2661-10-2` | The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID. (§5.3) | MUST NOT | 5.3 | **positive:** `unit/verify` [`TestSession_SIDBoundary_MaxUint16`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L1041). **negative:** `unit/verify` [`TestSession_SIDBoundary_Zero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L1055) |
 | `RFC2661-3.1-1` | This bit MUST be set to 1 for control messages (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC2661HeaderFlagWord`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L19). **negative:** no negative test. **{single-polarity}:** a received word with T=0 is a data message by definition (header.go::ParseMessageHeader sets IsControl false and reactor.go::handle drops it), so no violating control input exists |
 | `RFC2661-3.1-2` | The S bit MUST be set to 1 for control messages (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC2661HeaderFlagWord`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L21). **negative:** `unit/verify` [`TestRFC2661ControlHeaderWithoutSequenceRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L77) |
 | `RFC2661-3.1-3` | The O bit MUST be set to 0 (zero) for control messages (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC2661HeaderFlagWord`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L23). **negative:** no negative test. **{single-polarity}:** the RFC states a sender obligation and no receiver refusal, so the only assertable behavior is the O=0 header.go::WriteControlHeader stamps |
@@ -145,14 +147,14 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 | `RFC2661-4.3-3` | The H bit MUST only be set if a shared secret exists between the LAC and LNS (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L211). **negative:** no negative test. **{single-polarity}:** no writer sets H=1 until hiding is wired (RFC2661-4.3-1), so there is no hidden AVP to refuse; every body writer emits H=0 |
 | `RFC2661-4.4.1-1` | Thus, if the M-bit is set within the Message Type AVP and the Message Type is unknown to the implementation, the tunnel MUST be cleared (§4.4.1) | MUST | 4.4.1 | **positive:** `unit/verify` [`TestUnknownMessageTypeClearsTunnelWhenMandatory`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_type_rfc2661_test.go#L30). **negative:** `unit/verify` [`TestUnknownMessageTypeClearsTunnelWhenMandatory`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_type_rfc2661_test.go#L31) |
 | `RFC2661-4.4.1-2` | The M-bit MUST be set to 1 for all message types defined in this document (§4.4.1) | MUST | 4.4.1 | **positive:** `unit/verify` [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L202). **negative:** no negative test. **{single-polarity}:** a sender obligation on the eleven message writers. reliable.go::makeRecvEntry preserves the received M-bit so handleMessage can reject unknown mandatory types, but the RFC states no receiver refusal of a known type with M=0 |
-| `RFC2661-4.4-3` | Every AVP whose Section 4.4 definition states "This AVP MUST NOT be hidden (the H-bit MUST be 0)" MUST be sent with H=0 (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L209). **negative:** no negative test. **{single-polarity}:** a sender obligation; avp.go::skipHiddenAVP refuses every hidden AVP on receipt, so no receive-side input distinguishes the MUST-NOT-hide set |
-| `RFC2661-4.4-1` | Every mandatory AVP definition in Section 4.4 states "The M-bit for this AVP MUST be set to 1", so the sender MUST set M=1 on each of those AVPs (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L204). **negative:** no negative test. **{single-polarity}:** a sender obligation; the RFC states no receiver refusal of a mandatory AVP received with M=0 |
+| `RFC2661-4.4-3` | This AVP MUST NOT be hidden (the H-bit MUST be 0). (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L209). **negative:** no negative test. **{single-polarity}:** a sender obligation; avp.go::skipHiddenAVP refuses every hidden AVP on receipt, so no receive-side input distinguishes the MUST-NOT-hide set |
+| `RFC2661-4.4-1` | The M-bit for this AVP MUST be set to 1. (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L204). **negative:** no negative test. **{single-polarity}:** a sender obligation; the RFC states no receiver refusal of a mandatory AVP received with M=0 |
 | `RFC2661-4.4.2-1` | Human readable text in all error messages MUST be provided in the UTF-8 charset using the Default Language [RFC2277] (§4.4.2) | MUST | 4.4.2 | **positive:** `unit/verify` [`TestRFC2661ResultCodeMessageUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_rfc2661_test.go#L664). **negative:** no negative test. **{single-polarity}:** a sender obligation; tunnel_fsm.go::parseStopCCN refuses no message text and the RFC states no receiver refusal of invalid UTF-8 |
 | `RFC2661-4.4.3-1` | A peer MUST NOT request an incoming or outgoing call with a Framing Type AVP specifying a value not advertised in the Framing Capabilities AVP it received during control connection establishment (§4.4.3) | MUST NOT | 4.4.3 | **positive:** `unit/verify` [`TestRFC2661CallCapabilitiesChecked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_rfc2661_test.go#L431). **negative:** `unit/verify` [`TestRFC2661CallCapabilitiesChecked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_rfc2661_test.go#L433) |
 | `RFC2661-4.4.3-2` | This AVP MUST be present if the sender can place outgoing calls when requested (§4.4.3) | MUST | 4.4.3 | **positive:** `unit/verify` [`TestRFC2661BearerCapabilitiesEmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_rfc2661_test.go#L477). **negative:** no negative test. **{single-polarity}:** a sender obligation on tunnel_initiator.go::writeSCCRQBody and tunnel_fsm.go::writeSCCRPBody, which always write the AVP; the receive side of an absent AVP is RFC2661-6.9-1 |
 | `RFC2661-4.4.3-3` | The lower value "wins", and the "loser" MUST silently discard its tunnel (§4.4.3) | MUST | 4.4.3 | **positive:** `unit/verify` [`TestTieBreakerLoserDiscardsItsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tiebreaker_rfc2661_test.go#L32). **negative:** `unit/verify` [`TestTieBreakerWinnerKeepsItsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tiebreaker_rfc2661_test.go#L45) |
 | `RFC2661-4.4.3-4` | In the case where a tie breaker is present on both sides, and the value is equal, both sides MUST discard their tunnels (§4.4.3) | MUST | 4.4.3 | **positive:** `unit/verify` [`TestTieBreakerEqualDiscardsBoth`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tiebreaker_rfc2661_test.go#L59). **negative:** `unit/verify` [`TestTieBreakerUnequalKeepsOneTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tiebreaker_rfc2661_test.go#L72) |
-| `RFC2661-4.4-2` | Every optional AVP definition in Section 4.4 states "The M-bit for this AVP MUST be set to 0", so the sender MUST set M=0 on each of those AVPs (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L207). **negative:** no negative test. **{single-polarity}:** a sender obligation on the one M=0 AVP Ze emits (Tie Breaker); the RFC states no receiver refusal of an optional AVP received with M=1 |
+| `RFC2661-4.4-2` | The M-bit for this AVP MUST be set to 0. (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L207). **negative:** no negative test. **{single-polarity}:** a sender obligation on the one M=0 AVP Ze emits (Tie Breaker); the RFC states no receiver refusal of an optional AVP received with M=1 |
 | `RFC2661-4.4.3-5` | The Host Name is of arbitrary length, but MUST be at least 1 octet (§4.4.3) | MUST | 4.4.3 | **positive:** `unit/verify` [`TestRFC2661HostNameAtLeastOneOctet`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L440). **negative:** `unit/verify` [`TestRFC2661HostNameAtLeastOneOctet`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L442) |
 | `RFC2661-4.4.3-6` | The L2TP peer MUST place this value in the Tunnel ID header field of all control and data messages that it subsequently transmits over the associated tunnel (§4.4.3) | MUST | 4.4.3 | **positive:** `unit/verify` [`TestRFC2661HeaderTunnelIDBeforeAndAfterAssignment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_rfc2661_test.go#L183). **negative:** `unit/verify` [`TestRFC2661HeaderTunnelIDNeverWrong`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_rfc2661_test.go#L211) |
 | `RFC2661-4.4.3-7` | Before the Assigned Tunnel ID AVP is received from a peer, messages MUST be sent to that peer with a Tunnel ID value of 0 in the header of all control messages (§4.4.3) | MUST | 4.4.3 | **positive:** `unit/verify` [`TestRFC2661HeaderTunnelIDBeforeAndAfterAssignment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_rfc2661_test.go#L177). **negative:** `unit/verify` [`TestRFC2661HeaderTunnelIDNeverWrong`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_rfc2661_test.go#L206) |
@@ -211,19 +213,19 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 | `RFC2661-8.1-3` | An L2TP implementation running on a system which does not support L2F MUST silently discard all L2F packets (§8.1) | MUST | 8.1 | **positive:** `unit/verify` [`TestRFC2661UnknownVersionRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L100). **negative:** `unit/verify` [`TestRFC2661KnownVersionAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/message_rfc2661_test.go#L116) |
 | `RFC2661-8.2-1` | When operating in IP environments, L2TP MUST offer the UDP encapsulation described in 8.1 as its default configuration for IP operation (§8.2) | MUST | 8.2 | **positive:** `unit/verify` [`TestRFC2661UDPEncapsulationOffered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_rfc2661_test.go#L829). **negative:** no negative test. **{single-polarity}:** UDP is the only transport listener.go::newUDPListener offers, so there is nothing to refuse |
 | `RFC2661-9.5-2` | If the LNS chooses to implement proxy authentication, it MUST be able to be configured off, requiring a new round a PPP authentication initiated by the LNS (which may or may not include a new round of LCP negotiation) (§9.5) | MUST | 9.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no LNS proxy authentication exists to configure off; plan/spec-l2tp-proxy-authentication.md |
-| `RFC2661-5.8-8` | Retransmission count SHOULD be configurable (recommended 5) (§5.8) | SHOULD | 5.8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2661-x-2` | Slow start and congestion avoidance SHOULD be implemented (CWND/SSTHRESH per Appendix A) (Appendix A) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC2661-15-1` | HELLO keepalive SHOULD be sent when no control messages received for a configurable period (recommended 60 seconds). RFC 2661 Section 5.5 states the keepalive and RFC 2661 Section 6.5 the message. The id anchor below numbers no section of RFC 2661 and is frozen (§15) | SHOULD | 15 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2661-4.2-1` | Both peers MAY independently challenge each other during tunnel establishment. RFC 2661 Section 5.1.1 states tunnel authentication and RFC 2661 Section 4.4.3 defines the AVPs. The id anchor below is frozen and does NOT name Section 4.2, which is Mandatory AVPs (§4.2) | MAY | 4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2661-4.3-2` | Multiple hidden AVPs MAY share a single Random Vector AVP (§4.3) | MAY | 4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2661-5.8-9` | Out-of-order control messages MAY be queued or discarded (§5.8) | MAY | 5.8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2661-9.5-1` | Tie Breaker AVP MAY be included in SCCRQ for simultaneous-open resolution. RFC 2661 Section 4.4.3 defines the AVP and its resolution rule; RFC 2661 Section 7.2 names the collision. The id anchor below is frozen and does NOT name Section 9.5, which is Proxy PPP Authentication (§9.5) | MAY | 9.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.8-8` | If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable) (§5.8) | SHOULD | 5.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-x-2` | When retransmitting control messages, a slow start and congestion avoidance window adjustment procedure SHOULD be utilized. The recommended procedure for this is described in Appendix A. (§5.8) | SHOULD | 5.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-15-1` | Keepalives for the tunnel MAY be implemented by sending a HELLO if a period of time (a recommended default is 60 seconds, but SHOULD be configurable) has passed without receiving any message (data or control) from the peer. (§6.5) | SHOULD | 6.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.2-1` | L2TP incorporates a simple, optional, CHAP-like [RFC1994] tunnel authentication system during control connection establishment. If an LAC or LNS wishes to authenticate the identity of the peer it is contacting or being contacted by, a Challenge AVP is included in the SCCRQ or SCCRP message. (§5.1.1) | MAY | 5.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.3-2` | The same random vector may be used for more than one hidden AVP in the same message. (§4.3) | MAY | 4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.8-9` | Messages arriving out of order may be queued for in-order delivery when the missing messages are received, or they may be discarded requiring a retransmission by the peer. (§5.8) | MAY | 5.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-9.5-1` | The Following AVPs MAY be present in the SCCRQ: Bearer Capabilities Receive Window Size Challenge Tie Breaker Firmware Revision Vendor Name (§6.1) | MAY | 6.1 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC2661-4.3-1`](#rfc2661-4.3-1) A Random Vector AVP (type 36) MUST precede any hidden AVP (H=1) in the same message (§4.3) | {gap}, no test | the hidden-AVP MD5 cipher is implemented and unit-tested but is not wired into any control-message path -- no encoder sets H=1 or emits a Random Vector, and decoders skip hidden AVPs without decrypting or checking precedence (internal/component/l2tp/hidden.go:38 has no production caller; avp.go:156-168 skips hidden AVPs; AVPRandomVector avp.go:56 never emitted) |
+| [`RFC2661-4.3-1`](#rfc2661-4.3-1) If the H bit is set in any AVP(s) in a given control message, a Random Vector AVP must also be present in the message and MUST precede the first AVP having an H bit of 1. (§4.3) | {gap}, no test | the hidden-AVP MD5 cipher is implemented and unit-tested but is not wired into any control-message path -- no encoder sets H=1 or emits a Random Vector, and decoders skip hidden AVPs without decrypting or checking precedence (internal/component/l2tp/hidden.go:38 has no production caller; avp.go:156-168 skips hidden AVPs; AVPRandomVector avp.go:56 never emitted) |
 | [`RFC2661-3.1-7`](#rfc2661-3.1-7) In data messages, Nr is reserved and, if present (as indicated by the S-bit), MUST be ignored upon receipt (§3.1) | no test | no test carries this requirement id; annotated {lower-layer}: Linux l2tp_ppp; internal/component/l2tp/kernel_linux.go::pppSetupReal creates the pppol2tp session the data plane runs on and installs no value the module reads to ignore Nr; reactor.go::handle drops every data message before reading Ns or Nr, so no value Ze writes decides this field |
 | [`RFC2661-4.2-2`](#rfc2661-4.2-2) Use of the M-bit with new AVPs (those not defined in this document) MUST provide the ability to configure the associated feature off, such that the AVP is either not sent, or sent with the M-bit not set (§4.2) | {gap}, no test | Ze defines no AVP outside this document, so no feature exists to configure off; plan/spec-l2tp-new-avp-definitions.md |
 | [`RFC2661-4.4.5-1`](#rfc2661-4.4.5-1) This AVP MUST be present if proxy authentication is to be utilized (§4.4.5) | {gap}, no test | Ze offers no proxy authentication in either role, so the AVP is never emitted and never consumed; plan/spec-l2tp-proxy-authentication.md |
@@ -241,9 +243,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC2661-x-1`](#rfc2661-x-1)
 
-Reserved bits 8-11 in L2TP header MUST be 0 (Wire Format)
+All reserved bits MUST be set to 0 on outgoing messages and ignored on incoming messages. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Send clause: forbidden = a reserved header bit emitted as 1; header_test.go::TestWriteControlHeader asserts word&reserved==0 and the emitted-shape .ci reads the control header off the wire. Receive clause 'ignored on incoming messages': forbidden = a message with a reserved bit set rejected or mis-parsed; no tagged unit feeds a non-zero reserved bit and asserts the message is still processed, and the row's single-polarity marker (no negative) is now wrong for the receive clause. Data-message headers are not asserted by a tagged unit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -252,9 +254,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-4.1-1`](#rfc2661-4.1-1)
 
-AVP reserved bits 2-5 MUST be zero on send; non-zero on receive means treat AVP as unrecognized (§4.1)
+Reserved bits MUST be set to 0. An AVP received with a reserved bit set to 1 MUST be treated as an unrecognized AVP. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Send clause: forbidden = AVP reserved bit emitted 1; avp_test.go::TestAVPCatalogRoundTrip and the .ci assert no FlagReserved on emitted AVPs. Receive clause 'MUST be treated as an unrecognized AVP': forbidden = honouring such an AVP; avp_test.go::TestAVPIteratorReservedBits only asserts the iterator sets FlagReserved, not that a parser then treats the AVP as unrecognized (tear down for M=1, ignore for M=0).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -264,9 +266,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-4.1-2`](#rfc2661-4.1-2)
 
-Message Type AVP (type 0) MUST be the first AVP in every control message. RFC 2661 Section 4.4.1: "The Message Type AVP MUST be the first AVP in a message, immediately following the control message header". The id anchor below is frozen and does NOT name Section 4.1, which is AVP Format (§4.1)
+The Message Type AVP MUST be the first AVP in a message, immediately following the control message header (defined in section 3.1). (§4.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden = a control message whose first AVP is not Message Type. Tagged units assert it only for writeICRPBody (session_fsm_test.go::TestWriteICRPBody) and the SCCRP on the wire (.ci), plus receiver refusal of an SCCRQ with Host Name first (reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel). The other writers are not asserted by a unit tagged with this id; message_rfc2661_test.go::TestRFC2661WrittenAVPFlags checks every writer but is tagged RFC2661-4.4.1-2 only.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -276,9 +278,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-4.1-3`](#rfc2661-4.1-3)
 
-If M=1 and AVP is unrecognized and session-scoped, send CDN and tear down session (§4.1)
+If the M bit is set on an unrecognized AVP within a message associated with a particular session, the session associated with this message MUST be terminated. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden = keeping a session alive after an unrecognized M=1 AVP in a session message. session_fsm_test.go::TestSession_UnknownMandatoryAVP asserts only len(out)==1 and tunnel still established; it does not assert the one message is a CDN nor that the session is removed, so an implementation that ignored the AVP and answered ICRP would pass. Positive TestSession_IncomingLNS_ICRQ is fine.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -287,9 +289,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-4.1-4`](#rfc2661-4.1-4)
 
-If M=1 and AVP is unrecognized and tunnel-scoped, send StopCCN and tear down tunnel (§4.1)
+If the M bit is set on an unrecognized AVP within a message associated with the overall tunnel, the entire tunnel (and all sessions within) MUST be terminated. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden = keeping the tunnel after an unrecognized M=1 AVP in a tunnel message. tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN asserts StopCCN and state Closed, which goes red on that. Clause '(and all sessions within)': the case is an SCCCN before establishment, so no session exists; no tagged unit asserts sessions are cleared for a tunnel-scoped unknown M=1 AVP on an established tunnel.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -300,7 +302,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Each subsequent retransmission of a message MUST employ an exponential backoff interval. (§5.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden = retransmitting at a constant (non-exponential) interval. reliable_test.go::TestTickBackoffSchedule advances the clock by 1s,2s,4s,4s and asserts a retransmit occurred at each tick, but never asserts that NO retransmit fires before the doubled deadline; a constant 1s interval engine also retransmits at every one of those ticks, so no assertion goes red on the forbidden behaviour.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -310,7 +312,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This cap MUST be no less than 8 seconds per retransmission. (§5.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden = a backoff cap under 8 s. reliable_seq_test.go::TestBackoffCapAtLeast8Seconds asserts DefaultRTimeoutCap>=8s and that newTunnel (the reactor's construction path) yields engine rtimeoutCap>=8s; lowering the constant or the default wiring goes red. Row carries single-polarity.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -318,9 +320,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-5.8-3`](#rfc2661-5.8-3)
 
-After exhausting retransmissions without response, tunnel and all sessions MUST be cleared (§5.8)
+If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared. (§5.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. MUST clause: forbidden = keeping the tunnel/sessions after retransmissions are exhausted; reliable_test.go::TestTickMaxAttempts asserts TeardownRequired after the budget and not before, and reactor_test.go::TestPeerTeardownWithdrawsSubscriberRoute asserts the established session is taken down. SHOULD clause in the same sentence '(a recommended default is 5, but SHOULD be configurable)': no tagged unit asserts the retransmission count is configurable.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -332,7 +334,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The retransmitted message contains the same Ns value, but the Nr value MUST be updated with the sequence number of the next expected message. (§5.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden = a retransmit carrying the stale Nr, or a new Ns. reliable_test.go::TestTickRetransmit asserts retransmit Nr==1 (updated) and Ns==0 (unchanged); either violation goes red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -341,9 +343,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-5.8-5`](#rfc2661-5.8-5)
 
-Duplicate control messages MUST be acknowledged (via ZLB or piggyback) even though not processed by upper layer (§5.8)
+Such a message would be considered a duplicate of a message already received and ignored from processing. However, in order to ensure that all messages are acknowledged properly (particularly in the case of a lost ZLB ACK message), receipt of duplicate messages MUST be acknowledged by the reliable transport. This acknowledgement may either piggybacked on a message in queue, or explicitly via a ZLB ACK. (§5.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden = a duplicate reprocessed, or a duplicate not acknowledged. reliable_test.go::TestOnReceiveDuplicate asserts Class==ClassDuplicate, Delivered empty (ignored from processing) and NeedsZLB true after the piggyback cleared it (MUST be acknowledged). The piggyback/ZLB alternative is permissive.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -354,7 +356,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 An implementation may support a receive window of only 1 (i.e., by sending out a Receive Window Size AVP with a value of 1), but MUST accept a window of up to 4 from its peer (e.g. have the ability to send 4 messages before backing off). (§5.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden = refusing to honour a peer window of up to 4. reliable_window_test.go::TestWindowAvailable asserts available(0)==4 with peerRWS=4 and cwnd=4, which goes red on a clamp below 4. The negative tag on reliable_window_test.go::TestWindowPeerRWSZero proves the neighbouring rule 'A value of 0 for the Receive Window Size AVP is invalid', not this sentence, so the row has no valid negative and no single-polarity marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -365,7 +367,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 When a tunnel is being shut down for reasons other than loss of connectivity, the state and reliable delivery mechanisms MUST be maintained and operated for the full retransmission interval after the final message exchange has occurred. (§5.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Forbidden: discarding tunnel state before the full retransmission interval after the final exchange. The tagged units prove only the engine predicate: Expired is false at +6s and true at +7s after Close for a test retention of 7s, and a duplicate StopCCN after Close is ClassDuplicate with NeedsZLB. The obligation is that the tunnel's state is MAINTAINED; the reactor's reap on engine.Expired (reactor.go) is in no tagged unit, so a reactor deleting the tunnel at StopCCN stays green. No unit ties the retention to the peer's full retransmit schedule (the last B retransmit at +7s coincides with Expired becoming true).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -376,7 +378,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-4.3-1`](#rfc2661-4.3-1)
 
-A Random Vector AVP (type 36) MUST precede any hidden AVP (H=1) in the same message (§4.3)
+If the H bit is set in any AVP(s) in a given control message, a Random Vector AVP must also be present in the message and MUST precede the first AVP having an H bit of 1. (§4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -384,9 +386,9 @@ No test carries RFC2661-4.3-1, so no unit is bound to it.
 
 ### [`RFC2661-6.1-1`](#rfc2661-6.1-1)
 
-Every AVP RFC 2661 Section 6.1 makes mandatory in an SCCRQ is required, and an SCCRQ missing one is answered with StopCCN rather than dropped in silence. RFC 2661 Section 6.1: "The following AVPs MUST be present in the SCCRQ: Message Type AVP, Protocol Version, Host Name, Framing Capabilities, Assigned Tunnel ID"; RFC 2661 Section 7.1: "Examples of a malformed control message include ... a message that is missing a required AVP", and receipt of one "should be logged appropriately and the control connection cleared to ensure recovery to a known state" (§6.1)
+The following AVPs MUST be present in the SCCRQ: Message Type AVP Protocol Version Host Name Framing Capabilities Assigned Tunnel ID (§6.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Receiver role: forbidden = accepting an SCCRQ that lacks one of the five AVPs; reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered has one case per AVP and asserts StopCCN and no tunnel. Sender role (Ze's own SCCRQ MUST carry the five): no tagged unit asserts it; message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted has no SCCRQ case.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -398,9 +400,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-6.2-1`](#rfc2661-6.2-1)
 
-Every AVP RFC 2661 Section 6.2 makes mandatory in an SCCRP is required, and an SCCRP missing one tears the dialed tunnel down with StopCCN rather than establishing it. RFC 2661 Section 6.2: "The following AVPs MUST be present in the SCCRP: Message Type, Protocol Version, Framing Capabilities, Host Name, Assigned Tunnel ID"; RFC 2661 Section 7.2.1 gives wait-ctl-reply the row "Receive SCCRP, not acceptable | Send StopCCN, Clean up | idle" (§6.2)
+The following AVPs MUST be present in the SCCRP: Message Type Protocol Version Framing Capabilities Host Name Assigned Tunnel ID (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Receiver role: tunnel_initiator_sccrp_mandatory_avp_test.go asserts StopCCN for an SCCRP missing Protocol Version, Framing Capabilities, Host Name or Assigned Tunnel ID; Message Type absence is covered only by an untagged test. Sender role (Ze's own SCCRP MUST carry the five): no tagged unit asserts it; message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted has no SCCRP case.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -409,9 +411,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-24.10-1`](#rfc2661-24.10-1)
 
-Assigned Tunnel ID of 0 in SCCRQ/SCCRP is a protocol error; reject with StopCCN. RFC 2661 Section 4.4.3: "The Assigned Tunnel ID is a 2 octet non-zero unsigned integer"; RFC 2661 Section 5.3: the value 0 "MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID". The id anchor below numbers no section of RFC 2661 and is frozen (§24.10)
+The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID. (§5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The sentence forbids using 0 as an Assigned Session ID or Assigned Tunnel ID. Tunnel clause: reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered asserts Ze's StopCCN carries a non-zero Assigned Tunnel ID, and the SCCRQ/SCCRP units assert refusal of a peer's zero value (receiver side of the same rule). Ze's own Assigned Tunnel ID in SCCRQ/SCCRP is not asserted non-zero by a tagged unit (TestTunnelInitiatorHandshake checks 100, not the allocator). Session clause: no tagged unit of this row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -424,9 +426,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-24.12-1`](#rfc2661-24.12-1)
 
-Unknown M=1 vendor AVP in a session context tears down the session with CDN, not the tunnel with StopCCN. RFC 2661 Section 4.1 states the session/tunnel split and RFC 2661 Section 4.2 states the consequence. The id anchor below numbers no section of RFC 2661 and is frozen (§24.12)
+If the M bit is set on an unrecognized AVP within a message associated with a particular session, the session associated with this message MUST be terminated. If the M bit is set on an unrecognized AVP within a message associated with the overall tunnel, the entire tunnel (and all sessions within) MUST be terminated. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Session clause: forbidden = escalating a session-scoped unknown M=1 AVP to tunnel teardown, or not terminating the session. session_fsm_test.go::TestSession_UnknownMandatoryAVP asserts the tunnel stays established, but only len(out)==1, not that the message is a CDN nor that the session is removed. Tunnel clause (the second sentence of the quote): no unit tagged with this id.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -435,9 +437,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-10-1`](#rfc2661-10-1)
 
-CDN is valid in any non-idle session state; receiving CDN destroys the session. RFC 2661 Section 5.6 states session teardown by CDN and RFC 2661 Section 7.4.2 gives the state table. The id anchor below is frozen and does NOT name Section 10, which is IANA Considerations (§10)
+The Call-Disconnect-Notify (CDN) message is an L2TP control message sent by either the LAC or LNS to request disconnection of a specific call within the tunnel. Its purpose is to inform the peer of the disconnection and the reason why the disconnection occurred. The peer MUST clean up any resources, and does not send back any indication of success or failure for such cleanup. (§6.12)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak (agrees with blind reader). Clause 'MUST clean up any resources': the units assert only tun.sessionCount()==0 after handleCDN; no assertion covers the kernel session, PPP or pool resources the session held, so leaking them stays green. Clause 'does not send back any indication': len(out)==0 is asserted only in TestSession_CDN_EstablishedSession, not in the wait-connect case. The negative TestSession_CDN_UnknownSessionDropped proves a neighbouring rule (a CDN for an unknown session ID is dropped).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -447,9 +449,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-9-1`](#rfc2661-9-1)
 
-StopCCN cascades: all sessions in a tunnel are cleared when StopCCN is received. RFC 2661 Section 5.7: an implementation "may shut down an entire tunnel and all sessions on the tunnel by sending the StopCCN". The id anchor below is frozen and does NOT name Section 9, which is Security Considerations (§9)
+Stop-Control-Connection-Notification (StopCCN) is a control message sent by either the LAC or LNS to inform its peer that the tunnel is being shutdown and the control connection should be closed. In addition, all active sessions are implicitly cleared (without sending any explicit call control messages). (§6.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden = sessions surviving a StopCCN. session_fsm_test.go::TestSession_StopCCN_CascadeSessions asserts sessionCount 0 and tunnel Closed; TestStopCCNQueuesAllTeardowns asserts no teardown before and three after. Clause '(without sending any explicit call control messages)': neither unit checks the return of handleStopCCN for CDNs, so emitting a CDN per session would pass.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -458,9 +460,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-10-2`](#rfc2661-10-2)
 
-Session ID 0 is reserved and never assigned. RFC 2661 Section 5.3: "The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID". The id anchor below is frozen and does NOT name Section 10, which is IANA Considerations (§10)
+The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID. (§5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The sentence forbids using 0 as an Assigned Session ID or Assigned Tunnel ID. session_fsm_test.go::TestSession_SIDBoundary_Zero asserts only that parseICRQ refuses a peer's Assigned Session ID 0 (receiver side); no tagged unit asserts Ze's own session-ID allocator never assigns 0, and the tunnel clause has no unit of this row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -590,9 +592,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-4.4-3`](#rfc2661-4.4-3)
 
-Every AVP whose Section 4.4 definition states "This AVP MUST NOT be hidden (the H-bit MUST be 0)" MUST be sent with H=0 (§4.4)
+This AVP MUST NOT be hidden (the H-bit MUST be 0). (§4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden = an AVP whose definition forbids hiding emitted with H=1. message_rfc2661_test.go::TestRFC2661WrittenAVPFlags walks every AVP of every body Ze writes and fails on any H=1. Row carries single-polarity.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -600,9 +602,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-4.4-1`](#rfc2661-4.4-1)
 
-Every mandatory AVP definition in Section 4.4 states "The M-bit for this AVP MUST be set to 1", so the sender MUST set M=1 on each of those AVPs (§4.4)
+The M-bit for this AVP MUST be set to 1. (§4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 re-run strict re-audit: weak. Forbidden: an AVP whose Section 4.4 definition fixes M=1 emitted with M=0. TestRFC2661WrittenAVPFlags compares each emitted AVP M bit to rfc2661MandatoryBit, but writtenBodies() walks only the ten body writers (SCCRQ, SCCRP, SCCCN, StopCCN, ICRQ, ICRP, ICCN, OCRQ, OCRP, CDN). The HELLO body is written separately in tunnel_fsm.go handleHelloTimer (WriteAVPUint16(*bodyBuf, 0, true, AVPMessageType, ...)); no tagged unit reads it, so flipping that mandatory argument to false emits a Message Type AVP with M=0 and turns nothing red. Every other emitted M=1 AVP is covered.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -663,9 +665,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2661-4.4-2`](#rfc2661-4.4-2)
 
-Every optional AVP definition in Section 4.4 states "The M-bit for this AVP MUST be set to 0", so the sender MUST set M=0 on each of those AVPs (§4.4)
+The M-bit for this AVP MUST be set to 0. (§4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden = an M=0-defined AVP (Tie Breaker, the one Ze emits) sent with M=1. message_rfc2661_test.go::TestRFC2661WrittenAVPFlags compares the emitted M bit to rfc2661MandatoryBit (false for Tie Breaker) over the SCCRQ writer that emits it. Row carries single-polarity.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1282,7 +1284,7 @@ No test carries RFC2661-9.5-2, so no unit is bound to it.
 | Field | Value |
 |---|---|
 | Reviewer | claude |
-| Signed off | 2026-09-21 |
+| Signed off | 2026-09-27 |
 | Register | rfc2119 |
 | Source | rfc/full/rfc2661.txt |
 | Source fingerprint | 5e39a4a0368bb9a6 |
@@ -1375,6 +1377,9 @@ No test carries RFC2661-9.5-2, so no unit is bound to it.
 | `11.0` | not stated | 0 | walked | not stated |
 | `12.0` | not stated | 0 | walked | not stated |
 | `13.0` | not stated | 0 | walked | not stated |
+| `A` | Appendix A | 0 | walked | Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `B` | Appendix B | 0 | walked | Appendix B. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `C` | Appendix C | 0 | walked | Appendix C. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
 
 ### Excluded sentences
 

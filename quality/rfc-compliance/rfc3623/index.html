@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3623 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3623: Graceful OSPF Restart. 13 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 3623: Graceful OSPF Restart. 13 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3623 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3623: Graceful OSPF Restart. 13 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 3623: Graceful OSPF Restart. 13 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3623 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3623: Graceful OSPF Restart. 13 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 3623: Graceful OSPF Restart. 13 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -119,7 +119,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>30.8%</strong><b>4 of 13 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>38.5%</strong><b>5 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>13.3%</strong><b>2 of 15 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>15.4%</strong><b>2 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>9</strong><b>of 13 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>2</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -221,16 +225,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>13</td>
+<td>15</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>13</td>
+<td>15</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>9</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3623.md</code></td>
@@ -309,7 +313,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze originates only the three RFC-defined TLVs (types 1/2/3) and adds none, and its decoder ignores unrecognized types, so the IETF-process obligation for additional TLVs binds no ze behavior (internal/plugins/ospf/packet/grace_lsa.go:44, :64)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-a-2">RFC3623-A-2</code></td><td colspan="3"><span class="rfc-subject">Grace Period TLV (type 1) must always appear in a grace-LSA (§A)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-a-2">RFC3623-A-2</code></td><td colspan="3"><span class="rfc-subject">Grace Period (Type=1, length=4). The number of seconds that the router&#39;s neighbors should continue to advertise the router as fully adjacent, regardless of the state of database synchronization between the router and its neighbors. Since this time period began when grace-LSA&#39;s LS age was equal to 0, the grace period terminates when either: a) the LS age of the grace-LSA exceeds the value of a Grace Period or b) the grace-LSA is flushed. See Section 3.2 for other conditions that terminate graceful restart. This TLV must always appear in a grace-LSA. (§A)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>A</td>
@@ -318,7 +322,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L75" title="internal/plugins/ospf/packet/grace_lsa_test.go" target="_blank" rel="noopener"><code>TestGraceLSADecodeMissingMandatory</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-a-3">RFC3623-A-3</code></td><td colspan="3"><span class="rfc-subject">Graceful restart reason TLV (type 2) must always appear in a grace-LSA (§A)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-a-3">RFC3623-A-3</code></td><td colspan="3"><span class="rfc-subject">Graceful restart reason (Type=2, length=1). Encodes the reason for the router restart as one of the following: 0 (unknown), 1 (software restart), 2 (software reload/upgrade) or 3 (switch to redundant control processor). This TLV must always appear in a grace-LSA. (§A)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>A</td>
@@ -327,7 +331,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L72" title="internal/plugins/ospf/packet/grace_lsa_test.go" target="_blank" rel="noopener"><code>TestGraceLSADecodeMissingMandatory</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-a-4">RFC3623-A-4</code></td><td colspan="3"><span class="rfc-subject">IP interface address TLV (type 3) required on broadcast, NBMA and Point-to-MultiPoint segments (§A, §3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-a-4">RFC3623-A-4</code></td><td colspan="3"><span class="rfc-subject">IP interface address (Type=3, length=4). The router&#39;s IP interface address on the subnet associated with the grace-LSA. Required on broadcast, NBMA and Point-to-MultiPoint segments, where the helper uses the IP interface address to identify the restarting router (see Section 3.1). (§A)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>A</td>
@@ -336,7 +340,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_lsa_test.go#L22" title="internal/plugins/ospf/gr_lsa_test.go" target="_blank" rel="noopener"><code>TestGraceLSAv4BodyBuild</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-a-5">RFC3623-A-5</code></td><td colspan="3"><span class="rfc-subject">DoNotAge is never set in a grace-LSA, even over a demand circuit (§A)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-a-5">RFC3623-A-5</code></td><td colspan="3"><span class="rfc-subject">DoNotAge is never set in a grace-LSA, even if the grace-LSA is flooded over a demand circuit [7]. (§A)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>A</td>
@@ -345,7 +349,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Grace-LSAs originate through OriginateOpaque, whose input struct has no DoNotAge field and starts LS age at 0 with normal aging, so the bit is never set and no negative behavior exists to test (internal/plugins/ospf/lsdb/opaque_as.go:73, gr_restarter.go:314, lsdb/entry.go:87)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.1-1">RFC3623-2.1-1</code></td><td colspan="3"><span class="rfc-subject">Before reload, ensure forwarding table(s) are up-to-date and remain in place across the restart (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.1-1">RFC3623-2.1-1</code></td><td colspan="3"><span class="rfc-subject">In preparation for the graceful restart, Router X must perform the following actions before its software is restarted/reloaded: (Note that common OSPF shutdown procedures are *not* performed, since we want the other OSPF routers to act as if Router X remains in continuous service. For example, Router X does not flush its locally originated LSAs, since we want them to remain in other routers&#39; link-state databases throughout the restart period.) 1) Router X must ensure that its forwarding table(s) is/are up- to-date and will remain in place across the restart. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -363,20 +367,22 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_unplanned_test.go#L16" title="internal/plugins/ospf/gr_unplanned_test.go" target="_blank" rel="noopener"><code>TestUnplannedDisabledByDefault</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-5-2">RFC3623-5-2</code></td><td colspan="3"><span class="rfc-subject">On unplanned restart, grace-LSAs must be originated and sent before any OSPF Hello packets; on broadcast networks flooded to AllSPFRouters 224.0.0.5 (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-5-2">RFC3623-5-2</code></td><td colspan="3"><span class="rfc-subject">The grace-LSAs must be originated and be sent *before* the restarted router sends any OSPF Hello Packets. On broadcast networks, this LSA must be flooded to the AllSPFRouters multicast address (224.0.0.5) since the restarting router is not aware of its previous DR state. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3623-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go#L45" title="internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go" target="_blank" rel="noopener"><code>TestRFC3623RestartGraceLSAFloodedToAllSPFRouters</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L151" title="internal/plugins/ospf/rfc3623_gr_positive_test.go" target="_blank" rel="noopener"><code>TestUnplannedGraceLSAFloodsToAllSPFRouters</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> maybeUnplannedRestart enters in-restart then originates one Grace-LSA per interface before interface Hellos begin, and link-local LSAs flood to AllSPFRouters via the standard link-scope path (internal/plugins/ospf/gr_restarter.go:105, lsdb_flooding_test.go:47)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-5-3">RFC3623-5-3</code></td><td colspan="3"><span class="rfc-subject">On unplanned restart, grace-LSAs are encapsulated in Link State Update packets and sent out all interfaces (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-5-3">RFC3623-5-3</code></td><td colspan="3"><span class="rfc-subject">The grace-LSAs are encapsulated in Link State Update Packets and sent out to all interfaces, even though the restarted router has no adjacencies and no knowledge of previous adjacencies. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3623-5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go#L43" title="internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go" target="_blank" rel="noopener"><code>TestRFC3623RestartGraceLSAFloodedToAllSPFRouters</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L193" title="internal/plugins/ospf/rfc3623_gr_positive_test.go" target="_blank" rel="noopener"><code>TestUnplannedGraceLSAPerActiveInterface</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> grOriginateGraceLSAs walks every active (non-passive) interface and floods each Grace-LSA via OriginateOpaque&#39;s standard LSU flooding (internal/plugins/ospf/gr_restarter.go:296, :315)</p></td>
@@ -399,7 +405,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the helper role keeps X advertised in Router/Network-LSAs but neither gr_helper.go nor gr.go has any virtual-link/transit-area handling, so the transit-area V-bit is not preserved while helping over a virtual link (internal/plugins/ospf/gr_helper.go:279)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-3.1-1">RFC3623-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Helper must refuse to enter helper mode if LSAs on X&#39;s retransmission list have changed content (not periodic refreshes) (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-3.1-1">RFC3623-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Router Y examines the link-state retransmission list for X over the associated network segment. - If there are any LSAs with LS types 1-5,7 on the list, then they all must be periodic refreshes. - If there are instead LSAs on the list whose contents have changed (see Section 3.3 of [7]), Y must refuse to enter helper mode. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -417,7 +423,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze tracks one helper session per (interface, router) and never aggregates adjacencies across segments, so the aggregated exit-all obligation binds a mode ze does not play (internal/plugins/ospf/gr.go:71)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.1-2">RFC3623-2.1-2</code></td><td colspan="3"><span class="rfc-subject">The grace period should not exceed LSRefreshTime (1800 seconds) (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.1-2">RFC3623-2.1-2</code></td><td colspan="3"><span class="rfc-subject">In order to avoid the restarting router&#39;s LSAs from aging out, the grace period should not exceed LSRefreshTime (1800 second) [1]. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>2.1</td>
@@ -426,7 +432,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.1-3">RFC3623-2.1-3</code></td><td colspan="3"><span class="rfc-subject">Retransmit grace-LSAs until acknowledged (standard OSPF reliable flooding) (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.1-3">RFC3623-2.1-3</code></td><td colspan="3"><span class="rfc-subject">If Router X wants to ensure that its neighbors receive the grace- LSAs, it should retransmit the grace-LSAs until they are acknowledged (i.e., perform standard OSPF reliable flooding of the grace-LSAs). (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1</td>
@@ -435,7 +441,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.1-4">RFC3623-2.1-4</code></td><td colspan="3"><span class="rfc-subject">After sending grace-LSAs, store the restart fact and grace-period length in non-volatile storage (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.1-4">RFC3623-2.1-4</code></td><td colspan="3"><span class="rfc-subject">After the grace-LSAs have been sent, the router should store the fact that it is performing graceful restart along with the length of the requested grace period in non-volatile storage. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1</td>
@@ -444,7 +450,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.3-1">RFC3623-2.3-1</code></td><td colspan="3"><span class="rfc-subject">On exit, reoriginate router-LSAs for all attached areas (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.3-1">RFC3623-2.3-1</code></td><td colspan="3"><span class="rfc-subject">The router should reoriginate its router-LSAs for all attached areas in order to make sure they have the correct contents. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.3</td>
@@ -453,7 +459,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.3-2">RFC3623-2.3-2</code></td><td colspan="3"><span class="rfc-subject">On exit, reoriginate network-LSAs on all segments where it is Designated Router (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.3-2">RFC3623-2.3-2</code></td><td colspan="3"><span class="rfc-subject">The router should reoriginate network-LSAs on all segments where it is the Designated Router. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.3</td>
@@ -462,7 +468,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.3-3">RFC3623-2.3-3</code></td><td colspan="3"><span class="rfc-subject">On exit, remove remnant pre-restart forwarding entries that are no longer valid (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.3-3">RFC3623-2.3-3</code></td><td colspan="3"><span class="rfc-subject">Any remnant entries in the system forwarding table that were installed before the restart, but that are no longer valid, should be removed. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.3</td>
@@ -471,7 +477,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.3-4">RFC3623-2.3-4</code></td><td colspan="3"><span class="rfc-subject">On exit, flush received self-originated LSAs that are no longer valid (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.3-4">RFC3623-2.3-4</code></td><td colspan="3"><span class="rfc-subject">Any received self-originated LSAs that are no longer valid should be flushed. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.3</td>
@@ -480,7 +486,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.3-5">RFC3623-2.3-5</code></td><td colspan="3"><span class="rfc-subject">On exit, flush any grace-LSAs the router originated (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.3-5">RFC3623-2.3-5</code></td><td colspan="3"><span class="rfc-subject">Any grace-LSAs that the router originated should be flushed. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.3</td>
@@ -489,7 +495,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.1-5">RFC3623-2.1-5</code></td><td colspan="3"><span class="rfc-subject">Preserve cryptographic sequence numbers (or the clock generating them) in non-volatile storage across restarts (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-2.1-5">RFC3623-2.1-5</code></td><td colspan="3"><span class="rfc-subject">The router may need to preserve the cryptographic sequence numbers being used on each interface in non-volatile storage. An alternative is to use the router&#39;s clock for cryptographic sequence number generation and ensure that the clock is preserved across restarts (either on the same or redundant route processors). (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.1</td>
@@ -498,7 +504,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-5-5">RFC3623-5-5</code></td><td colspan="3"><span class="rfc-subject">Send grace-LSAs multiple times on unplanned restart to improve delivery (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-5-5">RFC3623-5-5</code></td><td colspan="3"><span class="rfc-subject">To improve the probability that grace-LSAs will be delivered, an implementation may send them multiple times (see for example the Robustness Variable in [8]). (§5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5</td>
@@ -507,7 +513,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-3.1-2">RFC3623-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Helper may disallow graceful restart with X on other network segments (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-3.1-2">RFC3623-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Router Y may optionally disallow graceful restart with Router X on other network segments. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1</td>
@@ -516,7 +522,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-3.1-3">RFC3623-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Helper may aggregate adjacencies, entering helper mode only when checks pass for all adjacencies with X (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-3.1-3">RFC3623-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Alternately, Router Y may choose to enter helper mode when a grace- LSA is received and the above checks pass for all adjacencies with Router X. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1</td>
@@ -525,7 +531,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-3.2-2">RFC3623-3.2-2</code></td><td colspan="3"><span class="rfc-subject">Provide a configuration option to disable LSDB changes from terminating graceful restart (increases loop/black-hole risk) (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-3.2-2">RFC3623-3.2-2</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY provide a configuration option to disable link-state database options from terminating graceful restart. Such an option will, however, increase the risk of transient routing loops and black holes. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.2</td>
@@ -551,7 +557,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <td>{gap}, no test</td>
 <td>the helper role keeps X advertised in Router/Network-LSAs but neither gr_helper.go nor gr.go has any virtual-link/transit-area handling, so the transit-area V-bit is not preserved while helping over a virtual link (internal/plugins/ospf/gr_helper.go:279)</td>
 </tr>
-<tr><td><a href="#rfc3623-3.1-1"><code>RFC3623-3.1-1</code></a> Helper must refuse to enter helper mode if LSAs on X&#39;s retransmission list have changed content (not periodic refreshes) (§3.1)</td>
+<tr><td><a href="#rfc3623-3.1-1"><code>RFC3623-3.1-1</code></a> Router Y examines the link-state retransmission list for X over the associated network segment. - If there are any LSAs with LS types 1-5,7 on the list, then they all must be periodic refreshes. - If there are instead LSAs on the list whose contents have changed (see Section 3.3 of [7]), Y must refuse to enter helper mode. (§3.1)</td>
 <td>{gap}, no test</td>
 <td>the helper entry decision has an lsdb-changed branch, but the production caller hardcodes lsdbUnchanged=true, so no production path refuses entry on a changed retransmission-list LSA; the permissive entry is only mitigated by the Section 3.2 strict-checking exit (internal/plugins/ospf/gr_helper.go:40, :128)</td>
 </tr>
@@ -570,8 +576,8 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3623-A-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3623-a-2"><code>RFC3623-A-2</code></a></h3>
-<p>Grace Period TLV (type 1) must always appear in a grace-LSA (§A)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Grace Period (Type=1, length=4). The number of seconds that the router&#39;s neighbors should continue to advertise the router as fully adjacent, regardless of the state of database synchronization between the router and its neighbors. Since this time period began when grace-LSA&#39;s LS age was equal to 0, the grace period terminates when either: a) the LS age of the grace-LSA exceeds the value of a Grace Period or b) the grace-LSA is flushed. See Section 3.2 for other conditions that terminate graceful restart. This TLV must always appear in a grace-LSA. (§A)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The quote describes the Grace Period TLV and ends with its MUST: it always appears in a grace-LSA. Forbidden behaviour (a): a grace-LSA emitted without the type-1 TLV. (b) TestGraceLSARoundTrip asserts len(body) == opaqueTLVsLen(period, reason, addr) and a round-trip equal to the input, so an EncodeGraceLSA that dropped type 1 goes red; the negative TestGraceLSADecodeMissingMandatory asserts DecodeGraceLSA errors on the reasonOnly body. EncodeGraceLSA emits type 1 unconditionally. The descriptive clauses on the TLV value (neighbors keep advertising, grace-period end) are helper behaviour stated in sec 3 rows, not this row&#39;s obligation.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -590,8 +596,8 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc3623-a-3"><code>RFC3623-A-3</code></a></h3>
-<p>Graceful restart reason TLV (type 2) must always appear in a grace-LSA (§A)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Graceful restart reason (Type=2, length=1). Encodes the reason for the router restart as one of the following: 0 (unknown), 1 (software restart), 2 (software reload/upgrade) or 3 (switch to redundant control processor). This TLV must always appear in a grace-LSA. (§A)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour (a): a grace-LSA emitted without the type-2 Graceful restart reason TLV. (b) TestGraceLSARoundTrip asserts the body length includes the 1-octet reason TLV padded to 4 and the round-trip returns Reason=2, so omission goes red; TestGraceLSADecodeMissingMandatory asserts DecodeGraceLSA errors on the periodOnly body. The reason value range is a descriptive list, the MUST is presence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -610,8 +616,8 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc3623-a-4"><code>RFC3623-A-4</code></a></h3>
-<p>IP interface address TLV (type 3) required on broadcast, NBMA and Point-to-MultiPoint segments (§A, §3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>IP interface address (Type=3, length=4). The router&#39;s IP interface address on the subnet associated with the grace-LSA. Required on broadcast, NBMA and Point-to-MultiPoint segments, where the helper uses the IP interface address to identify the restarting router (see Section 3.1). (§A)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The TLV is required on broadcast, NBMA and Point-to-MultiPoint segments. TestGraceLSAv4BodyBuild passes sharedMedia=true or false straight into grV4Body, so it proves only that the flag adds the TLV. The mapping from segment type to that flag, grSharedMedia (gr_lsa.go), which the restarter calls, is asserted nowhere: grSharedMedia returning false for NBMA or Point-to-MultiPoint (or broadcast) keeps both tagged units green. The negative (p2p omits the TLV) asserts behaviour the RFC does not forbid.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -630,8 +636,8 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc3623-a-5"><code>RFC3623-A-5</code></a></h3>
-<p>DoNotAge is never set in a grace-LSA, even over a demand circuit (§A)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>DoNotAge is never set in a grace-LSA, even if the grace-LSA is flooded over a demand circuit [7]. (§A)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour (a): a grace-LSA whose LS age has the DoNotAge bit set. (b) TestGraceLSANeverSetsDoNotAge drives OriginateOpaque with the restarter&#39;s body and asserts grace.Header.Age.DoNotAge() is false and RawBytes[0]&amp;0x80 == 0, so an origination that set the bit goes red. The demand-circuit clause has no path in ze: no production code sets DoNotAgeBit (only types/lsage.go declares and reads it) and flooding copies the installed RawBytes, so the asserted bytes are the flooded bytes. Single-polarity marker holds.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -645,8 +651,8 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc3623-2.1-1"><code>RFC3623-2.1-1</code></a></h3>
-<p>Before reload, ensure forwarding table(s) are up-to-date and remain in place across the restart (§2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In preparation for the graceful restart, Router X must perform the following actions before its software is restarted/reloaded: (Note that common OSPF shutdown procedures are *not* performed, since we want the other OSPF routers to act as if Router X remains in continuous service. For example, Router X does not flush its locally originated LSAs, since we want them to remain in other routers&#39; link-state databases throughout the restart period.) 1) Router X must ensure that its forwarding table(s) is/are up- to-date and will remain in place across the restart. (§2.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quote requires the forwarding table to be up to date and to remain in place across the restart. TestPrepareRestartRetainsFIB asserts only that suppressInstall() turns true after prepareRestart. No tagged unit drives the engine stop and observes that the FIB entries survive (an engine stop that ignored the flag and ran RemoveAll stays green), and nothing asserts the table is brought up to date before the reload (a pending SPF result left uninstalled stays green).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -661,7 +667,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </div>
 <h3><a href="#rfc3623-5-1"><code>RFC3623-5-1</code></a></h3>
 <p>In any event, implementors providing the option to recover gracefully from unplanned outages must allow a network operator to turn the option off. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The obligation is that the operator can turn unplanned recovery off. The tagged units set gracefulRestartConfig directly (grEnableEngine / configure) and assert the engine gate: off means no restart, planned-and-unplanned means restart. The operator surface, the restarter-support leaf parsed in config.go (case planned-and-unplanned), is not exercised, so a parser that mapped every value to planned-and-unplanned, leaving the operator no off switch, keeps both units green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -680,12 +686,17 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc3623-5-2"><code>RFC3623-5-2</code></a></h3>
-<p>On unplanned restart, grace-LSAs must be originated and sent before any OSPF Hello packets; on broadcast networks flooded to AllSPFRouters 224.0.0.5 (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The grace-LSAs must be originated and be sent *before* the restarted router sends any OSPF Hello Packets. On broadcast networks, this LSA must be flooded to the AllSPFRouters multicast address (224.0.0.5) since the restarting router is not aware of its previous DR state. (§5)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. floodLink sends a Grace-LSA originated in restart (isGraceLSA, selfFlushSuppressed) to AllSPFRouters on every interface type (allSPFRoutersFor). TestRFC3623RestartGraceLSAFloodedToAllSPFRouters asserts a broadcast DROther interface sends it to 224.0.0.5, not AllDRouters. Weak: the &#39;before any Hello&#39; ordering clause is not asserted by this unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go#L45" title="internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go" target="_blank" rel="noopener"><code>TestRFC3623RestartGraceLSAFloodedToAllSPFRouters</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L151" title="internal/plugins/ospf/rfc3623_gr_positive_test.go" target="_blank" rel="noopener"><code>TestUnplannedGraceLSAFloodsToAllSPFRouters</code></a></td>
 <td>unit/verify</td>
@@ -695,12 +706,17 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc3623-5-3"><code>RFC3623-5-3</code></a></h3>
-<p>On unplanned restart, grace-LSAs are encapsulated in Link State Update packets and sent out all interfaces (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The grace-LSAs are encapsulated in Link State Update Packets and sent out to all interfaces, even though the restarted router has no adjacencies and no knowledge of previous adjacencies. (§5)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. floodLink sends a Grace-LSA originated in restart in a Link State Update even when no neighbor qualified for the retransmit list. TestRFC3623RestartGraceLSAFloodedToAllSPFRouters asserts one send with no neighbor while restarting and none outside restart; red observed with the restart branch disabled (scratch DF-OSPF-B/red-gr.log).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go#L43" title="internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go" target="_blank" rel="noopener"><code>TestRFC3623RestartGraceLSAFloodedToAllSPFRouters</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L193" title="internal/plugins/ospf/rfc3623_gr_positive_test.go" target="_blank" rel="noopener"><code>TestUnplannedGraceLSAPerActiveInterface</code></a></td>
 <td>unit/verify</td>
@@ -711,7 +727,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </div>
 <h3><a href="#rfc3623-5-4"><code>RFC3623-5-4</code></a></h3>
 <p>o The restart reason in the grace-LSAs must be set to 0 (unknown) or 3 (switch to redundant control processor). (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The obligation is on the reason carried IN the grace-LSAs. The tagged unit asserts grUnplannedReason() and e.gr.reason are 0 or 3, but never decodes an originated grace-LSA (the engine in TestUnplannedGraceBeforeHello has no running interface, so none is originated). maybeUnplannedRestart passing another reason to grOriginateGraceLSAs than it records keeps the unit green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -729,7 +745,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3623-3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3623-3.1-1"><code>RFC3623-3.1-1</code></a></h3>
-<p>Helper must refuse to enter helper mode if LSAs on X&#39;s retransmission list have changed content (not periodic refreshes) (§3.1)</p>
+<p>Router Y examines the link-state retransmission list for X over the associated network segment. - If there are any LSAs with LS types 1-5,7 on the list, then they all must be periodic refreshes. - If there are instead LSAs on the list whose contents have changed (see Section 3.3 of [7]), Y must refuse to enter helper mode. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3623-3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3623-3.2-1"><code>RFC3623-3.2-1</code></a></h3>
@@ -990,7 +1006,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

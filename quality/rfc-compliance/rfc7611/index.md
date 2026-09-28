@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 5 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 5 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 5 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 33.3% | 2 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 0.0% | 0 of 6 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -27,6 +27,14 @@ measures that are neither good news nor bad
 | Not applicable | 20.0% | 1 of 5 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 5 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 20.0% | 1 of 5 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 2 | of 5 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 5 |
 | Not applicable, so out of scope | 1 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 6 |
 | Tagged units | 6 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 2 |
 | Discrimination records | 2 |
 | Summary | `rfc/short/rfc7611.md` |
 | Requirement shard | `rfc/requirements/rfc7611.md` |
@@ -96,12 +105,12 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 |---|---|---|---|---|
 | `RFC7611-2.1-1` | A route MUST NOT ever be accepted back into its source VRF, even if it carries one or more RTs that match that VRF (§2.1) | MUST NOT | 2.1 | **positive:** `unit/verify` [`TestRFC7611OwnRouteNeverReacceptedIntoSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L86). **negative:** `unit/verify` [`TestRFC7611OwnRouteNeverReacceptedIntoSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L82) |
 | `RFC7611-2.2-1` | Likewise, if a route carrying the ACCEPT_OWN community is received in an address family that does not allow the source VRF to be looked up, the ACCEPT_OWN community MUST be discarded. (§2.2) | MUST | 2.2 | **positive:** `unit/verify` [`TestACCEPTOwnFamilyBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L17). **negative:** `unit/verify` [`TestACCEPTOwnFamilyBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L18) |
-| `RFC7611-2.2-2` | When propagating routes into a VRF, the ACCEPT_OWN community SHOULD NOT be propagated, and it SHOULD NOT be attached to any routes that cannot be associated with a source VRF (§2.2) | SHOULD NOT | 2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7611-2.2-2` | As such, it SHOULD NOT be attached to any routes that cannot be associated with a source VRF. This implies that when propagating routes into a VRF, the ACCEPT_OWN community SHOULD NOT be propagated. (§2.2) | SHOULD NOT | 2.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7611-2.3-1` | ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled (§2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "ACCEPT_OWN handling SHOULD be controlled by configuration"; ze offers no ACCEPT_OWN configuration and never applies the Section 2.1 acceptance: internal/component/bgp/reactor/filter/loop.go::LoopIngress refuses an own-ORIGINATOR_ID route whatever community it carries |
 | `RFC7611-2.3-2` | When ACCEPT_OWN is disabled by configuration (either explicitly or by default), the router MUST NOT apply the special route acceptance rules detailed in Section 2.1. (§2.3) | MUST NOT | 2.3 | **positive:** `unit/verify` [`TestACCEPTOwnDoesNotEnableAcceptanceImplicitly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L57). **negative:** `unit/verify` [`TestACCEPTOwnDoesNotEnableAcceptanceImplicitly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L58) |
 | `RFC7611-3-1` | This extra step MUST only be invoked during the best path selection process of VPN-IP routes [RFC4364] (i.e., it MUST NOT be invoked for the best path selection of imported IP routes in a VRF). (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Optional ACCEPT_OWN re-import is disabled. Ze does not invoke the extra decision-process step; ordinary ORIGINATOR_ID, NEXT_HOP and AS_PATH loop checks remain active. The separate non-RD receive rule is implemented in internal/component/bgp/reactor/session_accept_own.go. |
-| `RFC7611-2-1` | Processing of the ACCEPT_OWN community SHOULD be controlled by configuration, and the functionality SHOULD default to being disabled (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7611-5-1` | Where a BGP speaker maintains multiple routing contexts by an approach other than RFC 4364, "VRF" should be understood to mean whatever construct provides a routing context, "Route Distinguisher" whatever construct allows a route's originator to associate that route with its source context, and "Route Target" whatever construct allows a route to be targeted for import into a context other than its source (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7611-2-1` | Processing of the ACCEPT_OWN community SHOULD be controlled by configuration. The functionality SHOULD default to being disabled, as further specified in Section 2.3. (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7611-5-1` | This approach may also be relevant in other scenarios where a BGP speaker maintains multiple routing contexts using an approach different from that of [RFC4364], as long as the specific approach in use has the property that the BGP speaker originates and receives routes within a particular context. In such a case, "VRF" in this document should be understood to mean whatever construct provides a routing context in the specific technology under consideration. Likewise, "Route Distinguisher" should be understood to mean whatever construct allows a route's originator to associate that route with its source context, and "Route Target" should be understood to mean whatever construct allows a route to be targeted for import into a context other than its source. (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -122,14 +131,14 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7611OwnRouteNeverReacceptedIntoSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L82) | unit/verify | revert, verified |
-| positive | [`TestRFC7611OwnRouteNeverReacceptedIntoSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L86) | unit/verify | revert, verified |
+| negative | [`TestRFC7611OwnRouteNeverReacceptedIntoSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L82) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7611OwnRouteNeverReacceptedIntoSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L86) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7611-2.2-1`](#rfc7611-2.2-1)
 
 Likewise, if a route carrying the ACCEPT_OWN community is received in an address family that does not allow the source VRF to be looked up, the ACCEPT_OWN community MUST be discarded. (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: keeping ACCEPT_OWN on a route received in a family with no Route Distinguisher. TestACCEPTOwnFamilyBoundary drives s.enforceRFC7606 with an IPv4 route in the body NLRI and asserts the COMMUNITY attribute shrinks to the single 65001:100 value (red if either ACCEPT_OWN copy stays), and that a SAFI 128 MP_REACH route keeps it. The other input class the sentence covers, a non-RD family carried in MP_REACH_NLRI (IPv6 unicast, labeled unicast, flowspec), has no case: discardNonVPNAcceptOwn sets nonRD in the `default:` arm of its SAFI switch, and deleting that arm leaves the test green. The route whose only community is ACCEPT_OWN (kept == 0, attribute dropped) is also untested.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -148,7 +157,7 @@ No test carries RFC7611-2.3-1, so no unit is bound to it.
 
 When ACCEPT_OWN is disabled by configuration (either explicitly or by default), the router MUST NOT apply the special route acceptance rules detailed in Section 2.1. (§2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: accepting, because it carries ACCEPT_OWN, a route whose ORIGINATOR_ID or NEXT_HOP is this router, while ACCEPT_OWN is disabled (ze has no ACCEPT_OWN config, so always). TestACCEPTOwnDoesNotEnableAcceptanceImplicitly asserts LoopIngress returns accepted == false for ORIGINATOR_ID == RouterID with ACCEPT_OWN attached (red on any ACCEPT_OWN exemption) and accepted == true for another originator. NEXT_HOP half: LoopIngress holds no own-NEXT_HOP refusal, so ACCEPT_OWN has no refusal to bypass there; the only acceptance the community could change is the ORIGINATOR_ID one the test asserts.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

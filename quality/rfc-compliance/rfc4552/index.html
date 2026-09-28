@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4552 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4552: Authentication/Confidentiality for OSPFv3. 27 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4552: Authentication/Confidentiality for OSPFv3. 27 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4552 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4552: Authentication/Confidentiality for OSPFv3. 27 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4552: Authentication/Confidentiality for OSPFv3. 27 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4552 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4552: Authentication/Confidentiality for OSPFv3. 27 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4552: Authentication/Confidentiality for OSPFv3. 27 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>18.5%</strong><b>5 of 27 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 27 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 27 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>5</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>19</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>6</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>5</td>
@@ -379,7 +383,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> every installed policy is transport mode (buildIPsecPolicies Mode=ModeTransport, ipsec_install.go); there is no non-transport policy to reject</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-2">RFC4552-6-2</code></td><td colspan="3"><span class="rfc-subject">Multiple Security Policy Databases (SPDs) The implementation MUST support multiple SPDs with an SPD selection function that provides an ability to choose a specific SPD based on interface. (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-2">RFC4552-6-2</code></td><td colspan="3"><span class="rfc-subject">The implementation MUST support multiple SPDs with an SPD selection function that provides an ability to choose a specific SPD based on interface. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -397,7 +401,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> every policy carries source, destination, upper-protocol 89, and direction selectors (buildIPsecPolicies, ipsec_install.go); a selector set is emitted, never rejected</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-4">RFC4552-6-4</code></td><td colspan="3"><span class="rfc-subject">Interface ID tagging The implementation MUST be able to tag the inbound packets with the ID of the interface (physical or virtual) via which it arrived. (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-4">RFC4552-6-4</code></td><td colspan="3"><span class="rfc-subject">The implementation MUST be able to tag the inbound packets with the ID of the interface (physical or virtual) via which it arrived. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -424,7 +428,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L224" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecStreamCipherRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-7">RFC4552-6-7</code></td><td colspan="3"><span class="rfc-subject">The algorithm key words (MUST, MUST NOT, REQUIRED, SHOULD, SHOULD NOT) that appear in RFC 4305 [N6] are to be interpreted per RFC 2119 for OSPFv3 support as well, except when in conflict with the stream-cipher prohibition (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-7">RFC4552-6-7</code></td><td colspan="3"><span class="rfc-subject">Except when in conflict with the above statement, the key words &#34;MUST&#34;, &#34;MUST NOT&#34;, &#34;REQUIRED&#34;, &#34;SHOULD&#34;, and &#34;SHOULD NOT&#34; that appear in the [N6] document for algorithms to be supported are to be interpreted as described in [N7] for OSPFv3 support as well. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -505,7 +509,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the out/in/fwd proto-89 policies put the IPsec barrier around all OSPF traffic on the interface (buildIPsecPolicies, ipsec_install.go); the barrier is installed, never rejected</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-2">RFC4552-11-2</code></td><td colspan="3"><span class="rfc-subject">The SPD selection function MUST return an SPD with the following rule for all the interfaces that have OSPFv3 authentication/confidentiality disabled. (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-2">RFC4552-11-2</code></td><td colspan="3"><span class="rfc-subject">The SPD selection function MUST return an SPD with the following rule for all the interfaces that have OSPFv3 authentication/confidentiality disabled. No. source destination protocol action 1 any any OSPF bypass (§11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>11</td>
@@ -514,7 +518,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a disabled interface installs no require-policy (setConfig adds only interfaces with an IPsec block, ipsec_install.go), so its OSPF is bypassed by the kernel default; the bypass has no reject path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-3">RFC4552-11-3</code></td><td colspan="3"><span class="rfc-subject">No. source destination protocol action 1 any any OSPF bypass The SPD selection function MUST return an SPD with the following rules for all the interfaces that have OSPFv3 authentication/confidentiality enabled. (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-3">RFC4552-11-3</code></td><td colspan="3"><span class="rfc-subject">The SPD selection function MUST return an SPD with the following rules for all the interfaces that have OSPFv3 authentication/confidentiality enabled. No. source destination protocol action 2 fe80::/10 any OSPF protect 3 fe80::/10 any ESP/OSPF or AH/OSPF protect 4 src/128 dst/128 OSPF protect 5 src/128 dst/128 ESP/OSPF or AH/OSPF protect (§11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>11</td>
@@ -550,7 +554,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-8">RFC4552-6-8</code></td><td colspan="3"><span class="rfc-subject">The routing module SHOULD be able to configure, modify, and delete IPsec rules on the fly (mainly for securing virtual links) (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-8">RFC4552-6-8</code></td><td colspan="3"><span class="rfc-subject">The routing module SHOULD be able to configure, modify, and delete IPsec rules on the fly. This is needed mainly for securing virtual links. (§6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6</td>
@@ -586,7 +590,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-10.1-1">RFC4552-10.1-1</code></td><td colspan="3"><span class="rfc-subject">The three-step rekey procedure SHOULD be provided to rekey the routers on a link without dropping OSPFv3 protocol packets or disrupting the adjacency (§10.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-10.1-1">RFC4552-10.1-1</code></td><td colspan="3"><span class="rfc-subject">The following three-step procedure SHOULD be provided to rekey the routers on a link without dropping OSPFv3 protocol packets or disrupting the adjacency. (§10.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>10.1</td>
@@ -595,7 +599,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-10.3-1">RFC4552-10.3-1</code></td><td colspan="3"><span class="rfc-subject">The encryption and authentication keys SHOULD be changed at least every 90 days (§10.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-10.3-1">RFC4552-10.3-1</code></td><td colspan="3"><span class="rfc-subject">recommends that the encryption and authentication keys SHOULD be changed at least every 90 days (§10.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>10.3</td>
@@ -622,7 +626,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-3-3">RFC4552-3-3</code></td><td colspan="3"><span class="rfc-subject">In order to provide authentication to OSPFv3, implementations MAY support AH (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-3-3">RFC4552-3-3</code></td><td colspan="3"><span class="rfc-subject">In order to provide authentication to OSPFv3, implementations MUST support ESP and MAY support AH. (§3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3</td>
@@ -631,7 +635,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-5">RFC4552-11-5</code></td><td colspan="3"><span class="rfc-subject">The virtual-link SPD rules MAY alternatively be installed on all the interfaces (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-5">RFC4552-11-5</code></td><td colspan="3"><span class="rfc-subject">These rules MAY alternatively be installed on all the interfaces. (§11)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>11</td>
@@ -665,7 +669,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs the ESP encryption transform beside the integrity one, and Linux XFRM discards a packet whose decryption or integrity check fails</td>
 </tr>
-<tr><td><a href="#rfc4552-6-7"><code>RFC4552-6-7</code></a> The algorithm key words (MUST, MUST NOT, REQUIRED, SHOULD, SHOULD NOT) that appear in RFC 4305 [N6] are to be interpreted per RFC 2119 for OSPFv3 support as well, except when in conflict with the stream-cipher prohibition (§6)</td>
+<tr><td><a href="#rfc4552-6-7"><code>RFC4552-6-7</code></a> Except when in conflict with the above statement, the key words &#34;MUST&#34;, &#34;MUST NOT&#34;, &#34;REQUIRED&#34;, &#34;SHOULD&#34;, and &#34;SHOULD NOT&#34; that appear in the [N6] document for algorithms to be supported are to be interpreted as described in [N7] for OSPFv3 support as well. (§6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: an interpretation clause importing RFC 4305 [N6] algorithm keywords; RFC 4552 defines no independent behavior here. The concrete algorithm conformance lives in the config enums (ipsecAuthKeyLen and ipsecEncKeyLen, internal/plugins/ospf/config.go) and the stream-cipher carve-out is RFC4552-6-6</td>
 </tr>
@@ -805,8 +809,8 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </table>
 </div>
 <h3><a href="#rfc4552-6-2"><code>RFC4552-6-2</code></a></h3>
-<p>Multiple Security Policy Databases (SPDs) The implementation MUST support multiple SPDs with an SPD selection function that provides an ability to choose a specific SPD based on interface. (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The implementation MUST support multiple SPDs with an SPD selection function that provides an ability to choose a specific SPD based on interface. (§6)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: one SPD applied regardless of interface. Ze realises the per-interface SPD as IfIndex-scoped XFRM policies; TestIPsecPoliciesInterfaceScopedWildcard asserts every installed policy has IfIndex == testIfIndex, red if a policy were global (IfIndex 0), and TestIPsecDisabledInterfaceBypass asserts a disabled interface on the same installer gets no policy. Single-polarity marker: no reject path.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -835,8 +839,8 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </table>
 </div>
 <h3><a href="#rfc4552-6-4"><code>RFC4552-6-4</code></a></h3>
-<p>Interface ID tagging The implementation MUST be able to tag the inbound packets with the ID of the interface (physical or virtual) via which it arrived. (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The implementation MUST be able to tag the inbound packets with the ID of the interface (physical or virtual) via which it arrived. (§6)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: inbound OSPF handled without regard to its arrival interface. The kernel tags; Ze owns the interface selector it installs. TestIPsecPoliciesInterfaceScopedWildcard asserts the policy set contains the SADirIn direction and that every policy, the inbound one included, carries IfIndex == testIfIndex, red if the inbound policy were unscoped. Single-polarity marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -885,7 +889,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </table>
 </div>
 <h3><a href="#rfc4552-6-7"><code>RFC4552-6-7</code></a></h3>
-<p>The algorithm key words (MUST, MUST NOT, REQUIRED, SHOULD, SHOULD NOT) that appear in RFC 4305 [N6] are to be interpreted per RFC 2119 for OSPFv3 support as well, except when in conflict with the stream-cipher prohibition (§6)</p>
+<p>Except when in conflict with the above statement, the key words &#34;MUST&#34;, &#34;MUST NOT&#34;, &#34;REQUIRED&#34;, &#34;SHOULD&#34;, and &#34;SHOULD NOT&#34; that appear in the [N6] document for algorithms to be supported are to be interpreted as described in [N7] for OSPFv3 support as well. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4552-6-7, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-6-9"><code>RFC4552-6-9</code></a></h3>
@@ -898,7 +902,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <p>No test carries RFC4552-6-11, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-7-1"><code>RFC4552-7-1</code></a></h3>
 <p>Therefore, the implementations MUST use manually configured keys with the same SA parameters (Security Parameter Index (SPI), keys, etc.) for both inbound and outbound SAs (as shown in Figure 3). (§7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;same SPI for inbound and outbound&#39;: TestIPsecSAPerDestinationWithOSPFSelector asserts SPI 256 on every state, including the inbound link-local one, and the shared direction on the multicast states. Clause &#39;same keys&#39;: no 7-1-tagged assertion compares the key material across states, so an installer that keyed the inbound state differently passes. TestSAParamsSharedKey checks only that AuthKey is non-empty, and it carries the RFC4552-6-5 tag, not this one.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -929,7 +933,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <p>No test carries RFC4552-9-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-11-1"><code>RFC4552-11-1</code></a></h3>
 <p>The IPsec protection barrier MUST be around the OSPF protocol. (§11)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: any inbound or outbound OSPF traffic that bypasses IPsec processing. TestIPsecPoliciesInterfaceScopedWildcard asserts out, in and fwd policies exist with UpperProto 89, ::/0 selectors and transport mode, red if a direction were missing. It never asserts the policy Action (the zero value protects, SPActionBypass is template-free) or the Proto template, so an installer that laid bypass policies in all three directions keeps every assertion green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -943,8 +947,8 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </table>
 </div>
 <h3><a href="#rfc4552-11-2"><code>RFC4552-11-2</code></a></h3>
-<p>The SPD selection function MUST return an SPD with the following rule for all the interfaces that have OSPFv3 authentication/confidentiality disabled. (§11)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The SPD selection function MUST return an SPD with the following rule for all the interfaces that have OSPFv3 authentication/confidentiality disabled. No. source destination protocol action 1 any any OSPF bypass (§11)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a protect policy or SA on an interface with OSPFv3 security disabled. TestIPsecDisabledInterfaceBypass configures an interface with no ipsec block, brings it up, and asserts zero SAs and zero policies, so OSPF falls to the kernel default (bypass); TestIPsecPoliciesInterfaceScopedWildcard asserts an enabled interface&#39;s policies are IfIndex-scoped, so they cannot cover the disabled one. Single-polarity marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -958,8 +962,8 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </table>
 </div>
 <h3><a href="#rfc4552-11-3"><code>RFC4552-11-3</code></a></h3>
-<p>No. source destination protocol action 1 any any OSPF bypass The SPD selection function MUST return an SPD with the following rules for all the interfaces that have OSPFv3 authentication/confidentiality enabled. (§11)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The SPD selection function MUST return an SPD with the following rules for all the interfaces that have OSPFv3 authentication/confidentiality enabled. No. source destination protocol action 2 fe80::/10 any OSPF protect 3 fe80::/10 any ESP/OSPF or AH/OSPF protect 4 src/128 dst/128 OSPF protect 5 src/128 dst/128 ESP/OSPF or AH/OSPF protect (§11)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestIPsecInstallOnInterfaceUp asserts only len(fake.pols) == 3 on an enabled interface. The quoted sentence carries the rule table: rules 2 and 3 (link-local source, protect, OSPF and ESP/AH-over-OSPF) and rules 4 and 5 (virtual-link src/128 dst/128). No tagged assertion checks the protect action, the transform, or any selector, and nothing covers the virtual-link rules 4 and 5, so a set of three bypass policies passes. Ze also installs a ::/0 source where the table names fe80::/10; that is wider, and no unit states it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1261,7 +1265,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

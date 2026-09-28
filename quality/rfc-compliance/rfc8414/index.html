@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8414 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8414: OAuth 2.0 Authorization Server Metadata. 30 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8414: OAuth 2.0 Authorization Server Metadata. 30 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8414 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8414: OAuth 2.0 Authorization Server Metadata. 30 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8414: OAuth 2.0 Authorization Server Metadata. 30 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8414 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8414: OAuth 2.0 Authorization Server Metadata. 30 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8414: OAuth 2.0 Authorization Server Metadata. 30 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>10.0%</strong><b>3 of 30 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 30 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 30 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>37</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>14</td>
@@ -294,7 +302,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-1">RFC8414-2-1</code></td><td colspan="3"><span class="rfc-subject">`issuer` is REQUIRED in the metadata document (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-1">RFC8414-2-1</code></td><td colspan="3"><span class="rfc-subject">issuer REQUIRED. The authorization server&#39;s issuer identifier, which is a URL that uses the &#34;https&#34; scheme and has no query or fragment components. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -312,7 +320,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> §3 addresses &#34;Authorization servers supporting metadata&#34;; Thomas&#39;s 2026-09-21 &#34;Keep present OAuth roles&#34; decision excludes that role. internal/component/mcp/streamable.go::ServeHTTP registers MCP and protected-resource metadata only; internal/component/mcp/as_metadata.go::fetchASMetadata is an outbound consumer, not an AS metadata response producer</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-3.3-1">RFC8414-3.3-1</code></td><td colspan="3"><span class="rfc-subject">The metadata path MUST use the &#34;https&#34; scheme, and confidentiality protection MUST be applied using TLS with a ciphersuite that provides confidentiality and integrity protection (§3, §6.1; historical section-3.3 ID retained)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-3.3-1">RFC8414-3.3-1</code></td><td colspan="3"><span class="rfc-subject">This path MUST use the &#34;https&#34; scheme. (§3; historical section-3.3 ID retained)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -321,7 +329,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/as_metadata_rfc8414_test.go#L271" title="internal/component/mcp/as_metadata_rfc8414_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataRequiresHTTPS</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-3.3-2">RFC8414-3.3-2</code></td><td colspan="3"><span class="rfc-subject">The `issuer` value returned MUST be identical to the issuer identifier value into which the well-known URI string was inserted to create the URL used to retrieve the metadata, and if they are not identical the data in the response MUST NOT be used (§3.3, §6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-3.3-2">RFC8414-3.3-2</code></td><td colspan="3"><span class="rfc-subject">The &#34;issuer&#34; value returned MUST be identical to the authorization server&#39;s issuer identifier value into which the well-known URI string was inserted to create the URL used to retrieve the metadata. If these values are not identical, the data contained in the response MUST NOT be used. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3</td>
@@ -351,7 +359,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> §2 says &#34;This is REQUIRED unless only the implicit grant type is supported.&#34; This describes the AS&#39;s token endpoint; Thomas excluded the AS role on 2026-09-21. internal/component/mcp/streamable.go::ServeHTTP publishes no token endpoint, and internal/component/mcp/streamable_auth.go::buildAuthForMode creates a verifier for externally issued tokens, not a token issuer</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-4">RFC8414-2-4</code></td><td colspan="3"><span class="rfc-subject">`response_types_supported` is REQUIRED (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-4">RFC8414-2-4</code></td><td colspan="3"><span class="rfc-subject">response_types_supported REQUIRED. JSON array containing a list of the OAuth 2.0 &#34;response_type&#34; values that this authorization server supports. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -360,7 +368,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> §2 defines this as the &#34;JSON array containing a list of the OAuth 2.0 \&#34;response_type\&#34; values that this authorization server supports.&#34; Thomas excluded the AS role on 2026-09-21. internal/component/mcp/streamable.go::ServeHTTP provides no authorization grant endpoint; internal/component/mcp/as_metadata.go::fetchASMetadata consumes issuer and jwks_uri, not grant-response capabilities</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-5">RFC8414-2-5</code></td><td colspan="3"><span class="rfc-subject">`jwks_uri` is OPTIONAL; the referenced document contains the signing key(s) the client uses to validate signatures from the authorization server (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-5">RFC8414-2-5</code></td><td colspan="3"><span class="rfc-subject">jwks_uri OPTIONAL. URL of the authorization server&#39;s JWK Set [JWK] document. The referenced document contains the signing key(s) the client uses to validate signatures from the authorization server. (§2)</span></td></tr>
 <tr><td></td>
 <td>OPTIONAL</td>
 <td>2</td>
@@ -369,7 +377,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-6">RFC8414-2-6</code></td><td colspan="3"><span class="rfc-subject">`scopes_supported` is RECOMMENDED (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-6">RFC8414-2-6</code></td><td colspan="3"><span class="rfc-subject">scopes_supported RECOMMENDED. JSON array containing a list of the OAuth 2.0 [RFC6749] &#34;scope&#34; values that this authorization server supports. (§2)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>2</td>
@@ -396,7 +404,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L938" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestRFC8414JWKSMetadataSecurity</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-9">RFC8414-2-9</code></td><td colspan="3"><span class="rfc-subject">`token_endpoint_auth_signing_alg_values_supported` MUST be present if &#34;private_key_jwt&#34; or &#34;client_secret_jwt&#34; is specified in `token_endpoint_auth_methods_supported` (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-9">RFC8414-2-9</code></td><td colspan="3"><span class="rfc-subject">used to authenticate the client at the token endpoint for the &#34;private_key_jwt&#34; and &#34;client_secret_jwt&#34; authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the &#34;token_endpoint_auth_methods_supported&#34; entry. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -405,7 +413,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> §2 conditions the entry on &#34;either of these authentication methods&#34; in token_endpoint_auth_methods_supported, describing client authentication at the AS token endpoint. Thomas excluded the AS and token-client roles on 2026-09-21. internal/component/mcp/streamable.go::ServeHTTP exposes no token endpoint; internal/component/mcp/as_metadata.go::fetchASMetadata reads issuer and jwks_uri and selects no token-endpoint authentication method</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-10">RFC8414-2-10</code></td><td colspan="3"><span class="rfc-subject">The value &#34;none&#34; MUST NOT be used in `token_endpoint_auth_signing_alg_values_supported` (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-10">RFC8414-2-10</code></td><td colspan="3"><span class="rfc-subject">The value &#34;none&#34; MUST NOT be used. (§2, token_endpoint_auth_signing_alg_values_supported)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2</td>
@@ -414,7 +422,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> §2 defines the field as algorithms &#34;used to authenticate the client at the token endpoint&#34;; it does not describe resource-server token verification. Thomas&#39;s 2026-09-21 decision excludes the AS/token-client roles. internal/component/mcp/streamable.go::ServeHTTP has no token endpoint, and internal/component/mcp/as_metadata.go::fetchASMetadata neither advertises nor selects these client-authentication algorithms</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-11">RFC8414-2-11</code></td><td colspan="3"><span class="rfc-subject">`revocation_endpoint_auth_signing_alg_values_supported` MUST be present if &#34;private_key_jwt&#34; or &#34;client_secret_jwt&#34; is specified in `revocation_endpoint_auth_methods_supported` (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-11">RFC8414-2-11</code></td><td colspan="3"><span class="rfc-subject">used to authenticate the client at the revocation endpoint for the &#34;private_key_jwt&#34; and &#34;client_secret_jwt&#34; authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the &#34;revocation_endpoint_auth_methods_supported&#34; entry. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -423,7 +431,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> §2 conditions this entry on methods &#34;specified in the \&#34;revocation_endpoint_auth_methods_supported\&#34; entry.&#34; Thomas&#39;s 2026-09-21 selection excludes the AS and revocation-client roles. internal/component/mcp/streamable.go::ServeHTTP publishes no revocation endpoint; internal/component/mcp/as_metadata.go::fetchASMetadata consumes only issuer and jwks_uri and makes no revocation request</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-12">RFC8414-2-12</code></td><td colspan="3"><span class="rfc-subject">The value &#34;none&#34; MUST NOT be used in `revocation_endpoint_auth_signing_alg_values_supported` (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-12">RFC8414-2-12</code></td><td colspan="3"><span class="rfc-subject">The value &#34;none&#34; MUST NOT be used. (§2, revocation_endpoint_auth_signing_alg_values_supported)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2</td>
@@ -441,7 +449,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;OPTIONAL. URL of the authorization server&#39;s OAuth 2.0 introspection endpoint [RFC7662].&#34;; §2 makes introspection metadata optional. Thomas chose the present OAuth roles on 2026-09-21, retaining local token verification rather than introspection. internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a JWKS-backed verifier and makes no introspection request that would need an authentication method</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-14">RFC8414-2-14</code></td><td colspan="3"><span class="rfc-subject">`introspection_endpoint_auth_signing_alg_values_supported` MUST be present if &#34;private_key_jwt&#34; or &#34;client_secret_jwt&#34; is specified in `introspection_endpoint_auth_methods_supported` (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-14">RFC8414-2-14</code></td><td colspan="3"><span class="rfc-subject">used to authenticate the client at the introspection endpoint for the &#34;private_key_jwt&#34; and &#34;client_secret_jwt&#34; authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the &#34;introspection_endpoint_auth_methods_supported&#34; entry. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -450,7 +458,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> §2 conditions this entry on methods &#34;specified in the \&#34;introspection_endpoint_auth_methods_supported\&#34; entry.&#34; Thomas&#39;s 2026-09-21 selection excludes the AS and introspection-client roles. internal/component/mcp/streamable.go::ServeHTTP has no introspection endpoint; internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a local JWKS-backed verifier rather than an introspection client</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-15">RFC8414-2-15</code></td><td colspan="3"><span class="rfc-subject">The value &#34;none&#34; MUST NOT be used in `introspection_endpoint_auth_signing_alg_values_supported` (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-15">RFC8414-2-15</code></td><td colspan="3"><span class="rfc-subject">The value &#34;none&#34; MUST NOT be used. (§2, introspection_endpoint_auth_signing_alg_values_supported)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2</td>
@@ -531,7 +539,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> §3.2 says &#34;The response is a set of claims about the authorization server&#39;s configuration.&#34; Thomas excluded the AS publisher role on 2026-09-21. internal/component/mcp/as_metadata.go::fetchASMetadata consumes that response; internal/component/mcp/streamable.go::ServeHTTP exposes only MCP and protected-resource metadata, whose empty-field omission is separately governed by RFC 9728</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-4-1">RFC8414-4-1</code></td><td colspan="3"><span class="rfc-subject">Comparisons between JSON strings and other Unicode strings MUST be performed as specified in Section 4 (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-4-1">RFC8414-4-1</code></td><td colspan="3"><span class="rfc-subject">comparisons between JSON strings and other Unicode strings MUST be performed as specified below (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -610,23 +618,23 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: §2 says &#34;This is REQUIRED unless only the implicit grant type is supported.&#34; This describes the AS&#39;s token endpoint; Thomas excluded the AS role on 2026-09-21. internal/component/mcp/streamable.go::ServeHTTP publishes no token endpoint, and internal/component/mcp/streamable_auth.go::buildAuthForMode creates a verifier for externally issued tokens, not a token issuer</td>
 </tr>
-<tr><td><a href="#rfc8414-2-4"><code>RFC8414-2-4</code></a> `response_types_supported` is REQUIRED (§2)</td>
+<tr><td><a href="#rfc8414-2-4"><code>RFC8414-2-4</code></a> response_types_supported REQUIRED. JSON array containing a list of the OAuth 2.0 &#34;response_type&#34; values that this authorization server supports. (§2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: §2 defines this as the &#34;JSON array containing a list of the OAuth 2.0 \&#34;response_type\&#34; values that this authorization server supports.&#34; Thomas excluded the AS role on 2026-09-21. internal/component/mcp/streamable.go::ServeHTTP provides no authorization grant endpoint; internal/component/mcp/as_metadata.go::fetchASMetadata consumes issuer and jwks_uri, not grant-response capabilities</td>
 </tr>
-<tr><td><a href="#rfc8414-2-9"><code>RFC8414-2-9</code></a> `token_endpoint_auth_signing_alg_values_supported` MUST be present if &#34;private_key_jwt&#34; or &#34;client_secret_jwt&#34; is specified in `token_endpoint_auth_methods_supported` (§2)</td>
+<tr><td><a href="#rfc8414-2-9"><code>RFC8414-2-9</code></a> used to authenticate the client at the token endpoint for the &#34;private_key_jwt&#34; and &#34;client_secret_jwt&#34; authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the &#34;token_endpoint_auth_methods_supported&#34; entry. (§2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: §2 conditions the entry on &#34;either of these authentication methods&#34; in token_endpoint_auth_methods_supported, describing client authentication at the AS token endpoint. Thomas excluded the AS and token-client roles on 2026-09-21. internal/component/mcp/streamable.go::ServeHTTP exposes no token endpoint; internal/component/mcp/as_metadata.go::fetchASMetadata reads issuer and jwks_uri and selects no token-endpoint authentication method</td>
 </tr>
-<tr><td><a href="#rfc8414-2-10"><code>RFC8414-2-10</code></a> The value &#34;none&#34; MUST NOT be used in `token_endpoint_auth_signing_alg_values_supported` (§2)</td>
+<tr><td><a href="#rfc8414-2-10"><code>RFC8414-2-10</code></a> The value &#34;none&#34; MUST NOT be used. (§2, token_endpoint_auth_signing_alg_values_supported)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: §2 defines the field as algorithms &#34;used to authenticate the client at the token endpoint&#34;; it does not describe resource-server token verification. Thomas&#39;s 2026-09-21 decision excludes the AS/token-client roles. internal/component/mcp/streamable.go::ServeHTTP has no token endpoint, and internal/component/mcp/as_metadata.go::fetchASMetadata neither advertises nor selects these client-authentication algorithms</td>
 </tr>
-<tr><td><a href="#rfc8414-2-11"><code>RFC8414-2-11</code></a> `revocation_endpoint_auth_signing_alg_values_supported` MUST be present if &#34;private_key_jwt&#34; or &#34;client_secret_jwt&#34; is specified in `revocation_endpoint_auth_methods_supported` (§2)</td>
+<tr><td><a href="#rfc8414-2-11"><code>RFC8414-2-11</code></a> used to authenticate the client at the revocation endpoint for the &#34;private_key_jwt&#34; and &#34;client_secret_jwt&#34; authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the &#34;revocation_endpoint_auth_methods_supported&#34; entry. (§2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: §2 conditions this entry on methods &#34;specified in the \&#34;revocation_endpoint_auth_methods_supported\&#34; entry.&#34; Thomas&#39;s 2026-09-21 selection excludes the AS and revocation-client roles. internal/component/mcp/streamable.go::ServeHTTP publishes no revocation endpoint; internal/component/mcp/as_metadata.go::fetchASMetadata consumes only issuer and jwks_uri and makes no revocation request</td>
 </tr>
-<tr><td><a href="#rfc8414-2-12"><code>RFC8414-2-12</code></a> The value &#34;none&#34; MUST NOT be used in `revocation_endpoint_auth_signing_alg_values_supported` (§2)</td>
+<tr><td><a href="#rfc8414-2-12"><code>RFC8414-2-12</code></a> The value &#34;none&#34; MUST NOT be used. (§2, revocation_endpoint_auth_signing_alg_values_supported)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: §2 describes algorithms &#34;used to authenticate the client at the revocation endpoint&#34;, not token verification by a resource server. Thomas&#39;s 2026-09-21 selection excludes the AS and revocation-client roles. internal/component/mcp/streamable.go::ServeHTTP has no revocation endpoint; internal/component/mcp/as_metadata.go::fetchASMetadata neither publishes nor selects revocation authentication algorithms</td>
 </tr>
@@ -634,11 +642,11 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <td>no test</td>
 <td>no test carries this requirement id; annotated {feature-declined}: &#34;OPTIONAL. URL of the authorization server&#39;s OAuth 2.0 introspection endpoint [RFC7662].&#34;; §2 makes introspection metadata optional. Thomas chose the present OAuth roles on 2026-09-21, retaining local token verification rather than introspection. internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a JWKS-backed verifier and makes no introspection request that would need an authentication method</td>
 </tr>
-<tr><td><a href="#rfc8414-2-14"><code>RFC8414-2-14</code></a> `introspection_endpoint_auth_signing_alg_values_supported` MUST be present if &#34;private_key_jwt&#34; or &#34;client_secret_jwt&#34; is specified in `introspection_endpoint_auth_methods_supported` (§2)</td>
+<tr><td><a href="#rfc8414-2-14"><code>RFC8414-2-14</code></a> used to authenticate the client at the introspection endpoint for the &#34;private_key_jwt&#34; and &#34;client_secret_jwt&#34; authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the &#34;introspection_endpoint_auth_methods_supported&#34; entry. (§2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: §2 conditions this entry on methods &#34;specified in the \&#34;introspection_endpoint_auth_methods_supported\&#34; entry.&#34; Thomas&#39;s 2026-09-21 selection excludes the AS and introspection-client roles. internal/component/mcp/streamable.go::ServeHTTP has no introspection endpoint; internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a local JWKS-backed verifier rather than an introspection client</td>
 </tr>
-<tr><td><a href="#rfc8414-2-15"><code>RFC8414-2-15</code></a> The value &#34;none&#34; MUST NOT be used in `introspection_endpoint_auth_signing_alg_values_supported` (§2)</td>
+<tr><td><a href="#rfc8414-2-15"><code>RFC8414-2-15</code></a> The value &#34;none&#34; MUST NOT be used. (§2, introspection_endpoint_auth_signing_alg_values_supported)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: §2 describes algorithms &#34;used to authenticate the client at the introspection endpoint&#34;, not the signatures on access tokens. Thomas&#39;s 2026-09-21 selection excludes the AS/introspection-client roles. internal/component/mcp/as_metadata.go::fetchASMetadata consumes issuer and jwks_uri only; internal/component/mcp/streamable_auth.go::buildAuthForMode verifies tokens locally and selects no introspection authentication algorithm</td>
 </tr>
@@ -665,8 +673,8 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8414-2-1"><code>RFC8414-2-1</code></a></h3>
-<p>`issuer` is REQUIRED in the metadata document (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>issuer REQUIRED. The authorization server&#39;s issuer identifier, which is a URL that uses the &#34;https&#34; scheme and has no query or fragment components. (§2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence makes issuer REQUIRED and defines it as a URL that uses https and has no query or fragment. Presence: TestFetchASMetadata_MissingIssuer goes red if a document without issuer is accepted (err must contain &#39;missing issuer&#39;); TestFetchASMetadata positive decodes it. The https, no-query and no-fragment clauses have no assertion in a 2-1-tagged unit: asMetadataURL/oauthHTTPSURL enforce them, and TestRFC8414MetadataRequiresHTTPS (tagged 3.3-1) and TestConfiguredIssuerQueryRejectedBeforeMetadataFetch (untagged) cover https and query, but no unit covers an issuer with a fragment.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -689,8 +697,8 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8414-3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8414-3.3-1"><code>RFC8414-3.3-1</code></a></h3>
-<p>The metadata path MUST use the &#34;https&#34; scheme, and confidentiality protection MUST be applied using TLS with a ciphersuite that provides confidentiality and integrity protection (§3, §6.1; historical section-3.3 ID retained)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>This path MUST use the &#34;https&#34; scheme. (§3; historical section-3.3 ID retained)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Quote is the §3 sentence &#39;This path MUST use the https scheme.&#39; Forbidden: fetching the metadata path over http. TestRFC8414MetadataRequiresHTTPS asserts fetchASMetadata errs and returns zero metadata for an http issuer and for an https-to-http redirect, and plainHits==0; positive decodes metadata from a trusted https server. The §6.1 confidentiality clause the old row text also named is not in this quote (reported as split needed).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -709,8 +717,8 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 </table>
 </div>
 <h3><a href="#rfc8414-3.3-2"><code>RFC8414-3.3-2</code></a></h3>
-<p>The `issuer` value returned MUST be identical to the issuer identifier value into which the well-known URI string was inserted to create the URL used to retrieve the metadata, and if they are not identical the data in the response MUST NOT be used (§3.3, §6.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The &#34;issuer&#34; value returned MUST be identical to the authorization server&#39;s issuer identifier value into which the well-known URI string was inserted to create the URL used to retrieve the metadata. If these values are not identical, the data contained in the response MUST NOT be used. (§3.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clause 1 (issuer MUST be identical): TestRFC8414MetadataIssuerIdentity asserts slash, dot-path and NFC aliases of the configured issuer return an error and zero metadata, and the identical (JSON-escaped) issuer is accepted; TestNewStreamable_OAuth_RejectsIssuerMismatch-style unit asserts &#39;does not match configured&#39;. Clause 2 (data MUST NOT be used): TestOAuthRejectsIssuerAliases asserts keyRequests==0, so the mismatched document&#39;s jwks_uri is never fetched, and no server is returned.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -752,12 +760,12 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8414-2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8414-2-4"><code>RFC8414-2-4</code></a></h3>
-<p>`response_types_supported` is REQUIRED (§2)</p>
+<p>response_types_supported REQUIRED. JSON array containing a list of the OAuth 2.0 &#34;response_type&#34; values that this authorization server supports. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8414-2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc8414-2-7"><code>RFC8414-2-7</code></a></h3>
 <p>This URL MUST use the &#34;https&#34; scheme. (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a jwks_uri that does not use https. TestRFC8414JWKSMetadataSecurity &#39;HTTP keys&#39; subtest serves jwks_uri on http and asserts NewStreamable returns an error, no server, and plainHits==0; &#39;redirect to HTTP&#39; asserts the same for an https jwks_uri redirecting to http. Positive &#39;labeled keys&#39; verifies a token with the key fetched over https.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -796,19 +804,19 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 </table>
 </div>
 <h3><a href="#rfc8414-2-9"><code>RFC8414-2-9</code></a></h3>
-<p>`token_endpoint_auth_signing_alg_values_supported` MUST be present if &#34;private_key_jwt&#34; or &#34;client_secret_jwt&#34; is specified in `token_endpoint_auth_methods_supported` (§2)</p>
+<p>used to authenticate the client at the token endpoint for the &#34;private_key_jwt&#34; and &#34;client_secret_jwt&#34; authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the &#34;token_endpoint_auth_methods_supported&#34; entry. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8414-2-9, so no unit is bound to it.</p>
 <h3><a href="#rfc8414-2-10"><code>RFC8414-2-10</code></a></h3>
-<p>The value &#34;none&#34; MUST NOT be used in `token_endpoint_auth_signing_alg_values_supported` (§2)</p>
+<p>The value &#34;none&#34; MUST NOT be used. (§2, token_endpoint_auth_signing_alg_values_supported)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8414-2-10, so no unit is bound to it.</p>
 <h3><a href="#rfc8414-2-11"><code>RFC8414-2-11</code></a></h3>
-<p>`revocation_endpoint_auth_signing_alg_values_supported` MUST be present if &#34;private_key_jwt&#34; or &#34;client_secret_jwt&#34; is specified in `revocation_endpoint_auth_methods_supported` (§2)</p>
+<p>used to authenticate the client at the revocation endpoint for the &#34;private_key_jwt&#34; and &#34;client_secret_jwt&#34; authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the &#34;revocation_endpoint_auth_methods_supported&#34; entry. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8414-2-11, so no unit is bound to it.</p>
 <h3><a href="#rfc8414-2-12"><code>RFC8414-2-12</code></a></h3>
-<p>The value &#34;none&#34; MUST NOT be used in `revocation_endpoint_auth_signing_alg_values_supported` (§2)</p>
+<p>The value &#34;none&#34; MUST NOT be used. (§2, revocation_endpoint_auth_signing_alg_values_supported)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8414-2-12, so no unit is bound to it.</p>
 <h3><a href="#rfc8414-2-13"><code>RFC8414-2-13</code></a></h3>
@@ -816,11 +824,11 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8414-2-13, so no unit is bound to it.</p>
 <h3><a href="#rfc8414-2-14"><code>RFC8414-2-14</code></a></h3>
-<p>`introspection_endpoint_auth_signing_alg_values_supported` MUST be present if &#34;private_key_jwt&#34; or &#34;client_secret_jwt&#34; is specified in `introspection_endpoint_auth_methods_supported` (§2)</p>
+<p>used to authenticate the client at the introspection endpoint for the &#34;private_key_jwt&#34; and &#34;client_secret_jwt&#34; authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the &#34;introspection_endpoint_auth_methods_supported&#34; entry. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8414-2-14, so no unit is bound to it.</p>
 <h3><a href="#rfc8414-2-15"><code>RFC8414-2-15</code></a></h3>
-<p>The value &#34;none&#34; MUST NOT be used in `introspection_endpoint_auth_signing_alg_values_supported` (§2)</p>
+<p>The value &#34;none&#34; MUST NOT be used. (§2, introspection_endpoint_auth_signing_alg_values_supported)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8414-2-15, so no unit is bound to it.</p>
 <h3><a href="#rfc8414-2.1-1"><code>RFC8414-2.1-1</code></a></h3>
@@ -913,7 +921,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 </div>
 <h3><a href="#rfc8414-3.2-1"><code>RFC8414-3.2-1</code></a></h3>
 <p>A successful response MUST use the 200 OK HTTP status code and return a JSON object using the &#34;application/json&#34; content type that contains a set of claims as its members that are a subset of the metadata values defined in Section 2. (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Consumer view of the response envelope. 200: &#39;created&#39; (201) case must return error and zero metadata. application/json: &#39;HTML&#39; and &#39;absent type&#39; cases red if accepted; charset parameter accepted. JSON object: &#39;array&#39; case red if accepted. Positive: 200 application/json object yields issuer and jwks_uri. The &#39;subset of Section 2 values&#39; clause constrains the server; §3.2 says &#39;Other claims MAY also be returned&#39;, so no consumer input violates it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -936,8 +944,8 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8414-3.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8414-4-1"><code>RFC8414-4-1</code></a></h3>
-<p>Comparisons between JSON strings and other Unicode strings MUST be performed as specified in Section 4 (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>comparisons between JSON strings and other Unicode strings MUST be performed as specified below (§4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Quote: comparisons between JSON strings and other Unicode strings MUST be performed as specified below (unescape, no normalization, code-point equality). The 4-1-tagged units (TestRFC8414IssuerCompareUnescapesJSON, TestRFC8414IssuerCompareNotOnJSONText) prove only step 1 and only on the JWT iss path (verifyJWT). The RFC 8414 metadata issuer comparison in fetchASMetadata, which §4 names (&#39;the member names in the metadata response ... issuer&#39;), is exercised with JSON escapes by TestRFC8414MetadataIssuerIdentity, which is tagged 3.3-2/4-2/4-3 but not 4-1. Steps 2 and 3 are proven only under the 4-2 and 4-3 rows.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -957,7 +965,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 </div>
 <h3><a href="#rfc8414-4-2"><code>RFC8414-4-2</code></a></h3>
 <p>Unicode Normalization [USA15] MUST NOT be applied at any point to either the JSON string or the string it is to be compared against. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: applying Unicode normalization to either string. TestRFC8414IssuerCompareNoNormalizationRejects asserts errJWTIssuerMismatch for NFC iss vs NFD expected and the reverse; TestRFC8414MetadataIssuerIdentity asserts an NFC metadata issuer against the NFD configured one returns error and zero metadata. Positives: identical NFD strings accepted on both the JWT and metadata paths.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1319,7 +1327,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

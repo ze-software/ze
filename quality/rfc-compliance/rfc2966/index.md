@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 5 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 5 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 5 | of 5 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 5 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 10 |
 | Tagged units | 10 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 5 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc2966.md` |
 | Requirement shard | `rfc/requirements/rfc2966.md` |
@@ -101,12 +110,12 @@ Same IS-IS experimental status. [`RFC2966-3.2-1`](#rfc2966-3.2-1), the Section 3
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC2966-2-1` | L1L2 routers must set this bit to one for prefixes that are derived from L2 routing and are advertised into L1 LSPs. (Section 2) | MUST | 2 | **positive:** `unit/verify` [`TestISISLeakOriginationL1L2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L52). **negative:** `unit/verify` [`TestISISLeakOriginationL1L2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L56) |
-| `RFC2966-2-2` | Never advertise up/down-bit-set, L1-learned prefixes back into L2 (Section 2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISLeakOriginationL1L2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L59). **negative:** `unit/verify` [`TestISISLeakOriginationL1L2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L62) |
-| `RFC2966-2-3` | L1L2 routers never advertise L2->L1 inter-area routes learned via L1 routing back into L2 (Section 2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISLeakFixpoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L129). **negative:** `unit/verify` [`TestISISLeakFixpoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L133) |
-| `RFC2966-3.2-1` | Apply the six-level route preference order this document defines, from L1 intra-area routes with internal metric down to L2->L1 inter-area external routes with external metric: "Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation" (Section 3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC2966SixPreferenceClasses`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L187). **negative:** `unit/verify` [`TestRFC2966ExternalL1DoesNotOverrideDownInternal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L210) |
-| `RFC2966-x-1` | Ignore a prefix combining "IP Internal Reachability Information" with external metric-type on receipt (Sections 3.1, 3.3) | MUST | x | **positive:** `unit/verify` [`TestRFC2966InvalidInternalExternalMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L220). **negative:** `unit/verify` [`TestRFC2966InvalidInternalExternalMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L221) |
-| `RFC2966-3.3-1` | Ignore the up/down bit in L2 LSPs and accept the prefixes regardless of its setting (Section 3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2966-x-2` | Default configuration does not advertise L2 routes into L1; require manual configuration to do so (Sections 3.3, 4) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC2966-2-2` | Prefixes with the up/down bit set that are learned via L1 routing, must never be advertised by L1L2 routers back into L2. (§2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISLeakOriginationL1L2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L59). **negative:** `unit/verify` [`TestISISLeakOriginationL1L2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L62) |
+| `RFC2966-2-3` | However, to prevent routing-loops, L1L2 routers must never advertise L2->L1 inter-area routes that they learn via L1 routing, back into L2. (§2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISLeakFixpoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L129). **negative:** `unit/verify` [`TestISISLeakFixpoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L133) |
+| `RFC2966-3.2-1` | Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation. One of the reasons for this is that inter-area routes can only be advertised with a maximum metric of 63. Another reason is that this maximum value of 63 does not mean infinity (e.g. like a hop count of 16 in RIP denotes unreachable). Introducing a value for infinity cost in IS-IS inter-area routes would introduce counting- to-infinity behavior via two or more L1L2 routers, which would have a bad impact on network stability. The order of preference of IP routes in IS-IS is based on a few assumptions. - RFC 1195 defines that routes derived from L1 routing are preferred over routes derived from L2 routing. - The note in RFC 1195 paragraph 3.10.2, item 2c) defines that internal routes with internal metric-type and external prefixes with internal metric-type have the same preference. - RFC 1195 defines that external routes with internal metric-type are preferred over external routes with external metric type. - Routes derived from L2 routing are preferred over L2->L1 routes derived from L1 routing. Based on these assumptions, this document defines the following route preferences. 1) L1 intra-area routes with internal metric L1 external routes with internal metric 2) L2 intra-area routes with internal metric L2 external routes with internal metric L1->L2 inter-area routes with internal metric L1->L2 inter-area external routes with internal metric 3) L2->L1 inter-area routes with internal metric L2->L1 inter-area external routes with internal metric 4) L1 external routes with external metric 5) L2 external routes with external metric L1->L2 inter-area external routes with external metric 6) L2->L1 inter-area external routes with external metric (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC2966SixPreferenceClasses`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L187). **negative:** `unit/verify` [`TestRFC2966ExternalL1DoesNotOverrideDownInternal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L210) |
+| `RFC2966-x-1` | Upon receipt of an IP prefix with this combination, routers must ignore this prefix. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC2966InvalidInternalExternalMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L220). **negative:** `unit/verify` [`TestRFC2966InvalidInternalExternalMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L221) |
+| `RFC2966-3.3-1` | Therefore, it is recommended that implementations ignore the up/down bit in L2 LSPs, and accept the prefixes in L2 LSPs regardless whether the up/down bit is set. (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2966-x-2` | For this reason it is recommended that implementations by default do not advertise any L2 routes into L1. Implementations should force the network administrator to manually configure L1L2 routers to advertise any L2 routes into L1. (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -120,7 +129,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 L1L2 routers must set this bit to one for prefixes that are derived from L2 routing and are advertised into L1 LSPs. (Section 2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an L1L2 router originating an L2-derived prefix in its L1 LSP with bit 8 of the default metric clear. TestISISLeakOriginationL1L2 asserts hasLeak(leak.IntoL1, l2Derived, true), i.e. the LeakedPrefix.UpDown flag from spf.LeakPrefixes, not the bit in the originated L1 LSP; an encoder that dropped UpDown when writing TLV 128/130 would leave it green. The negative (L1 prefix leaked up with the flag clear) is likewise struct-level. No tagged assertion decodes the L1 LSP.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -129,9 +138,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2966-2-2`](#rfc2966-2-2)
 
-Never advertise up/down-bit-set, L1-learned prefixes back into L2 (Section 2)
+Prefixes with the up/down bit set that are learned via L1 routing, must never be advertised by L1L2 routers back into L2. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: re-advertising into L2 a prefix learned via L1 with the up/down bit set. TestISISLeakOriginationL1L2 assertion 3 (hasPrefix(leak.IntoL2, alreadyDown) -> t.Errorf) goes red if leakInto stops skipping p.UpDown; the negative keeps a clear-bit L1 prefix leaking up (assertion 1), so a blanket drop also goes red. Both polarities in the one unit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -140,9 +149,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2966-2-3`](#rfc2966-2-3)
 
-L1L2 routers never advertise L2->L1 inter-area routes learned via L1 routing back into L2 (Section 2)
+However, to prevent routing-loops, L1L2 routers must never advertise L2->L1 inter-area routes that they learn via L1 routing, back into L2. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: an L1L2 router advertising back into L2 an L2->L1 inter-area route it learned via L1. TestISISLeakFixpoint round 2 re-injects the leaked-down prefix as an L1 advertisement with UpDown set and fails on hasPrefix(r2.IntoL2, l2Derived); round 1 (negative) requires the same L2 prefix to leak down, so suppressing all leaking goes red too.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -151,9 +160,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2966-3.2-1`](#rfc2966-3.2-1)
 
-Apply the six-level route preference order this document defines, from L1 intra-area routes with internal metric down to L2->L1 inter-area external routes with external metric: "Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation" (Section 3.2)
+Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation. One of the reasons for this is that inter-area routes can only be advertised with a maximum metric of 63. Another reason is that this maximum value of 63 does not mean infinity (e.g. like a hop count of 16 in RIP denotes unreachable). Introducing a value for infinity cost in IS-IS inter-area routes would introduce counting- to-infinity behavior via two or more L1L2 routers, which would have a bad impact on network stability. The order of preference of IP routes in IS-IS is based on a few assumptions. - RFC 1195 defines that routes derived from L1 routing are preferred over routes derived from L2 routing. - The note in RFC 1195 paragraph 3.10.2, item 2c) defines that internal routes with internal metric-type and external prefixes with internal metric-type have the same preference. - RFC 1195 defines that external routes with internal metric-type are preferred over external routes with external metric type. - Routes derived from L2 routing are preferred over L2->L1 routes derived from L1 routing. Based on these assumptions, this document defines the following route preferences. 1) L1 intra-area routes with internal metric L1 external routes with internal metric 2) L2 intra-area routes with internal metric L2 external routes with internal metric L1->L2 inter-area routes with internal metric L1->L2 inter-area external routes with internal metric 3) L2->L1 inter-area routes with internal metric L2->L1 inter-area external routes with internal metric 4) L1 external routes with external metric 5) L2 external routes with external metric L1->L2 inter-area external routes with external metric 6) L2->L1 inter-area external routes with external metric (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: selecting a less preferred route class because its metric is lower, for any pair across the six classes. TestRFC2966SixPreferenceClasses checks each adjacent class pair through the SPF engine with one representative per class (L1 internal, L2 internal, L1 down internal, L1 external-metric, L2 external-metric, L1 down external-metric) and TestRFC2966ExternalL1DoesNotOverrideDownInternal the 3-vs-4 pair. The class members the list places at equal preference (L1 external with internal metric in class 1, L2 external and L1->L2 inter-area routes in class 2, L2->L1 inter-area external with internal metric in class 3, L1->L2 inter-area external with external metric in class 5) have no tagged assertion, so a mis-ranked member stays green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -162,9 +171,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2966-x-1`](#rfc2966-x-1)
 
-Ignore a prefix combining "IP Internal Reachability Information" with external metric-type on receipt (Sections 3.1, 3.3)
+Upon receipt of an IP prefix with this combination, routers must ignore this prefix. (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: accepting an IP Internal Reachability (TLV 128) prefix whose metric-type bit says external. TestRFC2966InvalidInternalExternalMetricExcluded sets bit 0x40 on the TLV 128 entry of the cheaper route and requires metricWinner to pick the dearer valid route (id 2, 160); clearing the bit requires the cheap route back (id 3, 2), so both an accept-anyway and a drop-everything implementation go red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

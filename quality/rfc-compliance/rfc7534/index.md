@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 3 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 3 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 3 | of 3 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 3 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 5 |
 | Tagged units | 5 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 3 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc7534.md` |
 | Requirement shard | `rfc/requirements/rfc7534.md` |
@@ -102,22 +111,22 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7534-3.5-1` | AS112 nameservers answer authoritatively for each zone delegated to them (§3.5, also restated in RFC 7535 §1) | MUST | 3.5 - DNS Software | **positive:** `unit/verify` [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L85). **negative:** `unit/verify` [`TestZoneAnswer_OutOfZoneRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L169) |
-| `RFC7534-3.5-2` | Direct Delegation zones contain no resource records beyond SOA and NS (§3.5, db.dd-empty) | MUST | 3.5 - DNS Software | **positive:** `unit/verify` [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L88). **negative:** `unit/verify` [`TestSOA_RFCMandatedParameters`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L293) |
-| `RFC7534-3.5-3` | Records relating to RFC 1918 resources within the hosting site are not hosted on the AS112 nameserver itself (§3.5) | MUST | 3.5 - DNS Software | **positive:** `unit/verify` [`TestZoneAnswer_ResponseCodeByNamePosition`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L247). **negative:** no negative test. **{single-polarity}:** ze's AS112 nameserver serves only empty SOA/NS Direct-Delegation zones (internal/plugins/as112/zones.go), which hold their records at the apex and nothing below it, so every RFC 1918 reverse name draws a name error and no RFC 1918 record is ever hosted -- there is no "RFC 1918 record is hosted" case to assert as a negative. The positive (an RFC 1918 reverse PTR yields NXDOMAIN, with no PTR anywhere in the reply) is proven in TestZoneAnswer_ResponseCodeByNamePosition |
-| `RFC7534-3.3-1` | The chosen platform supports cloned loopback interfaces or multiple addresses on one loopback interface (§3.3) | SHOULD | 3.3 - Operating System and Host Considerations | **positive:** no positive test. **negative:** no negative test |
-| `RFC7534-3.3-2` | A host running an AS112 node is dedicated to that purpose, not shared with other services (§3.3) | SHOULD | 3.3 - Operating System and Host Considerations | **positive:** no positive test. **negative:** no negative test |
-| `RFC7534-3.3-3` | Startup order is: loopback interface configuration, then DNS software, then routing software (§3.3) | SHOULD | 3.3 - Operating System and Host Considerations | **positive:** no positive test. **negative:** no negative test |
-| `RFC7534-3.3-4` | The AS112 service prefix is not advertised while anycast addresses are unconfigured or DNS software is not running (§3.3) | SHOULD | 3.3 - Operating System and Host Considerations | **positive:** no positive test. **negative:** no negative test |
-| `RFC7534-3.4-1` | Outbound BGP advertisement is restricted by a prefix filter permitting only the AS112 service prefixes (§3.4) | SHOULD | 3.4 - Routing Software | **positive:** no positive test. **negative:** no negative test |
-| `RFC7534-3.4-2` | Outbound BGP advertisement is restricted by an AS_PATH filter matching only locally-originated routes (§3.4) | SHOULD | 3.4 - Routing Software | **positive:** no positive test. **negative:** no negative test |
-| `RFC7534-3.5-4` | AS112 nodes run as authoritative-only DNS servers with recursion disabled (§3.5) | SHOULD | 3.5 - DNS Software | **positive:** no positive test. **negative:** no negative test |
-| `RFC7534-3.5-5` | HOSTNAME.AS112.NET / HOSTNAME.AS112.ARPA TXT responses fit within a 512-octet UDP datagram without requiring EDNS0 (§3.5) | SHOULD | 3.5 - DNS Software | **positive:** no positive test. **negative:** no negative test |
-| `RFC7534-4.1-1` | AS112 nodes are monitored as a production service (§4.1) | SHOULD | 4.1 - Monitoring | **positive:** no positive test. **negative:** no negative test |
-| `RFC7534-4.2-1` | An AS112 node going off-line for maintenance withdraws its service-prefix BGP announcement first (§4.2) | SHOULD | 4.2 - Downtime | **positive:** no positive test. **negative:** no negative test |
-| `RFC7534-4.3-1` | Usage is measured for long-term trend and anomaly tracking (§4.3) | SHOULD | 4.3 - Statistics and Measurement | **positive:** no positive test. **negative:** no negative test |
-| `RFC7534-3.2-1` | New AS112 node operators notify the local community (e.g. IXP mailing list) before installation; globally-reachable nodes coordinate with other AS112 operators (§3.2, §5) | SHOULD | 3.2 - Topological Location | **positive:** no positive test. **negative:** no negative test |
-| `RFC7534-3.4-3` | An IPv4-only node configures only the IPv4 anycast addresses; an IPv6-only node configures only the IPv6 anycast addresses (§3.4) | MAY | 3.4 - Routing Software | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-3.5-1` | Each nameserver functions as a single node in an AS112 anycast cloud [RFC4786] and is configured to answer authoritatively for a particular set of nominated zones. (§1) | MUST | 1 - Introduction | **positive:** `unit/verify` [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L85). **negative:** `unit/verify` [`TestZoneAnswer_OutOfZoneRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L169) |
+| `RFC7534-3.5-2` | There should be no other resource records included in this zone. (§3.5, db.dd-empty) | MUST | 3.5 - DNS Software | **positive:** `unit/verify` [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L88). **negative:** `unit/verify` [`TestSOA_RFCMandatedParameters`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L293) |
+| `RFC7534-3.5-3` | Records that relate to RFC 1918-numbered resources within the ; site hosting this AS112 node should not be hosted on this ; nameserver. (§3.5) | MUST | 3.5 - DNS Software | **positive:** `unit/verify` [`TestZoneAnswer_ResponseCodeByNamePosition`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L247). **negative:** no negative test. **{single-polarity}:** ze's AS112 nameserver serves only empty SOA/NS Direct-Delegation zones (internal/plugins/as112/zones.go), which hold their records at the apex and nothing below it, so every RFC 1918 reverse name draws a name error and no RFC 1918 record is ever hosted -- there is no "RFC 1918 record is hosted" case to assert as a negative. The positive (an RFC 1918 reverse PTR yields NXDOMAIN, with no PTR anywhere in the reply) is proven in TestZoneAnswer_ResponseCodeByNamePosition |
+| `RFC7534-3.3-1` | The chosen platform should include either support for cloned loopback interfaces or the capability to bind multiple addresses to a single loopback interface. (§3.3) | SHOULD | 3.3 - Operating System and Host Considerations | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-3.3-2` | A host that is configured to act as an AS112 anycast node should be dedicated to that purpose and should not be used to simultaneously provide other services. (§3.3) | SHOULD | 3.3 - Operating System and Host Considerations | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-3.3-3` | The order in which interfaces are configured and software components started should be arranged such that routing software startup follows DNS software startup, and DNS software startup follows loopback interface configuration. (§3.3) | SHOULD | 3.3 - Operating System and Host Considerations | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-3.3-4` | Wrapper scripts or other arrangements should be employed to ensure that the anycast service prefix for AS112 is not advertised while either the anycast addresses are not configured or the DNS software is not running. (§3.3) | SHOULD | 3.3 - Operating System and Host Considerations | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-3.4-1` | The configuration above includes two restrictions on what the AS112 should advertise to its BGP neighbours: a prefix filter that permits only the service prefixes, and an AS_PATH filter that matches only locally originated routes. (§3.4) | SHOULD | 3.4 - Routing Software | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-3.4-2` | The configuration above includes two restrictions on what the AS112 should advertise to its BGP neighbours: a prefix filter that permits only the service prefixes, and an AS_PATH filter that matches only locally originated routes. (§3.4) | SHOULD | 3.4 - Routing Software | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-3.5-4` | Note that the nameserver is configured to act as an authoritative-only server (i.e., recursion is disabled). (§3.5) | SHOULD | 3.5 - DNS Software | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-3.5-5` | Note that the responses to the queries "HOSTNAME.AS112.NET IN TXT" and "HOSTNAME.AS112.ARPA IN TXT" should fit within a 512-octet DNS/ UDP datagram: i.e., it should be available over UDP transport without requiring EDNS0 support by the client. (§3.5) | SHOULD | 3.5 - DNS Software | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-4.1-1` | AS112 nodes should be monitored to ensure that they are functioning correctly, just as with any other production service. (§4.1) | SHOULD | 4.1 - Monitoring | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-4.2-1` | An AS112 node that needs to go off-line (e.g., for planned maintenance or as part of the diagnosis of some problem) should stop advertising the AS112 service prefixes to its BGP peers. (§4.2) | SHOULD | 4.2 - Downtime | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-4.3-1` | Use of the AS112 node should be measured in order to track long-term trends, identify anomalous conditions, and ensure that the configuration of the AS112 node is sufficient to handle the query load. (§4.3) | SHOULD | 4.3 - Statistics and Measurement | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-3.2-1` | It is good operational practice to notify the community of users that may fall within the reach of a new AS112 node before it is installed. At an Internet Exchange, local mailing lists usually exist to facilitate such announcements. For nodes that are intended to be globally reachable, coordination with other AS112 operators is highly recommended. (§3.2) | SHOULD | 3.2 - Topological Location | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-3.4-3` | For clarity, an IPv4-only AS112 node need not configure any of the IPv6 elements that follow; similarly, an IPv6-only AS112 node need not configure any of the IPv4 elements. (§3.4) | MAY | 3.4 - Routing Software | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -129,9 +138,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC7534-3.5-1`](#rfc7534-3.5-1)
 
-AS112 nameservers answer authoritatively for each zone delegated to them (§3.5, also restated in RFC 7535 §1)
+Each nameserver functions as a single node in an AS112 anycast cloud [RFC4786] and is configured to answer authoritatively for a particular set of nominated zones. (§1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: each node is configured to answer authoritatively for its nominated zones. Forbidden behaviour (a): a nominated zone answered without authority (AA clear) or not answered from zone data; (b) answering for a zone not nominated. Clause (b) is enforced: TestZoneAnswer_OutOfZoneRefused asserts REFUSED, reply.Authoritative false and empty sections for example.com. Clause (a) is not: TestZoneAnswer_ReverseZoneNoData calls answerQuestions directly and asserts NOERROR plus the zone SOA in Authority, but never reads the AA bit (AA is set by the handler, not answerQuestions), so a handler that stopped setting AA for served zones stays green. Only 10.in-addr.arpa. is probed of the nominated set.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -140,9 +149,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7534-3.5-2`](#rfc7534-3.5-2)
 
-Direct Delegation zones contain no resource records beyond SOA and NS (§3.5, db.dd-empty)
+There should be no other resource records included in this zone. (§3.5, db.dd-empty)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: no resource records beyond SOA and NS in a Direct-Delegation zone. Forbidden behaviour: the zone answering any other record type. TestZoneAnswer_ReverseZoneNoData asserts empty Answer only for a PTR query at 10.in-addr.arpa.; TestSOA_RFCMandatedParameters (negative) asserts the SOA parameters and exactly two NS. answerQuestions holds an explicit TXT branch (isHostnameZone) that answers TXT for some zones; no tagged unit queries TXT (or A, AAAA, ANY) at a Direct-Delegation apex, so a broken isHostnameZone that hosts TXT in 10.in-addr.arpa. stays green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -151,9 +160,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7534-3.5-3`](#rfc7534-3.5-3)
 
-Records relating to RFC 1918 resources within the hosting site are not hosted on the AS112 nameserver itself (§3.5)
+Records that relate to RFC 1918-numbered resources within the ; site hosting this AS112 node should not be hosted on this ; nameserver. (§3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity positive (marker on the row). Sentence: records for the site's RFC 1918-numbered resources are not hosted on the nameserver. Forbidden behaviour: a PTR (or any record) for an RFC 1918 reverse name below a served zone is answered. TestZoneAnswer_ResponseCodeByNamePosition row 1.0.10.in-addr.arpa. PTR asserts Rcode NXDOMAIN (reply.Rcode != tc.rcode) and the loop over Answer and Extra fails on any PTR record, both red if such a record were hosted. answerQuestions has no per-zone branch below the apex (every non-apex name takes the missing path), so the one 10/8 probe covers the uniform path for all RFC 1918 zones.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

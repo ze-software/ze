@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5881 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5881: Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop). 23 gated MUST-level requirements, 6 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5881: Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop). 23 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5881 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5881: Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop). 23 gated MUST-level requirements, 6 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5881: Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop). 23 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5881 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5881: Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop). 23 gated MUST-level requirements, 6 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5881: Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop). 23 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -119,7 +119,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>52.2%</strong><b>12 of 23 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>13.0%</strong><b>3 of 23 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 27 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>12.9%</strong><b>4 of 31 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>26.1%</strong><b>6 of 23 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>15</strong><b>of 23 gated MUSTs judged</b><p>12 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>6</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -221,16 +225,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>27</td>
+<td>31</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>27</td>
+<td>31</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>15</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>4</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5881.md</code></td>
@@ -337,16 +341,20 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s echo does not address packets to its own address; sendEchoLocked (internal/component/bfd/engine/echo.go:96) sets the datagram destination to the peer (To: PeerAddr) and relies on the peer&#39;s application-level ZEEC reflection (internal/component/bfd/engine/echo.go:203), so the RFC 5881 self-addressed echo is unimplemented</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-3-1">RFC5881-3-1</code></td><td colspan="3"><span class="rfc-subject">Both sides of a session must take the Active role (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-3-1">RFC5881-3-1</code></td><td colspan="3"><span class="rfc-subject">both sides of a session MUST take the &#34;Active&#34; role (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5881-3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/enabled_test.go#L214" title="internal/component/bfd/enabled_test.go" target="_blank" rel="noopener"><code>TestRFC5881ClientMultiHopPassiveProfileAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L126" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881SingleHopActiveProfileAccepted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L37" title="internal/component/bfd/session/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881SingleHopTakesActiveRole</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/enabled_test.go#L199" title="internal/component/bfd/enabled_test.go" target="_blank" rel="noopener"><code>TestRFC5881ClientSingleHopPassiveProfileRefused</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L52" title="internal/component/bfd/session/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881NonActiveStaysSilent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L114" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881SingleHopPassiveProfileRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-3-2">RFC5881-3-2</code></td><td colspan="3"><span class="rfc-subject">A received packet with Your Discriminator = 0 must be associated with the session bound to the remote system, interface, and protocol (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-3-2">RFC5881-3-2</code></td><td colspan="3"><span class="rfc-subject">any BFD packet from the remote machine with a zero value of Your Discriminator MUST be associated with the session bound to the remote system, interface, and protocol. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -360,8 +368,8 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5881-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L18" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881ControlDestPort3784</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L34" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881ControlPortNotUsedForEcho</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L20" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881ControlDestPort3784</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L36" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881ControlPortNotUsedForEcho</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-2">RFC5881-4-2</code></td><td colspan="3"><span class="rfc-subject">The source port MUST be in the range 49152 through 65535. (§4)</span></td></tr>
@@ -378,11 +386,11 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5881-4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L71" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881SingleSourcePortPerSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L73" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881SingleSourcePortPerSession</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> every Control packet in a session leaves from the one UDP socket the (vrf,mode) loop binds (internal/component/bfd/bfd.go:355-367, internal/component/bfd/transport/udp.go:218-228), so the source port is a fixed socket property; there is no per-packet source-port selection that could vary it, hence no negative state to exercise</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-4">RFC5881-4-4</code></td><td colspan="3"><span class="rfc-subject">Ultimately, RFC 5880 mechanisms must be used to demultiplex incoming packets to the proper session (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-4">RFC5881-4-4</code></td><td colspan="3"><span class="rfc-subject">but ultimately the mechanisms in [BFD] MUST be used to demultiplex incoming packets to the proper session. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -396,8 +404,8 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5881-4-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L46" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881EchoDestPort3785</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L60" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881EchoPortNotUsedForControl</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L48" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881EchoDestPort3785</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L62" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881EchoPortNotUsedForControl</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-6">RFC5881-4-6</code></td><td colspan="3"><span class="rfc-subject">The destination address MUST be chosen in such a way as to cause the remote system to forward the packet back to the local system. (§4)</span></td></tr>
@@ -418,7 +426,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> sendEchoLocked (internal/component/bfd/engine/echo.go:83-101) sets no source address on the echo datagram (the kernel selects it) and applies no redirect-avoidance, because ze&#39;s echo is peer-addressed and application-reflected rather than looped by the peer&#39;s forwarding plane</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-8">RFC5881-4-8</code></td><td colspan="3"><span class="rfc-subject">Echo packets must be transmitted so they are received by the remote system (e.g., correct L2 destination on multiaccess media) (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-8">RFC5881-4-8</code></td><td colspan="3"><span class="rfc-subject">BFD Echo packets MUST be transmitted in such a way as to ensure that they are received by the remote system. On multiaccess media, for example, this requires that the destination datalink address corresponds to the remote system. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -481,7 +489,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze does not model point-to-point links separately; the first-packet demux keys firstPacketKey on the source address in.From (internal/component/bfd/engine/loop.go:88), so an initial packet whose source differs from the configured peer is not associated with the session, whereas RFC 5881 forbids using the source to identify a point-to-point session</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-6-4">RFC5881-6-4</code></td><td colspan="3"><span class="rfc-subject">On point-to-point links, initial BFD packet must be accepted with any source address (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-6-4">RFC5881-6-4</code></td><td colspan="3"><span class="rfc-subject">This means that the initial BFD packet MUST be accepted with any source address (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -490,7 +498,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the first-packet demux requires the source to equal the configured peer (internal/component/bfd/engine/loop.go:88-94, byKey lookup on in.From), so ze does not accept a point-to-point initial packet bearing an arbitrary source address; once a discriminator is learned, subsequent packets are demuxed by Your Discriminator alone (internal/component/bfd/engine/loop.go:82) as RFC5881-6-5 requires</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-6-5">RFC5881-6-5</code></td><td colspan="3"><span class="rfc-subject">On point-to-point links, subsequent packets must be demultiplexed solely by Your Discriminator (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-6-5">RFC5881-6-5</code></td><td colspan="3"><span class="rfc-subject">and that subsequent BFD packets MUST be demultiplexed solely by the Your Discriminator field (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -508,7 +516,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L253" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881TransmitDestinationIgnoresChangedSource</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-9">RFC5881-4-9</code></td><td colspan="3"><span class="rfc-subject">UDP source port number should be unique among all BFD sessions on the system (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-9">RFC5881-4-9</code></td><td colspan="3"><span class="rfc-subject">The source port number SHOULD be unique among all BFD sessions on the system. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4</td>
@@ -517,7 +525,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-10">RFC5881-4-10</code></td><td colspan="3"><span class="rfc-subject">Echo source address should not be part of the subnet bound to the egress interface (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-10">RFC5881-4-10</code></td><td colspan="3"><span class="rfc-subject">In particular, the source address SHOULD NOT be part of the subnet bound to the interface over which the BFD Echo packet is being transmitted (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4</td>
@@ -526,7 +534,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-11">RFC5881-4-11</code></td><td colspan="3"><span class="rfc-subject">Echo source address should not be an IPv6 link-local address (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-11">RFC5881-4-11</code></td><td colspan="3"><span class="rfc-subject">and it SHOULD NOT be an IPv6 link-local address, unless it is known by other means that the remote system will not send Redirects. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4</td>
@@ -535,7 +543,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-7-1">RFC5881-7-1</code></td><td colspan="3"><span class="rfc-subject">BFD authentication mechanism should be used for tunnels (§7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-7-1">RFC5881-7-1</code></td><td colspan="3"><span class="rfc-subject">The BFD authentication mechanism SHOULD be used and is strongly encouraged. (§7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7</td>
@@ -544,7 +552,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-5-4">RFC5881-5-4</code></td><td colspan="3"><span class="rfc-subject">If authentication is in use: received packets may be discarded if TTL/Hop Limit != 255 (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-5-4">RFC5881-5-4</code></td><td colspan="3"><span class="rfc-subject">All received BFD Control packets that are demultiplexed to the session MAY be discarded if the received TTL or Hop Limit is not equal to 255. (§5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5</td>
@@ -553,7 +561,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-5-5">RFC5881-5-5</code></td><td colspan="3"><span class="rfc-subject">TTL/Hop Limit check may be done before cryptographic authentication to save CPU (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-5-5">RFC5881-5-5</code></td><td colspan="3"><span class="rfc-subject">If the TTL/Hop Limit check is made, it MAY be done before any cryptographic authentication takes place if this will avoid unnecessary calculation that would be detrimental to the receiving system. (§5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5</td>
@@ -562,7 +570,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-12">RFC5881-4-12</code></td><td colspan="3"><span class="rfc-subject">If more than 16384 sessions, UDP source ports may be reused on multiple sessions (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-12">RFC5881-4-12</code></td><td colspan="3"><span class="rfc-subject">If more than 16384 BFD sessions are simultaneously active, UDP source port numbers MAY be reused on multiple sessions (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4</td>
@@ -571,7 +579,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-13">RFC5881-4-13</code></td><td colspan="3"><span class="rfc-subject">If source ports are reused, the number of distinct uses of the same port should be minimized (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-13">RFC5881-4-13</code></td><td colspan="3"><span class="rfc-subject">but the number of distinct uses of the same UDP source port number SHOULD be minimized. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4</td>
@@ -580,7 +588,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-14">RFC5881-4-14</code></td><td colspan="3"><span class="rfc-subject">An implementation may use UDP source port to aid in demultiplexing (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-4-14">RFC5881-4-14</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY use the UDP port source number to aid in demultiplexing incoming BFD Control packets (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4</td>
@@ -589,7 +597,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-6-7">RFC5881-6-7</code></td><td colspan="3"><span class="rfc-subject">An implementation may notify the application that the neighbor&#39;s source address has changed (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-6-7">RFC5881-6-7</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY notify the application that the neighbor&#39;s source address has changed, so that the application might choose to change the destination address or take some other action. (§6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6</td>
@@ -635,7 +643,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <td>{gap}, no test</td>
 <td>ze does not model point-to-point links separately; the first-packet demux keys firstPacketKey on the source address in.From (internal/component/bfd/engine/loop.go:88), so an initial packet whose source differs from the configured peer is not associated with the session, whereas RFC 5881 forbids using the source to identify a point-to-point session</td>
 </tr>
-<tr><td><a href="#rfc5881-6-4"><code>RFC5881-6-4</code></a> On point-to-point links, initial BFD packet must be accepted with any source address (§6)</td>
+<tr><td><a href="#rfc5881-6-4"><code>RFC5881-6-4</code></a> This means that the initial BFD packet MUST be accepted with any source address (§6)</td>
 <td>{gap}, no test</td>
 <td>the first-packet demux requires the source to equal the configured peer (internal/component/bfd/engine/loop.go:88-94, byKey lookup on in.From), so ze does not accept a point-to-point initial packet bearing an arbitrary source address; once a discriminator is learned, subsequent packets are demuxed by Your Discriminator alone (internal/component/bfd/engine/loop.go:82) as RFC5881-6-5 requires</td>
 </tr>
@@ -651,7 +659,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <p>No test carries RFC5881-2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5881-2-2"><code>RFC5881-2-2</code></a></h3>
 <p>If BFD is to be used in conjunction with both IPv4 and IPv6 on a particular path, a separate BFD session MUST be established for each protocol (and thus encapsulated by that protocol) over that link. (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: one session carrying both IPv4 and IPv6, or a protocol&#39;s packets not encapsulated in that protocol. TestRFC5881PerProtocolSessions reds if a v4 and a v6 peer collapse (n != 2, key equal, discriminator equal), and TestRFC5881SamePeerCoalesces pins keying. No tagged assertion covers &#39;(and thus encapsulated by that protocol)&#39;: nothing checks that the v6 session transmits in IPv6 (sendLocked To/transport family).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -678,16 +686,36 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5881-2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc5881-3-1"><code>RFC5881-3-1</code></a></h3>
-<p>Both sides of a session must take the Active role (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>both sides of a session MUST take the &#34;Active&#34; role (§3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RA-BFD strict re-read 2026-09-27 (stale after DF-BFD-4). One clause: both sides of a single-hop session MUST take the Active role. Forbidden: a single-hop session created in the Passive role. The only producer of SessionRequest.Passive is profileConfig.applyTo (OSPF, BGP and static requests set none), and every entry passes profileConfig.permitsMode: pluginConfig.validate for a pinned session, resolveProfile from pluginService.EnsureSession for a client request, checkClientProfile at commit. Red: TestRFC5881SingleHopPassiveProfileRejected Fatal when validate returns nil for a passive single-hop profile (its positive twin differs only in the passive bit); TestRFC5881ClientSingleHopPassiveProfileRefused Fatal when EnsureSession returns a handle or lacks the `sets passive` refusal. Positive: TestRFC5881SingleHopActiveProfileAccepted (passive unset validates and yields Passive false), TestRFC5881SingleHopTakesActiveRole (Init takes RoleActive and arms TX at creation), TestRFC5881ClientMultiHopPassiveProfileAccepted (scope: a blanket refusal fails). TestRFC5881NonActiveStaysSilent proves the Passive-role semantics of RFC5880-6.8.7-5, not this row; session.Init itself accepts Passive in either mode, so the guard is the config layer.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/enabled_test.go#L199" title="internal/component/bfd/enabled_test.go" target="_blank" rel="noopener"><code>TestRFC5881ClientSingleHopPassiveProfileRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L114" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881SingleHopPassiveProfileRejected</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L52" title="internal/component/bfd/session/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881NonActiveStaysSilent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/enabled_test.go#L214" title="internal/component/bfd/enabled_test.go" target="_blank" rel="noopener"><code>TestRFC5881ClientMultiHopPassiveProfileAccepted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L126" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881SingleHopActiveProfileAccepted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L37" title="internal/component/bfd/session/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881SingleHopTakesActiveRole</code></a></td>
@@ -698,8 +726,8 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 </table>
 </div>
 <h3><a href="#rfc5881-3-2"><code>RFC5881-3-2</code></a></h3>
-<p>A received packet with Your Discriminator = 0 must be associated with the session bound to the remote system, interface, and protocol (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>any BFD packet from the remote machine with a zero value of Your Discriminator MUST be associated with the session bound to the remote system, interface, and protocol. (§3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a Your-Discriminator-zero packet not associated with the session bound to (remote, interface, protocol), or associated with another. TestRFC5881FirstPacketMatchesByTuple reds on non-association; TestRFC5881FirstPacketWrongSourceDropped reds if the remote-address dimension is ignored. No tagged unit varies the interface or the protocol (the interface arm lives in untagged TestFirstPacketMatchesWhatTheTransportSurfaces), so matching that ignored interface or protocol stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -719,18 +747,18 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 </div>
 <h3><a href="#rfc5881-4-1"><code>RFC5881-4-1</code></a></h3>
 <p>BFD Control packets MUST be transmitted in UDP packets with destination port 3784, within an IPv4 or IPv6 packet. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: Control packets sent to a destination port other than 3784. TestRFC5881ControlDestPort3784 asserts the BIND port and the constant; UDP.Send (transport/udp.go) takes the destination from Bind.Port, but no tagged assertion observes the destination port of a transmitted packet, so a Send that addressed another port stays green. IPv4/IPv6 encapsulation is not asserted either.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L34" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881ControlPortNotUsedForEcho</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L36" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881ControlPortNotUsedForEcho</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L18" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881ControlDestPort3784</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L20" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881ControlDestPort3784</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -743,13 +771,13 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <p>No test carries RFC5881-4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5881-4-3"><code>RFC5881-4-3</code></a></h3>
 <p>The same UDP source port number MUST be used for all BFD Control packets associated with a particular session. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: Control packets of one session leaving from different source ports. TestRFC5881SingleSourcePortPerSession asserts only the transport&#39;s configured Bind.Port across two constructions; it never sends and observes source ports, so a Send that opened a fresh socket per packet stays green. {single-polarity} marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L71" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881SingleSourcePortPerSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L73" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881SingleSourcePortPerSession</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -757,8 +785,8 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 </table>
 </div>
 <h3><a href="#rfc5881-4-4"><code>RFC5881-4-4</code></a></h3>
-<p>Ultimately, RFC 5880 mechanisms must be used to demultiplex incoming packets to the proper session (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>but ultimately the mechanisms in [BFD] MUST be used to demultiplex incoming packets to the proper session. (§4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: demultiplexing a subsequent packet by something other than the RFC 5880 discriminator. (a) a packet with an unallocated Your Discriminator from the configured peer&#39;s source being associated: TestRFC5881DiscriminatorDemuxUnknownDropped reds (RemoteDiscriminator != 0), catching a source-address fallback; (b) a packet with the right discriminator from another source not delivered: TestRFC5881DiscriminatorDemuxDelivers reds (RemoteDiscriminator != peerMyDiscr). Producer loop.go handleInbound byDiscr.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -778,18 +806,18 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 </div>
 <h3><a href="#rfc5881-4-5"><code>RFC5881-4-5</code></a></h3>
 <p>BFD Echo packets MUST be transmitted in UDP packets with destination UDP port 3785 in an IPv4 or IPv6 packet. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: Echo packets sent to a destination port other than 3785. TestRFC5881EchoDestPort3785 asserts the Echo transport&#39;s BIND port and the constant, not the destination port of a transmitted echo; a Send that addressed another port stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L60" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881EchoPortNotUsedForControl</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L62" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881EchoPortNotUsedForControl</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L46" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881EchoDestPort3785</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L48" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881EchoDestPort3785</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -805,8 +833,8 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5881-4-7, so no unit is bound to it.</p>
 <h3><a href="#rfc5881-4-8"><code>RFC5881-4-8</code></a></h3>
-<p>Echo packets must be transmitted so they are received by the remote system (e.g., correct L2 destination on multiaccess media) (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>BFD Echo packets MUST be transmitted in such a way as to ensure that they are received by the remote system. On multiaccess media, for example, this requires that the destination datalink address corresponds to the remote system. (§4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: echo transmitted so it does not reach the remote. TestEchoRoundTrip reds if no RTT sample is recorded on A, which needs B to receive and reflect. It runs over the in-memory transport.Pair, so the multiaccess clause (destination datalink address corresponds to the remote) has no assertion. {single-polarity} marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -821,7 +849,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 </div>
 <h3><a href="#rfc5881-5-1"><code>RFC5881-5-1</code></a></h3>
 <p>If BFD authentication is not in use on a session, all BFD Control packets for the session MUST be sent with a Time to Live (TTL) or Hop Limit value of 255. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a Control packet sent with TTL or Hop Limit other than 255 (auth not in use). TestUDPSetOutboundTTL255 reads IP_TTL back from an IPv4 socket after Start and reds if applySocketOptions drops IP_TTL=255. The IPv6 Hop Limit (applySocketOptionsV6, IPV6_UNICAST_HOPS=255) has no tagged assertion. TestUDPDefaultTTLNot255 checks a plain socket, not ze code.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -841,7 +869,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 </div>
 <h3><a href="#rfc5881-5-2"><code>RFC5881-5-2</code></a></h3>
 <p>All received BFD Control packets that are demultiplexed to the session MUST be discarded if the received TTL or Hop Limit is not equal to 255. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a demultiplexed single-hop Control packet with TTL != 255 reaching the session. TestTTLGateSingleHop asserts the predicate passesTTLGate (254/253/128/0 false, 255 true) but never drives handleInbound, so removing the call at loop.go handleInbound (if !passesTTLGate ... return) leaves it green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -861,7 +889,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 </div>
 <h3><a href="#rfc5881-5-3"><code>RFC5881-5-3</code></a></h3>
 <p>If BFD authentication is in use on a session, all BFD Control packets MUST be sent with a TTL or Hop Limit value of 255. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: with auth in use, a Control packet sent with TTL or Hop Limit other than 255. The IP_TTL=255 setsockopt is unconditional and TestUDPSetOutboundTTL255 reds on its absence for IPv4; the IPv6 Hop Limit clause (IPV6_UNICAST_HOPS) has no tagged assertion, and no tagged unit runs with authentication in use.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -881,7 +909,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 </div>
 <h3><a href="#rfc5881-6-1"><code>RFC5881-6-1</code></a></h3>
 <p>Implementations MUST ensure that all BFD Control packets are transmitted over the one-hop path being protected by BFD. (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. Forbidden: a Control packet leaving over a path other than the protected one-hop path (wrong interface, routed off-link). The tagged units assert IP_TTL=255 on the socket, which is RFC5881-5-1; TTL 255 does not confine a packet to one hop (it permits the most hops). The tag prose &#39;without TTL 255 the packet is not confined to the one-hop path&#39; asserts a neighbouring rule. Interface binding (SO_BINDTODEVICE in applySocketOptions) is not asserted.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -901,7 +929,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 </div>
 <h3><a href="#rfc5881-6-2"><code>RFC5881-6-2</code></a></h3>
 <p>On a multiaccess network, BFD Control packets MUST be transmitted with source and destination addresses that are part of the subnet (addressed from and to interfaces on the subnet). (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: on multiaccess, a Control packet whose source or destination is off the subnet. TestRFC5881TransmitDestinationStable asserts ct.last.To == configured peer; nothing asserts the peer or the source is on the interface subnet, and the source address is not observed. {single-polarity} marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -919,12 +947,12 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5881-6-3, so no unit is bound to it.</p>
 <h3><a href="#rfc5881-6-4"><code>RFC5881-6-4</code></a></h3>
-<p>On point-to-point links, initial BFD packet must be accepted with any source address (§6)</p>
+<p>This means that the initial BFD packet MUST be accepted with any source address (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5881-6-4, so no unit is bound to it.</p>
 <h3><a href="#rfc5881-6-5"><code>RFC5881-6-5</code></a></h3>
-<p>On point-to-point links, subsequent packets must be demultiplexed solely by Your Discriminator (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>and that subsequent BFD packets MUST be demultiplexed solely by the Your Discriminator field (§6)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: subsequent packets demultiplexed on anything besides Your Discriminator. TestRFC5881DiscriminatorDemuxDelivers reds if the source address participates (other source still delivered); TestRFC5881DiscriminatorDemuxUnknownDropped reds on a source fallback. Neither varies the ingress interface or local address, so a byDiscr lookup that additionally required the interface to match stays green; &#39;solely&#39; is proven for the source dimension only.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -944,7 +972,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 </div>
 <h3><a href="#rfc5881-6-6"><code>RFC5881-6-6</code></a></h3>
 <p>If the received source address changes, the local system MUST NOT use that address as the destination in outgoing BFD Control packets; rather, it MUST continue to use the address configured at session creation. (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: after a changed received source, using it as the transmit destination, or not using the configured address. After handleInbound from 198.51.100.7 by discriminator, TestRFC5881TransmitDestinationStable reds if PeerAddr drifts or ct.last.To != configured peer (MUST continue to use configured), and TestRFC5881TransmitDestinationIgnoresChangedSource reds if ct.last.To == changed source (MUST NOT use that address). Producer loop.go sendLocked To: PeerAddr().</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1144,7 +1172,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,40 +1,108 @@
 {
   "gate": {
     "ok": false,
-    "error-count": 1,
-    "gated-must": 4060,
+    "error-count": 18,
+    "gated-must": 4019,
     "enrolled-rfcs": 174,
-    "test-tags": 6058,
-    "message": "rfc-requirements: 1 violation(s)",
+    "test-tags": 6112,
+    "message": "rfc-requirements: 18 violation(s)",
     "violations": [
-      "cmd/ze/hub: `go vet` cannot type-check this package, so the 3 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: RFC8907-8.3-4, RFC9728-7.1-1, RFC9728-7.1-2. go vet said: cmd/ze/hub/data_rpc_test.go:30:2: undefined: installDataRPC. Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`"
+      "rfc/discrimination/rfc4271.json: the revert record for RFC4271-6.3-15 positive at internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of ValidateUpdateRFC7606AddPath replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc4271.json: the revert record for RFC4271-6.3-15 negative at internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of ValidateUpdateRFC7606AddPath replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc7611.json: the revert record for RFC7611-2.1-1 negative at internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC7611OwnRouteNeverReacceptedIntoSource no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of LoopIngress replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/filter/loop.go::LoopIngress. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc7611.json: the revert record for RFC7611-2.1-1 positive at internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC7611OwnRouteNeverReacceptedIntoSource no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of LoopIngress replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/filter/loop.go::LoopIngress. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc7705.json: the revert record for RFC7705-3.3-1 positive at internal/component/bgp/config/peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of parsePeerSettings replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/config.go::parsePeerSettings. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc7947.json: the mutant record for RFC7947-2.2.2.2-1 positive at internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressAcceptsNonAdjacentLeftmostAS no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"line 120: \\\"==\\\" -\u003e \\\"!=\\\"\" was observed to redden that unit when applied to internal/component/bgp/reactor/filter/loop.go::LoopIngress. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc7947.json: the mutant record for RFC7947-2.2.2.2-1 negative at internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressRejectsLocalASFromRouteServer no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"line 120: \\\"==\\\" -\u003e \\\"\u003c\\\"\" was observed to redden that unit when applied to internal/component/bgp/reactor/filter/loop.go::LoopIngress. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc8907.json: the revert record for RFC8907-10-1 positive at internal/component/tacacs/rfc8907_unencrypted_config_test.go::TestRFC8907UnencryptedModeIsNotReachableFromConfiguration no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc8907.json: the revert record for RFC8907-10-2 positive at internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc8907.json: the revert record for RFC8907-10.5.2-1 negative at internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientRefusesUnobfuscatedReply no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-1 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoSecondPacketWithoutSingleConnect no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-1 positive at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907SecondSessionReusesEstablishedConnection no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-2 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClientDoesNotResignalSingleConnect no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-2 positive at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FlagClearedOnLaterReplyIsIgnored no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-3 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClosureOnFreshDialIsNotRetried no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.4-2 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.4-3 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionStaysOpen no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc8907.json: the revert record for RFC8907-5.4.2.2-1 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPClientSendsNoContinue no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
     ],
     "findings": [
       {
-        "message": "cmd/ze/hub: `go vet` cannot type-check this package, so the 3 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: RFC8907-8.3-4, RFC9728-7.1-1, RFC9728-7.1-2. go vet said: cmd/ze/hub/data_rpc_test.go:30:2: undefined: installDataRPC. Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`"
+        "message": "rfc/discrimination/rfc4271.json: the revert record for RFC4271-6.3-15 positive at internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of ValidateUpdateRFC7606AddPath replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc4271.json: the revert record for RFC4271-6.3-15 negative at internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of ValidateUpdateRFC7606AddPath replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc7611.json: the revert record for RFC7611-2.1-1 negative at internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC7611OwnRouteNeverReacceptedIntoSource no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of LoopIngress replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/filter/loop.go::LoopIngress. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc7611.json: the revert record for RFC7611-2.1-1 positive at internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC7611OwnRouteNeverReacceptedIntoSource no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of LoopIngress replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/filter/loop.go::LoopIngress. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc7705.json: the revert record for RFC7705-3.3-1 positive at internal/component/bgp/config/peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of parsePeerSettings replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/config.go::parsePeerSettings. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc7947.json: the mutant record for RFC7947-2.2.2.2-1 positive at internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressAcceptsNonAdjacentLeftmostAS no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"line 120: \\\"==\\\" -\u003e \\\"!=\\\"\" was observed to redden that unit when applied to internal/component/bgp/reactor/filter/loop.go::LoopIngress. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc7947.json: the mutant record for RFC7947-2.2.2.2-1 negative at internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressRejectsLocalASFromRouteServer no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"line 120: \\\"==\\\" -\u003e \\\"\u003c\\\"\" was observed to redden that unit when applied to internal/component/bgp/reactor/filter/loop.go::LoopIngress. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc8907.json: the revert record for RFC8907-10-1 positive at internal/component/tacacs/rfc8907_unencrypted_config_test.go::TestRFC8907UnencryptedModeIsNotReachableFromConfiguration no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc8907.json: the revert record for RFC8907-10-2 positive at internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc8907.json: the revert record for RFC8907-10.5.2-1 negative at internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientRefusesUnobfuscatedReply no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-1 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoSecondPacketWithoutSingleConnect no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-1 positive at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907SecondSessionReusesEstablishedConnection no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-2 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClientDoesNotResignalSingleConnect no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-2 positive at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FlagClearedOnLaterReplyIsIgnored no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-3 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClosureOnFreshDialIsNotRetried no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.4-2 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.4-3 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionStaysOpen no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc8907.json: the revert record for RFC8907-5.4.2.2-1 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPClientSendsNoContinue no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of trySend replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/tacacs/client.go::trySend. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
       }
     ]
   },
   "share": {
-    "proven": 2489,
-    "gated": 3898,
-    "rfcs": 150,
-    "inspected": 171,
-    "gated-inspected": 4060,
+    "proven": 2488,
+    "gated": 3896,
+    "rfcs": 151,
+    "inspected": 170,
+    "gated-inspected": 4019,
     "percent": "63.9"
   },
   "satisfaction": [
     {
       "key": "both_polarities",
-      "count": 2097
+      "count": 2100
     },
     {
       "key": "single_polarity",
-      "count": 392
+      "count": 388
     },
     {
       "key": "gap",
-      "count": 665
+      "count": 659
     },
     {
       "key": "one_polarity_unexcused",
@@ -46,7 +114,7 @@
     },
     {
       "key": "not_applicable",
-      "count": 679
+      "count": 678
     },
     {
       "key": "lower_layer",
@@ -54,7 +122,7 @@
     },
     {
       "key": "feature_declined",
-      "count": 24
+      "count": 30
     },
     {
       "key": "rollup",
@@ -62,12 +130,12 @@
     }
   ],
   "gaps": {
-    "requirements": 665,
-    "rfcs": 78,
+    "requirements": 659,
+    "rfcs": 76,
     "status-counts": [
       {
         "status": "Partial",
-        "count": 61
+        "count": 59
       },
       {
         "status": "Experimental",
@@ -156,15 +224,15 @@
     ]
   },
   "audit": {
-    "verdicts": 56,
-    "fresh": 56,
+    "verdicts": 2060,
+    "fresh": 2060,
     "shifted": 0,
     "stale": 0,
-    "missing": 4004
+    "missing": 1959
   },
   "verify": {
     "command": "./le rfc check",
-    "stages": 51,
+    "stages": 52,
     "gate-stages": 1
   }
 }

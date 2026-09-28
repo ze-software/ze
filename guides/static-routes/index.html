@@ -211,6 +211,14 @@ static {
 }
 </code></pre>
 <p>If all BFD-tracked next-hops go down, the route is withdrawn entirely.</p>
+<p>The session to a next-hop is single-hop. The daemon at startup, a commit,
+a SIGHUP reload and <code>ze config validate</code> each refuse a <code>bfd-profile</code> that
+names no profile under
+<code>bfd { profile ... }</code>, and one whose profile sets <code>passive</code>, because RFC
+5881 §3 requires both ends of a single-hop session to be Active. The error
+names the route and the next-hop.</p>
+<!-- source: internal/plugins/static/register.go — checkBFDProfiles -->
+<!-- source: internal/component/bfd/api/profile_check.go — CheckProfile -->
 <h3 id="blackhole-and-reject">Blackhole and reject</h3>
 <p>Blackhole silently discards matching packets. Reject discards and sends
 an ICMP unreachable reply.</p>
@@ -361,7 +369,7 @@ framework. BGP redistribute can import static routes:</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

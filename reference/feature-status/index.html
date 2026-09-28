@@ -72,7 +72,7 @@
 <tr>
 <td><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/storage-backends.md" target="_blank" rel="noopener">Persistent storage</a></td>
 <td>Experimental</td>
-<td>One live <code>database/</code> tree holds checksummed keys, credentials, runtime state, and per-config version pointers. One process owns writes; read-only inspection remains available. Explicit config files remain authoritative on every explicit-file start. Daemon commits update the file and history through a recoverable publication intent. ZeFS blobs remain explicit offline artifacts and appliance seeds. <!-- source: internal/component/config/storage/open.go -- Open, CreatePopulated --> <!-- source: internal/component/config/storage/import.go -- ImportBlob --> <!-- source: cmd/ze/hub/config_source.go -- recoverFileCommit, promoteConfigCandidate --></td>
+<td>One live <code>database/</code> tree holds checksummed keys, credentials, runtime state, and per-config version pointers. Config history is content-addressed: each version's bytes are stored once under their SHA-256, and every read verifies the hash. <!-- source: internal/component/config/storage/history.go -- writeVersionObject, readVersionEntry --> One process owns writes; read-only inspection remains available. Explicit config files remain authoritative on every explicit-file start. Daemon commits update the file and history through a recoverable publication intent. ZeFS blobs remain explicit offline artifacts and appliance seeds. <!-- source: internal/component/config/storage/open.go -- Open, CreatePopulated --> <!-- source: internal/component/config/storage/import.go -- ImportBlob --> <!-- source: cmd/ze/hub/config_source.go -- recoverFileCommit, promoteConfigCandidate --></td>
 </tr>
 <tr>
 <td><a href="../../guides/command-reference/#ze-data">Backup and restore</a></td>
@@ -726,7 +726,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 06:03 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

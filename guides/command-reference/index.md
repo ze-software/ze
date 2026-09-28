@@ -2235,10 +2235,29 @@ ze data encode [--crc|--header] [--cap N] <string|->
 Without it, commands use `database/` under the configured directory.
 Data commands never initialize a missing live store.
 
-`check` verifies every frame and names corrupt keys. `repair` preserves the source
-and writes verified keys to a new tree or blob. It refuses an existing output.
-Integrity exits are `0` for success, `1` for corruption or skipped keys, and `2`
-for an I/O failure or unsafe path.
+`check` verifies every frame and names corrupt keys. A corrupt frame exits `1`
+before the history walk, because a frame that does not read cannot be told
+apart from a missing one: run `repair`, then `check` the output. With every frame
+intact, it walks config history, where each dated entry `file/<stamp>/<name>` holds `sha256:<hex>` and
+the bytes live once under `object/<hex>`. Each finding is one row,
+`<severity>: <kind>: <key>: <detail>`:
+
+| Kind | Severity | Meaning |
+|------|----------|---------|
+| `orphan-object` | warning | no history entry names the object (an interrupted write) |
+| `dangling-entry` | error | the entry names an object that is absent or does not hash to its name |
+| `malformed-entry` | error | the entry value is not `sha256:` plus 64 lowercase hex |
+| `wrong-hash-object` | error | the object's bytes do not hash to its name, both hashes named |
+| `dangling-pointer` | error | `meta/config/<name>/<pointer>` names a stamp whose entry does not resolve |
+
+`repair` preserves the source and writes verified keys to a new tree or blob. It
+refuses an existing output. It then drops every dangling or malformed entry and
+every wrong-hash object from the output, one `dropped:` row each, keeps orphan
+objects, and reports every pointer left naming a dropped entry without moving
+it. Integrity exits are `0` for success, `1` for corruption, skipped or dropped
+keys, or a history error, and `2` for an I/O failure or unsafe path.
+<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, printHistoryFindings -->
+<!-- source: internal/component/config/storage/history_check.go -- CheckHistory, RepairHistory -->
 
 `backup` copies every key of the store, at any depth and in any namespace, to
 one new blob artifact under one write lock, so a commit is in the backup whole

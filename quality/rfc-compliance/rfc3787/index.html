@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3787 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3787: Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS). 3 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 3787: Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS). 3 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3787 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3787: Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS). 3 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 3787: Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS). 3 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3787 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3787: Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS). 3 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 3787: Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS). 3 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>33.3%</strong><b>1 of 3 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>2</strong><b>of 3 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>1</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -301,16 +305,16 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3787-x-1">RFC3787-x-1</code></td><td colspan="3"><span class="rfc-subject">Ignore TLV 131 (Inter-Domain Routing Protocol Information) and TLV 133 (Authentication, replaced by TLV 10) if received (Sections 3.1, 3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3787-x-1">RFC3787-x-1</code></td><td colspan="3"><span class="rfc-subject">TLV 131 is not used, and MUST be ignored if received. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>x</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3787-x-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_opaque_test.go#L54" title="internal/plugins/isis/packet/tlv_opaque_test.go" target="_blank" rel="noopener"><code>TestISISIgnoreObsoleteTLVs131And133</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_opaque_test.go#L61" title="internal/plugins/isis/packet/tlv_opaque_test.go" target="_blank" rel="noopener"><code>TestISISIgnoreObsoleteTLVs131And133</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3787-4-1">RFC3787-4-1</code></td><td colspan="3"><span class="rfc-subject">Use the Overload Bit to signal not ready for transit traffic; set it in non-pseudonode LSP number Zero, not in PseudoNode LSPs; ignore OL in PseudoNode LSPs (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3787-4-1">RFC3787-4-1</code></td><td colspan="3"><span class="rfc-subject">An implementation SHOULD use the Overload Bit to signal that it is not ready to accept transit traffic. An implementation SHOULD not set the Overload bit in PseudoNode LSPs that it generates, and Overload bits seen in PseudoNode LSPs SHOULD be ignored. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4</td>
@@ -319,7 +323,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3787-4-2">RFC3787-4-2</code></td><td colspan="3"><span class="rfc-subject">On receiving an OL-set LSP number Zero, treat all IP reachability advertisements as directly connected in SPF (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3787-4-2">RFC3787-4-2</code></td><td colspan="3"><span class="rfc-subject">When processing LSPs received from a router which has the Overload bit set in LSP number Zero, the receiving router SHOULD treat all IP reachability advertisements as directly connected and use them in its SPF computation. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4</td>
@@ -328,7 +332,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3787-5-1">RFC3787-5-1</code></td><td colspan="3"><span class="rfc-subject">Continue using narrow metrics unless all devices in the domain support wide metrics (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3787-5-1">RFC3787-5-1</code></td><td colspan="3"><span class="rfc-subject">If not all devices in the IS-IS domain support wide metrics, narrow metrics MUST continue to be used. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -337,7 +341,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> Ze originates ONLY wide metrics by umbrella decision -- it never emits the narrow TLV 2 (internal/plugins/isis/packet/tlv_neighbours.go:59-60 &#34;Ze never originates TLV 2&#34;; internal/plugins/isis/types/metric.go:15 &#34;Only wide metrics are originated by Ze&#34;). Ze DECODES a legacy neighbor&#39;s narrow TLV 2 (decode-only) so it can parse mixed-domain LSPs, but it does not fall back to narrow-metric ORIGINATION, so a narrow-only router cannot interpret Ze&#39;s advertisements. Ze therefore requires every device in the domain to support wide metrics rather than continuing with narrow until the whole domain is wide-capable. Disclosed in docs/features/rfc-status.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3787-8-1">RFC3787-8-1</code></td><td colspan="3"><span class="rfc-subject">Generate default routes in Level 1 (Section 8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3787-8-1">RFC3787-8-1</code></td><td colspan="3"><span class="rfc-subject">an implementation MAY generate default routes in Level 1. (§8)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>8</td>
@@ -346,10 +350,10 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3787-x-2">RFC3787-x-2</code></td><td colspan="3"><span class="rfc-subject">Generate a Protocol Supported TLV (code 129) including IP, and include an IP Interface Address TLV (132) in IIH PDUs for mixed-environment interoperability (Sections 9, 10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3787-x-2">RFC3787-x-2</code></td><td colspan="3"><span class="rfc-subject">IP capable routers MUST generate a Protocol Supported TLV, and MUST include the IP protocol as a supported protocol. (§9)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>x</td>
+<td>9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3787-x-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L146" title="internal/plugins/isis/circuit/hello_test.go" target="_blank" rel="noopener"><code>TestISISIIHOriginationTLVs</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L196" title="internal/plugins/isis/circuit/hello_test.go" target="_blank" rel="noopener"><code>TestISISHelloTLV132RequiresInterfaceAddr</code></a></span></div>
@@ -364,7 +368,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc3787-5-1"><code>RFC3787-5-1</code></a> Continue using narrow metrics unless all devices in the domain support wide metrics (Section 5)</td>
+<tr><td><a href="#rfc3787-5-1"><code>RFC3787-5-1</code></a> If not all devices in the IS-IS domain support wide metrics, narrow metrics MUST continue to be used. (§5)</td>
 <td>{gap}, no test</td>
 <td>Ze originates ONLY wide metrics by umbrella decision -- it never emits the narrow TLV 2 (internal/plugins/isis/packet/tlv_neighbours.go:59-60 &#34;Ze never originates TLV 2&#34;; internal/plugins/isis/types/metric.go:15 &#34;Only wide metrics are originated by Ze&#34;). Ze DECODES a legacy neighbor&#39;s narrow TLV 2 (decode-only) so it can parse mixed-domain LSPs, but it does not fall back to narrow-metric ORIGINATION, so a narrow-only router cannot interpret Ze&#39;s advertisements. Ze therefore requires every device in the domain to support wide metrics rather than continuing with narrow until the whole domain is wide-capable. Disclosed in docs/features/rfc-status.md</td>
 </tr>
@@ -375,8 +379,8 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc3787-x-1"><code>RFC3787-x-1</code></a></h3>
-<p>Ignore TLV 131 (Inter-Domain Routing Protocol Information) and TLV 133 (Authentication, replaced by TLV 10) if received (Sections 3.1, 3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>TLV 131 is not used, and MUST be ignored if received. (§3.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Quote is now Section 3.1 only (TLV 131 MUST be ignored if received); the Section 3.2 TLV 133 obligation is reported split-needed and the tag prose still names both. Forbidden: acting on a received TLV 131 (rejecting the PDU, interpreting its value). TestISISIgnoreObsoleteTLVs131And133 drives only the codec: DecodeTLVs err == nil and 131 retained are the producer-sensitive assertions. No receive path (IIH or LSP handler) is driven with a TLV 131, so a handler that refused an adjacency or LSP carrying 131 stays green; the &#39;recognized&#39; loop iterates a test-local literal list and cannot go red on any producer change.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -395,12 +399,12 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc3787-5-1"><code>RFC3787-5-1</code></a></h3>
-<p>Continue using narrow metrics unless all devices in the domain support wide metrics (Section 5)</p>
+<p>If not all devices in the IS-IS domain support wide metrics, narrow metrics MUST continue to be used. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3787-5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3787-x-2"><code>RFC3787-x-2</code></a></h3>
-<p>Generate a Protocol Supported TLV (code 129) including IP, and include an IP Interface Address TLV (132) in IIH PDUs for mixed-environment interoperability (Sections 9, 10)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>IP capable routers MUST generate a Protocol Supported TLV, and MUST include the IP protocol as a supported protocol. (§9)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Quote is now Section 9 (IP capable routers MUST generate a Protocol Supported TLV, and MUST include the IP protocol); the Section 10 TLV 132 obligation is reported split-needed. Clause 1 (generate TLV 129): TestISISIIHOriginationTLVs asserts hasTLV(TLVProtocolsSupported) on the LAN and P2P IIH, red on dropping it from hello.go:59. The same paragraph places the TLV in ISH and LSP number Zero too; no tagged unit reads the LSP 0 origination (lsdb/origination.go:534) or the ISH (circuit/ish.go:30). Clause 2 (IP included): TestISISHelloTLV132RequiresInterfaceAddr asserts NLPIDIPv4 in c.protocolsSupportedTLV(), the IIH/ISH builder only, not the LSP 0 value. No negative case targets the Section 9 sentence; the negative tag asserts TLV 132 omission, the Section 10 obligation.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -626,7 +630,7 @@ One MUST gap, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

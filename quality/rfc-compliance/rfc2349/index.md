@@ -56,11 +56,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 4 |
 | Not applicable, so out of scope | 3 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 2 |
 | Tagged units | 2 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 1 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc2349.md` |
 | Requirement shard | `rfc/requirements/rfc2349.md` |
@@ -94,20 +95,20 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2349-x-1` | Timeout: server's acknowledged value MUST match the client's requested value exactly (Timeout Interval Option Specification) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not implement the RFC 2349 timeout option. Its RRQ parser recognizes only blksize, tsize, and windowsize (internal/plugins/tftpserver/handler.go:121-131 parseRRQ); a requested timeout option falls through and is ignored per RFC 2347 (an unacknowledged option is treated as never requested, gated as RFC2347-x-3). Ze never places timeout in an OACK, so it has no code path that could acknowledge a mismatched timeout value. |
-| `RFC2349-x-2` | Timeout valid range MUST be 1 to 255 seconds inclusive (Timeout Interval Option Specification) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not implement the timeout option (parseRRQ recognizes only blksize/tsize/windowsize, internal/plugins/tftpserver/handler.go:121-131), so it has no timeout value to range-check against 1-255 seconds. |
-| `RFC2349-x-3` | Tsize in RRQ: client's value MUST be "0"; server returns actual file size in OACK (Transfer Size Option Specification) | MUST | x | **positive:** `unit/verify` [`TestRFC2349TsizeRRQReturnsActualSize`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L32). **negative:** `unit/verify` [`TestRFC2349TsizeRRQReturnsActualSize`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L37) |
-| `RFC2349-x-4` | Tsize in WRQ: server's OACK value MUST echo the client's specified file size (Transfer Size Option Specification) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze is a read-only TFTP server: it rejects every write request (WRQ) with an Illegal-Operation error (internal/plugins/tftpserver/handler.go:226-227 "write not supported"; TestTFTPWriteRejected). With no WRQ transfer ever accepted, Ze has no code path that would echo a client-specified file size in a WRQ OACK. |
-| `RFC2349-x-5` | If the file is too large for the client (RRQ), it MAY abort with ERROR code 3 (Transfer Size Option Specification) | MAY | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC2349-x-6` | If the file is too large for the server (WRQ), it MAY abort with ERROR code 3 (Transfer Size Option Specification) | MAY | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC2349-x-1` | If the server is willing to accept the timeout option, it sends an Option Acknowledgment (OACK) to the client. The specified timeout value must match the value specified by the client. (§Timeout Interval Option Specification) | MUST | Timeout | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not implement the RFC 2349 timeout option. Its RRQ parser recognizes only blksize, tsize, and windowsize (internal/plugins/tftpserver/handler.go:121-131 parseRRQ); a requested timeout option falls through and is ignored per RFC 2347 (an unacknowledged option is treated as never requested, gated as RFC2347-x-3). Ze never places timeout in an OACK, so it has no code path that could acknowledge a mismatched timeout value. |
+| `RFC2349-x-2` | The number of seconds to wait before retransmitting, specified in ASCII. Valid values range between "1" and "255" seconds, inclusive. (§Timeout Interval Option Specification) | MUST | Timeout | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not implement the timeout option (parseRRQ recognizes only blksize/tsize/windowsize, internal/plugins/tftpserver/handler.go:121-131), so it has no timeout value to range-check against 1-255 seconds. |
+| `RFC2349-x-3` | In Read Request packets, a size of "0" is specified in the request and the size of the file, in octets, is returned in the OACK. (§Transfer Size Option Specification) | MUST | Transfer | **positive:** `unit/verify` [`TestRFC2349TsizeRRQReturnsActualSize`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L32). **negative:** `unit/verify` [`TestRFC2349TsizeRRQReturnsActualSize`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L37) |
+| `RFC2349-x-4` | In Write Request packets, the size of the file, in octets, is specified in the request and echoed back in the OACK. (§Transfer Size Option Specification) | MUST | Transfer | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze is a read-only TFTP server: it rejects every write request (WRQ) with an Illegal-Operation error (internal/plugins/tftpserver/handler.go:226-227 "write not supported"; TestTFTPWriteRejected). With no WRQ transfer ever accepted, Ze has no code path that would echo a client-specified file size in a WRQ OACK. |
+| `RFC2349-x-5` | If the file is too large for the client to handle, it may abort the transfer with an Error packet (error code 3). (§Transfer Size Option Specification) | MAY | Transfer | **positive:** no positive test. **negative:** no negative test |
+| `RFC2349-x-6` | If the file is too large for the server to handle, it may abort the transfer with an Error packet (error code 3). (§Transfer Size Option Specification) | MAY | Transfer | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC2349-x-1`](#rfc2349-x-1) Timeout: server's acknowledged value MUST match the client's requested value exactly (Timeout Interval Option Specification) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 2349 timeout option. Its RRQ parser recognizes only blksize, tsize, and windowsize (internal/plugins/tftpserver/handler.go:121-131 parseRRQ); a requested timeout option falls through and is ignored per RFC 2347 (an unacknowledged option is treated as never requested, gated as RFC2347-x-3). Ze never places timeout in an OACK, so it has no code path that could acknowledge a mismatched timeout value. |
-| [`RFC2349-x-2`](#rfc2349-x-2) Timeout valid range MUST be 1 to 255 seconds inclusive (Timeout Interval Option Specification) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not implement the timeout option (parseRRQ recognizes only blksize/tsize/windowsize, internal/plugins/tftpserver/handler.go:121-131), so it has no timeout value to range-check against 1-255 seconds. |
-| [`RFC2349-x-4`](#rfc2349-x-4) Tsize in WRQ: server's OACK value MUST echo the client's specified file size (Transfer Size Option Specification) | no test | no test carries this requirement id; annotated {not-applicable}: Ze is a read-only TFTP server: it rejects every write request (WRQ) with an Illegal-Operation error (internal/plugins/tftpserver/handler.go:226-227 "write not supported"; TestTFTPWriteRejected). With no WRQ transfer ever accepted, Ze has no code path that would echo a client-specified file size in a WRQ OACK. |
+| [`RFC2349-x-1`](#rfc2349-x-1) If the server is willing to accept the timeout option, it sends an Option Acknowledgment (OACK) to the client. The specified timeout value must match the value specified by the client. (§Timeout Interval Option Specification) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 2349 timeout option. Its RRQ parser recognizes only blksize, tsize, and windowsize (internal/plugins/tftpserver/handler.go:121-131 parseRRQ); a requested timeout option falls through and is ignored per RFC 2347 (an unacknowledged option is treated as never requested, gated as RFC2347-x-3). Ze never places timeout in an OACK, so it has no code path that could acknowledge a mismatched timeout value. |
+| [`RFC2349-x-2`](#rfc2349-x-2) The number of seconds to wait before retransmitting, specified in ASCII. Valid values range between "1" and "255" seconds, inclusive. (§Timeout Interval Option Specification) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not implement the timeout option (parseRRQ recognizes only blksize/tsize/windowsize, internal/plugins/tftpserver/handler.go:121-131), so it has no timeout value to range-check against 1-255 seconds. |
+| [`RFC2349-x-4`](#rfc2349-x-4) In Write Request packets, the size of the file, in octets, is specified in the request and echoed back in the OACK. (§Transfer Size Option Specification) | no test | no test carries this requirement id; annotated {not-applicable}: Ze is a read-only TFTP server: it rejects every write request (WRQ) with an Illegal-Operation error (internal/plugins/tftpserver/handler.go:226-227 "write not supported"; TestTFTPWriteRejected). With no WRQ transfer ever accepted, Ze has no code path that would echo a client-specified file size in a WRQ OACK. |
 
 ## Proof state
 
@@ -115,7 +116,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC2349-x-1`](#rfc2349-x-1)
 
-Timeout: server's acknowledged value MUST match the client's requested value exactly (Timeout Interval Option Specification)
+If the server is willing to accept the timeout option, it sends an Option Acknowledgment (OACK) to the client. The specified timeout value must match the value specified by the client. (§Timeout Interval Option Specification)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -123,7 +124,7 @@ No test carries RFC2349-x-1, so no unit is bound to it.
 
 ### [`RFC2349-x-2`](#rfc2349-x-2)
 
-Timeout valid range MUST be 1 to 255 seconds inclusive (Timeout Interval Option Specification)
+The number of seconds to wait before retransmitting, specified in ASCII. Valid values range between "1" and "255" seconds, inclusive. (§Timeout Interval Option Specification)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -131,9 +132,9 @@ No test carries RFC2349-x-2, so no unit is bound to it.
 
 ### [`RFC2349-x-3`](#rfc2349-x-3)
 
-Tsize in RRQ: client's value MUST be "0"; server returns actual file size in OACK (Transfer Size Option Specification)
+In Read Request packets, a size of "0" is specified in the request and the size of the file, in octets, is returned in the OACK. (§Transfer Size Option Specification)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden (server half): an OACK whose tsize is not the file size in octets, e.g. echoing the client's "0" or a constant. TestRFC2349TsizeRRQReturnsActualSize asserts opts["tsize"] == "7" for a 7-octet file and == "20" (and != "0") for a 20-octet file, red on echo, constant, or wrong size. The first clause (the client specifies "0" in the request) binds a TFTP client, which Ze does not ship (read-only server). Both polarities.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -142,7 +143,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2349-x-4`](#rfc2349-x-4)
 
-Tsize in WRQ: server's OACK value MUST echo the client's specified file size (Transfer Size Option Specification)
+In Write Request packets, the size of the file, in octets, is specified in the request and echoed back in the OACK. (§Transfer Size Option Specification)
 
 Audit verdict: not audited: no reader has judged these tests
 

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2661 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2661: Layer Two Tunneling Protocol &#34;L2TP&#34;. 97 gated MUST-level requirements, 9 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 2661: Layer Two Tunneling Protocol &#34;L2TP&#34;. 97 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2661 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2661: Layer Two Tunneling Protocol &#34;L2TP&#34;. 97 gated MUST-level requirements, 9 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 2661: Layer Two Tunneling Protocol &#34;L2TP&#34;. 97 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2661 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2661: Layer Two Tunneling Protocol &#34;L2TP&#34;. 97 gated MUST-level requirements, 9 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 2661: Layer Two Tunneling Protocol &#34;L2TP&#34;. 97 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>9.3%</strong><b>9 of 97 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>22</strong><b>of 97 gated MUSTs judged</b><p>17 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 97 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>9</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>167</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>22</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>128</td>
@@ -302,17 +306,17 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-x-1">RFC2661-x-1</code></td><td colspan="3"><span class="rfc-subject">Reserved bits 8-11 in L2TP header MUST be 0 (Wire Format)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-x-1">RFC2661-x-1</code></td><td colspan="3"><span class="rfc-subject">All reserved bits MUST be set to 0 on outgoing messages and ignored on incoming messages. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>x</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-x-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/header_test.go#L230" title="internal/component/l2tp/header_test.go" target="_blank" rel="noopener"><code>TestWriteControlHeader</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L27" title="test/l2tp/rfc2661-emitted-control-shape.ci" target="_blank" rel="noopener"><code>rfc2661-emitted-control-shape.ci</code></a></span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> every control header is the fixed constant 0xC802 and every data header is built from verL2TP|flags, so reserved bits are always emitted zero, and ze never rejects non-zero on receive (internal/component/l2tp/header.go:26, :148-155, :172-207)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.1-1">RFC2661-4.1-1</code></td><td colspan="3"><span class="rfc-subject">AVP reserved bits 2-5 MUST be zero on send; non-zero on receive means treat AVP as unrecognized (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.1-1">RFC2661-4.1-1</code></td><td colspan="3"><span class="rfc-subject">Reserved bits MUST be set to 0. An AVP received with a reserved bit set to 1 MUST be treated as an unrecognized AVP. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -322,17 +326,17 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L29" title="test/l2tp/rfc2661-emitted-control-shape.ci" target="_blank" rel="noopener"><code>rfc2661-emitted-control-shape.ci</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.1-2">RFC2661-4.1-2</code></td><td colspan="3"><span class="rfc-subject">Message Type AVP (type 0) MUST be the first AVP in every control message. RFC 2661 Section 4.4.1: &#34;The Message Type AVP MUST be the first AVP in a message, immediately following the control message header&#34;. The id anchor below is frozen and does NOT name Section 4.1, which is AVP Format (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.1-2">RFC2661-4.1-2</code></td><td colspan="3"><span class="rfc-subject">The Message Type AVP MUST be the first AVP in a message, immediately following the control message header (defined in section 3.1). (§4.4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>4.1</td>
+<td>4.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-4.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L945" title="internal/component/l2tp/session_fsm_test.go" target="_blank" rel="noopener"><code>TestWriteICRPBody</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_test.go#L256" title="internal/component/l2tp/reactor_test.go" target="_blank" rel="noopener"><code>TestReactor_MalformedSCCRQCreatesNoTunnel</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L24" title="test/l2tp/rfc2661-emitted-control-shape.ci" target="_blank" rel="noopener"><code>rfc2661-emitted-control-shape.ci</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.1-3">RFC2661-4.1-3</code></td><td colspan="3"><span class="rfc-subject">If M=1 and AVP is unrecognized and session-scoped, send CDN and tear down session (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.1-3">RFC2661-4.1-3</code></td><td colspan="3"><span class="rfc-subject">If the M bit is set on an unrecognized AVP within a message associated with a particular session, the session associated with this message MUST be terminated. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -341,7 +345,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L559" title="internal/component/l2tp/session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_UnknownMandatoryAVP</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.1-4">RFC2661-4.1-4</code></td><td colspan="3"><span class="rfc-subject">If M=1 and AVP is unrecognized and tunnel-scoped, send StopCCN and tear down tunnel (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.1-4">RFC2661-4.1-4</code></td><td colspan="3"><span class="rfc-subject">If the M bit is set on an unrecognized AVP within a message associated with the overall tunnel, the entire tunnel (and all sessions within) MUST be terminated. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -368,7 +372,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the default backoff cap is the 16s constant and the reactor always constructs engines with RTimeoutCap unset, so the cap is always at least 8s with no config path or floor guard to test negatively (internal/component/l2tp/reliable_seq.go:19, reliable.go:291-292)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-5.8-3">RFC2661-5.8-3</code></td><td colspan="3"><span class="rfc-subject">After exhausting retransmissions without response, tunnel and all sessions MUST be cleared (§5.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-5.8-3">RFC2661-5.8-3</code></td><td colspan="3"><span class="rfc-subject">If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared. (§5.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.8</td>
@@ -387,7 +391,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L342" title="internal/component/l2tp/reliable_test.go" target="_blank" rel="noopener"><code>TestTickRetransmit</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-5.8-5">RFC2661-5.8-5</code></td><td colspan="3"><span class="rfc-subject">Duplicate control messages MUST be acknowledged (via ZLB or piggyback) even though not processed by upper layer (§5.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-5.8-5">RFC2661-5.8-5</code></td><td colspan="3"><span class="rfc-subject">Such a message would be considered a duplicate of a message already received and ignored from processing. However, in order to ensure that all messages are acknowledged properly (particularly in the case of a lost ZLB ACK message), receipt of duplicate messages MUST be acknowledged by the reliable transport. This acknowledgement may either piggybacked on a message in queue, or explicitly via a ZLB ACK. (§5.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.8</td>
@@ -416,7 +420,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_integration_test.go#L195" title="internal/component/l2tp/reliable_integration_test.go" target="_blank" rel="noopener"><code>TestPostTeardownAckRetention</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.3-1">RFC2661-4.3-1</code></td><td colspan="3"><span class="rfc-subject">A Random Vector AVP (type 36) MUST precede any hidden AVP (H=1) in the same message (§4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.3-1">RFC2661-4.3-1</code></td><td colspan="3"><span class="rfc-subject">If the H bit is set in any AVP(s) in a given control message, a Random Vector AVP must also be present in the message and MUST precede the first AVP having an H bit of 1. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3</td>
@@ -425,7 +429,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the hidden-AVP MD5 cipher is implemented and unit-tested but is not wired into any control-message path -- no encoder sets H=1 or emits a Random Vector, and decoders skip hidden AVPs without decrypting or checking precedence (internal/component/l2tp/hidden.go:38 has no production caller; avp.go:156-168 skips hidden AVPs; AVPRandomVector avp.go:56 never emitted)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-6.1-1">RFC2661-6.1-1</code></td><td colspan="3"><span class="rfc-subject">Every AVP RFC 2661 Section 6.1 makes mandatory in an SCCRQ is required, and an SCCRQ missing one is answered with StopCCN rather than dropped in silence. RFC 2661 Section 6.1: &#34;The following AVPs MUST be present in the SCCRQ: Message Type AVP, Protocol Version, Host Name, Framing Capabilities, Assigned Tunnel ID&#34;; RFC 2661 Section 7.1: &#34;Examples of a malformed control message include ... a message that is missing a required AVP&#34;, and receipt of one &#34;should be logged appropriately and the control connection cleared to ensure recovery to a known state&#34; (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-6.1-1">RFC2661-6.1-1</code></td><td colspan="3"><span class="rfc-subject">The following AVPs MUST be present in the SCCRQ: Message Type AVP Protocol Version Host Name Framing Capabilities Assigned Tunnel ID (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.1</td>
@@ -437,7 +441,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L24" title="test/l2tp/rfc2661-sccrq-mandatory-avp.ci" target="_blank" rel="noopener"><code>rfc2661-sccrq-mandatory-avp.ci</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-6.2-1">RFC2661-6.2-1</code></td><td colspan="3"><span class="rfc-subject">Every AVP RFC 2661 Section 6.2 makes mandatory in an SCCRP is required, and an SCCRP missing one tears the dialed tunnel down with StopCCN rather than establishing it. RFC 2661 Section 6.2: &#34;The following AVPs MUST be present in the SCCRP: Message Type, Protocol Version, Framing Capabilities, Host Name, Assigned Tunnel ID&#34;; RFC 2661 Section 7.2.1 gives wait-ctl-reply the row &#34;Receive SCCRP, not acceptable | Send StopCCN, Clean up | idle&#34; (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-6.2-1">RFC2661-6.2-1</code></td><td colspan="3"><span class="rfc-subject">The following AVPs MUST be present in the SCCRP: Message Type Protocol Version Framing Capabilities Host Name Assigned Tunnel ID (§6.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.2</td>
@@ -446,10 +450,10 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go#L58" title="internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go" target="_blank" rel="noopener"><code>TestSCCRPMissingMandatoryAVPTearsTheTunnelDown</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-24.10-1">RFC2661-24.10-1</code></td><td colspan="3"><span class="rfc-subject">Assigned Tunnel ID of 0 in SCCRQ/SCCRP is a protocol error; reject with StopCCN. RFC 2661 Section 4.4.3: &#34;The Assigned Tunnel ID is a 2 octet non-zero unsigned integer&#34;; RFC 2661 Section 5.3: the value 0 &#34;MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID&#34;. The id anchor below numbers no section of RFC 2661 and is frozen (§24.10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-24.10-1">RFC2661-24.10-1</code></td><td colspan="3"><span class="rfc-subject">The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID. (§5.3)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
-<td>24.10</td>
+<td>MUST NOT</td>
+<td>5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-24.10-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_zero_tid_test.go#L117" title="internal/component/l2tp/reactor_sccrq_zero_tid_test.go" target="_blank" rel="noopener"><code>TestSCCRQWithNonZeroAssignedTunnelIDEstablishes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_test.go#L137" title="internal/component/l2tp/tunnel_initiator_test.go" target="_blank" rel="noopener"><code>TestTunnelInitiatorHandshake</code></a></span></div>
@@ -459,38 +463,38 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#L21" title="test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci" target="_blank" rel="noopener"><code>rfc2661-sccrq-tunnel-id-zero.ci</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-24.12-1">RFC2661-24.12-1</code></td><td colspan="3"><span class="rfc-subject">Unknown M=1 vendor AVP in a session context tears down the session with CDN, not the tunnel with StopCCN. RFC 2661 Section 4.1 states the session/tunnel split and RFC 2661 Section 4.2 states the consequence. The id anchor below numbers no section of RFC 2661 and is frozen (§24.12)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-24.12-1">RFC2661-24.12-1</code></td><td colspan="3"><span class="rfc-subject">If the M bit is set on an unrecognized AVP within a message associated with a particular session, the session associated with this message MUST be terminated. If the M bit is set on an unrecognized AVP within a message associated with the overall tunnel, the entire tunnel (and all sessions within) MUST be terminated. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>24.12</td>
+<td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-24.12-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L561" title="internal/component/l2tp/session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_UnknownMandatoryAVP</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L563" title="internal/component/l2tp/session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_UnknownMandatoryAVP</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-10-1">RFC2661-10-1</code></td><td colspan="3"><span class="rfc-subject">CDN is valid in any non-idle session state; receiving CDN destroys the session. RFC 2661 Section 5.6 states session teardown by CDN and RFC 2661 Section 7.4.2 gives the state table. The id anchor below is frozen and does NOT name Section 10, which is IANA Considerations (§10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-10-1">RFC2661-10-1</code></td><td colspan="3"><span class="rfc-subject">The Call-Disconnect-Notify (CDN) message is an L2TP control message sent by either the LAC or LNS to request disconnection of a specific call within the tunnel. Its purpose is to inform the peer of the disconnection and the reason why the disconnection occurred. The peer MUST clean up any resources, and does not send back any indication of success or failure for such cleanup. (§6.12)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>10</td>
+<td>6.12</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-10-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L342" title="internal/component/l2tp/session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_CDN_AnyState</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L313" title="internal/component/l2tp/session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_CDN_EstablishedSession</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L366" title="internal/component/l2tp/session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_CDN_UnknownSessionDropped</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-9-1">RFC2661-9-1</code></td><td colspan="3"><span class="rfc-subject">StopCCN cascades: all sessions in a tunnel are cleared when StopCCN is received. RFC 2661 Section 5.7: an implementation &#34;may shut down an entire tunnel and all sessions on the tunnel by sending the StopCCN&#34;. The id anchor below is frozen and does NOT name Section 9, which is Security Considerations (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-9-1">RFC2661-9-1</code></td><td colspan="3"><span class="rfc-subject">Stop-Control-Connection-Notification (StopCCN) is a control message sent by either the LAC or LNS to inform its peer that the tunnel is being shutdown and the control connection should be closed. In addition, all active sessions are implicitly cleared (without sending any explicit call control messages). (§6.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>9</td>
+<td>6.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-9-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L403" title="internal/component/l2tp/session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_StopCCN_CascadeSessions</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L814" title="internal/component/l2tp/session_fsm_test.go" target="_blank" rel="noopener"><code>TestStopCCNQueuesAllTeardowns</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-10-2">RFC2661-10-2</code></td><td colspan="3"><span class="rfc-subject">Session ID 0 is reserved and never assigned. RFC 2661 Section 5.3: &#34;The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID&#34;. The id anchor below is frozen and does NOT name Section 10, which is IANA Considerations (§10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-10-2">RFC2661-10-2</code></td><td colspan="3"><span class="rfc-subject">The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID. (§5.3)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
-<td>10</td>
+<td>MUST NOT</td>
+<td>5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-10-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L1041" title="internal/component/l2tp/session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_SIDBoundary_MaxUint16</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L1055" title="internal/component/l2tp/session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_SIDBoundary_Zero</code></a></span></div>
@@ -604,7 +608,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a sender obligation on the eleven message writers. reliable.go::makeRecvEntry preserves the received M-bit so handleMessage can reject unknown mandatory types, but the RFC states no receiver refusal of a known type with M=0</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.4-3">RFC2661-4.4-3</code></td><td colspan="3"><span class="rfc-subject">Every AVP whose Section 4.4 definition states &#34;This AVP MUST NOT be hidden (the H-bit MUST be 0)&#34; MUST be sent with H=0 (§4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.4-3">RFC2661-4.4-3</code></td><td colspan="3"><span class="rfc-subject">This AVP MUST NOT be hidden (the H-bit MUST be 0). (§4.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
@@ -613,7 +617,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a sender obligation; avp.go::skipHiddenAVP refuses every hidden AVP on receipt, so no receive-side input distinguishes the MUST-NOT-hide set</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.4-1">RFC2661-4.4-1</code></td><td colspan="3"><span class="rfc-subject">Every mandatory AVP definition in Section 4.4 states &#34;The M-bit for this AVP MUST be set to 1&#34;, so the sender MUST set M=1 on each of those AVPs (§4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.4-1">RFC2661-4.4-1</code></td><td colspan="3"><span class="rfc-subject">The M-bit for this AVP MUST be set to 1. (§4.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
@@ -667,7 +671,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tiebreaker_rfc2661_test.go#L72" title="internal/component/l2tp/tiebreaker_rfc2661_test.go" target="_blank" rel="noopener"><code>TestTieBreakerUnequalKeepsOneTunnel</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.4-2">RFC2661-4.4-2</code></td><td colspan="3"><span class="rfc-subject">Every optional AVP definition in Section 4.4 states &#34;The M-bit for this AVP MUST be set to 0&#34;, so the sender MUST set M=0 on each of those AVPs (§4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.4-2">RFC2661-4.4-2</code></td><td colspan="3"><span class="rfc-subject">The M-bit for this AVP MUST be set to 0. (§4.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
@@ -1198,7 +1202,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> no LNS proxy authentication exists to configure off; plan/spec-l2tp-proxy-authentication.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-5.8-8">RFC2661-5.8-8</code></td><td colspan="3"><span class="rfc-subject">Retransmission count SHOULD be configurable (recommended 5) (§5.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-5.8-8">RFC2661-5.8-8</code></td><td colspan="3"><span class="rfc-subject">If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable) (§5.8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.8</td>
@@ -1207,34 +1211,34 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-x-2">RFC2661-x-2</code></td><td colspan="3"><span class="rfc-subject">Slow start and congestion avoidance SHOULD be implemented (CWND/SSTHRESH per Appendix A) (Appendix A)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-x-2">RFC2661-x-2</code></td><td colspan="3"><span class="rfc-subject">When retransmitting control messages, a slow start and congestion avoidance window adjustment procedure SHOULD be utilized. The recommended procedure for this is described in Appendix A. (§5.8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>x</td>
+<td>5.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-x-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-15-1">RFC2661-15-1</code></td><td colspan="3"><span class="rfc-subject">HELLO keepalive SHOULD be sent when no control messages received for a configurable period (recommended 60 seconds). RFC 2661 Section 5.5 states the keepalive and RFC 2661 Section 6.5 the message. The id anchor below numbers no section of RFC 2661 and is frozen (§15)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-15-1">RFC2661-15-1</code></td><td colspan="3"><span class="rfc-subject">Keepalives for the tunnel MAY be implemented by sending a HELLO if a period of time (a recommended default is 60 seconds, but SHOULD be configurable) has passed without receiving any message (data or control) from the peer. (§6.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>15</td>
+<td>6.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-15-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.2-1">RFC2661-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Both peers MAY independently challenge each other during tunnel establishment. RFC 2661 Section 5.1.1 states tunnel authentication and RFC 2661 Section 4.4.3 defines the AVPs. The id anchor below is frozen and does NOT name Section 4.2, which is Mandatory AVPs (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.2-1">RFC2661-4.2-1</code></td><td colspan="3"><span class="rfc-subject">L2TP incorporates a simple, optional, CHAP-like [RFC1994] tunnel authentication system during control connection establishment. If an LAC or LNS wishes to authenticate the identity of the peer it is contacting or being contacted by, a Challenge AVP is included in the SCCRQ or SCCRP message. (§5.1.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>4.2</td>
+<td>5.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.3-2">RFC2661-4.3-2</code></td><td colspan="3"><span class="rfc-subject">Multiple hidden AVPs MAY share a single Random Vector AVP (§4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.3-2">RFC2661-4.3-2</code></td><td colspan="3"><span class="rfc-subject">The same random vector may be used for more than one hidden AVP in the same message. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.3</td>
@@ -1243,7 +1247,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-5.8-9">RFC2661-5.8-9</code></td><td colspan="3"><span class="rfc-subject">Out-of-order control messages MAY be queued or discarded (§5.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-5.8-9">RFC2661-5.8-9</code></td><td colspan="3"><span class="rfc-subject">Messages arriving out of order may be queued for in-order delivery when the missing messages are received, or they may be discarded requiring a retransmission by the peer. (§5.8)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.8</td>
@@ -1252,10 +1256,10 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-9.5-1">RFC2661-9.5-1</code></td><td colspan="3"><span class="rfc-subject">Tie Breaker AVP MAY be included in SCCRQ for simultaneous-open resolution. RFC 2661 Section 4.4.3 defines the AVP and its resolution rule; RFC 2661 Section 7.2 names the collision. The id anchor below is frozen and does NOT name Section 9.5, which is Proxy PPP Authentication (§9.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-9.5-1">RFC2661-9.5-1</code></td><td colspan="3"><span class="rfc-subject">The Following AVPs MAY be present in the SCCRQ: Bearer Capabilities Receive Window Size Challenge Tie Breaker Firmware Revision Vendor Name (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>9.5</td>
+<td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-9.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -1270,7 +1274,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc2661-4.3-1"><code>RFC2661-4.3-1</code></a> A Random Vector AVP (type 36) MUST precede any hidden AVP (H=1) in the same message (§4.3)</td>
+<tr><td><a href="#rfc2661-4.3-1"><code>RFC2661-4.3-1</code></a> If the H bit is set in any AVP(s) in a given control message, a Random Vector AVP must also be present in the message and MUST precede the first AVP having an H bit of 1. (§4.3)</td>
 <td>{gap}, no test</td>
 <td>the hidden-AVP MD5 cipher is implemented and unit-tested but is not wired into any control-message path -- no encoder sets H=1 or emits a Random Vector, and decoders skip hidden AVPs without decrypting or checking precedence (internal/component/l2tp/hidden.go:38 has no production caller; avp.go:156-168 skips hidden AVPs; AVPRandomVector avp.go:56 never emitted)</td>
 </tr>
@@ -1321,8 +1325,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2661-x-1"><code>RFC2661-x-1</code></a></h3>
-<p>Reserved bits 8-11 in L2TP header MUST be 0 (Wire Format)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>All reserved bits MUST be set to 0 on outgoing messages and ignored on incoming messages. (§3.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Send clause: forbidden = a reserved header bit emitted as 1; header_test.go::TestWriteControlHeader asserts word&amp;reserved==0 and the emitted-shape .ci reads the control header off the wire. Receive clause &#39;ignored on incoming messages&#39;: forbidden = a message with a reserved bit set rejected or mis-parsed; no tagged unit feeds a non-zero reserved bit and asserts the message is still processed, and the row&#39;s single-polarity marker (no negative) is now wrong for the receive clause. Data-message headers are not asserted by a tagged unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1341,8 +1345,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-4.1-1"><code>RFC2661-4.1-1</code></a></h3>
-<p>AVP reserved bits 2-5 MUST be zero on send; non-zero on receive means treat AVP as unrecognized (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Reserved bits MUST be set to 0. An AVP received with a reserved bit set to 1 MUST be treated as an unrecognized AVP. (§4.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Send clause: forbidden = AVP reserved bit emitted 1; avp_test.go::TestAVPCatalogRoundTrip and the .ci assert no FlagReserved on emitted AVPs. Receive clause &#39;MUST be treated as an unrecognized AVP&#39;: forbidden = honouring such an AVP; avp_test.go::TestAVPIteratorReservedBits only asserts the iterator sets FlagReserved, not that a parser then treats the AVP as unrecognized (tear down for M=1, ignore for M=0).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1366,8 +1370,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-4.1-2"><code>RFC2661-4.1-2</code></a></h3>
-<p>Message Type AVP (type 0) MUST be the first AVP in every control message. RFC 2661 Section 4.4.1: &#34;The Message Type AVP MUST be the first AVP in a message, immediately following the control message header&#34;. The id anchor below is frozen and does NOT name Section 4.1, which is AVP Format (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The Message Type AVP MUST be the first AVP in a message, immediately following the control message header (defined in section 3.1). (§4.4.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden = a control message whose first AVP is not Message Type. Tagged units assert it only for writeICRPBody (session_fsm_test.go::TestWriteICRPBody) and the SCCRP on the wire (.ci), plus receiver refusal of an SCCRQ with Host Name first (reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel). The other writers are not asserted by a unit tagged with this id; message_rfc2661_test.go::TestRFC2661WrittenAVPFlags checks every writer but is tagged RFC2661-4.4.1-2 only.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1391,8 +1395,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-4.1-3"><code>RFC2661-4.1-3</code></a></h3>
-<p>If M=1 and AVP is unrecognized and session-scoped, send CDN and tear down session (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the M bit is set on an unrecognized AVP within a message associated with a particular session, the session associated with this message MUST be terminated. (§4.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden = keeping a session alive after an unrecognized M=1 AVP in a session message. session_fsm_test.go::TestSession_UnknownMandatoryAVP asserts only len(out)==1 and tunnel still established; it does not assert the one message is a CDN nor that the session is removed, so an implementation that ignored the AVP and answered ICRP would pass. Positive TestSession_IncomingLNS_ICRQ is fine.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1411,8 +1415,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-4.1-4"><code>RFC2661-4.1-4</code></a></h3>
-<p>If M=1 and AVP is unrecognized and tunnel-scoped, send StopCCN and tear down tunnel (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the M bit is set on an unrecognized AVP within a message associated with the overall tunnel, the entire tunnel (and all sessions within) MUST be terminated. (§4.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden = keeping the tunnel after an unrecognized M=1 AVP in a tunnel message. tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN asserts StopCCN and state Closed, which goes red on that. Clause &#39;(and all sessions within)&#39;: the case is an SCCCN before establishment, so no session exists; no tagged unit asserts sessions are cleared for a tunnel-scoped unknown M=1 AVP on an established tunnel.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1432,7 +1436,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </div>
 <h3><a href="#rfc2661-5.8-1"><code>RFC2661-5.8-1</code></a></h3>
 <p>Each subsequent retransmission of a message MUST employ an exponential backoff interval. (§5.8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden = retransmitting at a constant (non-exponential) interval. reliable_test.go::TestTickBackoffSchedule advances the clock by 1s,2s,4s,4s and asserts a retransmit occurred at each tick, but never asserts that NO retransmit fires before the doubled deadline; a constant 1s interval engine also retransmits at every one of those ticks, so no assertion goes red on the forbidden behaviour.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1447,7 +1451,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </div>
 <h3><a href="#rfc2661-5.8-2"><code>RFC2661-5.8-2</code></a></h3>
 <p>This cap MUST be no less than 8 seconds per retransmission. (§5.8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden = a backoff cap under 8 s. reliable_seq_test.go::TestBackoffCapAtLeast8Seconds asserts DefaultRTimeoutCap&gt;=8s and that newTunnel (the reactor&#39;s construction path) yields engine rtimeoutCap&gt;=8s; lowering the constant or the default wiring goes red. Row carries single-polarity.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1461,8 +1465,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-5.8-3"><code>RFC2661-5.8-3</code></a></h3>
-<p>After exhausting retransmissions without response, tunnel and all sessions MUST be cleared (§5.8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared. (§5.8)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. MUST clause: forbidden = keeping the tunnel/sessions after retransmissions are exhausted; reliable_test.go::TestTickMaxAttempts asserts TeardownRequired after the budget and not before, and reactor_test.go::TestPeerTeardownWithdrawsSubscriberRoute asserts the established session is taken down. SHOULD clause in the same sentence &#39;(a recommended default is 5, but SHOULD be configurable)&#39;: no tagged unit asserts the retransmission count is configurable.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1487,7 +1491,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </div>
 <h3><a href="#rfc2661-5.8-4"><code>RFC2661-5.8-4</code></a></h3>
 <p>The retransmitted message contains the same Ns value, but the Nr value MUST be updated with the sequence number of the next expected message. (§5.8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden = a retransmit carrying the stale Nr, or a new Ns. reliable_test.go::TestTickRetransmit asserts retransmit Nr==1 (updated) and Ns==0 (unchanged); either violation goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1506,8 +1510,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-5.8-5"><code>RFC2661-5.8-5</code></a></h3>
-<p>Duplicate control messages MUST be acknowledged (via ZLB or piggyback) even though not processed by upper layer (§5.8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Such a message would be considered a duplicate of a message already received and ignored from processing. However, in order to ensure that all messages are acknowledged properly (particularly in the case of a lost ZLB ACK message), receipt of duplicate messages MUST be acknowledged by the reliable transport. This acknowledgement may either piggybacked on a message in queue, or explicitly via a ZLB ACK. (§5.8)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden = a duplicate reprocessed, or a duplicate not acknowledged. reliable_test.go::TestOnReceiveDuplicate asserts Class==ClassDuplicate, Delivered empty (ignored from processing) and NeedsZLB true after the piggyback cleared it (MUST be acknowledged). The piggyback/ZLB alternative is permissive.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1527,7 +1531,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </div>
 <h3><a href="#rfc2661-5.8-6"><code>RFC2661-5.8-6</code></a></h3>
 <p>An implementation may support a receive window of only 1 (i.e., by sending out a Receive Window Size AVP with a value of 1), but MUST accept a window of up to 4 from its peer (e.g. have the ability to send 4 messages before backing off). (§5.8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden = refusing to honour a peer window of up to 4. reliable_window_test.go::TestWindowAvailable asserts available(0)==4 with peerRWS=4 and cwnd=4, which goes red on a clamp below 4. The negative tag on reliable_window_test.go::TestWindowPeerRWSZero proves the neighbouring rule &#39;A value of 0 for the Receive Window Size AVP is invalid&#39;, not this sentence, so the row has no valid negative and no single-polarity marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1547,7 +1551,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </div>
 <h3><a href="#rfc2661-5.8-7"><code>RFC2661-5.8-7</code></a></h3>
 <p>When a tunnel is being shut down for reasons other than loss of connectivity, the state and reliable delivery mechanisms MUST be maintained and operated for the full retransmission interval after the final message exchange has occurred. (§5.8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Forbidden: discarding tunnel state before the full retransmission interval after the final exchange. The tagged units prove only the engine predicate: Expired is false at +6s and true at +7s after Close for a test retention of 7s, and a duplicate StopCCN after Close is ClassDuplicate with NeedsZLB. The obligation is that the tunnel&#39;s state is MAINTAINED; the reactor&#39;s reap on engine.Expired (reactor.go) is in no tagged unit, so a reactor deleting the tunnel at StopCCN stays green. No unit ties the retention to the peer&#39;s full retransmit schedule (the last B retransmit at +7s coincides with Expired becoming true).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1576,12 +1580,12 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-4.3-1"><code>RFC2661-4.3-1</code></a></h3>
-<p>A Random Vector AVP (type 36) MUST precede any hidden AVP (H=1) in the same message (§4.3)</p>
+<p>If the H bit is set in any AVP(s) in a given control message, a Random Vector AVP must also be present in the message and MUST precede the first AVP having an H bit of 1. (§4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2661-4.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2661-6.1-1"><code>RFC2661-6.1-1</code></a></h3>
-<p>Every AVP RFC 2661 Section 6.1 makes mandatory in an SCCRQ is required, and an SCCRQ missing one is answered with StopCCN rather than dropped in silence. RFC 2661 Section 6.1: &#34;The following AVPs MUST be present in the SCCRQ: Message Type AVP, Protocol Version, Host Name, Framing Capabilities, Assigned Tunnel ID&#34;; RFC 2661 Section 7.1: &#34;Examples of a malformed control message include ... a message that is missing a required AVP&#34;, and receipt of one &#34;should be logged appropriately and the control connection cleared to ensure recovery to a known state&#34; (§6.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The following AVPs MUST be present in the SCCRQ: Message Type AVP Protocol Version Host Name Framing Capabilities Assigned Tunnel ID (§6.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Receiver role: forbidden = accepting an SCCRQ that lacks one of the five AVPs; reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered has one case per AVP and asserts StopCCN and no tunnel. Sender role (Ze&#39;s own SCCRQ MUST carry the five): no tagged unit asserts it; message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted has no SCCRQ case.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1615,8 +1619,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-6.2-1"><code>RFC2661-6.2-1</code></a></h3>
-<p>Every AVP RFC 2661 Section 6.2 makes mandatory in an SCCRP is required, and an SCCRP missing one tears the dialed tunnel down with StopCCN rather than establishing it. RFC 2661 Section 6.2: &#34;The following AVPs MUST be present in the SCCRP: Message Type, Protocol Version, Framing Capabilities, Host Name, Assigned Tunnel ID&#34;; RFC 2661 Section 7.2.1 gives wait-ctl-reply the row &#34;Receive SCCRP, not acceptable | Send StopCCN, Clean up | idle&#34; (§6.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The following AVPs MUST be present in the SCCRP: Message Type Protocol Version Framing Capabilities Host Name Assigned Tunnel ID (§6.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Receiver role: tunnel_initiator_sccrp_mandatory_avp_test.go asserts StopCCN for an SCCRP missing Protocol Version, Framing Capabilities, Host Name or Assigned Tunnel ID; Message Type absence is covered only by an untagged test. Sender role (Ze&#39;s own SCCRP MUST carry the five): no tagged unit asserts it; message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted has no SCCRP case.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1635,8 +1639,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-24.10-1"><code>RFC2661-24.10-1</code></a></h3>
-<p>Assigned Tunnel ID of 0 in SCCRQ/SCCRP is a protocol error; reject with StopCCN. RFC 2661 Section 4.4.3: &#34;The Assigned Tunnel ID is a 2 octet non-zero unsigned integer&#34;; RFC 2661 Section 5.3: the value 0 &#34;MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID&#34;. The id anchor below numbers no section of RFC 2661 and is frozen (§24.10)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID. (§5.3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence forbids using 0 as an Assigned Session ID or Assigned Tunnel ID. Tunnel clause: reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered asserts Ze&#39;s StopCCN carries a non-zero Assigned Tunnel ID, and the SCCRQ/SCCRP units assert refusal of a peer&#39;s zero value (receiver side of the same rule). Ze&#39;s own Assigned Tunnel ID in SCCRQ/SCCRP is not asserted non-zero by a tagged unit (TestTunnelInitiatorHandshake checks 100, not the allocator). Session clause: no tagged unit of this row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1675,8 +1679,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-24.12-1"><code>RFC2661-24.12-1</code></a></h3>
-<p>Unknown M=1 vendor AVP in a session context tears down the session with CDN, not the tunnel with StopCCN. RFC 2661 Section 4.1 states the session/tunnel split and RFC 2661 Section 4.2 states the consequence. The id anchor below numbers no section of RFC 2661 and is frozen (§24.12)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the M bit is set on an unrecognized AVP within a message associated with a particular session, the session associated with this message MUST be terminated. If the M bit is set on an unrecognized AVP within a message associated with the overall tunnel, the entire tunnel (and all sessions within) MUST be terminated. (§4.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Session clause: forbidden = escalating a session-scoped unknown M=1 AVP to tunnel teardown, or not terminating the session. session_fsm_test.go::TestSession_UnknownMandatoryAVP asserts the tunnel stays established, but only len(out)==1, not that the message is a CDN nor that the session is removed. Tunnel clause (the second sentence of the quote): no unit tagged with this id.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1695,8 +1699,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-10-1"><code>RFC2661-10-1</code></a></h3>
-<p>CDN is valid in any non-idle session state; receiving CDN destroys the session. RFC 2661 Section 5.6 states session teardown by CDN and RFC 2661 Section 7.4.2 gives the state table. The id anchor below is frozen and does NOT name Section 10, which is IANA Considerations (§10)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The Call-Disconnect-Notify (CDN) message is an L2TP control message sent by either the LAC or LNS to request disconnection of a specific call within the tunnel. Its purpose is to inform the peer of the disconnection and the reason why the disconnection occurred. The peer MUST clean up any resources, and does not send back any indication of success or failure for such cleanup. (§6.12)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak (agrees with blind reader). Clause &#39;MUST clean up any resources&#39;: the units assert only tun.sessionCount()==0 after handleCDN; no assertion covers the kernel session, PPP or pool resources the session held, so leaking them stays green. Clause &#39;does not send back any indication&#39;: len(out)==0 is asserted only in TestSession_CDN_EstablishedSession, not in the wait-connect case. The negative TestSession_CDN_UnknownSessionDropped proves a neighbouring rule (a CDN for an unknown session ID is dropped).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1720,8 +1724,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-9-1"><code>RFC2661-9-1</code></a></h3>
-<p>StopCCN cascades: all sessions in a tunnel are cleared when StopCCN is received. RFC 2661 Section 5.7: an implementation &#34;may shut down an entire tunnel and all sessions on the tunnel by sending the StopCCN&#34;. The id anchor below is frozen and does NOT name Section 9, which is Security Considerations (§9)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Stop-Control-Connection-Notification (StopCCN) is a control message sent by either the LAC or LNS to inform its peer that the tunnel is being shutdown and the control connection should be closed. In addition, all active sessions are implicitly cleared (without sending any explicit call control messages). (§6.4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden = sessions surviving a StopCCN. session_fsm_test.go::TestSession_StopCCN_CascadeSessions asserts sessionCount 0 and tunnel Closed; TestStopCCNQueuesAllTeardowns asserts no teardown before and three after. Clause &#39;(without sending any explicit call control messages)&#39;: neither unit checks the return of handleStopCCN for CDNs, so emitting a CDN per session would pass.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1740,8 +1744,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-10-2"><code>RFC2661-10-2</code></a></h3>
-<p>Session ID 0 is reserved and never assigned. RFC 2661 Section 5.3: &#34;The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID&#34;. The id anchor below is frozen and does NOT name Section 10, which is IANA Considerations (§10)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID. (§5.3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence forbids using 0 as an Assigned Session ID or Assigned Tunnel ID. session_fsm_test.go::TestSession_SIDBoundary_Zero asserts only that parseICRQ refuses a peer&#39;s Assigned Session ID 0 (receiver side); no tagged unit asserts Ze&#39;s own session-ID allocator never assigns 0, and the tunnel clause has no unit of this row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1943,8 +1947,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-4.4-3"><code>RFC2661-4.4-3</code></a></h3>
-<p>Every AVP whose Section 4.4 definition states &#34;This AVP MUST NOT be hidden (the H-bit MUST be 0)&#34; MUST be sent with H=0 (§4.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>This AVP MUST NOT be hidden (the H-bit MUST be 0). (§4.4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden = an AVP whose definition forbids hiding emitted with H=1. message_rfc2661_test.go::TestRFC2661WrittenAVPFlags walks every AVP of every body Ze writes and fails on any H=1. Row carries single-polarity.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1958,8 +1962,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-4.4-1"><code>RFC2661-4.4-1</code></a></h3>
-<p>Every mandatory AVP definition in Section 4.4 states &#34;The M-bit for this AVP MUST be set to 1&#34;, so the sender MUST set M=1 on each of those AVPs (§4.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The M-bit for this AVP MUST be set to 1. (§4.4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA33 re-run strict re-audit: weak. Forbidden: an AVP whose Section 4.4 definition fixes M=1 emitted with M=0. TestRFC2661WrittenAVPFlags compares each emitted AVP M bit to rfc2661MandatoryBit, but writtenBodies() walks only the ten body writers (SCCRQ, SCCRP, SCCCN, StopCCN, ICRQ, ICRP, ICCN, OCRQ, OCRP, CDN). The HELLO body is written separately in tunnel_fsm.go handleHelloTimer (WriteAVPUint16(*bodyBuf, 0, true, AVPMessageType, ...)); no tagged unit reads it, so flipping that mandatory argument to false emits a Message Type AVP with M=0 and turns nothing red. Every other emitted M=1 AVP is covered.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2063,8 +2067,8 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 </table>
 </div>
 <h3><a href="#rfc2661-4.4-2"><code>RFC2661-4.4-2</code></a></h3>
-<p>Every optional AVP definition in Section 4.4 states &#34;The M-bit for this AVP MUST be set to 0&#34;, so the sender MUST set M=0 on each of those AVPs (§4.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The M-bit for this AVP MUST be set to 0. (§4.4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden = an M=0-defined AVP (Tie Breaker, the one Ze emits) sent with M=1. message_rfc2661_test.go::TestRFC2661WrittenAVPFlags compares the emitted M bit to rfc2661MandatoryBit (false for Tie Breaker) over the SCCRQ writer that emits it. Row carries single-polarity.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -3079,7 +3083,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-09-27</td>
 </tr>
 <tr><td>Register</td>
 <td>rfc2119</td>
@@ -3587,6 +3591,24 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
 <td>walked</td>
 <td>not stated</td>
 </tr>
+<tr><td><code>A</code></td>
+<td>Appendix A</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix A. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>B</code></td>
+<td>Appendix B</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix B. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>C</code></td>
+<td>Appendix C</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix C. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -3876,7 +3898,7 @@ Partial. Nine MUST rows carry {gap}. The hidden-AVP MD5 codec is not wired into 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

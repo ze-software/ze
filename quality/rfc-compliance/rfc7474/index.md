@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 75.0% | 9 of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 16.7% | 2 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 17.4% | 4 of 23 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 33.3% | 8 of 24 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 8.3% | 1 of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 11 | of 12 gated MUSTs judged | 6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,12 +64,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 12 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 1 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 24 |
-| Tagged units | 23 |
-| Recorded audit verdicts | 0 |
-| Discrimination records | 4 |
+| Test tags | 25 |
+| Tagged units | 24 |
+| Recorded audit verdicts | 11 |
+| Discrimination records | 8 |
 | Summary | `rfc/short/rfc7474.md` |
 | Requirement shard | `rfc/requirements/rfc7474.md` |
 | RFC text | `rfc/full/rfc7474.txt` |
@@ -110,21 +112,21 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC7474-2-1` | Since there is no room in the OSPFv2 packet for a 64-bit sequence number, it will occupy the 8 octets following the OSPFv2 packet and MUST be included when calculating the OSPFv2 packet digest. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L177). **negative:** `unit/verify` [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L228) |
-| `RFC7474-2-2` | Compose the 64-bit value as high-order boot count + low-order strictly increasing counter (§2) | MUST | 2 | **positive:** `unit/verify` [`TestSetBootCountSeedsSequence`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L387). **negative:** no negative test. **{single-polarity}:** the 64-bit composition (boot count in the high word, per-packet counter in the low word) is a numeric construction property with no violating input to feed a negative test |
-| `RFC7474-2-3` | The lower-order 32-bit sequence number MUST be incremented for every OSPF packet sent by the OSPF router. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestOSPFAuthESNCounterWrapAdvancesBootCount`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L415). **negative:** no negative test. **{single-polarity}:** a monotonic send-side counter increment has no observable violating case, since every sent crypto packet advances it (and bumps the boot word on wrap) |
-| `RFC7474-2-4` | OSPF routers implementing this specification MUST use available mechanisms to preserve the sequence number's strictly increasing property for the deployed life of the OSPFv2 router (including cold restarts). (§2) | MUST | 2 | **positive:** `unit/verify` [`TestBootCountMonotonicAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L351). **positive:** `unit/verify` [`TestOSPFESNWrapPersistsBeforeRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/state_store_gate_test.go#L186). **negative:** `unit/verify` [`TestOSPFESNWrapFailureRefusesPackets`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/state_store_gate_test.go#L259) |
-| `RFC7474-2-5` | Upon reception, the sequence number MUST be greater than the sequence number in the last OSPF packet of that type accepted from the sending OSPF neighbor. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L133). **negative:** `unit/verify` [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L138) |
-| `RFC7474-2-6` | Track the accepted-sequence high-water mark per neighbor and per OSPF packet type (allows out-of-order arrival across types, §2) | MUST | 2 | **positive:** `unit/verify` [`TestOSPFAuthReplayPerType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L169). **negative:** `unit/verify` [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L139) |
-| `RFC7474-3-1` | Set the OSPF Authentication field per AuType 3: 24-bit reserved `0`, 8-bit Auth Data Len, 32-bit Key ID in the former sequence-number position (§3) | MUST | 3 | **positive:** `unit/verify` [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L167). **negative:** `unit/verify` [`TestOSPFAuthCryptoRejectsKeyIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L257) |
-| `RFC7474-5-1` | Include the 64-bit sequence number in the First-Hash along with the Authentication Trailer and OSPF packet (§5) | MUST | 5 | **positive:** `unit/verify` [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L178). **negative:** `unit/verify` [`TestOSPFAuthType3SequenceTamperRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L289) |
-| `RFC7474-5-2` | Initialize the first 4 octets of `Apad` to the packet's IP source address (send and receive), remainder 0x878FE1F3 (§5) | MUST | 5 | **positive:** `unit/verify` [`TestOSPFAuthType3SourceBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L202). **negative:** `unit/verify` [`TestOSPFAuthType3SourceBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L198) |
-| `RFC7474-6-1` | Append the two-octet OSPFv2 Cryptographic Protocol ID to the authentication key prior to use, to block cross-protocol replay (§6) | MUST | 6 | **positive:** `unit/verify` [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L179). **negative:** `unit/verify` [`TestOSPFAuthType3RequiresProtocolIDSuffix`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L325) |
+| `RFC7474-2-2` | the OSPFv2 sequence number is expanded to 64 bits with the least significant 32-bit value containing a strictly increasing sequence number and the most significant 32-bit value containing the boot count (§2) | MUST | 2 | **positive:** `unit/verify` [`TestSetBootCountSeedsSequence`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L430). **negative:** no negative test. **{single-polarity}:** the 64-bit composition (boot count in the high word, per-packet counter in the low word) is a numeric construction property with no violating input to feed a negative test |
+| `RFC7474-2-3` | The lower-order 32-bit sequence number MUST be incremented for every OSPF packet sent by the OSPF router. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestOSPFAuthESNCounterWrapAdvancesBootCount`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L458). **negative:** no negative test. **{single-polarity}:** a monotonic send-side counter increment has no observable violating case, since every sent crypto packet advances it (and bumps the boot word on wrap) |
+| `RFC7474-2-4` | OSPF routers implementing this specification MUST use available mechanisms to preserve the sequence number's strictly increasing property for the deployed life of the OSPFv2 router (including cold restarts). (§2) | MUST | 2 | **positive:** `unit/verify` [`TestBootCountMonotonicAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L394). **positive:** `unit/verify` [`TestOSPFESNWrapPersistsBeforeRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/state_store_gate_test.go#L186). **negative:** `unit/verify` [`TestOSPFESNWrapFailureRefusesPackets`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/state_store_gate_test.go#L259) |
+| `RFC7474-2-5` | Upon reception, the sequence number MUST be greater than the sequence number in the last OSPF packet of that type accepted from the sending OSPF neighbor. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L133). **negative:** `unit/verify` [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L138). **negative:** `unit/verify` [`TestOSPFAuthReplayEqualSequenceByAuType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L186) |
+| `RFC7474-2-6` | Upon reception, the sequence number MUST be greater than the sequence number in the last OSPF packet of that type accepted from the sending OSPF neighbor. Otherwise, the OSPF packet is considered a replayed packet and dropped. OSPF packets of different types may arrive out of order if they are prioritized as recommended in [RFC4222]. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestOSPFAuthReplayPerType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L212). **negative:** `unit/verify` [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L139) |
+| `RFC7474-3-1` | The sequence number is removed and the Key ID is extended to 32 bits and moved to the former position of the sequence number. Additionally, the 64-bit sequence number is moved to the first 64 bits following the OSPFv2 packet and is protected by the authentication digest. These additional 64 bits or 8 octets are included in the IP header length but not the OSPF header packet length. Finally, the 0 field at the start of the OSPFv2 header authentication is extended from 16 bits to 24 bits. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L167). **negative:** `unit/verify` [`TestOSPFAuthCryptoRejectsKeyIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L257) |
+| `RFC7474-5-1` | the 64-bit sequence number will be included in the First-Hash along with the Authentication Trailer and OSPF packet (§5) | MUST | 5 | **positive:** `unit/verify` [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L178). **negative:** `unit/verify` [`TestOSPFAuthType3SequenceTamperRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L289) |
+| `RFC7474-5-2` | OSPF routers sending OSPF packets must initialize the first 4 octets of Apad to the value of the IP source address that would be used when sending the OSPFv2 packet. The remainder of Apad will contain the value 0x878FE1F3 repeated (L - 4)/4 times, where L is the length of the hash, measured in octets. The basic idea is to incorporate the IP source address from the IP header in the cryptographic authentication computation so that any change of IP source address in a replayed packet can be detected. When an OSPF packet is received, implementations MUST initialize the first 4 octets of Apad to the IP source address from the IP header of the incoming OSPFv2 packet. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestOSPFAuthType3SourceBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L202). **negative:** `unit/verify` [`TestOSPFAuthType3SourceBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L198) |
+| `RFC7474-6-1` | In order to prevent cross-protocol replay attacks for protocols sharing common keys, the two-octet OSPFv2 Cryptographic Protocol ID is appended to the authentication key prior to use. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L179). **negative:** `unit/verify` [`TestOSPFAuthType3RequiresProtocolIDSuffix`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L325) |
 | `RFC7474-6-2` | When XORing Ko and Ipad of Opad, Ko MUST be padded with zeros to the length of Ipad or Opad (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC7474KoZeroPaddedToBlockSize`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_rfc7474_test.go#L52). **negative:** `unit/verify` [`TestRFC7474KoNonZeroPadRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_rfc7474_test.go#L80) |
 | `RFC7474-8-1` | If the non-volatile storage is ever repaired or upgraded such that the contents are lost or the OSPFv2 router is replaced, the authentication keys MUST be changed to prevent replay attacks (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** startup does not rotate or refuse the configured shared secrets when the durable boot count is lost; internal/plugins/ospf/auth_keystore.go::loadOSPFBootCount restarts an absent counter at one, which cannot be told apart from first use. Disclosed in this summary's Support remaining row |
-| `RFC7474-4-1` | On receive, use a key only while "the key validity interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd" includes the current time (§4) | SHOULD | 4 | **positive:** `unit/verify` [`TestVerifyRejectsOutsideAcceptLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L455). **negative:** `unit/verify` [`TestVerifyRejectsOutsideAcceptLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L449) |
-| `RFC7474-4.1-1` | On send, when multiple keys match, select the key with the most recent SendLifetimeStart to enable graceful rollover (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7474-2-7` | Maintain a separate OSPF boot count in non-volatile storage (decouples SNMP and OSPF reinitialization) (§2) | RECOMMENDED | 2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7474-2-8` | Increment the boot count on cold restart and, if the low-order word wraps, to keep the aggregate sequence number strictly increasing (§2) | RECOMMENDED | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7474-4-1` | For packet reception, the key validity interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd must include the current time. (§4) | SHOULD | 4 | **positive:** `unit/verify` [`TestVerifyRejectsOutsideAcceptLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L498). **negative:** `unit/verify` [`TestVerifyRejectsOutsideAcceptLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L492) |
+| `RFC7474-4.1-1` | If there are still multiple keys that match, the key with the most recent SendLifetimeStart will be selected. This will facilitate graceful key rollover. (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7474-2-7` | This is achieved by maintaining a boot count in non- volatile storage and incrementing it each time the OSPF router loses its prior sequence number state. The SNMPv3 snmpEngineBoots variable [RFC3414] MAY be used for this purpose. However, maintaining a separate boot count solely for OSPF sequence numbers has the advantage of decoupling SNMP reinitialization and OSPF reinitialization. Also, in the rare event that the lower-order 32-bit sequence number wraps, the boot count can be incremented to preserve the strictly increasing property of the aggregate sequence number. Hence, a separate OSPF boot count is RECOMMENDED. (§2) | RECOMMENDED | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7474-2-8` | This is achieved by maintaining a boot count in non- volatile storage and incrementing it each time the OSPF router loses its prior sequence number state. The SNMPv3 snmpEngineBoots variable [RFC3414] MAY be used for this purpose. However, maintaining a separate boot count solely for OSPF sequence numbers has the advantage of decoupling SNMP reinitialization and OSPF reinitialization. Also, in the rare event that the lower-order 32-bit sequence number wraps, the boot count can be incremented to preserve the strictly increasing property of the aggregate sequence number. (§2) | RECOMMENDED | 2 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -140,7 +142,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Since there is no room in the OSPFv2 packet for a 64-bit sequence number, it will occupy the 8 octets following the OSPFv2 packet and MUST be included when calculating the OSPFv2 packet digest. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause 'occupy the 8 octets following the OSPFv2 packet': TestOSPFAuthType3SequenceTrailer asserts readUint64(signed[plen:]) == seq and len == plen+8+digest, red if misplaced. Clause 'MUST be included when calculating the digest': no 2-1-tagged assertion goes red if Sign and Verify both leave the sequence out of the hash, because the round-trip still verifies and the extra-byte negative in TestOSPFAuthCryptoRejectsExtraTrailerBytes proves framing, not digest coverage. TestOSPFAuthType3SequenceTamperRejected would prove it but carries only the RFC7474-5-1 tag.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -149,63 +151,64 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7474-2-2`](#rfc7474-2-2)
 
-Compose the 64-bit value as high-order boot count + low-order strictly increasing counter (§2)
+the OSPFv2 sequence number is expanded to 64 bits with the least significant 32-bit value containing a strictly increasing sequence number and the most significant 32-bit value containing the boot count (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: boot count and per-packet counter swapped or merged. TestSetBootCountSeedsSequence asserts signKey's seq == 0x1234<<32|1 after setBootCount(0x1234), red on any other composition. Single-polarity marker: a construction property with no violating input.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestSetBootCountSeedsSequence`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L387) | unit/verify | unproven |
+| positive | [`TestSetBootCountSeedsSequence`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L430) | unit/verify | unproven |
 
 ### [`RFC7474-2-3`](#rfc7474-2-3)
 
 The lower-order 32-bit sequence number MUST be incremented for every OSPF packet sent by the OSPF router. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestOSPFAuthESNCounterWrapAdvancesBootCount asserts successive signKey calls return seq then seq+1, red if signKey did not advance the low word. The clause is 'for every OSPF packet sent': no tagged unit drives the send path (transport signer hook engine.signPacket) twice and reads two transmitted packets, so a send path that reused one signed buffer or one signKey result for two packets stays green. The single-polarity marker is fair; the gap is the unit, which tests the counter function rather than the sent packets.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestOSPFAuthESNCounterWrapAdvancesBootCount`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L415) | unit/verify | unproven |
+| positive | [`TestOSPFAuthESNCounterWrapAdvancesBootCount`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L458) | unit/verify | unproven |
 
 ### [`RFC7474-2-4`](#rfc7474-2-4)
 
 OSPF routers implementing this specification MUST use available mechanisms to preserve the sequence number's strictly increasing property for the deployed life of the OSPFv2 router (including cold restarts). (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a sequence reused after a cold restart or a low-word wrap. TestBootCountMonotonicAcrossRestart asserts the persisted boot count strictly increases per load; TestOSPFESNWrapPersistsBeforeRestart asserts the wrapped boot count is persisted (value 2) and a second engine's first packet (3<<32|1) sorts above the first engine's final packet; TestOSPFESNWrapFailureRefusesPackets asserts signPacket emits nothing when the durable increment is unavailable, corrupt, failed, exhausted, missing or non-increasing. Lost storage is the separate RFC7474-8-1 gap.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestOSPFESNWrapFailureRefusesPackets`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/state_store_gate_test.go#L259) | unit/verify | unproven |
-| positive | [`TestBootCountMonotonicAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L351) | unit/verify | unproven |
+| positive | [`TestBootCountMonotonicAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L394) | unit/verify | unproven |
 | positive | [`TestOSPFESNWrapPersistsBeforeRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/state_store_gate_test.go#L186) | unit/verify | unproven |
 
 ### [`RFC7474-2-5`](#rfc7474-2-5)
 
 Upon reception, the sequence number MUST be greater than the sequence number in the last OSPF packet of that type accepted from the sending OSPF neighbor. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: accepting a packet whose sequence is not greater than the last accepted of that type from that neighbor. TestOSPFAuthReplayEqualSequenceByAuType drives AuType 3 (AuTypeCryptographicESN, extended-sequence key chain) and asserts an equal sequence is dropped as 'replay' (replayedSequence). TestOSPFAuthReplay asserts lower sequences are dropped, but on AuType 2. Weak: no tagged assertion goes red if the AuType 3 comparison dropped the boot-count high word (a post-restart packet boot+1|1 would then compare below boot|N), and a lower AuType 3 sequence is not asserted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L138) | unit/verify | unproven |
-| positive | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L133) | unit/verify | unproven |
+| negative | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L138) | unit/verify | revert, verified |
+| negative | [`TestOSPFAuthReplayEqualSequenceByAuType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L186) | unit/verify | revert, verified |
+| positive | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L133) | unit/verify | revert, verified |
 
 ### [`RFC7474-2-6`](#rfc7474-2-6)
 
-Track the accepted-sequence high-water mark per neighbor and per OSPF packet type (allows out-of-order arrival across types, §2)
+Upon reception, the sequence number MUST be greater than the sequence number in the last OSPF packet of that type accepted from the sending OSPF neighbor. Otherwise, the OSPF packet is considered a replayed packet and dropped. OSPF packets of different types may arrive out of order if they are prioritized as recommended in [RFC4222]. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clause 'of that type': TestOSPFAuthReplayPerType asserts an LS-Ack at seq 5 is accepted after a Hello at 100, and TestOSPFAuthReplay asserts a same-type lower sequence is dropped. Clause 'from the sending OSPF neighbor': no unit uses a second neighbor, so a mark shared across neighbors passes every tagged assertion. Both units use AuType 2 packets rather than the AuType 3 sequence this RFC defines.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L139) | unit/verify | unproven |
-| positive | [`TestOSPFAuthReplayPerType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L169) | unit/verify | unproven |
+| negative | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L139) | unit/verify | revert, verified |
+| positive | [`TestOSPFAuthReplayPerType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L212) | unit/verify | unproven |
 
 ### [`RFC7474-3-1`](#rfc7474-3-1)
 
-Set the OSPF Authentication field per AuType 3: 24-bit reserved `0`, 8-bit Auth Data Len, 32-bit Key ID in the former sequence-number position (§3)
+The sequence number is removed and the Key ID is extended to 32 bits and moved to the former position of the sequence number. Additionally, the 64-bit sequence number is moved to the first 64 bits following the OSPFv2 packet and is protected by the authentication digest. These additional 64 bits or 8 octets are included in the IP header length but not the OSPF header packet length. Finally, the 0 field at the start of the OSPFv2 header authentication is extended from 16 bits to 24 bits. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The quote spans four sentences of Section 3. Key ID 32 bits in the former sequence position: asserted (readUint32(af,4) == 0x01020304; TestOSPFAuthCryptoRejectsKeyIDMismatch AuType 3 mismatch rejected). 24-bit zero field: asserted (af[0:3] == 0). Sequence in the first 64 bits after the packet, OSPF Packet Length excluding it: asserted (readUint64(signed[plen:]), offLength == plen). 'protected by the authentication digest': no 3-1-tagged assertion goes red if the digest skipped the sequence (the round-trip still verifies); only TestOSPFAuthType3SequenceTamperRejected, tagged 5-1, proves it.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -214,9 +217,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7474-5-1`](#rfc7474-5-1)
 
-Include the 64-bit sequence number in the First-Hash along with the Authentication Trailer and OSPF packet (§5)
+the 64-bit sequence number will be included in the First-Hash along with the Authentication Trailer and OSPF packet (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a First-Hash that omits the 64-bit sequence. TestOSPFAuthType3SequenceTamperRejected flips one octet of signed[plen:plen+8] and asserts Verify rejects it, red if the sequence is outside the hash; TestOSPFAuthType3SequenceTrailer asserts the untampered round trip verifies and returns the sequence.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -225,9 +228,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7474-5-2`](#rfc7474-5-2)
 
-Initialize the first 4 octets of `Apad` to the packet's IP source address (send and receive), remainder 0x878FE1F3 (§5)
+OSPF routers sending OSPF packets must initialize the first 4 octets of Apad to the value of the IP source address that would be used when sending the OSPFv2 packet. The remainder of Apad will contain the value 0x878FE1F3 repeated (L - 4)/4 times, where L is the length of the hash, measured in octets. The basic idea is to incorporate the IP source address from the IP header in the cryptographic authentication computation so that any change of IP source address in a replayed packet can be detected. When an OSPF packet is received, implementations MUST initialize the first 4 octets of Apad to the IP source address from the IP header of the incoming OSPFv2 packet. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Apad construction given a source: TestOSPFAuthType3SourceBinding asserts a packet signed for 198.51.100.7 fails Verify with a spoofed 203.0.113.9 and passes with the signing source, red if Apad ignored the source on either side. Clauses 'the IP source address that would be used when sending' and 'the IP source address from the IP header of the incoming OSPFv2 packet' concern which address the engine passes in; no tagged unit drives the send or receive path, so an engine that passed the router ID or a zero address on both sides would keep every assertion green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -236,9 +239,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7474-6-1`](#rfc7474-6-1)
 
-Append the two-octet OSPFv2 Cryptographic Protocol ID to the authentication key prior to use, to block cross-protocol replay (§6)
+In order to prevent cross-protocol replay attacks for protocols sharing common keys, the two-octet OSPFv2 Cryptographic Protocol ID is appended to the authentication key prior to use. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: hashing with the bare key. TestOSPFAuthType3RequiresProtocolIDSuffix builds a digest over the bare key and asserts Verify rejects it, with the real signer over the same key, seq and source as the verifying control; TestOSPFAuthType3SequenceTrailer round-trips the suffixed key.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -266,14 +269,14 @@ No test carries RFC7474-8-1, so no unit is bound to it.
 
 ### [`RFC7474-4-1`](#rfc7474-4-1)
 
-On receive, use a key only while "the key validity interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd" includes the current time (§4)
+For packet reception, the key validity interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd must include the current time. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: accepting with a key whose accept window excludes now. TestVerifyRejectsOutsideAcceptLifetime verifies identical bytes at three clock values and asserts 'accept-lifetime' refusal before AcceptLifetimeStart and after AcceptLifetimeEnd and acceptance inside, so both window edges are red on a violation.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestVerifyRejectsOutsideAcceptLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L449) | unit/verify | revert, verified |
-| positive | [`TestVerifyRejectsOutsideAcceptLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L455) | unit/verify | revert, verified |
+| negative | [`TestVerifyRejectsOutsideAcceptLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L492) | unit/verify | revert, verified |
+| positive | [`TestVerifyRejectsOutsideAcceptLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L498) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

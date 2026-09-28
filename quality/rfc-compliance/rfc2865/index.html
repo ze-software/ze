@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2865 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2865: Remote Authentication Dial In User Service (RADIUS). 30 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 2865: Remote Authentication Dial In User Service (RADIUS). 29 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2865 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2865: Remote Authentication Dial In User Service (RADIUS). 30 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 2865: Remote Authentication Dial In User Service (RADIUS). 29 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2865 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2865: Remote Authentication Dial In User Service (RADIUS). 30 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 2865: Remote Authentication Dial In User Service (RADIUS). 29 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,22 +116,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>83.3%</strong><b>25 of 30 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>16.7%</strong><b>5 of 30 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>44.1%</strong><b>41 of 93 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>82.8%</strong><b>24 of 29 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>17.2%</strong><b>5 of 29 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 29 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 29 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>45.6%</strong><b>41 of 90 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>30</strong><b>of 33 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 30 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>29</strong><b>of 30 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 29 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 29 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 29 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 29 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 30 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>20</strong><b>of 29 gated MUSTs judged</b><p>7 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 29 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -199,15 +204,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>33</td>
+<td>30</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>30</td>
+<td>29</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
@@ -217,13 +225,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>102</td>
+<td>99</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>93</td>
+<td>90</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>20</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>41</td>
@@ -258,7 +266,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>25</strong></td>
+<td><strong>24</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -281,11 +289,11 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>30</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>29</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (25):</strong> <a href="#rfc2865-3-1"><code>RFC2865-3-1</code></a>, <a href="#rfc2865-3-3"><code>RFC2865-3-3</code></a>, <a href="#rfc2865-3-4"><code>RFC2865-3-4</code></a>, <a href="#rfc2865-5-1"><code>RFC2865-5-1</code></a>, <a href="#rfc2865-5.2-1"><code>RFC2865-5.2-1</code></a>, <a href="#rfc2865-5-2"><code>RFC2865-5-2</code></a>, <a href="#rfc2865-3-5"><code>RFC2865-3-5</code></a>, <a href="#rfc2865-1.1-1"><code>RFC2865-1.1-1</code></a>, <a href="#rfc2865-1.1-2"><code>RFC2865-1.1-2</code></a>, <a href="#rfc2865-3-6"><code>RFC2865-3-6</code></a>, <a href="#rfc2865-3-8"><code>RFC2865-3-8</code></a>, <a href="#rfc2865-4.1-1"><code>RFC2865-4.1-1</code></a>, <a href="#rfc2865-4.1-6"><code>RFC2865-4.1-6</code></a>, <a href="#rfc2865-4.1-2"><code>RFC2865-4.1-2</code></a>, <a href="#rfc2865-4.1-3"><code>RFC2865-4.1-3</code></a>, <a href="#rfc2865-4.4-1"><code>RFC2865-4.4-1</code></a>, <a href="#rfc2865-5-4"><code>RFC2865-5-4</code></a>, <a href="#rfc2865-5-8"><code>RFC2865-5-8</code></a>, <a href="#rfc2865-3-7"><code>RFC2865-3-7</code></a>, <a href="#rfc2865-4.1-5"><code>RFC2865-4.1-5</code></a>, <a href="#rfc2865-5-6"><code>RFC2865-5-6</code></a>, <a href="#rfc2865-5-7"><code>RFC2865-5-7</code></a>, <a href="#rfc2865-5.11-1"><code>RFC2865-5.11-1</code></a>, <a href="#rfc2865-5.24-1"><code>RFC2865-5.24-1</code></a>, <a href="#rfc2865-5.25-1"><code>RFC2865-5.25-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (24):</strong> <a href="#rfc2865-3-1"><code>RFC2865-3-1</code></a>, <a href="#rfc2865-3-3"><code>RFC2865-3-3</code></a>, <a href="#rfc2865-3-4"><code>RFC2865-3-4</code></a>, <a href="#rfc2865-5-1"><code>RFC2865-5-1</code></a>, <a href="#rfc2865-5.2-1"><code>RFC2865-5.2-1</code></a>, <a href="#rfc2865-5-2"><code>RFC2865-5-2</code></a>, <a href="#rfc2865-1.1-1"><code>RFC2865-1.1-1</code></a>, <a href="#rfc2865-1.1-2"><code>RFC2865-1.1-2</code></a>, <a href="#rfc2865-3-6"><code>RFC2865-3-6</code></a>, <a href="#rfc2865-3-8"><code>RFC2865-3-8</code></a>, <a href="#rfc2865-4.1-1"><code>RFC2865-4.1-1</code></a>, <a href="#rfc2865-4.1-6"><code>RFC2865-4.1-6</code></a>, <a href="#rfc2865-4.1-2"><code>RFC2865-4.1-2</code></a>, <a href="#rfc2865-4.1-3"><code>RFC2865-4.1-3</code></a>, <a href="#rfc2865-4.4-1"><code>RFC2865-4.4-1</code></a>, <a href="#rfc2865-5-4"><code>RFC2865-5-4</code></a>, <a href="#rfc2865-5-8"><code>RFC2865-5-8</code></a>, <a href="#rfc2865-3-7"><code>RFC2865-3-7</code></a>, <a href="#rfc2865-4.1-5"><code>RFC2865-4.1-5</code></a>, <a href="#rfc2865-5-6"><code>RFC2865-5-6</code></a>, <a href="#rfc2865-5-7"><code>RFC2865-5-7</code></a>, <a href="#rfc2865-5.11-1"><code>RFC2865-5.11-1</code></a>, <a href="#rfc2865-5.24-1"><code>RFC2865-5.24-1</code></a>, <a href="#rfc2865-5.25-1"><code>RFC2865-5.25-1</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (5):</strong> <a href="#rfc2865-3-2"><code>RFC2865-3-2</code></a>, <a href="#rfc2865-2.5-1"><code>RFC2865-2.5-1</code></a>, <a href="#rfc2865-5.2-2"><code>RFC2865-5.2-2</code></a>, <a href="#rfc2865-4.1-4"><code>RFC2865-4.1-4</code></a>, <a href="#rfc2865-5-5"><code>RFC2865-5-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
@@ -293,7 +301,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-3-1">RFC2865-3-1</code></td><td colspan="3"><span class="rfc-subject">Packet Length MUST be between 20 and 4096 bytes (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-3-1">RFC2865-3-1</code></td><td colspan="3"><span class="rfc-subject">The minimum length is 20 and maximum length is 4096. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - Packet Format</td>
@@ -304,7 +312,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L171" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestDecodeTooShort</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-3-2">RFC2865-3-2</code></td><td colspan="3"><span class="rfc-subject">Request Authenticator MUST be 16 cryptographically random octets (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-3-2">RFC2865-3-2</code></td><td colspan="3"><span class="rfc-subject">In Access-Request Packets, the Authenticator value is a 16 octet random number, called the Request Authenticator. The value SHOULD be unpredictable and unique over the lifetime of a secret (the password shared between the client and the RADIUS server), since repetition of a request value in conjunction with the same secret would permit an attacker to reply with a previously intercepted response. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - Packet Format</td>
@@ -313,7 +321,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Request Authenticator is 16 octets from crypto/rand (internal/component/radius/packet.go:32) and there is no invalid-authenticator generation path to drive a negative</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-3-3">RFC2865-3-3</code></td><td colspan="3"><span class="rfc-subject">Response Authenticator MUST be MD5(Code+ID+Length+RequestAuth+Attributes+Secret) (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-3-3">RFC2865-3-3</code></td><td colspan="3"><span class="rfc-subject">The value of the Authenticator field in Access-Accept, Access- Reject, and Access-Challenge packets is called the Response Authenticator, and contains a one-way MD5 hash calculated over a stream of octets consisting of: the RADIUS packet, beginning with the Code field, including the Identifier, the Length, the Request Authenticator field from the Access-Request packet, and the response Attributes, followed by the shared secret. That is, ResponseAuth = MD5(Code+ID+Length+RequestAuth+Attributes+Secret) where + denotes concatenation. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - Packet Format</td>
@@ -326,16 +334,16 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L246" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestVerifyResponseAuth</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-3-4">RFC2865-3-4</code></td><td colspan="3"><span class="rfc-subject">NAS MUST verify Response Authenticator before trusting a response (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-3-4">RFC2865-3-4</code></td><td colspan="3"><span class="rfc-subject">The Response Authenticator field MUST contain the correct response for the pending Access-Request. Invalid packets are silently discarded. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3 - Packet Format</td>
+<td>4.2 - Access-Accept</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/client_test.go#L384" title="internal/component/radius/client_test.go" target="_blank" rel="noopener"><code>TestClientAuthenticatorVerify</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/client_test.go#L389" title="internal/component/radius/client_test.go" target="_blank" rel="noopener"><code>TestClientAuthenticatorVerify</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-2.5-1">RFC2865-2.5-1</code></td><td colspan="3"><span class="rfc-subject">A retransmitted request MUST use the same Identifier and Request Authenticator (§2.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-2.5-1">RFC2865-2.5-1</code></td><td colspan="3"><span class="rfc-subject">If the NAS is retransmitting a RADIUS request to the same server as before, and the attributes haven&#39;t changed, you MUST use the same Request Authenticator, ID, and source port. (§2.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.5 - Retransmission Hints</td>
@@ -354,7 +362,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L75" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestOmitsAnUnavailableUserName</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5.2-1">RFC2865-5.2-1</code></td><td colspan="3"><span class="rfc-subject">User-Password encoding MUST use MD5-based XOR chain: c[0] = p[0] XOR MD5(S+RA), c[i] = p[i] XOR MD5(S+c[i-1]) (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5.2-1">RFC2865-5.2-1</code></td><td colspan="3"><span class="rfc-subject">A one- way MD5 hash is calculated over a stream of octets consisting of the shared secret followed by the Request Authenticator. This value is XORed with the first 16 octet segment of the password and placed in the first 16 octets of the String field of the User- Password Attribute. If the password is longer than 16 characters, a second one-way MD5 hash is calculated over a stream of octets consisting of the shared secret followed by the result of the first xor. That hash is XORed with the second 16 octet segment of the password and placed in the second 16 octets of the String field of the User- Password Attribute. If necessary, this operation is repeated, with each xor result being used along with the shared secret to generate the next hash to xor the next segment of the password (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2 - User-Password</td>
@@ -364,7 +372,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L156" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865UserPasswordDependsOnSecret</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5.2-2">RFC2865-5.2-2</code></td><td colspan="3"><span class="rfc-subject">User-Password MUST be padded to a multiple of 16 octets (max 128) (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5.2-2">RFC2865-5.2-2</code></td><td colspan="3"><span class="rfc-subject">The password is first padded at the end with nulls to a multiple of 16 octets. A one- way MD5 hash is calculated over a stream of octets consisting of the shared secret followed by the Request Authenticator. This value is XORed with the first 16 octet segment of the password and placed in the first 16 octets of the String field of the User- Password Attribute. If the password is longer than 16 characters, a second one-way MD5 hash is calculated over a stream of octets consisting of the shared secret followed by the result of the first xor. That hash is XORed with the second 16 octet segment of the password and placed in the second 16 octets of the String field of the User- Password Attribute. If necessary, this operation is repeated, with each xor result being used along with the shared secret to generate the next hash to xor the next segment of the password, to no more than 128 characters. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2 - User-Password</td>
@@ -376,23 +384,13 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the encoder always pads and clamps and never rejects (internal/component/radius/attr.go:18-26), so there is no reject path to drive a negative</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5-2">RFC2865-5-2</code></td><td colspan="3"><span class="rfc-subject">Attribute length MUST NOT exceed 255 bytes (Type + Length + Value) (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5-2">RFC2865-5-2</code></td><td colspan="3"><span class="rfc-subject">The Length field is one octet, and indicates the length of this Attribute including the Type, Length and Value fields. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - Attributes</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-5-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L78" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865AttributeLengthBound</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L94" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865AttributeLengthBound</code></a></span></div>
-</div></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-3-5">RFC2865-3-5</code></td><td colspan="3"><span class="rfc-subject">Only accept responses from the server address the request was sent to (§3)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>3 - Packet Format</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/client_test.go#L106" title="internal/component/radius/client_test.go" target="_blank" rel="noopener"><code>TestClientExchangeAccept</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L139" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865ResponseSourceAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L130" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865ResponseSourceAddress</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-1.1-1">RFC2865-1.1-1</code></td><td colspan="3"><span class="rfc-subject">A NAS that does not implement a given service MUST NOT implement the RADIUS attributes for that service (§1.1)</span></td></tr>
@@ -572,7 +570,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L494" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestAnEmbeddedNullDoesNotEndTheAttributeWalk</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5.11-1">RFC2865-5.11-1</code></td><td colspan="3"><span class="rfc-subject">A human-readable or opaque carrier attribute (Filter-Id §5.11, Reply-Message §5.18, Framed-Route §5.22, Vendor-Specific §5.26, Proxy-State §5.33) MUST NOT affect operation of the RADIUS protocol</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5.11-1">RFC2865-5.11-1</code></td><td colspan="3"><span class="rfc-subject">It is intended to be human readable and MUST NOT affect operation of the protocol. (§5.11)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.11 - Filter-Id</td>
@@ -581,7 +579,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L563" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestCarrierAttributesDoNotAffectAnAccessReject</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5.24-1">RFC2865-5.24-1</code></td><td colspan="3"><span class="rfc-subject">State &#34;MUST be sent unmodified from the client to the server in the new Access-Request reply to that challenge, if any&#34; (§5.24)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5.24-1">RFC2865-5.24-1</code></td><td colspan="3"><span class="rfc-subject">This Attribute is available to be sent by the server to the client in an Access-Challenge and MUST be sent unmodified from the client to the server in the new Access-Request reply to that challenge, if any. (§5.24)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.24 - State</td>
@@ -590,7 +588,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_state_echo_test.go#L68" title="internal/component/radius/rfc2865_state_echo_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminStateIsNotManufactured</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5.25-1">RFC2865-5.25-1</code></td><td colspan="3"><span class="rfc-subject">The client MUST NOT interpret the State (§5.24) or Class (§5.25) attribute locally</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5.25-1">RFC2865-5.25-1</code></td><td colspan="3"><span class="rfc-subject">The client MUST NOT interpret the attribute locally. (§5.25)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.25 - Class</td>
@@ -601,28 +599,10 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/config_test.go#L102" title="internal/component/radius/config_test.go" target="_blank" rel="noopener"><code>TestExtractRadiusConfigProfileAttrNeverClass</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-2.5-2">RFC2865-2.5-2</code></td><td colspan="3"><span class="rfc-subject">NAS SHOULD use exponential backoff between retransmits (§2.5)</span></td></tr>
-<tr><td></td>
-<td>SHOULD</td>
-<td>2.5 - Retransmission Hints</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-2.5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-x-1">RFC2865-x-1</code></td><td colspan="3"><span class="rfc-subject">Use constant-time comparison for authenticator verification (Implementation Constraints)</span></td></tr>
-<tr><td></td>
-<td>SHOULD</td>
-<td>x</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-x-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5-3">RFC2865-5-3</code></td><td colspan="3"><span class="rfc-subject">Server MAY include Reply-Message attribute in Access-Reject (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5-3">RFC2865-5-3</code></td><td colspan="3"><span class="rfc-subject">It MAY include one or more Reply-Message Attributes with a text message which the NAS MAY display to the user. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>5 - Attributes</td>
+<td>4.3 - Access-Reject</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-5-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -638,8 +618,8 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2865-3-1"><code>RFC2865-3-1</code></a></h3>
-<p>Packet Length MUST be between 20 and 4096 bytes (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The minimum length is 20 and maximum length is 4096. (§3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Min clause: a decoder accepting a 19-octet datagram fails TestDecodeTooShort (Decode error expected). Max clause: TestDecodeTooLong feeds 4097 zero octets whose Length field is 0, so a decoder with no 4096 bound still errors on Length &lt; 20 and the test stays green; no tagged unit drives a datagram or Length field above 4096 with an otherwise valid Length. TestDecodeBadLength proves the Length-beyond-datagram rule (RFC2865-3-7), not this bound.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -668,8 +648,8 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-3-2"><code>RFC2865-3-2</code></a></h3>
-<p>Request Authenticator MUST be 16 cryptographically random octets (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In Access-Request Packets, the Authenticator value is a 16 octet random number, called the Request Authenticator. The value SHOULD be unpredictable and unique over the lifetime of a secret (the password shared between the client and the RADIUS server), since repetition of a request value in conjunction with the same secret would permit an attacker to reply with a previously intercepted response. (§3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Request Authenticator that is not 16 random octets, or one drawn from a predictable source. TestRFC2865RequestAuthenticatorRandom substitutes crypto/rand.Reader and asserts the authenticator equals the substituted octets byte for byte (a counter or constant goes red), and asserts two successive values differ; the width is the [AuthenticatorLen]byte type. Single-polarity marker on the row covers the missing negative.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -683,8 +663,8 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-3-3"><code>RFC2865-3-3</code></a></h3>
-<p>Response Authenticator MUST be MD5(Code+ID+Length+RequestAuth+Attributes+Secret) (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The value of the Authenticator field in Access-Accept, Access- Reject, and Access-Challenge packets is called the Response Authenticator, and contains a one-way MD5 hash calculated over a stream of octets consisting of: the RADIUS packet, beginning with the Code field, including the Identifier, the Length, the Request Authenticator field from the Access-Request packet, and the response Attributes, followed by the shared secret. That is, ResponseAuth = MD5(Code+ID+Length+RequestAuth+Attributes+Secret) where + denotes concatenation. (§3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Response Authenticator computed over anything but Code+ID+Length+RequestAuth+Attributes+Secret. TestRFC2865ResponseAuthenticatorMatchesTheFormula compares ResponseAuthenticator with an independent MD5 over exactly those fields (red on a wrong formula, with a non-degenerate attribute stream); TestRFC2865ResponseAuthenticatorCoversEveryNamedField mutates each named field and asserts VerifyResponseAuth rejects it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -723,8 +703,8 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-3-4"><code>RFC2865-3-4</code></a></h3>
-<p>NAS MUST verify Response Authenticator before trusting a response (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The Response Authenticator field MUST contain the correct response for the pending Access-Request. Invalid packets are silently discarded. (§4.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: trusting a reply whose Response Authenticator is wrong. TestClientAuthenticatorVerify answers the first attempt signed with the wrong secret; the attempts &gt;= 2 assertion goes red if the client accepts it instead of discarding it, and the Code assertion proves the correctly signed reply is accepted.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -743,8 +723,8 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-2.5-1"><code>RFC2865-2.5-1</code></a></h3>
-<p>A retransmitted request MUST use the same Identifier and Request Authenticator (§2.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the NAS is retransmitting a RADIUS request to the same server as before, and the attributes haven&#39;t changed, you MUST use the same Request Authenticator, ID, and source port. (§2.5)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quote obliges the same Request Authenticator, ID and source port on a retransmission to the same server. TestClientRetransmit only asserts attempts &gt;= 2 and an Accept; the mock builds each reply from the latest datagram, so a client that changed ID and Request Authenticator together, or changed source port, still passes. No tagged assertion compares the attempts&#39; Identifier, Request Authenticator or source port.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -759,7 +739,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </div>
 <h3><a href="#rfc2865-5-1"><code>RFC2865-5-1</code></a></h3>
 <p>It MUST be sent in Access-Request packets if available. (§5, sentence at §5.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an Access-Request without User-Name when the name is available. The admin (radius TestRFC2865AccessRequestUserName) and L2TP (authradius buildAuthAttrs test) units assert User-Name present with the right value; the negative TestRFC2865AccessRequestOmitsAnUnavailableUserName covers the if-available condition.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -783,8 +763,8 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-5.2-1"><code>RFC2865-5.2-1</code></a></h3>
-<p>User-Password encoding MUST use MD5-based XOR chain: c[0] = p[0] XOR MD5(S+RA), c[i] = p[i] XOR MD5(S+c[i-1]) (§5.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>A one- way MD5 hash is calculated over a stream of octets consisting of the shared secret followed by the Request Authenticator. This value is XORed with the first 16 octet segment of the password and placed in the first 16 octets of the String field of the User- Password Attribute. If the password is longer than 16 characters, a second one-way MD5 hash is calculated over a stream of octets consisting of the shared secret followed by the result of the first xor. That hash is XORed with the second 16 octet segment of the password and placed in the second 16 octets of the String field of the User- Password Attribute. If necessary, this operation is repeated, with each xor result being used along with the shared secret to generate the next hash to xor the next segment of the password (§5.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a User-Password cipher not chained as MD5(S+RA) then MD5(S+c(i-1)). TestEncodeUserPasswordMultiBlock compares a 2-block ciphertext with one the test builds from the RFC recipe (red if block 2 is keyed on RA), TestEncodeUserPassword reverses block 1 with MD5(S+RA); the negatives assert the ciphertext changes with the secret and with the Request Authenticator.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -808,8 +788,8 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-5.2-2"><code>RFC2865-5.2-2</code></a></h3>
-<p>User-Password MUST be padded to a multiple of 16 octets (max 128) (§5.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The password is first padded at the end with nulls to a multiple of 16 octets. A one- way MD5 hash is calculated over a stream of octets consisting of the shared secret followed by the Request Authenticator. This value is XORed with the first 16 octet segment of the password and placed in the first 16 octets of the String field of the User- Password Attribute. If the password is longer than 16 characters, a second one-way MD5 hash is calculated over a stream of octets consisting of the shared secret followed by the result of the first xor. That hash is XORed with the second 16 octet segment of the password and placed in the second 16 octets of the String field of the User- Password Attribute. If necessary, this operation is repeated, with each xor result being used along with the shared secret to generate the next hash to xor the next segment of the password, to no more than 128 characters. (§5.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a password not null-padded to a multiple of 16, or longer than 128. TestEncodeUserPassword asserts len%16 == 0 and the decoded pad octets are 0; TestEncodeUserPasswordEmpty asserts 16; TestEncodeUserPasswordMultiBlock asserts 32 and the chain over the null-padded plaintext; TestRFC2865UserPasswordClamp asserts 128 for a 130-octet input. Single-polarity marker on the row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -838,8 +818,8 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-5-2"><code>RFC2865-5-2</code></a></h3>
-<p>Attribute length MUST NOT exceed 255 bytes (Type + Length + Value) (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The Length field is one octet, and indicates the length of this Attribute including the Type, Length and Value fields. (§5)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an attribute Length octet that does not count Type, Length and Value. TestRFC2865AttributeLengthBound encodes a 253-octet value and asserts only that Decode returns 253 octets: an encoder writing Length = len(Value) and a decoder reading it the same way round-trip identically and stay green. No assertion reads the Length octet on the wire (it must be 255 for a 253-octet value). The 254-octet refusal is a bound check that holds under either reading.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -851,31 +831,6 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L78" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865AttributeLengthBound</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
-<h3><a href="#rfc2865-3-5"><code>RFC2865-3-5</code></a></h3>
-<p>Only accept responses from the server address the request was sent to (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L130" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865ResponseSourceAddress</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/client_test.go#L106" title="internal/component/radius/client_test.go" target="_blank" rel="noopener"><code>TestClientExchangeAccept</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L139" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865ResponseSourceAddress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -909,7 +864,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </div>
 <h3><a href="#rfc2865-1.1-2"><code>RFC2865-1.1-2</code></a></h3>
 <p>A NAS MUST treat a RADIUS access-accept authorizing an unavailable service as an access-reject instead. (§1.1, restated at §5.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: honouring an Access-Accept that authorizes a service the NAS does not provide. The tagged units drive only Service-Type (admin: Framed and NAS-Prompt rejected, Login accepted; L2TP: Login and NAS-Prompt rejected, Framed accepted). No tagged unit drives an Accept authorizing an unavailable service through another attribute, for example Framed-User with Framed-Protocol SLIP on the L2TP LNS, so that clause has no assertion.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1064,7 +1019,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </div>
 <h3><a href="#rfc2865-4.1-2"><code>RFC2865-4.1-2</code></a></h3>
 <p>It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both). (§4.1, restated at §5.44 Note 2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an Access-Request with neither NAS-IP-Address nor NAS-Identifier. radius TestAdminAccessRequestIdentifiesTheNAS asserts hasIP || hasID on the wire; authradius TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured asserts a non-empty NAS-Identifier even with nothing configured (red if the request goes out naming no NAS).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1089,7 +1044,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </div>
 <h3><a href="#rfc2865-4.1-3"><code>RFC2865-4.1-3</code></a></h3>
 <p>An Access-Request MUST contain either a User-Password or a CHAP- Password or a State. (§4.1, restated at §5.44 Note 1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an Access-Request carrying none of User-Password, CHAP-Password, State. The admin (TestAdminAccessRequestCarriesExactlyOneCredential) and L2TP PAP/CHAP units assert the credential attribute on the wire, and the AuthMethodNone and short MS-CHAPv2 units assert no request is sent. The sentence covers every Access-Request, and the full MS-CHAPv2 and EAP Access-Requests Ze sends carry none of the three (RFC 2548 / RFC 3579 carriers); no tagged unit asserts anything about them, so the row is not proven for every request Ze emits. Whether RFC 3579 relieves the EAP path is an owner question, recorded in findings.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1124,7 +1079,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </div>
 <h3><a href="#rfc2865-4.4-1"><code>RFC2865-4.4-1</code></a></h3>
 <p>If the NAS does not support challenge/response, it MUST treat an Access-Challenge as though it had received an Access-Reject instead. (§4.4; ze supports challenge/response for the two EAP auth-methods and not for PAP or CHAP, so the rule binds the PAP and CHAP paths)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a NAS without challenge/response support treating an Access-Challenge as anything but a reject. The admin PAP path is covered (ErrAuthRejected, and the AAA chain stops). The row binds the L2TP PAP and CHAP paths too, and no tagged unit sends an Access-Challenge to the authradius handler; that package has no Access-Challenge test at all.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1179,7 +1134,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </div>
 <h3><a href="#rfc2865-5-8"><code>RFC2865-5-8</code></a></h3>
 <p>Text of length zero (0) MUST NOT be sent; omit the entire attribute instead. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: sending text of length zero. TestZeroLengthAttributeIsOmitted asserts an empty Filter-Id is dropped from the encoded packet (Len 1), and the admin and L2TP units assert an empty User-Name produces no attribute; TestOneOctetAttributeIsNotOmitted is the negative that bounds the guard.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1219,7 +1174,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </div>
 <h3><a href="#rfc2865-3-7"><code>RFC2865-3-7</code></a></h3>
 <p>If the packet is shorter than the Length field indicates, it MUST be silently discarded. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a packet shorter than its Length field. TestDecodeRefusesAPacketShorterThanItsLengthField sets Length to len+1 and requires Decode to error; the positive decodes an exact-length packet.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1294,7 +1249,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </div>
 <h3><a href="#rfc2865-5-6"><code>RFC2865-5-6</code></a></h3>
 <p>If an Attribute is received in an Access-Accept, Access-Reject or Access-Challenge packet with an invalid length, the packet MUST either be treated as an Access-Reject or else silently discarded. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: acting on a response carrying an attribute with an invalid length. TestResponseWithAnInvalidAttributeLengthIsDiscarded drives only Length 1 (below the header). An attribute whose Length runs past the packet Length is not driven by any tagged unit, and no unit asserts the client-level outcome (reject or discard) for Access-Reject or Access-Challenge.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1314,7 +1269,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </div>
 <h3><a href="#rfc2865-5-7"><code>RFC2865-5-7</code></a></h3>
 <p>Servers and servers and clients MUST be able to deal with embedded nulls. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: failing on an embedded null. TestAttributeValueWithAnEmbeddedNullRoundTrips asserts the value with a null round-trips whole (red on truncation); TestAnEmbeddedNullDoesNotEndTheAttributeWalk asserts the following attribute is still decoded.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1333,8 +1288,8 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-5.11-1"><code>RFC2865-5.11-1</code></a></h3>
-<p>A human-readable or opaque carrier attribute (Filter-Id §5.11, Reply-Message §5.18, Framed-Route §5.22, Vendor-Specific §5.26, Proxy-State §5.33) MUST NOT affect operation of the RADIUS protocol</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>It is intended to be human readable and MUST NOT affect operation of the protocol. (§5.11)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Quote is the Filter-Id sentence of 5.11. Forbidden: Filter-Id content changing protocol operation. TestCarrierAttributesDoNotAffectAnAccessReject asserts a Reject carrying Filter-Id stays a rejection; TestCarrierAttributesDoNotAffectAnAccessAccept asserts an Accept carrying it stays an accept. Question reported: ze uses Filter-Id as its admin profile carrier.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1353,8 +1308,8 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-5.24-1"><code>RFC2865-5.24-1</code></a></h3>
-<p>State &#34;MUST be sent unmodified from the client to the server in the new Access-Request reply to that challenge, if any&#34; (§5.24)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>This Attribute is available to be sent by the server to the client in an Access-Challenge and MUST be sent unmodified from the client to the server in the new Access-Request reply to that challenge, if any. (§5.24)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: returning State modified or not at all. TestRadiusAdminStateIsReturnedUnmodified asserts each round&#39;s request carries that round&#39;s distinct State byte for byte (red on drop, rewrite or stale echo); TestRadiusAdminStateIsNotManufactured asserts no State when the challenge sent none.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1373,8 +1328,8 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-5.25-1"><code>RFC2865-5.25-1</code></a></h3>
-<p>The client MUST NOT interpret the State (§5.24) or Class (§5.25) attribute locally</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The client MUST NOT interpret the attribute locally. (§5.25)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Quote is the Class sentence of 5.25. Forbidden: interpreting Class locally. TestRadiusClassIsNotInterpretedLocally asserts an Accept whose only carrier is Class yields no profile and ErrAuthRejected; TestExtractRadiusConfigProfileAttrNeverClass asserts no configuration selects Class. Two tagged units (TestStateIsNotInterpretedLocally, TestRadiusAdminEapChallengeLoopCarriesState) prove the State rule of 5.24 instead, reported.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1409,10 +1364,10 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Reviewer</td>
-<td>ze-implement walk agent, spec-rfcgate-6-supported-extraction-signoff phase 2 (Tier 1, rfc2865)</td>
+<td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-08-30</td>
+<td>2026-09-27</td>
 </tr>
 <tr><td>Register</td>
 <td>rfc2119</td>
@@ -1430,7 +1385,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <td>23</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>51</td>
+<td>50</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -1454,9 +1409,9 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </tr>
 <tr><td><code>1</code></td>
 <td>not stated</td>
-<td>1</td>
+<td>0</td>
 <td>walked</td>
-<td>Introduction: what RADIUS is, its client/server model, its network security model and its extensibility. It states no obligation of its own. Its one derived site is the Section 5.44 table legend, which the section parser attached here because the legend line begins with &#39;1&#39;.</td>
+<td>Introduction: what RADIUS is, its client/server model, its network security model and its extensibility. It states no obligation of its own and derives no site.</td>
 </tr>
 <tr><td><code>1.1</code></td>
 <td>Specification of Requirements</td>
@@ -1504,7 +1459,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <td>Retransmission Hints</td>
 <td>2</td>
 <td>walked</td>
-<td>Retransmission Hints. Its two sites are the same-server retransmission rule (site 2.5:1) and the changed-attributes rule (site 2.5:2), which Section 4.1 states in full. The exponential-backoff row RFC2865-2.5-2 is a ze implementation constraint at SHOULD level, not a sentence of this section, and a SHOULD row never gates.</td>
+<td>Retransmission Hints. Its two sites are the same-server retransmission rule (site 2.5:1) and the changed-attributes rule (site 2.5:2), which Section 4.1 states in full.</td>
 </tr>
 <tr><td><code>2.6</code></td>
 <td>Keep-Alives Considered Harmful</td>
@@ -1814,15 +1769,9 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </tr>
 <tr><td><code>5.44</code></td>
 <td>Table of Attributes</td>
-<td>3</td>
+<td>4</td>
 <td>walked</td>
-<td>Table of Attributes. Three sites, all in Note 1 and Note 2, restating Section 4.1&#39;s credential and identification rules. The table&#39;s own cells and its legend are covered by the two legend sites the section parser split off into sections &#39;1&#39; and &#39;0&#39;.</td>
-</tr>
-<tr><td><code>0</code></td>
-<td>not stated</td>
-<td>1</td>
-<td>walked</td>
-<td>The trailing legend block of the Section 5.44 Table of Attributes, which the section parser split into a section of its own because its first line begins with &#39;0&#39;. Its one site is the &#39;0&#39; legend entry.</td>
+<td>Table of Attributes. Three sites in Note 1 and Note 2, restating Section 4.1&#39;s credential and identification rules, and the legend site that defines what the table&#39;s cells mean.</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>IANA Considerations</td>
@@ -1916,11 +1865,6 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <table class="rfc-table">
 <thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
 <tbody>
-<tr><td><code>1:1</code></td>
-<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
-<td>The legend of the Section 5.44 Table of Attributes, which the section parser attached to section 1 because the line begins with &#39;1&#39;. It defines what the table entry &#39;1&#39; means and binds no speaker: &#39;this attribute&#39; names none. No column of that table carries &#39;1&#39; for any RFC 2865 attribute, so the case it defines is never exercised.</td>
-<td>Exactly one instance of this attribute MUST be present in packet.</td>
-</tr>
 <tr><td><code>1.1:2</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>The ARAP example restating the sentence before it. RFC2865-1.1-1 carries the obligation and site 1.1:1 maps it.</td>
@@ -2161,10 +2105,10 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <td>Note 2 of the Table of Attributes restating Section 4.1&#39;s NAS identification rule. RFC2865-4.1-2 carries it and site 4.1:3 maps it.</td>
 <td>[Note 2] An Access-Request MUST contain either a NAS-IP-Address or a NAS-Identifier (or both).</td>
 </tr>
-<tr><td><code>0:1</code></td>
+<tr><td><code>5.44:4</code></td>
 <td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
-<td>The legend of the Section 5.44 Table of Attributes, which the section parser split into a section of its own because the line begins with &#39;0&#39;. It defines what a &#39;0&#39; cell means and binds no speaker: &#39;this attribute&#39; names none. The obligations it expands to are the table&#39;s per-attribute rows, and both ze Access-Request builders send only attributes the Request column permits.</td>
-<td>This attribute MUST NOT be present in packet.</td>
+<td>The legend of the Section 5.44 Table of Attributes, defining what the cells 0, 0+, 0-1 and 1 mean. It binds no speaker: &#39;this attribute&#39; names none. The obligations it expands to are the table&#39;s per-attribute rows, and both ze Access-Request builders send only attributes the Request column permits.</td>
+<td>0 This attribute MUST NOT be present in packet. 0+ Zero or more instances of this attribute MAY be present in packet. 0-1 Zero or one instance of this attribute MAY be present in packet. 1 Exactly one instance of this attribute MUST be present in packet.</td>
 </tr>
 <tr><td><code>9:1</code></td>
 <td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
@@ -2207,7 +2151,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 5 | of 11 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 11 |
 | Not applicable, so out of scope | 4 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 16 |
 | Tagged units | 16 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 5 |
 | Discrimination records | 5 |
 | Summary | `rfc/short/rfc5305.md` |
 | Requirement shard | `rfc/requirements/rfc5305.md` |
@@ -105,30 +114,30 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5305-3-1` | Use a TLV 22 link advertised with metric 2^24 minus 1 in normal SPF (Section 3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestISISSPFMaxLinkMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L317). **negative:** `unit/verify` [`TestISISSPFMaxLinkMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L318) |
-| `RFC5305-3-2` | Clamp metrics at or above MAX_PATH_METRIC (0xFE000000) to MAX_PATH_METRIC (Section 3, Section 3.7) | SHALL | 3 | **positive:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L252). **negative:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L253) |
-| `RFC5305-4-1` | Consider a TLV 135 prefix with metric above MAX_PATH_METRIC in normal SPF (Section 4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L295). **negative:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L300) |
-| `RFC5305-4.1-1` | Set the TLV 135 up/down bit to 1 when advertising down the hierarchy or across same-level areas (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestISISEngineLeakOrigination`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L259). **negative:** `unit/verify` [`TestISISEngineLeakOrigination`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L270). **negative:** `unit/verify` [`TestISISRedistConsumerConnected`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/consumer_test.go#L169) |
-| `RFC5305-3.7-1` | If a link is advertised without sub-TLV 18, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV (Section 3.7) | MUST | 3.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Keep configured routes" for TE path computation. The conditional subject is "traffic engineering SPF calculations"; internal/plugins/rsvpte/register.go parseERO, routing.go resolveExplicitPath and frr.go selectBypass consume configured routes, native next-hop lookups and configured bypasses. internal/plugins/isis/spf/spf.go computes normal SPF. There is no CSPF/TE shortest-path consumer to apply this fallback. This exclusion does not cover native TE advertisement or wire duties, and BGP-LS export is not TE-SPF |
+| `RFC5305-3-1` | If a link is advertised with the maximum link metric (2^24 - 1), this link MUST NOT be considered during the normal SPF computation. (§3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestISISSPFMaxLinkMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L317). **negative:** `unit/verify` [`TestISISSPFMaxLinkMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L318) |
+| `RFC5305-3-2` | To preclude overflow within a traffic engineering Shortest Path First (SPF) implementation, all metrics greater than or equal to MAX_PATH_METRIC SHALL be considered to have a metric of MAX_PATH_METRIC. It is easiest to select MAX_PATH_METRIC such that MAX_PATH_METRIC plus a single link metric does not overflow the number of bits for internal metric calculation. We assume that this is 32 bits. Therefore, we have chosen MAX_PATH_METRIC to be 4,261,412,864 (0xFE000000, 2^32 - 2^25). (§3) | SHALL | 3 | **positive:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L252). **negative:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L253) |
+| `RFC5305-4-1` | If a prefix is advertised with a metric larger then MAX_PATH_METRIC (0xFE000000, see paragraph 3.0), this prefix MUST NOT be considered during the normal SPF computation. (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L295). **negative:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L300) |
+| `RFC5305-4.1-1` | If a prefix is advertised from a higher level to a lower level (e.g., level 2 to level 1), the bit MUST be set to 1, indicating that the prefix has traveled down the hierarchy. Prefixes that have the up/down bit set to 1 may only be advertised down the hierarchy, i.e., to lower levels. These semantics apply even if IS-IS is extended in the future to have additional levels. By ensuring that prefixes follow only the IS-IS hierarchy, we have ensured that the information does not loop, thereby ensuring that there are no persistent forwarding loops. If a prefix is advertised from one area to another at the same level, then the up/down bit SHALL be set to 1. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestISISEngineLeakOrigination`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L259). **negative:** `unit/verify` [`TestISISEngineLeakOrigination`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L270). **negative:** `unit/verify` [`TestISISRedistConsumerConnected`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/consumer_test.go#L169) |
+| `RFC5305-3.7-1` | If a link is advertised without this sub-TLV, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV. (§3.7) | MUST | 3.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Owner decision 2026-09-21: "Keep configured routes" for TE path computation. The conditional subject is "traffic engineering SPF calculations"; internal/plugins/rsvpte/register.go parseERO, routing.go resolveExplicitPath and frr.go selectBypass consume configured routes, native next-hop lookups and configured bypasses. internal/plugins/isis/spf/spf.go computes normal SPF. There is no CSPF/TE shortest-path consumer to apply this fallback. This exclusion does not cover native TE advertisement or wire duties, and BGP-LS export is not TE-SPF |
 | `RFC5305-4.1-2` | The up/down bit SHALL be set to 0 when a prefix is first injected into IS-IS (Section 4.1) | SHALL | 4.1 | **positive:** `unit/verify` [`TestRFC5305FirstInjectionClearsUpDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/inject_rfc5305_test.go#L15). **negative:** `unit/verify` [`TestRFC5305ConnectedInjectionClearsUpDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/inject_rfc5305_test.go#L37) |
 | `RFC5305-4.2-1` | If there are no sub-TLVs associated with a prefix, the bit indicating the presence of sub-TLVs SHALL be set to 0 (Section 4.2) | SHALL | 4.2 | **positive:** `unit/verify` [`TestRFC5305NoSubTLVsClearsPresenceBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go#L24). **negative:** `unit/verify` [`TestRFC5305SubTLVsSetPresenceBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go#L39) |
-| `RFC5305-3.2-1` | Inject sub-TLV 6 / sub-TLV 8 / Router-ID addresses as /32 routes (Section 3.2, Section 3.3, Section 4.3) | MUST NOT | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never decodes the RFC 5305 TE sub-TLVs (sub-TLV 6/8) or TLV 134 into an address; internal/plugins/isis/spf/graph.go:192-194 reads only edges and drops sub-TLVs, and route.go:155 installs only node.Prefixes, so there is no per-link /32 injection code path |
-| `RFC5305-3.2-2` | Include sub-TLV 6 (and sub-TLV 8 on point-to-point) when implementing TE (Section 3.2, Section 3.3) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this obligation is conditional on implementing IS-IS TE; ze originates no TLV 22 TE sub-TLVs (internal/plugins/isis/lsdb/encode.go:101-107 writes a zero sub-TLV length), so it does not implement the TE metric it would govern |
-| `RFC5305-4.3-1` | Include the TE Router ID TLV (134) when implementing TE (Section 4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this obligation is conditional on implementing IS-IS TE; TLV 134 (TE Router ID) is absent from ze's IS-IS codec type set (internal/plugins/isis/packet/tlv.go:17-32), so ze originates and consumes no TLV 134 |
-| `RFC5305-2-1` | Ignore and skip unknown sub-TLVs on receipt (Section 2) | MUST | 2 | **positive:** `unit/verify` [`TestISISTLV22RoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_core_test.go#L185). **positive:** `unit/verify` [`TestISISTLVIPv4RoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_test.go#L85). **negative:** `unit/verify` [`TestISISTLV22Truncated`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_core_test.go#L205) |
-| `RFC5305-3.1-1` | Include each optional sub-TLV (3, 9, 10, 11, 18) at most once per TLV 22 (Section 3.1, Section 3.4 through Section 3.7) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5305-4.3-2` | Include the TE Router ID TLV more than once per LSP (Section 4.3) | SHOULD NOT | 4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5305-3.6-1` | For stability reasons, rapid changes in the values in sub-TLV 11 SHOULD NOT cause rapid generation of LSPs (Section 3.6) | SHOULD NOT | 3.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5305-4.3-3` | Where a router advertises the TE Router ID TLV and advertises prefixes via BGP with the next hop set to the BGP router ID, the Traffic Engineering router ID SHOULD be the same as the BGP router ID (Section 4.3) | SHOULD | 4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5305-3.2-1` | Implementations MUST NOT inject a /32 prefix for the interface address into their routing or forwarding table because this can lead to forwarding loops when interacting with systems that do not support this sub-TLV. (§3.2) | MUST NOT | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never decodes the RFC 5305 TE sub-TLVs (sub-TLV 6/8) or TLV 134 into an address; internal/plugins/isis/spf/graph.go:192-194 reads only edges and drops sub-TLVs, and route.go:155 installs only node.Prefixes, so there is no per-link /32 injection code path |
+| `RFC5305-3.2-2` | If a router implements traffic engineering, it MUST include this sub- TLV. (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this obligation is conditional on implementing IS-IS TE; ze originates no TLV 22 TE sub-TLVs (internal/plugins/isis/lsdb/encode.go:101-107 writes a zero sub-TLV length), so it does not implement the TE metric it would govern |
+| `RFC5305-4.3-1` | If a router implements traffic engineering, it MUST include this TLV in its LSP. (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this obligation is conditional on implementing IS-IS TE; TLV 134 (TE Router ID) is absent from ze's IS-IS codec type set (internal/plugins/isis/packet/tlv.go:17-32), so ze originates and consumes no TLV 134 |
+| `RFC5305-2-1` | Unknown sub-TLVs are to be ignored and skipped upon receipt. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestISISTLV22RoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_core_test.go#L185). **positive:** `unit/verify` [`TestISISTLVIPv4RoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_test.go#L85). **negative:** `unit/verify` [`TestISISTLV22Truncated`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_core_test.go#L205) |
+| `RFC5305-3.1-1` | This sub-TLV is OPTIONAL. This sub-TLV SHOULD appear once at most in each extended IS reachability TLV. (§3.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5305-4.3-2` | This TLV SHOULD not be included more than once in an LSP. (§4.3) | SHOULD NOT | 4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5305-3.6-1` | For stability reasons, rapid changes in the values in this sub-TLV SHOULD NOT cause rapid generation of LSPs. (§3.6) | SHOULD NOT | 3.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5305-4.3-3` | If a router advertises the Traffic Engineering router ID TLV in its LSP, and if it advertises prefixes via the Border Gateway Protocol (BGP) with the BGP next hop attribute set to the BGP router ID, the Traffic Engineering router ID SHOULD be the same as the BGP router ID. (§4.3) | SHOULD | 4.3 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5305-3.7-1`](#rfc5305-3.7-1) If a link is advertised without sub-TLV 18, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV (Section 3.7) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Keep configured routes" for TE path computation. The conditional subject is "traffic engineering SPF calculations"; internal/plugins/rsvpte/register.go parseERO, routing.go resolveExplicitPath and frr.go selectBypass consume configured routes, native next-hop lookups and configured bypasses. internal/plugins/isis/spf/spf.go computes normal SPF. There is no CSPF/TE shortest-path consumer to apply this fallback. This exclusion does not cover native TE advertisement or wire duties, and BGP-LS export is not TE-SPF |
-| [`RFC5305-3.2-1`](#rfc5305-3.2-1) Inject sub-TLV 6 / sub-TLV 8 / Router-ID addresses as /32 routes (Section 3.2, Section 3.3, Section 4.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze never decodes the RFC 5305 TE sub-TLVs (sub-TLV 6/8) or TLV 134 into an address; internal/plugins/isis/spf/graph.go:192-194 reads only edges and drops sub-TLVs, and route.go:155 installs only node.Prefixes, so there is no per-link /32 injection code path |
-| [`RFC5305-3.2-2`](#rfc5305-3.2-2) Include sub-TLV 6 (and sub-TLV 8 on point-to-point) when implementing TE (Section 3.2, Section 3.3) | no test | no test carries this requirement id; annotated {not-applicable}: this obligation is conditional on implementing IS-IS TE; ze originates no TLV 22 TE sub-TLVs (internal/plugins/isis/lsdb/encode.go:101-107 writes a zero sub-TLV length), so it does not implement the TE metric it would govern |
-| [`RFC5305-4.3-1`](#rfc5305-4.3-1) Include the TE Router ID TLV (134) when implementing TE (Section 4.3) | no test | no test carries this requirement id; annotated {not-applicable}: this obligation is conditional on implementing IS-IS TE; TLV 134 (TE Router ID) is absent from ze's IS-IS codec type set (internal/plugins/isis/packet/tlv.go:17-32), so ze originates and consumes no TLV 134 |
+| [`RFC5305-3.7-1`](#rfc5305-3.7-1) If a link is advertised without this sub-TLV, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV. (§3.7) | no test | no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: "Keep configured routes" for TE path computation. The conditional subject is "traffic engineering SPF calculations"; internal/plugins/rsvpte/register.go parseERO, routing.go resolveExplicitPath and frr.go selectBypass consume configured routes, native next-hop lookups and configured bypasses. internal/plugins/isis/spf/spf.go computes normal SPF. There is no CSPF/TE shortest-path consumer to apply this fallback. This exclusion does not cover native TE advertisement or wire duties, and BGP-LS export is not TE-SPF |
+| [`RFC5305-3.2-1`](#rfc5305-3.2-1) Implementations MUST NOT inject a /32 prefix for the interface address into their routing or forwarding table because this can lead to forwarding loops when interacting with systems that do not support this sub-TLV. (§3.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never decodes the RFC 5305 TE sub-TLVs (sub-TLV 6/8) or TLV 134 into an address; internal/plugins/isis/spf/graph.go:192-194 reads only edges and drops sub-TLVs, and route.go:155 installs only node.Prefixes, so there is no per-link /32 injection code path |
+| [`RFC5305-3.2-2`](#rfc5305-3.2-2) If a router implements traffic engineering, it MUST include this sub- TLV. (§3.2) | no test | no test carries this requirement id; annotated {not-applicable}: this obligation is conditional on implementing IS-IS TE; ze originates no TLV 22 TE sub-TLVs (internal/plugins/isis/lsdb/encode.go:101-107 writes a zero sub-TLV length), so it does not implement the TE metric it would govern |
+| [`RFC5305-4.3-1`](#rfc5305-4.3-1) If a router implements traffic engineering, it MUST include this TLV in its LSP. (§4.3) | no test | no test carries this requirement id; annotated {not-applicable}: this obligation is conditional on implementing IS-IS TE; TLV 134 (TE Router ID) is absent from ze's IS-IS codec type set (internal/plugins/isis/packet/tlv.go:17-32), so ze originates and consumes no TLV 134 |
 
 ## Proof state
 
@@ -136,9 +145,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC5305-3-1`](#rfc5305-3-1)
 
-Use a TLV 22 link advertised with metric 2^24 minus 1 in normal SPF (Section 3)
+If a link is advertised with the maximum link metric (2^24 - 1), this link MUST NOT be considered during the normal SPF computation. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a link advertised at 2^24-1 being walked by normal SPF. TestISISSPFMaxLinkMetricExcluded builds A-B at 16777215 and t.Errorf fires if B or C appears in the SPF result; the positive half proves 16777214 is still relaxed (B at 16777214, C at 16777224).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -147,9 +156,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5305-3-2`](#rfc5305-3-2)
 
-Clamp metrics at or above MAX_PATH_METRIC (0xFE000000) to MAX_PATH_METRIC (Section 3, Section 3.7)
+To preclude overflow within a traffic engineering Shortest Path First (SPF) implementation, all metrics greater than or equal to MAX_PATH_METRIC SHALL be considered to have a metric of MAX_PATH_METRIC. It is easiest to select MAX_PATH_METRIC such that MAX_PATH_METRIC plus a single link metric does not overflow the number of bits for internal metric calculation. We assume that this is 32 bits. Therefore, we have chosen MAX_PATH_METRIC to be 4,261,412,864 (0xFE000000, 2^32 - 2^25). (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The quoted sentence governs a traffic engineering SPF implementation: "To preclude overflow within a traffic engineering Shortest Path First (SPF) implementation, all metrics greater than or equal to MAX_PATH_METRIC SHALL be considered to have a metric of MAX_PATH_METRIC." Ze has no TE SPF (RFC5305-3.7-1 is not-applicable for that reason). TestISISMetricWidth asserts clampMetric saturation in the normal SPF, a neighbouring rule (RFC5308-5-2 tags the same unit), so the tag proves a different obligation from the one the row states.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -158,9 +167,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5305-4-1`](#rfc5305-4-1)
 
-Consider a TLV 135 prefix with metric above MAX_PATH_METRIC in normal SPF (Section 4)
+If a prefix is advertised with a metric larger then MAX_PATH_METRIC (0xFE000000, see paragraph 3.0), this prefix MUST NOT be considered during the normal SPF computation. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. §4 excludes a prefix "advertised with a metric larger then MAX_PATH_METRIC". Forbidden behaviour: such a prefix being considered in normal SPF. The tagged negative in TestISISMetricWidth advertises exactly MAX_PATH_METRIC (0xFE000000), which §4 does not exclude by itself, and the route drops out because the path total with edge 10 exceeds the ceiling. No input advertises a metric larger than MAX_PATH_METRIC, so the unit proves the path-total ceiling rather than §4's advertised-metric rule.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -169,9 +178,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5305-4.1-1`](#rfc5305-4.1-1)
 
-Set the TLV 135 up/down bit to 1 when advertising down the hierarchy or across same-level areas (Section 4.1)
+If a prefix is advertised from a higher level to a lower level (e.g., level 2 to level 1), the bit MUST be set to 1, indicating that the prefix has traveled down the hierarchy. Prefixes that have the up/down bit set to 1 may only be advertised down the hierarchy, i.e., to lower levels. These semantics apply even if IS-IS is extended in the future to have additional levels. By ensuring that prefixes follow only the IS-IS hierarchy, we have ensured that the information does not loop, thereby ensuring that there are no persistent forwarding loops. If a prefix is advertised from one area to another at the same level, then the up/down bit SHALL be set to 1. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The quote carries two clauses. Down the hierarchy: TestISISEngineLeakOrigination (lsdb_wiring_test.go) asserts the L2-to-L1 leak has up/down SET (t.Errorf on !up), and the negatives (the same test, and TestISISRedistConsumerConnected) assert an up leak and a first injection leave it clear. Same level, area to area: "If a prefix is advertised from one area to another at the same level, then the up/down bit SHALL be set to 1." No tagged unit advertises a prefix between areas at one level, so that clause has no assertion that goes red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -181,7 +190,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5305-3.7-1`](#rfc5305-3.7-1)
 
-If a link is advertised without sub-TLV 18, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV (Section 3.7)
+If a link is advertised without this sub-TLV, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV. (§3.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -211,7 +220,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5305-3.2-1`](#rfc5305-3.2-1)
 
-Inject sub-TLV 6 / sub-TLV 8 / Router-ID addresses as /32 routes (Section 3.2, Section 3.3, Section 4.3)
+Implementations MUST NOT inject a /32 prefix for the interface address into their routing or forwarding table because this can lead to forwarding loops when interacting with systems that do not support this sub-TLV. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -219,7 +228,7 @@ No test carries RFC5305-3.2-1, so no unit is bound to it.
 
 ### [`RFC5305-3.2-2`](#rfc5305-3.2-2)
 
-Include sub-TLV 6 (and sub-TLV 8 on point-to-point) when implementing TE (Section 3.2, Section 3.3)
+If a router implements traffic engineering, it MUST include this sub- TLV. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -227,7 +236,7 @@ No test carries RFC5305-3.2-2, so no unit is bound to it.
 
 ### [`RFC5305-4.3-1`](#rfc5305-4.3-1)
 
-Include the TE Router ID TLV (134) when implementing TE (Section 4.3)
+If a router implements traffic engineering, it MUST include this TLV in its LSP. (§4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -235,9 +244,9 @@ No test carries RFC5305-4.3-1, so no unit is bound to it.
 
 ### [`RFC5305-2-1`](#rfc5305-2-1)
 
-Ignore and skip unknown sub-TLVs on receipt (Section 2)
+Unknown sub-TLVs are to be ignored and skipped upon receipt. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: rejecting a TLV that carries unknown sub-TLVs, or not skipping them so the next entry misparses. TestISISTLV22RoundTrip (tlv_core_test.go) keeps entry0's three uninterpreted sub-TLVs opaque and then asserts entry1's metric equals types.MaxMetric, which goes red on a wrong skip; TestISISTLVIPv4RoundTrip (tlv_ipv4_test.go, with-subtlv) goes red if a type-1 sub-TLV is rejected (t.Fatalf on decode error). Negative TestISISTLV22Truncated proves an overrunning length is not skipped as absent.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

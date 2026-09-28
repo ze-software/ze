@@ -112,6 +112,13 @@ never from ze's own output.</p>
 own side would call a pass.</p>
 <!-- source: internal/le/interoplab/bgp/checkers.go -- the three mastership phases -->
 <!-- source: internal/le/interoplab/bgp/prepare.go -- keepalived container preparation -->
+<p>A second scenario, <code>vrrp-v2-owner-keepalived</code>, runs Ze as a VRRPv2 address owner.
+keepalived claims the same address at priority 255 from a greater source address.
+RFC 3768 Section 7.1 has the owner discard every advertisement, so Ze keeps the
+address on its virtual-MAC interface and counts each discard as <code>owner</code> under
+<code>packet-errors</code> in <code>show vrrp statistics</code>. Without the discard, keepalived's
+advertisement wins the tie-break and Ze gives the address up.</p>
+<!-- source: internal/le/interoplab/bgp/checkers.go -- vrrp-v2-owner-keepalived -->
 <p>The IPv6 unsolicited Neighbor Advertisement burst on promotion is resolved on the
 caller's goroutine, because netlink sockets are created in the calling thread's
 network namespace and a lazy resolution on the announcer worker saw the wrong one.
@@ -337,7 +344,8 @@ virtual-MAC macvlan joins (the parent does not hold the virtual IP), so the
 parent never competes to answer. Ze does disable Duplicate Address Detection on
 that macvlan (<code>accept_dad=0</code>): a virtual IP lives on one router at a time, so DAD
 would only add a tentative window during which the address is unreachable right
-after a promotion. IPv6 interoperability is verified against keepalived under
+after a promotion. It also stops that macvlan answering ARP (<code>arp_ignore=8</code>), so
+the IPv6 virtual MAC is never offered for an IPv4 address. IPv6 interoperability is verified against keepalived under
 QEMU (election, node-death failover, and virtual-MAC resolution of the virtual
 IP).</p>
 <h3 id="the-address-owner">The address owner</h3>
@@ -346,6 +354,20 @@ router owns the address and ze assigns it priority 255 automatically
 (RFC 9568 Section 5.2.4). The owner always wins. Do not set <code>priority 255</code>
 yourself; ze rejects it, because the owner is derived from the addresses, and a
 hand-set 255 on a non-owner would claim an authority the router does not have.</p>
+<p>A <code>version 2</code> owner discards every advertisement it receives, as RFC 3768
+Section 7.1 requires, and counts each one under the <code>owner</code> packet-error reason.
+A second box claiming the same address therefore cannot demote it. A
+<code>version 3</code> owner follows RFC 9568 erratum 8298 instead: it processes the
+advertisement, so two owners of one address resolve by election. It still
+treats the advertisement as a sign of misconfiguration: each one is counted
+under the <code>owner-conflict</code> packet-error reason, and a warning naming the
+sender is logged at most once a minute per group.</p>
+<p>A <code>version 2</code> backup that receives an advertisement whose address list differs
+from its own counts it under <code>address-list</code>. It drops it, unless the sender
+advertised priority 255: an advertisement from the address owner is still
+processed, as RFC 3768 Section 7.1 says.</p>
+<!-- source: internal/plugins/vrrp/instance.go -- onPacket, the v2 owner discard and the address-list carve-out -->
+<!-- source: internal/plugins/vrrp/instance.go -- noteOwnerConflict, the v3 owner count and rate-limited log -->
 <h2 id="the-virtual-mac">The virtual MAC</h2>
 <p>Each group gets its own macvlan device carrying the RFC virtual MAC:</p>
 <table>
@@ -428,11 +450,15 @@ router's address for ICMP errors. Normal teardown attempts to restore both
 saved values; failures are logged and retain the originals for retry. SIGKILL
 skips cleanup and leaves the settings in place until the namespace is reset
 or an operator restores them.</li>
-<li><strong>The address owner is a special case.</strong> When the virtual IP equals a real
-address on the unit, that address already lives on the parent, so it keeps
-answering with the parent's real MAC (ze installs it as a host route on the
-macvlan to avoid a duplicate subnet route). Virtual-MAC ownership does not
-apply to the owner, which never fails the address over anyway.</li>
+<li><strong>The address owner answers with the virtual MAC too.</strong> When the virtual IP
+equals a real address on the unit, that address also lives on the parent, and
+the kernel would answer ARP and Neighbor Solicitations for it from the parent
+with the real MAC. ze installs the address on the macvlan as a host route (to
+avoid a duplicate subnet route) and drops the parent's answers for it with two
+firewall tables, <code>ze_vrrp_owner_arp</code> and <code>ze_vrrp_owner_nd</code>, which
+<code>show firewall ruleset</code> lists. Hosts therefore learn only the virtual MAC, as
+the RFCs require. The ARP table needs a kernel built with
+<code>CONFIG_NF_TABLES_ARP</code>; ze's appliance kernel has it.</li>
 <li><strong>First-resolution race (IPv4 only).</strong> The very first host to ARP for the
 virtual IP right as a router becomes Active can, for one resolution, cache the
 parent's real MAC before the macvlan takes over; it converges to the virtual
@@ -650,7 +676,7 @@ filters link-local multicast will break the election.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

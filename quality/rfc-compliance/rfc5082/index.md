@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 3 | of 4 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 4 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 15 |
 | Tagged units | 15 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 3 |
 | Discrimination records | 15 |
 | Summary | `rfc/short/rfc5082.md` |
 | Requirement shard | `rfc/requirements/rfc5082.md` |
@@ -102,15 +111,15 @@ Per-peer BGP GTSM through `connection { ttl { max; set; min } }`: `parseTTLSetti
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC5082-3-1` | The TTL field in all IP packets used for transmission of messages associated with GTSM-enabled protocol sessions MUST be set to 255 (§3) | MUST | 3 - GTSM Procedure | **positive:** `unit/verify` [`TestGTSMDialerSetsOutgoingTTLTo255`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L40). **negative:** `unit/verify` [`TestGTSMDialerWithoutOutTTLLeavesTheDefault`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L59) |
-| `RFC5082-3-2` | The TTL 255 transmit and verify rule also applies to the related ICMP error handling messages of a GTSM-enabled session (§3, restated §6.1) | MUST | 3 - GTSM Procedure | **positive:** `unit/verify` [`TestGTSMDropsADangerousQuotedICMPError`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L194). **positive:** `unit/verify` [`TestGTSMMinHopCountDropsALowHopLimitICMPv6Error`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L333). **positive:** `unit/verify` [`TestGTSMTransmittedICMPErrorCarriesTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L70). **positive:** `unit/verify` [`TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L116). **negative:** `unit/verify` [`TestGTSMDeliversAQuotedICMPErrorAtTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L234). **negative:** `unit/verify` [`TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L92). **negative:** `unit/verify` [`TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L134). **negative:** `unit/verify` [`TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L359) |
+| `RFC5082-3-2` | RFC 3682 [RFC3682] did not specify how to handle "related messages" (ICMP errors).  This specification mandates setting and verifying TTL=255 of those as well as the main protocol packets. (§6.1) | MUST | 6.1 - Backwards Compatibility | **positive:** `unit/verify` [`TestGTSMDropsADangerousQuotedICMPError`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L194). **positive:** `unit/verify` [`TestGTSMMinHopCountDropsALowHopLimitICMPv6Error`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L333). **positive:** `unit/verify` [`TestGTSMTransmittedICMPErrorCarriesTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L70). **positive:** `unit/verify` [`TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L116). **negative:** `unit/verify` [`TestGTSMDeliversAQuotedICMPErrorAtTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L234). **negative:** `unit/verify` [`TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L92). **negative:** `unit/verify` [`TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L134). **negative:** `unit/verify` [`TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L359) |
 | `RFC5082-3-3` | The TTL of GTSM-enabled sessions MUST NOT be decremented. (§3) | MUST NOT | 3 - GTSM Procedure | **positive:** `unit/verify` [`TestGTSMTransmittedTTLArrivesUndecremented`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L83). **negative:** `unit/verify` [`TestGTSMTransmittedTTLReportsTheValueSet`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L111) |
 | `RFC5082-3-4` | + MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown. (§3) | MUST NOT | 3 - GTSM Procedure | **positive:** `unit/verify` [`TestGTSMDeliversAnICMPErrorNoSessionClaims`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L279). **positive:** `unit/verify` [`TestGTSMFloorDeliversATrustedPacket`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L138). **negative:** `unit/verify` [`TestGTSMNoFloorDeliversAnUnknownPacket`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L165) |
-| `RFC5082-3-5` | GTSM added to a protocol as an additional feature SHOULD NOT be enabled by default (§3) | SHOULD NOT | 3 - GTSM Procedure | **positive:** no positive test. **negative:** no negative test |
-| `RFC5082-3-6` | Implementations SHOULD ensure that packets classified as Dangerous do not compete for resources with packets classified as Trusted or Unknown (§3) | SHOULD | 3 - GTSM Procedure | **positive:** no positive test. **negative:** no negative test |
-| `RFC5082-3-7` | Implementations MAY drop packets classified as Dangerous (§3) | MAY | 3 - GTSM Procedure | **positive:** no positive test. **negative:** no negative test |
-| `RFC5082-3-8` | A protocol peer MAY suggest the use of GTSM when the protocol defines a built-in dynamic capability negotiation for it, provided GTSM is enabled only if both peers agree (§3) | MAY | 3 - GTSM Procedure | **positive:** no positive test. **negative:** no negative test |
-| `RFC5082-2-1` | Use of GTSM is OPTIONAL and can be configured on a per-peer (group) basis (§2) | OPTIONAL | 2 - Assumptions Underlying GTSM | **positive:** no positive test. **negative:** no negative test |
-| `RFC5082-5.4-1` | GTSM-protected protocols are highly RECOMMENDED to avoid fragmentation and reassembly by manual MTU tuning or Path MTU Discovery (§5.4) | RECOMMENDED | 5.4 - Fragmentation Considerations | **positive:** no positive test. **negative:** no negative test |
+| `RFC5082-3-5` | If GTSM is not built into the protocol and is used as an additional feature (e.g., for BGP, LDP, or MSDP), it SHOULD NOT be enabled by default in order to remain backward-compatible with the unmodified protocol. (§3) | SHOULD NOT | 3 - GTSM Procedure | **positive:** no positive test. **negative:** no negative test |
+| `RFC5082-3-6` | SHOULD ensure that packets classified as Dangerous do not compete for resources with packets classified as Trusted or Unknown. (§3) | SHOULD | 3 - GTSM Procedure | **positive:** no positive test. **negative:** no negative test |
+| `RFC5082-3-7` | MAY drop packets classified as Dangerous. (§3) | MAY | 3 - GTSM Procedure | **positive:** no positive test. **negative:** no negative test |
+| `RFC5082-3-8` | However, if the protocol defines a built-in dynamic capability negotiation for GTSM, a protocol peer MAY suggest the use of GTSM provided that GTSM would only be enabled if both peers agree to use it. (§3) | MAY | 3 - GTSM Procedure | **positive:** no positive test. **negative:** no negative test |
+| `RFC5082-2-1` | Use of GTSM is OPTIONAL, and can be configured on a per-peer (group) basis. (§2) | OPTIONAL | 2 - Assumptions Underlying GTSM | **positive:** no positive test. **negative:** no negative test |
+| `RFC5082-5.4-1` | As such, it is highly RECOMMENDED for GTSM-protected protocols to avoid fragmentation and reassembly by manual MTU tuning, using adaptive measures such as Path MTU Discovery (PMTUD), or any other available method [RFC1191], [RFC1981], or [RFC4821]. (§5.4) | RECOMMENDED | 5.4 - Fragmentation Considerations | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -133,9 +142,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5082-3-2`](#rfc5082-3-2)
 
-The TTL 255 transmit and verify rule also applies to the related ICMP error handling messages of a GTSM-enabled session (§3, restated §6.1)
+RFC 3682 [RFC3682] did not specify how to handle "related messages" (ICMP errors).  This specification mandates setting and verifying TTL=255 of those as well as the main protocol packets. (§6.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27 against the §6.1 quote (setting AND verifying TTL=255 on related ICMP errors). Setting: forbidden is an ICMP error toward a GTSM peer leaving with TTL other than 255; TestGTSMTransmittedICMPErrorCarriesTTL255 fails on packet[8]!=255 and TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255 on packet[7]!=255, both over the route applyHopLimitRoutes installs; the withdraw negatives bind the 255 to that route. Verifying: forbidden is a below-floor ICMP error about the session being delivered; TestGTSMDropsADangerousQuotedICMPError fails when icmpInType rises, TestGTSMMinHopCountDropsALowHopLimitICMPv6Error when TCPMinTTLDrop does not; the TTL-255 negatives show delivery at 255.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -152,7 +161,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The TTL of GTSM-enabled sessions MUST NOT be decremented. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: a GTSM session's packets arriving with their TTL decremented. TestGTSMTransmittedTTLArrivesUndecremented sets IP_TTL 255 on a loopback socket and reads 255 back; there is no GTSM session, and a loopback path has no forwarding hop that could decrement, so the assertion cannot go red on the behaviour the sentence forbids. TestGTSMTransmittedTTLReportsTheValueSet (254 arrives as 254) calibrates the probe and violates nothing, so the pair has no negative.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -163,7 +172,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 + MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Two clauses. Trusted dropped: TestGTSMFloorDeliversATrustedPacket fails if the packet at the floor is not received (receiveByte). Unknown dropped: TestGTSMNoFloorDeliversAnUnknownPacket fails if a low-TTL packet on a no-floor socket is not delivered, and TestGTSMDeliversAnICMPErrorNoSessionClaims fails if icmpInType does not rise for three unclaimed ICMP errors at TTL 1.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

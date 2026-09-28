@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4577 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 46 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 46 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4577 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 46 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 46 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4577 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 46 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 46 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 46 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 46 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>4</strong><b>of 46 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 46 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>6</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>4</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -338,7 +346,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.4-2">RFC4577-4.2.4-2</code></td><td colspan="3"><span class="rfc-subject">Domain Identifier association must be configurable (§4.2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.4-2">RFC4577-4.2.4-2</code></td><td colspan="3"><span class="rfc-subject">Each OSPF instance MUST be associated with one or more Domain Identifiers. This MUST be configurable (§4.2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.4</td>
@@ -374,7 +382,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-1">RFC4577-4.2.6-1</code></td><td colspan="3"><span class="rfc-subject">The OSPF Domain Identifier Extended Communities attribute must be present on a PE-originated VPN-IPv4 route if the originating OSPF instance has a non-NULL primary Domain Identifier (§4.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-1">RFC4577-4.2.6-1</code></td><td colspan="3"><span class="rfc-subject">The OSPF Domain Identifier Extended Communities attribute. If the OSPF instance that installed the route has a non-NULL primary Domain Identifier, this MUST be present (§4.2.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.6</td>
@@ -383,7 +391,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-2">RFC4577-4.2.6-2</code></td><td colspan="3"><span class="rfc-subject">The OSPF Route Type Extended Communities attribute must be present on every PE-originated VPN-IPv4 OSPF route (§4.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-2">RFC4577-4.2.6-2</code></td><td colspan="3"><span class="rfc-subject">OSPF Route Type Extended Communities Attribute. This attribute MUST be present. (§4.2.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.6</td>
@@ -401,7 +409,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.1-2">RFC4577-4.2.5.1-2</code></td><td colspan="3"><span class="rfc-subject">When a PE distributes to a CE a route from outside the CE&#39;s OSPF domain (type 5 LSA), the DN bit must be set (§4.2.5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.1-2">RFC4577-4.2.5.1-2</code></td><td colspan="3"><span class="rfc-subject">When a PE router needs to distribute to a CE router a route that comes from a site outside the latter&#39;s OSPF domain, the PE router presents itself as an ASBR (Autonomous System Border Router), and distributes the route in a type 5 LSA. The DN bit [OSPF-DN] MUST be set in these LSAs to ensure that they will be ignored by any other PE routers that receive them. (§4.2.5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.5.1</td>
@@ -410,7 +418,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.8.1-1">RFC4577-4.2.8.1-1</code></td><td colspan="3"><span class="rfc-subject">The DN bit must be set in the (external) LSA reporting a route from a different domain (§4.2.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.8.1-1">RFC4577-4.2.8.1-1</code></td><td colspan="3"><span class="rfc-subject">The DN bit (Section 4.2.5.1) MUST be set in the LSA. (§4.2.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.8.1</td>
@@ -419,18 +427,18 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-3">RFC4577-4.2.6-3</code></td><td colspan="3"><span class="rfc-subject">When a PE receives from a CE any LSA with the DN bit set, the information from that LSA must not be used by the route calculation (§4.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-3">RFC4577-4.2.6-3</code></td><td colspan="3"><span class="rfc-subject">When a PE router receives, from a CE router, any LSA with the DN bit [OSPF-DN] set, the information from that LSA MUST NOT be used by the route calculation. (§4.2.6)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
+<td>MUST NOT</td>
 <td>4.2.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.2.6-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-4">RFC4577-4.2.6-4</code></td><td colspan="3"><span class="rfc-subject">If a Type 5 LSA received from the CE has an OSPF route tag equal to the VPN Route Tag, its information must not be used by the route calculation (§4.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-4">RFC4577-4.2.6-4</code></td><td colspan="3"><span class="rfc-subject">If a Type 5 LSA is received from the CE, and if it has an OSPF route tag value equal to the VPN Route Tag (see Section 4.2.5.2), then the information from that LSA MUST NOT be used by the route calculation. (§4.2.6)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
+<td>MUST NOT</td>
 <td>4.2.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.2.6-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
@@ -464,7 +472,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.2-3">RFC4577-4.2.5.2-3</code></td><td colspan="3"><span class="rfc-subject">The VPN Route Tag value must be configurable (§4.2.5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.2-3">RFC4577-4.2.5.2-3</code></td><td colspan="3"><span class="rfc-subject">The value of the VPN Route Tag is arbitrary but must be distinct from any OSPF Route Tag being used within the OSPF domain. Its value MUST therefore be configurable. (§4.2.5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.5.2</td>
@@ -473,7 +481,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.2-4">RFC4577-4.2.5.2-4</code></td><td colspan="3"><span class="rfc-subject">If the VPN backbone AS number is four bytes long, a Route Tag value must be configured (§4.2.5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.2-4">RFC4577-4.2.5.2-4</code></td><td colspan="3"><span class="rfc-subject">If the Autonomous System number is four bytes long, then a Route Tag value MUST be configured (§4.2.5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.5.2</td>
@@ -482,7 +490,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.2-5">RFC4577-4.2.5.2-5</code></td><td colspan="3"><span class="rfc-subject">A configured four-byte-AS Route Tag must be distinct from any Route Tag used within the VPN itself (§4.2.5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.2-5">RFC4577-4.2.5.2-5</code></td><td colspan="3"><span class="rfc-subject">If the Autonomous System number is four bytes long, then a Route Tag value MUST be configured, and it MUST be distinct from any Route Tag used within the VPN itself. (§4.2.5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.5.2</td>
@@ -599,7 +607,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.4-3">RFC4577-4.2.7.4-3</code></td><td colspan="3"><span class="rfc-subject">A packet whose IP destination is the remote endpoint address of a sham link must be forwarded according to the corresponding BGP route (§4.2.7.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.4-3">RFC4577-4.2.7.4-3</code></td><td colspan="3"><span class="rfc-subject">This same rule applies to any packet whose IP destination address is the remote endpoint address of a sham link. Such packets MUST be forwarded according to the corresponding BGP route. (§4.2.7.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.7.4</td>
@@ -608,7 +616,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-6-1">RFC4577-6-1</code></td><td colspan="3"><span class="rfc-subject">OSPF cryptographic authentication must be implemented on each PE (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-6-1">RFC4577-6-1</code></td><td colspan="3"><span class="rfc-subject">OSPF &#34;cryptographic authentication&#34; SHOULD be used between a PE and a CE. It MUST be implemented on each PE. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -617,7 +625,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L34" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthRejectsForgery</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.4-6">RFC4577-4.2.4-6</code></td><td colspan="3"><span class="rfc-subject">The default Domain Identifier value (if none is configured) should be NULL (§4.2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.4-6">RFC4577-4.2.4-6</code></td><td colspan="3"><span class="rfc-subject">the default value (if none is configured) SHOULD be NULL (§4.2.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.4</td>
@@ -626,7 +634,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.2-8">RFC4577-4.2.5.2-8</code></td><td colspan="3"><span class="rfc-subject">If the VPN backbone AS number is two bytes long, the default VPN Route Tag should be the automatically computed tag based on that AS number (§4.2.5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.2-8">RFC4577-4.2.5.2-8</code></td><td colspan="3"><span class="rfc-subject">If the Autonomous System number of the VPN backbone is two bytes long, the default value SHOULD be an automatically computed tag based on that Autonomous System number (§4.2.5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.5.2</td>
@@ -635,7 +643,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.2-9">RFC4577-4.2.5.2-9</code></td><td colspan="3"><span class="rfc-subject">A PE distributing to a CE a route from outside the CE&#39;s OSPF domain should present itself as an ASBR and should report such routes as AS-external routes (§4.2.5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.2-9">RFC4577-4.2.5.2-9</code></td><td colspan="3"><span class="rfc-subject">If a PE router needs to use OSPF to distribute to a CE router a route that comes from a site outside the CE router&#39;s OSPF domain, the PE router SHOULD present itself to the CE router as an Autonomous System Border Router (ASBR) and SHOULD report such routes as AS-external routes. (§4.2.5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.5.2</td>
@@ -644,7 +652,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-6">RFC4577-4.2.6-6</code></td><td colspan="3"><span class="rfc-subject">For backward compatibility, OSPF Route Type type 8000 should be accepted and treated as 0306 (§4.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-6">RFC4577-4.2.6-6</code></td><td colspan="3"><span class="rfc-subject">To ensure backward compatibility, the type 8000 SHOULD be accepted as well and treated as if it were type 0306. (§4.2.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.6</td>
@@ -653,7 +661,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-7">RFC4577-4.2.6-7</code></td><td colspan="3"><span class="rfc-subject">For backward compatibility, OSPF Router ID type 8001 should be accepted and treated as 0107 (§4.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-7">RFC4577-4.2.6-7</code></td><td colspan="3"><span class="rfc-subject">The type 8001 SHOULD be accepted as well, to ensure backward compatibility, and should be treated as if it were 0107. (§4.2.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.6</td>
@@ -662,7 +670,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-8">RFC4577-4.2.6-8</code></td><td colspan="3"><span class="rfc-subject">The MED of a PE-originated VPN-IPv4 OSPF route should by default be set to the OSPF distance of the route plus 1 (§4.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-8">RFC4577-4.2.6-8</code></td><td colspan="3"><span class="rfc-subject">MED (Multi_EXIT_DISC attribute). By default, this SHOULD be set to the value of the OSPF distance associated with the route, plus 1. (§4.2.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.6</td>
@@ -671,7 +679,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.3-2">RFC4577-4.2.7.3-2</code></td><td colspan="3"><span class="rfc-subject">Sham links should be treated by OSPF as OSPF Demand Circuits (§4.2.7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.3-2">RFC4577-4.2.7.3-2</code></td><td colspan="3"><span class="rfc-subject">Sham links SHOULD be treated by OSPF as OSPF Demand Circuits. (§4.2.7.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.7.3</td>
@@ -680,7 +688,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.4-4">RFC4577-4.2.7.4-4</code></td><td colspan="3"><span class="rfc-subject">If a PE determines the next hop interface for a route is a sham link, it should not redistribute that route into BGP as a VPN-IPv4 route (§4.2.7.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.4-4">RFC4577-4.2.7.4-4</code></td><td colspan="3"><span class="rfc-subject">If a PE determines that the next hop interface for a particular route is a sham link, then the PE SHOULD NOT redistribute that route into BGP as a VPN-IPv4 route. (§4.2.7.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4.2.7.4</td>
@@ -689,7 +697,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-6-2">RFC4577-6-2</code></td><td colspan="3"><span class="rfc-subject">OSPF cryptographic authentication should be used between a PE and a CE (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-6-2">RFC4577-6-2</code></td><td colspan="3"><span class="rfc-subject">OSPF &#34;cryptographic authentication&#34; SHOULD be used between a PE and a CE. (§6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6</td>
@@ -698,7 +706,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the negative -- an interface with no key chain sending unauthenticated OSPF packets -- is the state this SHOULD recommends against, not a behavior the implementation must exhibit, so asserting it would pin the unrecommended path instead of the requirement</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.4-7">RFC4577-4.2.4-7</code></td><td colspan="3"><span class="rfc-subject">If the OSPF instance&#39;s Domain Identifier is NULL, the Domain Identifier Extended Communities attribute may be omitted from BGP-distributed routes (§4.2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.4-7">RFC4577-4.2.4-7</code></td><td colspan="3"><span class="rfc-subject">If the OSPF instance&#39;s Domain Identifier is NULL, the Domain Identifier Extended Communities attribute MAY be omitted when routes from that OSPF instance are distributed by BGP (§4.2.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.2.4</td>
@@ -707,7 +715,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.4-8">RFC4577-4.2.4-8</code></td><td colspan="3"><span class="rfc-subject">Alternatively, a Domain Identifier Extended Communities attribute value representing NULL may be carried with the route (§4.2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.4-8">RFC4577-4.2.4-8</code></td><td colspan="3"><span class="rfc-subject">alternatively, a value of the Domain Identifier Extended Communities attribute that represents NULL (see Section 4.2.4) MAY be carried with the route. (§4.2.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.2.4</td>
@@ -716,7 +724,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-9">RFC4577-4.2.6-9</code></td><td colspan="3"><span class="rfc-subject">If the OSPF instance has only a NULL Domain Identifier, the OSPF Domain Identifier Extended Communities attribute may be omitted from a PE-originated route (§4.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-9">RFC4577-4.2.6-9</code></td><td colspan="3"><span class="rfc-subject">The OSPF Domain Identifier Extended Communities attribute. If the OSPF instance that installed the route has a non-NULL primary Domain Identifier, this MUST be present; if that OSPF instance has only a NULL Domain Identifier, it MAY be omitted. (§4.2.6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.2.6</td>
@@ -725,7 +733,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-10">RFC4577-4.2.6-10</code></td><td colspan="3"><span class="rfc-subject">For backward compatibility, the OSPF Domain Identifier type 8005 may be used and is treated as if it were 0005 (§4.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-10">RFC4577-4.2.6-10</code></td><td colspan="3"><span class="rfc-subject">For backward compatibility, the type 8005 MAY be used as well and is treated as if it were 0005. (§4.2.6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.2.6</td>
@@ -734,7 +742,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.8.1-3">RFC4577-4.2.8.1-3</code></td><td colspan="3"><span class="rfc-subject">The default type 1 metric and the default type 2 metric may be different (§4.2.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.8.1-3">RFC4577-4.2.8.1-3</code></td><td colspan="3"><span class="rfc-subject">The default type 1 metric and the default type 2 metric MAY be different. (§4.2.8.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.2.8.1</td>
@@ -743,7 +751,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.1.4-2">RFC4577-4.1.4-2</code></td><td colspan="3"><span class="rfc-subject">The CE-to-PE area 0 adjacency may be via an OSPF virtual link (OPTIONAL feature) (§4.1.4, §4.2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.1.4-2">RFC4577-4.1.4-2</code></td><td colspan="3"><span class="rfc-subject">This adjacency MAY be via an OSPF virtual link. (The ability to use an OSPF virtual link in this way is an OPTIONAL feature.) (§4.1.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.1.4</td>
@@ -752,7 +760,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> this is a MAY, the permission to reach the area 0 adjacency over a virtual link. A negative would have to assert that some configuration does NOT yield a backbone virtual link, which exercises virtual-link configuration handling rather than the permission this requirement grants</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.1-4">RFC4577-4.2.5.1-4</code></td><td colspan="3"><span class="rfc-subject">When the VPN Route Tag is no longer needed for backward compatibility, its use (sending and receiving) may be disabled by configuration (§4.2.5.1, §4.2.5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.1-4">RFC4577-4.2.5.1-4</code></td><td colspan="3"><span class="rfc-subject">When it is no longer necessary to use the VPN Route Tag in a particular deployment, its use (both sending and receiving) may be disabled by configuration. (§4.2.5.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.2.5.1</td>
@@ -770,7 +778,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-11">RFC4577-4.2.6-11</code></td><td colspan="3"><span class="rfc-subject">The OSPF Router ID Extended Communities attribute is an OPTIONAL attribute (§4.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-11">RFC4577-4.2.6-11</code></td><td colspan="3"><span class="rfc-subject">OSPF Router ID Extended Communities Attribute. This OPTIONAL attribute specifies the OSPF Router ID of the system that is identified in the BGP Next Hop attribute. (§4.2.6)</span></td></tr>
 <tr><td></td>
 <td>OPTIONAL</td>
 <td>4.2.6</td>
@@ -788,7 +796,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.1-4">RFC4577-4.2.7.1-4</code></td><td colspan="3"><span class="rfc-subject">If a VRF is associated with a single OSPF instance and the PE&#39;s router id there is an IP address, the Sham Link Endpoint Address may default to that Router ID (§4.2.7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.1-4">RFC4577-4.2.7.1-4</code></td><td colspan="3"><span class="rfc-subject">If the VRF is associated with only a single OSPF instance, and if the PE&#39;s router id in that OSPF instance is an IP address, then the Sham Link Endpoint Address MAY default to that Router ID. (§4.2.7.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.2.7.1</td>
@@ -797,7 +805,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.1.1-3">RFC4577-4.1.1-3</code></td><td colspan="3"><span class="rfc-subject">If the PE runs OSPF as its IGP, that IGP instance must be separate and independent from any other OSPF instance the PE runs: &#34;If the PE is running OSPF as its IGP (Interior Gateway Protocol), the instance of OSPF running as the IGP must be separate and independent from any other instance of OSPF that the PE is running.&#34; (§4.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.1.1-3">RFC4577-4.1.1-3</code></td><td colspan="3"><span class="rfc-subject">If the PE is running OSPF as its IGP (Interior Gateway Protocol), the instance of OSPF running as the IGP must be separate and independent from any other instance of OSPF that the PE is running. (§4.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.1</td>
@@ -806,7 +814,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.2-10">RFC4577-4.2.5.2-10</code></td><td colspan="3"><span class="rfc-subject">The VPN Route Tag value must be distinct from any OSPF Route Tag used within the OSPF domain: &#34;The value of the VPN Route Tag is arbitrary but must be distinct from any OSPF Route Tag being used within the OSPF domain.&#34; (§4.2.5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.2-10">RFC4577-4.2.5.2-10</code></td><td colspan="3"><span class="rfc-subject">The value of the VPN Route Tag is arbitrary but must be distinct from any OSPF Route Tag being used within the OSPF domain. (§4.2.5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.5.2</td>
@@ -815,7 +823,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-13">RFC4577-4.2.6-13</code></td><td colspan="3"><span class="rfc-subject">For every address prefix installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP: &#34;For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP.&#34; (§4.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-13">RFC4577-4.2.6-13</code></td><td colspan="3"><span class="rfc-subject">For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP. (§4.2.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.6</td>
@@ -824,7 +832,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-14">RFC4577-4.2.6-14</code></td><td colspan="3"><span class="rfc-subject">Where the OSPF instance has a NULL Domain Identifier and the OSPF Domain Identifier Extended Communities attribute is present, the attribute value field must be all zeroes: &#34;then the attribute&#39;s value field must be all zeroes, and its type field may be any of 0005, 0105, or 0205&#34; (§4.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-14">RFC4577-4.2.6-14</code></td><td colspan="3"><span class="rfc-subject">If the OSPF instance has a NULL Domain Identifier, and the OSPF Domain Identifier Extended Communities attribute is present, then the attribute&#39;s value field must be all zeroes, and its type field may be any of 0005, 0105, 0205, or 8005. (§4.2.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.6</td>
@@ -833,7 +841,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-15">RFC4577-4.2.6-15</code></td><td colspan="3"><span class="rfc-subject">In the OSPF Route Type Extended Community, the Area Number field must be 0 when the Route Type is 5: &#34;5 for external routes (area number must be 0)&#34; (§4.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-15">RFC4577-4.2.6-15</code></td><td colspan="3"><span class="rfc-subject">5 for external routes (area number must be 0). (§4.2.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.6</td>
@@ -842,7 +850,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.1-5">RFC4577-4.2.7.1-5</code></td><td colspan="3"><span class="rfc-subject">Each VRF connected by a sham link must be associated with a Sham Link Endpoint Address: &#34;If two VRFs are to be connected by a sham link, each VRF must be associated with a \&#34;Sham Link Endpoint Address\&#34;, a 32-bit IPv4 address that is treated as an address of the PE router containing that VRF.&#34; (§4.2.7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.1-5">RFC4577-4.2.7.1-5</code></td><td colspan="3"><span class="rfc-subject">If two VRFs are to be connected by a sham link, each VRF must be associated with a &#34;Sham Link Endpoint Address&#34;, a 32-bit IPv4 address that is treated as an address of the PE router containing that VRF. (§4.2.7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.7.1</td>
@@ -851,7 +859,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.3-3">RFC4577-4.2.7.3-3</code></td><td colspan="3"><span class="rfc-subject">An OSPF packet sent on a sham link must carry the sender&#39;s Sham Link Endpoint Address as its IP source address and the receiver&#39;s as its IP destination address: &#34;An OSPF protocol packet sent on a Sham Link from one PE to another must have as its IP source address the Sham Link Endpoint Address of the sender, and as its IP destination address the Sham Link Endpoint Address of the receiver.&#34; (§4.2.7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.3-3">RFC4577-4.2.7.3-3</code></td><td colspan="3"><span class="rfc-subject">An OSPF protocol packet sent on a Sham Link from one PE to another must have as its IP source address the Sham Link Endpoint Address of the sender, and as its IP destination address the Sham Link Endpoint Address of the receiver. (§4.2.7.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.7.3</td>
@@ -860,7 +868,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.3-4">RFC4577-4.2.7.3-4</code></td><td colspan="3"><span class="rfc-subject">The TTL of an OSPF packet sent on a sham link must be set appropriately, because the packet traverses multiple hops of the VPN backbone: &#34;The packet will travel from one PE router to the other over the VPN backbone, which means that it can be expected to traverse multiple hops. As such, its TTL (Time to Live) field must be set appropriately.&#34; (§4.2.7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.3-4">RFC4577-4.2.7.3-4</code></td><td colspan="3"><span class="rfc-subject">The packet will travel from one PE router to the other over the VPN backbone, which means that it can be expected to traverse multiple hops. As such, its TTL (Time to Live) field must be set appropriately. (§4.2.7.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.7.3</td>
@@ -869,7 +877,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.8.1-4">RFC4577-4.2.8.1-4</code></td><td colspan="3"><span class="rfc-subject">All eight bytes must be compared when two Domain Identifier Extended Communities attributes are compared: &#34;In general, when two such attributes are compared, all eight bytes must be compared.&#34; (§4.2.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.8.1-4">RFC4577-4.2.8.1-4</code></td><td colspan="3"><span class="rfc-subject">In general, when two such attributes are compared, all eight bytes must be compared. (§4.2.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.8.1</td>
@@ -878,7 +886,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.8.1-5">RFC4577-4.2.8.1-5</code></td><td colspan="3"><span class="rfc-subject">Before a VPN-IPv4 route is redistributed to an OSPF instance, it must be determined whether the route and that instance belong to the same domain: &#34;If a VPN-IPv4 route is to be redistributed to a particular instance, it must be determined whether that route and that OSPF instance belong to the same domain.&#34; (§4.2.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.8.1-5">RFC4577-4.2.8.1-5</code></td><td colspan="3"><span class="rfc-subject">If a VPN-IPv4 route is to be redistributed to a particular instance, it must be determined whether that route and that OSPF instance belong to the same domain. (§4.2.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.8.1</td>
@@ -916,7 +924,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.4-2"><code>RFC4577-4.2.4-2</code></a> Domain Identifier association must be configurable (§4.2.4)</td>
+<tr><td><a href="#rfc4577-4.2.4-2"><code>RFC4577-4.2.4-2</code></a> Each OSPF instance MUST be associated with one or more Domain Identifiers. This MUST be configurable (§4.2.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
@@ -932,11 +940,11 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.6-1"><code>RFC4577-4.2.6-1</code></a> The OSPF Domain Identifier Extended Communities attribute must be present on a PE-originated VPN-IPv4 route if the originating OSPF instance has a non-NULL primary Domain Identifier (§4.2.6)</td>
+<tr><td><a href="#rfc4577-4.2.6-1"><code>RFC4577-4.2.6-1</code></a> The OSPF Domain Identifier Extended Communities attribute. If the OSPF instance that installed the route has a non-NULL primary Domain Identifier, this MUST be present (§4.2.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.6-2"><code>RFC4577-4.2.6-2</code></a> The OSPF Route Type Extended Communities attribute must be present on every PE-originated VPN-IPv4 OSPF route (§4.2.6)</td>
+<tr><td><a href="#rfc4577-4.2.6-2"><code>RFC4577-4.2.6-2</code></a> OSPF Route Type Extended Communities Attribute. This attribute MUST be present. (§4.2.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
@@ -944,19 +952,19 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.5.1-2"><code>RFC4577-4.2.5.1-2</code></a> When a PE distributes to a CE a route from outside the CE&#39;s OSPF domain (type 5 LSA), the DN bit must be set (§4.2.5.1)</td>
+<tr><td><a href="#rfc4577-4.2.5.1-2"><code>RFC4577-4.2.5.1-2</code></a> When a PE router needs to distribute to a CE router a route that comes from a site outside the latter&#39;s OSPF domain, the PE router presents itself as an ASBR (Autonomous System Border Router), and distributes the route in a type 5 LSA. The DN bit [OSPF-DN] MUST be set in these LSAs to ensure that they will be ignored by any other PE routers that receive them. (§4.2.5.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.8.1-1"><code>RFC4577-4.2.8.1-1</code></a> The DN bit must be set in the (external) LSA reporting a route from a different domain (§4.2.8.1)</td>
+<tr><td><a href="#rfc4577-4.2.8.1-1"><code>RFC4577-4.2.8.1-1</code></a> The DN bit (Section 4.2.5.1) MUST be set in the LSA. (§4.2.8.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.6-3"><code>RFC4577-4.2.6-3</code></a> When a PE receives from a CE any LSA with the DN bit set, the information from that LSA must not be used by the route calculation (§4.2.6)</td>
+<tr><td><a href="#rfc4577-4.2.6-3"><code>RFC4577-4.2.6-3</code></a> When a PE router receives, from a CE router, any LSA with the DN bit [OSPF-DN] set, the information from that LSA MUST NOT be used by the route calculation. (§4.2.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.6-4"><code>RFC4577-4.2.6-4</code></a> If a Type 5 LSA received from the CE has an OSPF route tag equal to the VPN Route Tag, its information must not be used by the route calculation (§4.2.6)</td>
+<tr><td><a href="#rfc4577-4.2.6-4"><code>RFC4577-4.2.6-4</code></a> If a Type 5 LSA is received from the CE, and if it has an OSPF route tag value equal to the VPN Route Tag (see Section 4.2.5.2), then the information from that LSA MUST NOT be used by the route calculation. (§4.2.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
@@ -972,15 +980,15 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.5.2-3"><code>RFC4577-4.2.5.2-3</code></a> The VPN Route Tag value must be configurable (§4.2.5.2)</td>
+<tr><td><a href="#rfc4577-4.2.5.2-3"><code>RFC4577-4.2.5.2-3</code></a> The value of the VPN Route Tag is arbitrary but must be distinct from any OSPF Route Tag being used within the OSPF domain. Its value MUST therefore be configurable. (§4.2.5.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.5.2-4"><code>RFC4577-4.2.5.2-4</code></a> If the VPN backbone AS number is four bytes long, a Route Tag value must be configured (§4.2.5.2)</td>
+<tr><td><a href="#rfc4577-4.2.5.2-4"><code>RFC4577-4.2.5.2-4</code></a> If the Autonomous System number is four bytes long, then a Route Tag value MUST be configured (§4.2.5.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.5.2-5"><code>RFC4577-4.2.5.2-5</code></a> A configured four-byte-AS Route Tag must be distinct from any Route Tag used within the VPN itself (§4.2.5.2)</td>
+<tr><td><a href="#rfc4577-4.2.5.2-5"><code>RFC4577-4.2.5.2-5</code></a> If the Autonomous System number is four bytes long, then a Route Tag value MUST be configured, and it MUST be distinct from any Route Tag used within the VPN itself. (§4.2.5.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
@@ -1028,47 +1036,47 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.7.4-3"><code>RFC4577-4.2.7.4-3</code></a> A packet whose IP destination is the remote endpoint address of a sham link must be forwarded according to the corresponding BGP route (§4.2.7.4)</td>
+<tr><td><a href="#rfc4577-4.2.7.4-3"><code>RFC4577-4.2.7.4-3</code></a> This same rule applies to any packet whose IP destination address is the remote endpoint address of a sham link. Such packets MUST be forwarded according to the corresponding BGP route. (§4.2.7.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</td>
 </tr>
-<tr><td><a href="#rfc4577-4.1.1-3"><code>RFC4577-4.1.1-3</code></a> If the PE runs OSPF as its IGP, that IGP instance must be separate and independent from any other OSPF instance the PE runs: &#34;If the PE is running OSPF as its IGP (Interior Gateway Protocol), the instance of OSPF running as the IGP must be separate and independent from any other instance of OSPF that the PE is running.&#34; (§4.1.1)</td>
+<tr><td><a href="#rfc4577-4.1.1-3"><code>RFC4577-4.1.1-3</code></a> If the PE is running OSPF as its IGP (Interior Gateway Protocol), the instance of OSPF running as the IGP must be separate and independent from any other instance of OSPF that the PE is running. (§4.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.5.2-10"><code>RFC4577-4.2.5.2-10</code></a> The VPN Route Tag value must be distinct from any OSPF Route Tag used within the OSPF domain: &#34;The value of the VPN Route Tag is arbitrary but must be distinct from any OSPF Route Tag being used within the OSPF domain.&#34; (§4.2.5.2)</td>
+<tr><td><a href="#rfc4577-4.2.5.2-10"><code>RFC4577-4.2.5.2-10</code></a> The value of the VPN Route Tag is arbitrary but must be distinct from any OSPF Route Tag being used within the OSPF domain. (§4.2.5.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.6-13"><code>RFC4577-4.2.6-13</code></a> For every address prefix installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP: &#34;For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP.&#34; (§4.2.6)</td>
+<tr><td><a href="#rfc4577-4.2.6-13"><code>RFC4577-4.2.6-13</code></a> For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP. (§4.2.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.6-14"><code>RFC4577-4.2.6-14</code></a> Where the OSPF instance has a NULL Domain Identifier and the OSPF Domain Identifier Extended Communities attribute is present, the attribute value field must be all zeroes: &#34;then the attribute&#39;s value field must be all zeroes, and its type field may be any of 0005, 0105, or 0205&#34; (§4.2.6)</td>
+<tr><td><a href="#rfc4577-4.2.6-14"><code>RFC4577-4.2.6-14</code></a> If the OSPF instance has a NULL Domain Identifier, and the OSPF Domain Identifier Extended Communities attribute is present, then the attribute&#39;s value field must be all zeroes, and its type field may be any of 0005, 0105, 0205, or 8005. (§4.2.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.6-15"><code>RFC4577-4.2.6-15</code></a> In the OSPF Route Type Extended Community, the Area Number field must be 0 when the Route Type is 5: &#34;5 for external routes (area number must be 0)&#34; (§4.2.6)</td>
+<tr><td><a href="#rfc4577-4.2.6-15"><code>RFC4577-4.2.6-15</code></a> 5 for external routes (area number must be 0). (§4.2.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.7.1-5"><code>RFC4577-4.2.7.1-5</code></a> Each VRF connected by a sham link must be associated with a Sham Link Endpoint Address: &#34;If two VRFs are to be connected by a sham link, each VRF must be associated with a \&#34;Sham Link Endpoint Address\&#34;, a 32-bit IPv4 address that is treated as an address of the PE router containing that VRF.&#34; (§4.2.7.1)</td>
+<tr><td><a href="#rfc4577-4.2.7.1-5"><code>RFC4577-4.2.7.1-5</code></a> If two VRFs are to be connected by a sham link, each VRF must be associated with a &#34;Sham Link Endpoint Address&#34;, a 32-bit IPv4 address that is treated as an address of the PE router containing that VRF. (§4.2.7.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.7.3-3"><code>RFC4577-4.2.7.3-3</code></a> An OSPF packet sent on a sham link must carry the sender&#39;s Sham Link Endpoint Address as its IP source address and the receiver&#39;s as its IP destination address: &#34;An OSPF protocol packet sent on a Sham Link from one PE to another must have as its IP source address the Sham Link Endpoint Address of the sender, and as its IP destination address the Sham Link Endpoint Address of the receiver.&#34; (§4.2.7.3)</td>
+<tr><td><a href="#rfc4577-4.2.7.3-3"><code>RFC4577-4.2.7.3-3</code></a> An OSPF protocol packet sent on a Sham Link from one PE to another must have as its IP source address the Sham Link Endpoint Address of the sender, and as its IP destination address the Sham Link Endpoint Address of the receiver. (§4.2.7.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.7.3-4"><code>RFC4577-4.2.7.3-4</code></a> The TTL of an OSPF packet sent on a sham link must be set appropriately, because the packet traverses multiple hops of the VPN backbone: &#34;The packet will travel from one PE router to the other over the VPN backbone, which means that it can be expected to traverse multiple hops. As such, its TTL (Time to Live) field must be set appropriately.&#34; (§4.2.7.3)</td>
+<tr><td><a href="#rfc4577-4.2.7.3-4"><code>RFC4577-4.2.7.3-4</code></a> The packet will travel from one PE router to the other over the VPN backbone, which means that it can be expected to traverse multiple hops. As such, its TTL (Time to Live) field must be set appropriately. (§4.2.7.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says &#34;Sham links are an OPTIONAL feature of this specification&#34;; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.8.1-4"><code>RFC4577-4.2.8.1-4</code></a> All eight bytes must be compared when two Domain Identifier Extended Communities attributes are compared: &#34;In general, when two such attributes are compared, all eight bytes must be compared.&#34; (§4.2.8.1)</td>
+<tr><td><a href="#rfc4577-4.2.8.1-4"><code>RFC4577-4.2.8.1-4</code></a> In general, when two such attributes are compared, all eight bytes must be compared. (§4.2.8.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
-<tr><td><a href="#rfc4577-4.2.8.1-5"><code>RFC4577-4.2.8.1-5</code></a> Before a VPN-IPv4 route is redistributed to an OSPF instance, it must be determined whether the route and that instance belong to the same domain: &#34;If a VPN-IPv4 route is to be redistributed to a particular instance, it must be determined whether that route and that OSPF instance belong to the same domain.&#34; (§4.2.8.1)</td>
+<tr><td><a href="#rfc4577-4.2.8.1-5"><code>RFC4577-4.2.8.1-5</code></a> If a VPN-IPv4 route is to be redistributed to a particular instance, it must be determined whether that route and that OSPF instance belong to the same domain. (§4.2.8.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</td>
 </tr>
@@ -1099,7 +1107,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.4-2"><code>RFC4577-4.2.4-2</code></a></h3>
-<p>Domain Identifier association must be configurable (§4.2.4)</p>
+<p>Each OSPF instance MUST be associated with one or more Domain Identifiers. This MUST be configurable (§4.2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.4-3"><code>RFC4577-4.2.4-3</code></a></h3>
@@ -1115,11 +1123,11 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.4-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.6-1"><code>RFC4577-4.2.6-1</code></a></h3>
-<p>The OSPF Domain Identifier Extended Communities attribute must be present on a PE-originated VPN-IPv4 route if the originating OSPF instance has a non-NULL primary Domain Identifier (§4.2.6)</p>
+<p>The OSPF Domain Identifier Extended Communities attribute. If the OSPF instance that installed the route has a non-NULL primary Domain Identifier, this MUST be present (§4.2.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.6-2"><code>RFC4577-4.2.6-2</code></a></h3>
-<p>The OSPF Route Type Extended Communities attribute must be present on every PE-originated VPN-IPv4 OSPF route (§4.2.6)</p>
+<p>OSPF Route Type Extended Communities Attribute. This attribute MUST be present. (§4.2.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.6-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.5.1-1"><code>RFC4577-4.2.5.1-1</code></a></h3>
@@ -1127,19 +1135,19 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.5.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.5.1-2"><code>RFC4577-4.2.5.1-2</code></a></h3>
-<p>When a PE distributes to a CE a route from outside the CE&#39;s OSPF domain (type 5 LSA), the DN bit must be set (§4.2.5.1)</p>
+<p>When a PE router needs to distribute to a CE router a route that comes from a site outside the latter&#39;s OSPF domain, the PE router presents itself as an ASBR (Autonomous System Border Router), and distributes the route in a type 5 LSA. The DN bit [OSPF-DN] MUST be set in these LSAs to ensure that they will be ignored by any other PE routers that receive them. (§4.2.5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.5.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.8.1-1"><code>RFC4577-4.2.8.1-1</code></a></h3>
-<p>The DN bit must be set in the (external) LSA reporting a route from a different domain (§4.2.8.1)</p>
+<p>The DN bit (Section 4.2.5.1) MUST be set in the LSA. (§4.2.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.8.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.6-3"><code>RFC4577-4.2.6-3</code></a></h3>
-<p>When a PE receives from a CE any LSA with the DN bit set, the information from that LSA must not be used by the route calculation (§4.2.6)</p>
+<p>When a PE router receives, from a CE router, any LSA with the DN bit [OSPF-DN] set, the information from that LSA MUST NOT be used by the route calculation. (§4.2.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.6-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.6-4"><code>RFC4577-4.2.6-4</code></a></h3>
-<p>If a Type 5 LSA received from the CE has an OSPF route tag equal to the VPN Route Tag, its information must not be used by the route calculation (§4.2.6)</p>
+<p>If a Type 5 LSA is received from the CE, and if it has an OSPF route tag value equal to the VPN Route Tag (see Section 4.2.5.2), then the information from that LSA MUST NOT be used by the route calculation. (§4.2.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.6-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.5.1-3"><code>RFC4577-4.2.5.1-3</code></a></h3>
@@ -1155,15 +1163,15 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.5.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.5.2-3"><code>RFC4577-4.2.5.2-3</code></a></h3>
-<p>The VPN Route Tag value must be configurable (§4.2.5.2)</p>
+<p>The value of the VPN Route Tag is arbitrary but must be distinct from any OSPF Route Tag being used within the OSPF domain. Its value MUST therefore be configurable. (§4.2.5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.5.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.5.2-4"><code>RFC4577-4.2.5.2-4</code></a></h3>
-<p>If the VPN backbone AS number is four bytes long, a Route Tag value must be configured (§4.2.5.2)</p>
+<p>If the Autonomous System number is four bytes long, then a Route Tag value MUST be configured (§4.2.5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.5.2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.5.2-5"><code>RFC4577-4.2.5.2-5</code></a></h3>
-<p>A configured four-byte-AS Route Tag must be distinct from any Route Tag used within the VPN itself (§4.2.5.2)</p>
+<p>If the Autonomous System number is four bytes long, then a Route Tag value MUST be configured, and it MUST be distinct from any Route Tag used within the VPN itself. (§4.2.5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.5.2-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.5.2-6"><code>RFC4577-4.2.5.2-6</code></a></h3>
@@ -1180,7 +1188,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <p>No test carries RFC4577-4.2.8.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.6-5"><code>RFC4577-4.2.6-5</code></a></h3>
 <p>Routes that a PE receives in type 4 LSAs MUST NOT be redistributed to BGP. (§4.2.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a route learned from a type 4 LSA reaching BGP. TestRFC4577Type4SummaryNotRedistributed asserts ComputeInterArea yields no RouteEntry for a Type 4 summary and TestRFC4577Type3SummaryBecomesRedistributableRoute that a Type 3 does. Neither drives the redistribution rail (redistribute/source.go emitDelta) to BGP; the note of the earlier pass itself says that link is structural and not exercised, so a redistribution source that read the LSDB directly would leave both green. Separately, the row binds the PE role the 2026-09-21 owner decision did not select.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1231,12 +1239,12 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.7.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.7.4-3"><code>RFC4577-4.2.7.4-3</code></a></h3>
-<p>A packet whose IP destination is the remote endpoint address of a sham link must be forwarded according to the corresponding BGP route (§4.2.7.4)</p>
+<p>This same rule applies to any packet whose IP destination address is the remote endpoint address of a sham link. Such packets MUST be forwarded according to the corresponding BGP route. (§4.2.7.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.7.4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-6-1"><code>RFC4577-6-1</code></a></h3>
-<p>OSPF cryptographic authentication must be implemented on each PE (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>OSPF &#34;cryptographic authentication&#34; SHOULD be used between a PE and a CE. It MUST be implemented on each PE. (§6)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a router without working OSPF cryptographic authentication. TestRFC4577CryptographicAuthImplemented signs a Hello with the configured key (md5 and hmac-sha-256) and asserts authStore.verify accepts it; TestRFC4577CryptographicAuthRejectsForgery asserts a tampered digest and a packet signed under another secret are refused, red on an accept-all verifier. The quote&#39;s first sentence, the operator SHOULD, is row 6-2.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1255,8 +1263,8 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 </table>
 </div>
 <h3><a href="#rfc4577-6-2"><code>RFC4577-6-2</code></a></h3>
-<p>OSPF cryptographic authentication should be used between a PE and a CE (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>OSPF &#34;cryptographic authentication&#34; SHOULD be used between a PE and a CE. (§6)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. An operator SHOULD for the PE role the 2026-09-21 owner decision did not select: not-applicable in substance, but the row is tagged, so the verdict stays weak and the tag is reported. The tag claims the configured link authenticates its outgoing Hello, but the test builds and signs the Hello itself (signedHello calls packet.Sign directly); the engine&#39;s Hello transmit path is never exercised, so a link that configured a key chain but sent unauthenticated packets would stay green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1270,8 +1278,8 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 </table>
 </div>
 <h3><a href="#rfc4577-4.1.4-2"><code>RFC4577-4.1.4-2</code></a></h3>
-<p>The CE-to-PE area 0 adjacency may be via an OSPF virtual link (OPTIONAL feature) (§4.1.4, §4.2.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>This adjacency MAY be via an OSPF virtual link. (The ability to use an OSPF virtual link in this way is an OPTIONAL feature.) (§4.1.4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. A MAY: the permission is proven by the capability working. TestRFC2328VirtualCostChangeReoriginatesBackbone brings a virtual link to Full through real Hello/DD ingress (establishVirtualRoute) and asserts the backbone Router-LSA advertises the virtual neighbor at metric 10, red if the area 0 adjacency cannot run over a virtual link. Single-polarity marker on the MAY.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1285,43 +1293,43 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 </table>
 </div>
 <h3><a href="#rfc4577-4.1.1-3"><code>RFC4577-4.1.1-3</code></a></h3>
-<p>If the PE runs OSPF as its IGP, that IGP instance must be separate and independent from any other OSPF instance the PE runs: &#34;If the PE is running OSPF as its IGP (Interior Gateway Protocol), the instance of OSPF running as the IGP must be separate and independent from any other instance of OSPF that the PE is running.&#34; (§4.1.1)</p>
+<p>If the PE is running OSPF as its IGP (Interior Gateway Protocol), the instance of OSPF running as the IGP must be separate and independent from any other instance of OSPF that the PE is running. (§4.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.1.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.5.2-10"><code>RFC4577-4.2.5.2-10</code></a></h3>
-<p>The VPN Route Tag value must be distinct from any OSPF Route Tag used within the OSPF domain: &#34;The value of the VPN Route Tag is arbitrary but must be distinct from any OSPF Route Tag being used within the OSPF domain.&#34; (§4.2.5.2)</p>
+<p>The value of the VPN Route Tag is arbitrary but must be distinct from any OSPF Route Tag being used within the OSPF domain. (§4.2.5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.5.2-10, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.6-13"><code>RFC4577-4.2.6-13</code></a></h3>
-<p>For every address prefix installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP: &#34;For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP.&#34; (§4.2.6)</p>
+<p>For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP. (§4.2.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.6-13, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.6-14"><code>RFC4577-4.2.6-14</code></a></h3>
-<p>Where the OSPF instance has a NULL Domain Identifier and the OSPF Domain Identifier Extended Communities attribute is present, the attribute value field must be all zeroes: &#34;then the attribute&#39;s value field must be all zeroes, and its type field may be any of 0005, 0105, or 0205&#34; (§4.2.6)</p>
+<p>If the OSPF instance has a NULL Domain Identifier, and the OSPF Domain Identifier Extended Communities attribute is present, then the attribute&#39;s value field must be all zeroes, and its type field may be any of 0005, 0105, 0205, or 8005. (§4.2.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.6-14, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.6-15"><code>RFC4577-4.2.6-15</code></a></h3>
-<p>In the OSPF Route Type Extended Community, the Area Number field must be 0 when the Route Type is 5: &#34;5 for external routes (area number must be 0)&#34; (§4.2.6)</p>
+<p>5 for external routes (area number must be 0). (§4.2.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.6-15, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.7.1-5"><code>RFC4577-4.2.7.1-5</code></a></h3>
-<p>Each VRF connected by a sham link must be associated with a Sham Link Endpoint Address: &#34;If two VRFs are to be connected by a sham link, each VRF must be associated with a \&#34;Sham Link Endpoint Address\&#34;, a 32-bit IPv4 address that is treated as an address of the PE router containing that VRF.&#34; (§4.2.7.1)</p>
+<p>If two VRFs are to be connected by a sham link, each VRF must be associated with a &#34;Sham Link Endpoint Address&#34;, a 32-bit IPv4 address that is treated as an address of the PE router containing that VRF. (§4.2.7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.7.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.7.3-3"><code>RFC4577-4.2.7.3-3</code></a></h3>
-<p>An OSPF packet sent on a sham link must carry the sender&#39;s Sham Link Endpoint Address as its IP source address and the receiver&#39;s as its IP destination address: &#34;An OSPF protocol packet sent on a Sham Link from one PE to another must have as its IP source address the Sham Link Endpoint Address of the sender, and as its IP destination address the Sham Link Endpoint Address of the receiver.&#34; (§4.2.7.3)</p>
+<p>An OSPF protocol packet sent on a Sham Link from one PE to another must have as its IP source address the Sham Link Endpoint Address of the sender, and as its IP destination address the Sham Link Endpoint Address of the receiver. (§4.2.7.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.7.3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.7.3-4"><code>RFC4577-4.2.7.3-4</code></a></h3>
-<p>The TTL of an OSPF packet sent on a sham link must be set appropriately, because the packet traverses multiple hops of the VPN backbone: &#34;The packet will travel from one PE router to the other over the VPN backbone, which means that it can be expected to traverse multiple hops. As such, its TTL (Time to Live) field must be set appropriately.&#34; (§4.2.7.3)</p>
+<p>The packet will travel from one PE router to the other over the VPN backbone, which means that it can be expected to traverse multiple hops. As such, its TTL (Time to Live) field must be set appropriately. (§4.2.7.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.7.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.8.1-4"><code>RFC4577-4.2.8.1-4</code></a></h3>
-<p>All eight bytes must be compared when two Domain Identifier Extended Communities attributes are compared: &#34;In general, when two such attributes are compared, all eight bytes must be compared.&#34; (§4.2.8.1)</p>
+<p>In general, when two such attributes are compared, all eight bytes must be compared. (§4.2.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.8.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-4.2.8.1-5"><code>RFC4577-4.2.8.1-5</code></a></h3>
-<p>Before a VPN-IPv4 route is redistributed to an OSPF instance, it must be determined whether the route and that instance belong to the same domain: &#34;If a VPN-IPv4 route is to be redistributed to a particular instance, it must be determined whether that route and that OSPF instance belong to the same domain.&#34; (§4.2.8.1)</p>
+<p>If a VPN-IPv4 route is to be redistributed to a particular instance, it must be determined whether that route and that OSPF instance belong to the same domain. (§4.2.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.8.1-5, so no unit is bound to it.</p>
 </section>
@@ -1687,7 +1695,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -65,7 +65,10 @@
 <li><a href="#a-blackhole-on-a-community-ze-does-not-read">A blackhole on a community Ze does not read</a></li>
 <li><a href="#blackhole-with-origin-validation">Blackhole with origin validation</a></li>
 </ol></li>
-<li><a href="#capabilities">Capabilities</a></li>
+<li><a href="#capabilities">Capabilities</a>
+<ol>
+<li><a href="#software-version-toward-frr-and-exabgp">Software Version toward FRR and ExaBGP</a></li>
+</ol></li>
 <li><a href="#address-families">Address Families</a>
 <ol>
 <li><a href="#a-peer-that-declares-no-family">A Peer That Declares No Family</a></li>
@@ -1215,9 +1218,34 @@ the exemption does nothing, and Ze logs that at configure time naming the peer.<
 <td><code>role provider</code></td>
 <td>provider, customer, rs, rs-client, peer</td>
 </tr>
+<tr>
+<td>Software Version</td>
+<td><code>software-version { encoding legacy; }</code></td>
+<td>presence; <code>mode</code>, and <code>encoding</code> <code>draft</code> (default) or <code>legacy</code></td>
+</tr>
 </tbody>
 </table>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- capability definitions -->
+<h3 id="software-version-toward-frr-and-exabgp">Software Version toward FRR and ExaBGP</h3>
+<p>A peer running FRR or ExaBGP needs <code>encoding legacy</code>. Ze's default, <code>draft</code>,
+sends the version string alone, as draft-abraitis-bgp-version-capability
+defines it. FRR and ExaBGP send one length octet before the string instead,
+and FRR 10.3.1 reads the first octet it receives as that length. For Ze's
+draft form that length runs past the capability, so FRR sends an OPEN Message
+Error NOTIFICATION and the session never comes up. <code>legacy</code> sends the form FRR
+expects, and is a deviation from the draft kept for those peers. Ze reads
+either form it receives.</p>
+<pre><code>capability {
+    software-version {
+        encoding legacy;
+    }
+}
+</code></pre>
+<p><code>ze exabgp migrate</code> writes <code>encoding legacy</code> for every migrated peer that
+enables software-version, since that is the form ExaBGP sent. A peer whose
+ExaBGP config has no software-version capability gets none.</p>
+<!-- source: internal/component/bgp/plugins/softver/yang/ze-softver.yang -- software-version encoding leaf -->
+<!-- source: internal/exabgp/migration/migrate.go -- keepExaBGPSoftwareVersionFraming -->
 <h2 id="address-families">Address Families</h2>
 <p>Configured under <code>family { }</code>. Each family requires a <code>prefix { maximum N; }</code> block.</p>
 <pre><code>family {
@@ -5150,7 +5178,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

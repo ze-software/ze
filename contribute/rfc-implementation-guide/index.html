@@ -572,10 +572,13 @@ inside a <code>terminator=</code> block):</p>
 <pre><code># RFC requirement: RFC7606-7.1-1 negative -- malformed ORIGIN withdraws the route
 </code></pre>
 <ul>
-<li><strong>Allocate the id with <code>/ze-rfc &lt;rfc&gt;</code>.</strong> Every Compliance Checklist line in
+<li>
+<p><strong>Allocate the id with <code>/ze-rfc &lt;rfc&gt;</code>.</strong> Every Compliance Checklist line in
 <code>rfc/short/rfcNNNN.md</code> gets a permanent <code>RFC&lt;n&gt;-&lt;section&gt;-&lt;ordinal&gt;</code> id, and that
-id is the contract the tag references. Never renumber or reuse one.</li>
-<li><strong>Provide BOTH polarities.</strong> Every gated MUST needs a <code>positive</code> AND a <code>negative</code>
+id is the contract the tag references. Never renumber or reuse one.</p>
+</li>
+<li>
+<p><strong>Provide BOTH polarities.</strong> Every gated MUST needs a <code>positive</code> AND a <code>negative</code>
 test; a one-sided test passes on blanket accept or blanket reject. If a
 requirement is genuinely testable only one way, annotate its summary line
 <code>{single-polarity: positive|negative; why}</code> instead. <code>{gap: why; ref}</code> and
@@ -589,23 +592,54 @@ state from the rows it names, and refuses a target no enrolled summary holds.
 Each needs a reason (a bare annotation is rejected). The last three need the
 facts their gates check: the layer and the producer, the quoted sentence and
 the producer, or the target list
-(<code>docs/contributing/rfc-conformance-gates.md</code>).</li>
-<li><strong>Place the tag inline at the table case</strong> when one function covers many
+(<code>docs/contributing/rfc-conformance-gates.md</code>).</p>
+</li>
+<li>
+<p><strong>Demonstrate a <code>{gap}</code> rather than only describe it.</strong> A test that asserts
+the correct behavior Ze does not have yet takes the word <code>gap</code> in the
+polarity's place, and runs its assertions inside <code>rfcgap.Demonstrate</code>
+(<code>internal/test/rfcgap</code>), which passes while they fail and fails the day they
+pass:</p>
+<pre><code class="language-go">// RFC requirement: RFC7606-5.1-1 gap -- the MP_REACH_NLRI attribute is encoded first.
+rfcgap.Demonstrate(t, "RFC7606-5.1-1", func(tb testing.TB) { /* assert against tb */ })
+</code></pre>
+<p>The row keeps its <code>{gap}</code>. The tag must sit in the same Go function as the
+call, and the call names the id as a string literal. When the test fails
+because the behavior landed, remove <code>{gap}</code> from the row and retag the test
+<code>positive</code> or <code>negative</code>. The gate's three refusals are in
+<code>docs/contributing/rfc-conformance-gates.md</code>, "Demonstrated gaps".</p>
+<p>Worked example: <code>TestRFC7606Section51MPAttributeEncodedFirst</code>
+(<code>internal/component/bgp/message/rfc7606_mp_first_test.go</code>). It builds an
+IPv6 announcement through <code>BuildUnicast</code> and walks the attribute block
+outside the body, so a malformed block or a missing MP_REACH_NLRI fails the
+test instead of reading as the gap standing. Only the ordering assertion runs
+inside <code>Demonstrate</code>. Today it logs
+<code>gap RFC7606-5.1-1 stands: first path attribute is type 1, ...</code>. With
+<code>OrderAttributes</code> changed to put MP_REACH_NLRI first, it fails with
+<code>gap RFC7606-5.1-1 closed: the behavior now conforms. Remove {gap} from rfc/short/rfc7606.md ...</code>.</p>
+</li>
+<li>
+<p><strong>Place the tag inline at the table case</strong> when one function covers many
 requirements. One id per line, polarity mandatory. The tag is the only authored
-half of the binding, so it dies with the test.</li>
-<li><strong>A NEW tag owes a discrimination proof in the same change.</strong> <code>./le rfc check</code>
+half of the binding, so it dies with the test.</p>
+</li>
+<li>
+<p><strong>A NEW tag owes a discrimination proof in the same change.</strong> <code>./le rfc check</code>
 refuses a tagged unit the tip commit added against <code>HEAD^</code> and that carries no
 recorded break under which that unit itself goes red. Both sides are
 committed, so the violation reaches you at your own commit rather than every
 other session at theirs. Record one with
 <code>./le rfc discriminate-record</code>; <code>./le rfc discriminate stem &lt;stem&gt;</code> proposes
-the candidates. The full contract is <code>rfc/discrimination/README.md</code>.</li>
-<li><strong>The prose after the polarity is the CLAIM, and it is fingerprinted.</strong> It is
+the candidates. The full contract is <code>rfc/discrimination/README.md</code>.</p>
+</li>
+<li>
+<p><strong>The prose after the polarity is the CLAIM, and it is fingerprinted.</strong> It is
 what the proof is a proof OF, so rewording it stales the record and owes a
 re-record. The claim runs to the end of the comment paragraph, so a sentence
 continued on the next comment line is part of it. Write what the test
 demonstrates and nothing wider: a claim that says more than the body checks is
-the defect the record exists to refuse.</li>
+the defect the record exists to refuse.</p>
+</li>
 </ul>
 <h4 id="what-each-carrier-earns-in-the-ledger">What each carrier earns in the ledger</h4>
 <!-- source: internal/le/rfc/carriers.go -- Carrier, suiteCarriers, carriersFor, CarrierFor, interopCarriers, interopTrees -->
@@ -692,6 +726,8 @@ disposition; otherwise it lands in this session's scratch and the command
 prints the <code>mv</code> that ends the walk.</li>
 <li><code>./le rfc extraction-status</code> prints the sign-off counts.</li>
 <li><code>./le rfc reseal</code> re-stamps an audit verdict after a mechanical edit.</li>
+<li><code>./le rfc audit-stamp stem &lt;stem&gt; from &lt;path&gt;</code> adds new audit verdicts from a
+pending file, computing their fingerprints.</li>
 </ul>
 <p>For an enrolled RFC the gate fails unless every MUST has its pair or a
 reasoned annotation. Writing a summary does not enrol an RFC.</p>
@@ -757,8 +793,8 @@ or a cited producer changes.</p>
 <p><strong>A <code>SHIFTED</code> verdict is not your problem to re-read.</strong> When the gate says a
 verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
 moved: a line shift, a sibling test, or a rewritten import. Run
-<code>./le rfc reseal</code> then <code>./le rfc index-update</code>. It is the only command that writes
-<code>rfc/audit/</code>, and that is deliberate. A check that also wrote cannot be trusted
+<code>./le rfc reseal</code> then <code>./le rfc index-update</code>. It is the only command that
+re-stamps a recorded verdict, and that is deliberate. A check that also wrote cannot be trusted
 to report. And a regen target that wrote evidence would re-stamp hand-authored
 judgements during unrelated work.</p>
 <!-- source: internal/le/rfc/freshness.go -- auditFreshness -->
@@ -991,7 +1027,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -15,6 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 28 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 4 | of 4 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -44,7 +45,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +57,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 4 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 28 |
 | Tagged units | 28 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 4 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc2545.md` |
 | Requirement shard | `rfc/requirements/rfc2545.md` |
@@ -107,8 +109,8 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 | `RFC2545-3-2` | The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field. (§3) | SHALL | 3 - Constructing the Next Hop field | **positive:** `unit/verify` [`TestDefaultOriginateAppendsLinkLocalWhenSection3Holds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L622). **positive:** `unit/verify` [`TestSendAnnounceAppendsLinkLocalWhenSection3Holds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L140). **positive:** `unit/verify` [`TestSessionSendAnnounceAcceptsLinkLocalSecondAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L136). **negative:** `unit/verify` [`TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L108). **positive:** `functional/verify` [`adj-rib-in-replay-rfc2545-next-hop.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L21). **positive:** `functional/verify` [`conf-llnh-update.ci`](https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L13). **negative:** `functional/verify` [`new-v6.ci`](https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L8). **positive:** `interop/nightly` [`checkRFC2545NextHops`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L517) |
 | `RFC2545-3-3` | The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to. (§3) | SHALL | 3 - Constructing the Next Hop field | **positive:** `unit/verify` [`TestDefaultOriginateAppendsLinkLocalWhenSection3Holds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L625). **positive:** `unit/verify` [`TestSendAnnounceAppendsLinkLocalWhenSection3Holds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L143). **negative:** `unit/verify` [`TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L650). **negative:** `unit/verify` [`TestSendAnnounceOmitsLinkLocalWhenPeerOffLink`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L176). **positive:** `functional/verify` [`conf-llnh-update.ci`](https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L16). **negative:** `functional/verify` [`conf-llnh-lla-only.ci`](https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-lla-only.ci#L7). **positive:** `interop/nightly` [`checkRFC2545NextHops`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L523). **negative:** `interop/nightly` [`checkRFC2545NextHops`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L529) |
 | `RFC2545-3-4` | In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16). (§3) | SHALL | 3 - Constructing the Next Hop field | **positive:** `unit/verify` [`TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L654). **positive:** `unit/verify` [`TestSendAnnounceOmitsLinkLocalWhenPeerOffLink`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L180). **positive:** `functional/verify` [`new-v6.ci`](https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L11). **negative:** `functional/verify` [`conf-llnh-update.ci`](https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L22) |
-| `RFC2545-4-1` | The BGP Identifier "should be derived from an IPv4 address regardless of the network protocol(s) a particular BGP-4 instance is configured to convey at a given moment" (§4) | SHOULD | 4 - Transport | **positive:** no positive test. **negative:** no negative test |
-| `RFC2545-3-5` | "a BGP speaker that advertises a route to an internal peer may modify the Network Address of Next Hop field by removing the link-local IPv6 address of the next hop" (§3) | MAY | 3 - Constructing the Next Hop field | **positive:** no positive test. **negative:** no negative test |
+| `RFC2545-4-1` | should be derived from an IPv4 address regardless of the network protocol(s) a particular BGP-4 instance is configured to convey at a given moment. (§4) | SHOULD | 4 - Transport | **positive:** no positive test. **negative:** no negative test |
+| `RFC2545-3-5` | a BGP speaker that advertises a route to an internal peer may modify the Network Address of Next Hop field by removing the link-local IPv6 address of the next hop. (§3) | MAY | 3 - Constructing the Next Hop field | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -122,7 +124,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 A BGP speaker shall advertise to its peer in the Network Address of Next Hop field the global IPv6 address of the next hop, potentially followed by the link-local IPv6 address of the next hop. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: a Next Hop field whose first address is not the global next hop, a link-local second address placed first, a non-link-local second address, or a second address appended unconditionally. (b) conf-llnh-update.ci and adj-rib-in-replay-rfc2545-next-hop.ci pin global-then-link-local by exact wire hex (offset order); TestSendAnnounceRefusesUnusableIPv6NextHop requires ErrNextHopUnencodable and empty wire for an IPv4 or unset address in the global slot; TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress requires the same for a global second address; new-v6.ci pins the one-address form when no link-local exists.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -139,7 +141,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: a length octet other than 16 with only a global address, or other than 32 with a link-local also included. (b) new-v6.ci asserts 800E26 0002 01 10 with one 16-octet address; conf-llnh-update.ci and adj-rib-in-replay-rfc2545-next-hop.ci assert the 0x20 octet with both addresses by exact hex; TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress asserts no 32-octet field is written for a non-link-local second address.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -156,7 +158,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: including the link-local address when either half of the condition fails, or omitting it when both hold. (b) conf-llnh-update.ci and TestSendAnnounceAppendsLinkLocalWhenSection3Holds assert the 32-octet form when both halves hold; conf-llnh-lla-only.ci asserts the 16-octet form when the global next hop is on no connected subnet (the config differs in that one variable); TestSendAnnounceOmitsLinkLocalWhenPeerOffLink asserts the 16-octet form and NotContains the 32-octet one when the peer half fails. Both halves are broken separately.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -173,7 +175,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16). (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: a second address or a length other than 16 when the inclusion condition does not hold. (b) TestSendAnnounceOmitsLinkLocalWhenPeerOffLink asserts the global-only form with length 0x10 and NotContains the 32-octet form; new-v6.ci pins 01 10 plus one address byte for byte; conf-llnh-update.ci is the negative, asserting the field is not reduced to 16 while the condition holds.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

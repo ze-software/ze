@@ -22,11 +22,19 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 10 | of 12 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Gated MUSTs | 10 | of 11 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
 | Out of scope | 1 | of 10 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 0.0% | 0 of 10 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 10 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 10.0% | 1 of 10 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 7 | of 10 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -52,15 +60,16 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Supported within BMP sender scope |
 | Enrolment | Enrolled |
-| Requirements | 12 |
+| Requirements | 11 |
 | Gated MUST-level | 10 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 18 |
 | Tagged units | 18 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 7 |
 | Discrimination records | 1 |
 | Summary | `rfc/short/rfc8671.md` |
 | Requirement shard | `rfc/requirements/rfc8671.md` |
@@ -102,18 +111,17 @@ No MUST is a gap. [`RFC8671-6.2-1`](#rfc8671-6.2-1), the O flag zero on a Statis
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8671-x-1` | O flag uses bit 4 of the Per-Peer Header Flags field (Key Constraints) | MUST | x | **positive:** `unit/verify` [`TestRFC8671OFlagBit4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L219). **negative:** `unit/verify` [`TestRFC8671OFlagBit4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L222) |
-| `RFC8671-x-2` | When O=1 (Adj-RIB-Out), the L flag (bit 6, post-policy) is also set (Peer Up Behavior) | MUST | x | **positive:** `unit/verify` [`TestPeerHeaderFromEventAdjRIBOut`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L57). **negative:** `unit/verify` [`TestPeerHeaderFromEventAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L80) |
-| `RFC8671-x-3` | Peer Up message for Adj-RIB-Out (O=1) carries the same sent and received OPEN messages as for Adj-RIB-In (Peer Up Behavior) | MUST | x | **positive:** `unit/verify` [`TestBMPPeerUpRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/msg_test.go#L104). **negative:** no negative test. **{single-polarity}:** ze builds every Peer Up from the peer's cached sent and received OPEN messages (internal/component/bgp/plugins/bmp/bmp.go:757-772, pair.sent/pair.received) regardless of the O flag, so an Adj-RIB-Out Peer Up carries the same OPENs as an Adj-RIB-In one by construction; there is no "different OPENs for Adj-RIB-Out" case to assert as a negative. The positive (a Peer Up round-trips its sent/received OPENs) is proven in TestBMPPeerUpRoundTrip |
-| `RFC8671-x-4` | A single BGP session MAY produce two Peer Up messages: one for Adj-RIB-In (O=0) and one for Adj-RIB-Out (O=1) (Peer Up Behavior) | MAY | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC8671-x-5` | Pre-policy Adj-RIB-Out (L=0, O=1) is valid but uncommon (Key Constraints) | MAY | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC8671-4-1` | The Per-Peer Header Flags bits reserved for future use MUST be transmitted as 0, and their values MUST be ignored on receipt (§4) | MUST | 4 - Per-Peer Header | **positive:** `unit/verify` [`TestRFC8671ReservedPeerFlagsTransmittedAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L66). **negative:** `unit/verify` [`TestRFC8671ReservedPeerFlagsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L108) |
+| `RFC8671-x-1` | The per-peer header has the same structure and flags as defined in Section 4.2 of [RFC7854] with the addition of the O flag as shown here: 0 1 2 3 4 5 6 7 +-+-+-+-+-+-+-+-+ \|V\|L\|A\|O\| Resv \| +-+-+-+-+-+-+-+-+ *  The O flag indicates Adj-RIB-In if set to 0 and Adj-RIB-Out if set to 1. (§4) | MUST | 4 - Per-Peer Header | **positive:** `unit/verify` [`TestRFC8671OFlagBit4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L219). **negative:** `unit/verify` [`TestRFC8671OFlagBit4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L222) |
+| `RFC8671-x-2` | The L flag MUST be set to 1 to indicate post-policy. (§5.1) | MUST | 5.1 - Post-policy | **positive:** `unit/verify` [`TestPeerHeaderFromEventAdjRIBOut`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L57). **negative:** `unit/verify` [`TestPeerHeaderFromEventAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L80) |
+| `RFC8671-x-3` | Peer Up and Down Notifications convey BGP peering session state to BMP receivers.  The state is independent of whether or not route monitoring or route mirroring messages will be sent for Adj-RIB-In, Adj-RIB-Out, or both. (§6.3) | MUST | 6.3 - Peer Up and Down Notifications | **positive:** `unit/verify` [`TestBMPPeerUpRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/msg_test.go#L104). **negative:** no negative test. **{single-polarity}:** ze builds every Peer Up from the peer's cached sent and received OPEN messages (internal/component/bgp/plugins/bmp/bmp.go:757-772, pair.sent/pair.received) regardless of the O flag, so an Adj-RIB-Out Peer Up carries the same OPENs as an Adj-RIB-In one by construction; there is no "different OPENs for Adj-RIB-Out" case to assert as a negative. The positive (a Peer Up round-trips its sent/received OPENs) is proven in TestBMPPeerUpRoundTrip |
+| `RFC8671-x-5` | Similar to Adj-RIB-In policy validation, pre-policy Adj-RIB-Out can be used to validate and audit outbound policies. (§5.2) | MAY | 5.2 - Pre-policy | **positive:** no positive test. **negative:** no negative test |
+| `RFC8671-4-1` | The existing flags are defined in Section 4.2 of [RFC7854], and the remaining bits are reserved for future use.  They MUST be transmitted as 0, and their values MUST be ignored on receipt. (§4) | MUST | 4 - Per-Peer Header | **positive:** `unit/verify` [`TestRFC8671ReservedPeerFlagsTransmittedAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L66). **negative:** `unit/verify` [`TestRFC8671ReservedPeerFlagsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L108) |
 | `RFC8671-5.1-1` | Post-policy Adj-RIB-Out MUST convey to the BMP receiver what is actually transmitted to the peer (§5.1) | MUST | 5.1 - Post-policy | **positive:** `unit/verify` [`TestRFC8671PostPolicyConveysTransmittedBytes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L164). **negative:** `unit/verify` [`TestRFC8671AdjRIBOutConveysNoUntransmittedUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L229). **negative:** `unit/verify` [`TestRFC8671PostPolicyConveysUnknownAttributeUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L194) |
 | `RFC8671-5.2-1` | The L flag MUST be set to 0 to indicate pre-policy (§5.2) | MUST | 5.2 - Pre-policy | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "Similar to Adj-RIB-In policy validation, pre-policy Adj-RIB-Out can be used to validate and audit outbound policies."; the L flag rule binds a speaker that sends the pre-policy Adj-RIB-Out view, and ze declined that view. RFC 8671 states no obligation to offer it, and RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: 'A BMP speaker may send pre-policy routes, post-policy routes, or both.' internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, so no ze message carries O=1 with L=0. The route-monitoring-policy leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice |
 | `RFC8671-6.1-1` | The O flag MUST be set accordingly to indicate if the route monitor or route mirroring message conveys Adj-RIB-In or Adj-RIB-Out. (§6.1) | MUST | 6.1 - Route Monitoring and Route Mirroring | **positive:** `unit/verify` [`TestRFC8671OFlagSetOnAdjRIBOutMessages`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L268). **negative:** `unit/verify` [`TestRFC8671OFlagClearOnAdjRIBInMessages`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L306) |
 | `RFC8671-6.2-1` | Statistics report messages are not specific to Adj-RIB-In or Adj-RIB-Out and MUST have the O flag set to zero. (§6.2) | MUST | 6.2 - Statistics Report | **positive:** `unit/verify` [`TestRFC8671StatisticsReportOnTheWireClearsTheOFlag`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L556). **negative:** no negative test. **{single-polarity}:** the only production encoder of a Statistics Report is `senderSession.writeStatisticsReport` (internal/component/bgp/plugins/bmp/sender.go), which clears PeerFlagO on the header its caller hands in, so there is no valid ze Statistics Report carrying the O flag to reject and no negative case to construct. The positive is TestRFC8671StatisticsReportOnTheWireClearsTheOFlag (internal/component/bgp/plugins/bmp/statistics_test.go), which reports on a peer monitored for Adj-RIB-Out, reads the message off the collector socket after `sendStatisticsReports` produced it, and asserts the L flag survives so a cleared flags byte fails. It was recorded as a gap until 2026-09-06, for the reason the 2026-08-31 owner ruling gave: a green encoder test proves nothing about a requirement no production path exercises, and `statistics.go` is that path |
 | `RFC8671-6.3.1-1` | When multiple Admin Labels are included, the BMP receiver MUST preserve their order (§6.3.1) | MUST | 6.3.1 - Peer Up Information | **positive:** `unit/verify` [`TestRFC8671AdminLabelOrderPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L459). **negative:** `unit/verify` [`TestRFC8671AdminLabelReversedOrderPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L476) |
-| `RFC8671-7.2-1` | A change that alters the behavior of an existing BMP session MUST bounce that session with a Peer Down/Peer Up sequence; ze keeps the BMP session up and sends a Peer Down (reason 5, configuration reasons) then a Peer Up for every established peer reported on it. The bounce is owed to a CHANGE, so ze compares the parsed sender configuration against the one in force and acts only when a leaf deciding what the session carries has moved. The change arrives on the plugin config-apply callback, and the tests drive that callback rather than the function behind it (§7.2) | MUST | 7.2 - Changes to Existing BMP Session | **positive:** `unit/verify` [`TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L841). **negative:** `unit/verify` [`TestRFC8671RemovingEveryCollectorBouncesTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1015). **negative:** `unit/verify` [`TestRFC8671UnrelatedBGPChangeBouncesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L960) |
+| `RFC8671-7.2-1` | In case of any change that results in the alteration of behavior of an existing BMP session (i.e., changes to filtering and table names), the session MUST be bounced with a Peer Down/Peer Up sequence. (§7.2) | MUST | 7.2 - Changes to Existing BMP Session | **positive:** `unit/verify` [`TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L841). **negative:** `unit/verify` [`TestRFC8671RemovingEveryCollectorBouncesTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1015). **negative:** `unit/verify` [`TestRFC8671UnrelatedBGPChangeBouncesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L960) |
 
 ## Gaps and untested MUSTs
 
@@ -127,9 +135,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC8671-x-1`](#rfc8671-x-1)
 
-O flag uses bit 4 of the Per-Peer Header Flags field (Key Constraints)
+The per-peer header has the same structure and flags as defined in Section 4.2 of [RFC7854] with the addition of the O flag as shown here: 0 1 2 3 4 5 6 7 +-+-+-+-+-+-+-+-+ |V|L|A|O| Resv | +-+-+-+-+-+-+-+-+ *  The O flag indicates Adj-RIB-In if set to 0 and Adj-RIB-Out if set to 1. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27 against the §4 quote (header layout with O in the fourth flag position; O=0 Adj-RIB-In, O=1 Adj-RIB-Out). Forbidden: O at another bit, or its meaning inverted. TestRFC8671OFlagBit4 fails if PeerFlagO != 0x10, if flags 0x10 does not decode as Adj-RIB-Out, or if 0x08 does.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -138,9 +146,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8671-x-2`](#rfc8671-x-2)
 
-When O=1 (Adj-RIB-Out), the L flag (bit 6, post-policy) is also set (Peer Up Behavior)
+The L flag MUST be set to 1 to indicate post-policy. (§5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27 against §5.1 'The L flag MUST be set to 1 to indicate post-policy'. Ze's Adj-RIB-Out is post-policy only. Forbidden: a post-policy Adj-RIB-Out header with L=0; TestPeerHeaderFromEventAdjRIBOut fails when the sent direction lacks PeerFlagL. TestPeerHeaderFromEventAdjRIBIn shows L is not set unconditionally.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -149,9 +157,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8671-x-3`](#rfc8671-x-3)
 
-Peer Up message for Adj-RIB-Out (O=1) carries the same sent and received OPEN messages as for Adj-RIB-In (Peer Up Behavior)
+Peer Up and Down Notifications convey BGP peering session state to BMP receivers.  The state is independent of whether or not route monitoring or route mirroring messages will be sent for Adj-RIB-In, Adj-RIB-Out, or both. (§6.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Re-read 2026-09-27 against §6.3 (Peer Up/Down state independent of which RIBs are monitored). Forbidden: a Peer Up whose content or presence depends on Adj-RIB-In vs Adj-RIB-Out monitoring. The only tagged unit, TestBMPPeerUpRoundTrip, round-trips a hand-built PeerUp through writePeerUp/DecodeMsg; it never drives the producer (bmp.go openCache path) nor compares Peer Ups under different monitoring, so the independence is asserted by the marker prose, not by a test.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -159,9 +167,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8671-4-1`](#rfc8671-4-1)
 
-The Per-Peer Header Flags bits reserved for future use MUST be transmitted as 0, and their values MUST be ignored on receipt (§4)
+The existing flags are defined in Section 4.2 of [RFC7854], and the remaining bits are reserved for future use.  They MUST be transmitted as 0, and their values MUST be ignored on receipt. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Transmit clause: TestRFC8671ReservedPeerFlagsTransmittedAsZero fails if peerHeaderFromEvent, locRIBPeerHeader or the byte writePeerHeader puts on the wire carries a reserved bit. Receipt clause: TestRFC8671ReservedPeerFlagsIgnoredOnReceipt fails if a header with every reserved bit set is refused or changes a defined flag, over two bases.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -192,7 +200,7 @@ No test carries RFC8671-5.2-1, so no unit is bound to it.
 
 The O flag MUST be set accordingly to indicate if the route monitor or route mirroring message conveys Adj-RIB-In or Adj-RIB-Out. (§6.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Forbidden: O not matching the RIB conveyed on Route Monitoring or Route Mirroring. TestRFC8671OFlagSetOnAdjRIBOutMessages fails if either message for a sent UPDATE lacks O; TestRFC8671OFlagClearOnAdjRIBInMessages fails if either for a received UPDATE carries it. Both read off the collector pipe after handleStructuredEvent.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -203,7 +211,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Statistics report messages are not specific to Adj-RIB-In or Adj-RIB-Out and MUST have the O flag set to zero. (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Forbidden: a Statistics Report with O=1. TestRFC8671StatisticsReportOnTheWireClearsTheOFlag fails when the report sendStatisticsReports puts on the collector pipe carries PeerFlagO for a peer whose header holds O, and asserts L survives. Single polarity is declared on the row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -222,9 +230,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8671-7.2-1`](#rfc8671-7.2-1)
 
-A change that alters the behavior of an existing BMP session MUST bounce that session with a Peer Down/Peer Up sequence; ze keeps the BMP session up and sends a Peer Down (reason 5, configuration reasons) then a Peer Up for every established peer reported on it. The bounce is owed to a CHANGE, so ze compares the parsed sender configuration against the one in force and acts only when a leaf deciding what the session carries has moved. The change arrives on the plugin config-apply callback, and the tests drive that callback rather than the function behind it (§7.2)
+In case of any change that results in the alteration of behavior of an existing BMP session (i.e., changes to filtering and table names), the session MUST be bounced with a Peer Down/Peer Up sequence. (§7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Forbidden: a behaviour-altering change (the RFC's i.e.: filtering, table names) without a Peer Down/Peer Up per peer. Filtering: TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession fails unless each of two peers gets exactly one Peer Down then one Peer Up after a route-monitoring-policy change through the engine reload rail. Table names: the Loc-RIB table name is the constant locRIBTableName, so no change can occur. Negatives: TestRFC8671UnrelatedBGPChangeBouncesNothing, TestRFC8671RemovingEveryCollectorBouncesTheSession. Not asserted: that other behavior leaves (route-mirroring, loc-rib) also bounce.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

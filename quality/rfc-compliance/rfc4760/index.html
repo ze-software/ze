@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4760 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4760: Multiprotocol Extensions for BGP-4. 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4760: Multiprotocol Extensions for BGP-4. 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4760 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4760: Multiprotocol Extensions for BGP-4. 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4760: Multiprotocol Extensions for BGP-4. 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4760 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4760: Multiprotocol Extensions for BGP-4. 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4760: Multiprotocol Extensions for BGP-4. 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 6 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>22</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>6</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>3</td>
@@ -292,7 +300,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-1">RFC4760-3-1</code></td><td colspan="3"><span class="rfc-subject">Reserved field in MP_REACH_NLRI MUST be set to 0 (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-1">RFC4760-3-1</code></td><td colspan="3"><span class="rfc-subject">A 1 octet field that MUST be set to 0 (Section 3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14)</td>
@@ -336,7 +344,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L153" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760IBGPMPReachCarriesLocalPref</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-7-1">RFC4760-7-1</code></td><td colspan="3"><span class="rfc-subject">On incorrect MP_REACH_NLRI or MP_UNREACH_NLRI, the speaker MUST delete all BGP routes from that neighbor for that AFI/SAFI (Section 7). RFC 7606 does not retire this: Section 3 clause (j) says that when the MP attribute cannot be parsed, &#34;the procedures of [RFC4271] and/or [RFC4760] continue to apply, meaning that the &#39;session reset&#39; approach (or the &#39;AFI/SAFI disable&#39; approach) MUST be followed&#34;. Ze follows session reset, the stronger of the two, which drops every route from that neighbor and so a superset of that AFI/SAFI&#39;s routes. ValidateUpdateRFC7606 (internal/component/bgp/message/rfc7606.go) returns RFC7606ActionSessionReset for an unparseable MP_REACH_NLRI or MP_UNREACH_NLRI, and rfc7606SessionReset (internal/component/bgp/reactor/session_validation.go) sends the NOTIFICATION and closes the connection.</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-7-1">RFC4760-7-1</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute. (Section 7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7 - Error Handling</td>
@@ -358,7 +366,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation is to advertise a well-formed Multiprotocol capability per AFI/SAFI, enforced by the fixed 4-octet AFI/Reserved/SAFI wire form (internal/core/bgp/capability/capability.go:299-318); there is no malformed-advertisement counter-case distinct from RFC 5492 TLV framing</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-5">RFC4760-3-5</code></td><td colspan="3"><span class="rfc-subject">Reserved field in MP_REACH_NLRI SHOULD be ignored upon receipt (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-5">RFC4760-3-5</code></td><td colspan="3"><span class="rfc-subject">A 1 octet field that MUST be set to 0, and SHOULD be ignored upon receipt. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14)</td>
@@ -367,7 +375,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-6">RFC4760-3-6</code></td><td colspan="3"><span class="rfc-subject">The next hop in MP_REACH_NLRI SHOULD be used as the next hop to listed destinations (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-6">RFC4760-3-6</code></td><td colspan="3"><span class="rfc-subject">The next hop information carried in the MP_REACH_NLRI path attribute defines the Network Layer address of the router that SHOULD be used as the next hop to the destinations listed in the MP_NLRI attribute in the UPDATE message. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14)</td>
@@ -376,7 +384,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-7">RFC4760-3-7</code></td><td colspan="3"><span class="rfc-subject">An UPDATE carrying no NLRI other than MP_REACH_NLRI SHOULD NOT carry the NEXT_HOP attribute (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-7">RFC4760-3-7</code></td><td colspan="3"><span class="rfc-subject">An UPDATE message that carries no NLRI, other than the one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP attribute. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14)</td>
@@ -385,7 +393,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-8">RFC4760-3-8</code></td><td colspan="3"><span class="rfc-subject">If such a message contains NEXT_HOP, the receiver SHOULD ignore this attribute (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-8">RFC4760-3-8</code></td><td colspan="3"><span class="rfc-subject">An UPDATE message that carries no NLRI, other than the one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP attribute. If such a message contains the NEXT_HOP attribute, the BGP speaker that receives the message SHOULD ignore this attribute. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14)</td>
@@ -394,7 +402,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-9">RFC4760-3-9</code></td><td colspan="3"><span class="rfc-subject">An UPDATE SHOULD NOT include the same address prefix in more than one of WITHDRAWN ROUTES, NLRI, MP_REACH_NLRI, and MP_UNREACH_NLRI fields (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-9">RFC4760-3-9</code></td><td colspan="3"><span class="rfc-subject">An UPDATE message SHOULD NOT include the same address prefix (of the same &lt;AFI, SAFI&gt;) in more than one of the following fields: WITHDRAWN ROUTES field, Network Reachability Information fields, MP_REACH_NLRI field, and MP_UNREACH_NLRI field. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14)</td>
@@ -403,7 +411,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-7-2">RFC4760-7-2</code></td><td colspan="3"><span class="rfc-subject">After deleting routes for an incorrect attribute, speaker SHOULD ignore all subsequent routes with that AFI/SAFI for the session (Section 7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-7-2">RFC4760-7-2</code></td><td colspan="3"><span class="rfc-subject">For the duration of the BGP session over which the UPDATE message was received, the speaker then SHOULD ignore all the subsequent routes with that AFI/SAFI received over that session. (Section 7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7 - Error Handling</td>
@@ -412,7 +420,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-7-3">RFC4760-7-3</code></td><td colspan="3"><span class="rfc-subject">Session SHOULD be terminated with UPDATE Message Error / Optional Attribute Error on incorrect attribute (Section 7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-7-3">RFC4760-7-3</code></td><td colspan="3"><span class="rfc-subject">The session SHOULD be terminated with the Notification message code/subcode indicating &#34;UPDATE Message Error&#34;/&#34;Optional Attribute Error&#34;. (Section 7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7 - Error Handling</td>
@@ -421,7 +429,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-8-2">RFC4760-8-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker using Multiprotocol Extensions SHOULD use Capability Advertisement to determine support with a peer (Section 8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-8-2">RFC4760-8-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that uses Multiprotocol Extensions SHOULD use the Capability Advertisement procedures [BGP-CAP] to determine whether the speaker could use Multiprotocol Extensions with a particular peer. (Section 8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8 - Use of BGP Capability Advertisement</td>
@@ -430,7 +438,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-8-3">RFC4760-8-3</code></td><td colspan="3"><span class="rfc-subject">Reserved field in Multiprotocol Capability SHOULD be set to 0 by sender and ignored by receiver (Section 8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-8-3">RFC4760-8-3</code></td><td colspan="3"><span class="rfc-subject">Reserved (8 bit) field. SHOULD be set to 0 by the sender and ignored by the receiver. (Section 8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8 - Use of BGP Capability Advertisement</td>
@@ -439,7 +447,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-7-4">RFC4760-7-4</code></td><td colspan="3"><span class="rfc-subject">The speaker MAY terminate the BGP session on incorrect MP_REACH_NLRI or MP_UNREACH_NLRI (Section 7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-7-4">RFC4760-7-4</code></td><td colspan="3"><span class="rfc-subject">In addition, the speaker MAY terminate the BGP session over which the UPDATE message was received. (Section 7)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>7 - Error Handling</td>
@@ -448,7 +456,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-6-1">RFC4760-6-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY support all, some, or none of the SAFI values defined in this document (Section 6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-6-1">RFC4760-6-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY support all, some, or none of the Subsequent Address Family Identifier values defined in this document. (Section 6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6 - Subsequent Address Family Identifier</td>
@@ -467,8 +475,8 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc4760-3-1"><code>RFC4760-3-1</code></a></h3>
-<p>Reserved field in MP_REACH_NLRI MUST be set to 0 (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>A 1 octet field that MUST be set to 0 (Section 3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clause &#34;MUST be set to 0&#34;: (a) forbidden: an MP_REACH_NLRI whose Reserved octet is non-zero on send, e.g. inherited from a pooled buffer. (b) rfc4760_reserved_test.go TestRFC4760ReservedIsWrittenNotInherited asserts buf[reserved]==0 over a 0xAA-poisoned buffer at a non-zero offset for six next-hop forms, and TestRFC4760ReservedSurvivesBufferReuse asserts 0 where the previous encode left 0x11; both go red if MPReachNLRI.WriteTo stops writing the octet. Single-polarity marker on the row: there is no non-zero form Ze could emit to reject.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -493,7 +501,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 </div>
 <h3><a href="#rfc4760-3-2"><code>RFC4760-3-2</code></a></h3>
 <p>If the Next Hop is allowed to be from more than one Network Layer protocol, the encoding of the Next Hop MUST provide a way to determine its Network Layer protocol. (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The one multi-protocol case Ze encodes is IPv4 NLRI over an IPv4 or an IPv6 next hop (RFC 5549/8950), plus RD-prefixed VPN hops. (a) forbidden: an encoding whose Length of Next Hop does not tell which protocol the hop is, e.g. an IPv6 hop under AFI 1 written with length 4, or a zero-length field. (b) TestMPReachNextHopLengthCountsTheOctetsWritten asserts buf[3]==16 for &#34;ipv4 unicast over an ipv6 next hop&#34; and 4 for the IPv4 hop, and that the written span equals Len(); negatives: TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm (ErrUnencodableNextHop, nothing written), TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm and TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm (no UPDATE on the commit and RIB-replay rails), TestParseMPReachNLRI_InvalidNextHopLength (length 5 refused). Tag-prose note: TestParseMPReachNLRI claims the parser derives the family from the length, but its cases are AFI 2 only and assert counts, not the family.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -543,7 +551,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 </div>
 <h3><a href="#rfc4760-3-3"><code>RFC4760-3-3</code></a></h3>
 <p>An UPDATE message that carries the MP_REACH_NLRI MUST also carry the ORIGIN and the AS_PATH attributes (both in EBGP and in IBGP exchanges). (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence binds the SENDER: an UPDATE carrying MP_REACH_NLRI MUST carry ORIGIN and AS_PATH, on eBGP and iBGP. (a) forbidden: Ze emitting an MP_REACH_NLRI UPDATE without ORIGIN or AS_PATH. (b) no tagged unit asserts it: TestRFC4760MPReachRequiresOriginAndASPath drives only the RECEIVE validator ValidateUpdateRFC7606 (treat-as-withdraw on a missing attribute, which is RFC 7606 Section 3(d) handling), and never inspects an UPDATE Ze builds. The eBGP/iBGP clause is not exercised on either side.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -563,7 +571,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 </div>
 <h3><a href="#rfc4760-3-4"><code>RFC4760-3-4</code></a></h3>
 <p>Moreover, in IBGP exchanges such a message MUST also carry the LOCAL_PREF attribute. (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an iBGP UPDATE carrying MP_REACH_NLRI with no LOCAL_PREF. (b) TestRFC4760IBGPMPReachCarriesLocalPref &#34;ibgp includes local_pref&#34; asserts codes[5] on UpdateBuilder.BuildUnicast for an IPv6 route, which goes red on that builder. Weak because the negative tag proves a neighbouring rule: &#34;ebgp omits local_pref&#34; is RFC 4271 Section 5.1.5 (LOCAL_PREF not sent to external peers), and no input in it violates this requirement; the row has no single-polarity marker. Only the BuildUnicast rail is covered; the CommitService and RIB-replay rails that also emit MP_REACH are not.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -582,8 +590,8 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 </table>
 </div>
 <h3><a href="#rfc4760-7-1"><code>RFC4760-7-1</code></a></h3>
-<p>On incorrect MP_REACH_NLRI or MP_UNREACH_NLRI, the speaker MUST delete all BGP routes from that neighbor for that AFI/SAFI (Section 7). RFC 7606 does not retire this: Section 3 clause (j) says that when the MP attribute cannot be parsed, &#34;the procedures of [RFC4271] and/or [RFC4760] continue to apply, meaning that the &#39;session reset&#39; approach (or the &#39;AFI/SAFI disable&#39; approach) MUST be followed&#34;. Ze follows session reset, the stronger of the two, which drops every route from that neighbor and so a superset of that AFI/SAFI&#39;s routes. ValidateUpdateRFC7606 (internal/component/bgp/message/rfc7606.go) returns RFC7606ActionSessionReset for an unparseable MP_REACH_NLRI or MP_UNREACH_NLRI, and rfc7606SessionReset (internal/component/bgp/reactor/session_validation.go) sends the NOTIFICATION and closes the connection.</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute. (Section 7)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: after an incorrect MP_REACH_NLRI or MP_UNREACH_NLRI, routes of that AFI/SAFI from the neighbor stay installed. Ze answers with session reset (RFC 7606 Section 3(j)). (b) The trigger is asserted: TestRFC4760IncorrectMPAttributeResetsTheSession (RFC7606ActionSessionReset for a bad next-hop length and a short MP_UNREACH), TestRFC4760IncorrectMPReach/MPUnreachDeletesTheNeighborsRoutes (session reaches Idle, NOTIFICATION code 3), negatives keep Established. The deletion is asserted separately: TestHandleState_PeerDown deletes the PeerRIB on a hand-built state &#34;down&#34; event. No tagged unit asserts the link between them, that the reset session delivers the peer-down event which clears the RIB, so a reactor that goes Idle without notifying the RIB keeps the routes and every tagged unit stays green. The reactor tests assert Idle and assume it deletes routes.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -623,7 +631,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 </div>
 <h3><a href="#rfc4760-8-1"><code>RFC4760-8-1</code></a></h3>
 <p>To have a bi-directional exchange of routing information for a particular &lt;AFI, SAFI&gt; between a pair of BGP speakers, each such speaker MUST advertise to the other (via the Capability Advertisement mechanism) the capability to support that particular &lt;AFI, SAFI&gt; route. (Section 8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. (a) forbidden: Ze exchanging routes of an &lt;AFI, SAFI&gt; with a peer without having advertised the Multiprotocol capability for that &lt;AFI, SAFI&gt; in its OPEN. (b) none: TestParseCapabilities only parses a received Code 1 capability into AFI/SAFI. It proves the parser (a neighbouring rule, the Section 8 wire layout), not that Ze advertises a capability for each family it exchanges; it never inspects an OPEN Ze builds or a family Ze sends.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -829,7 +837,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

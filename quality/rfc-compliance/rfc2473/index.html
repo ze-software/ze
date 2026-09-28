@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2473 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2473: Generic Packet Tunneling in IPv6 Specification. 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 2473: Generic Packet Tunneling in IPv6 Specification. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2473 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2473: Generic Packet Tunneling in IPv6 Specification. 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 2473: Generic Packet Tunneling in IPv6 Specification. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2473 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2473: Generic Packet Tunneling in IPv6 Specification. 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 2473: Generic Packet Tunneling in IPv6 Specification. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -287,7 +290,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.1-1">RFC2473-4.1.1-1</code></td><td colspan="3"><span class="rfc-subject">When Tunnel Encapsulation Limit option value reaches zero, discard packet and send ICMPv6 Parameter Problem (code 0, pointer to limit octet) (§4.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.1-1">RFC2473-4.1.1-1</code></td><td colspan="3"><span class="rfc-subject">If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is zero, the packet is discarded and an ICMP Parameter Problem message [ICMP-Spec] is sent to the source of the packet, which is the previous tunnel entry-point node. The Code field of the Parameter Problem message is set to zero (&#34;erroneous header field encountered&#34;) and the Pointer field is set to point to the third octet of the Tunnel Encapsulation Limit option (i.e., the octet containing the limit value of zero). (§4.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.1</td>
@@ -305,7 +308,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> decrementing and re-emitting the encapsulation-limit option during encapsulation is a kernel/VPP datapath action; ze supplies only the configured limit via netlink (internal/plugins/iface/netlink/tunnel_linux.go:266)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.1-3">RFC2473-4.1.1-3</code></td><td colspan="3"><span class="rfc-subject">When no Tunnel Encapsulation Limit option is found but a limit is configured, include a Tunnel Encapsulation Limit option with the configured value (§4.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.1-3">RFC2473-4.1.1-3</code></td><td colspan="3"><span class="rfc-subject">If a Tunnel Encapsulation Limit option is not found in the packet entering the tunnel and if an encapsulation limit has been configured for this tunnel, a Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. The limit value in the option is set to the configured limit. (§4.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.1</td>
@@ -314,7 +317,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> inserting the configured encapsulation-limit option is done by the kernel ip6_tunnel datapath; ze passes IFLA_IPTUN_ENCAP_LIMIT at internal/plugins/iface/netlink/tunnel_linux.go:266-267</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.1-4">RFC2473-4.1.1-4</code></td><td colspan="3"><span class="rfc-subject">Examine headers following the IPv6 header in strict left-to-right order when checking for Tunnel Encapsulation Limit option (§4.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.1-4">RFC2473-4.1.1-4</code></td><td colspan="3"><span class="rfc-subject">Examine the packet to see if a Tunnel Encapsulation Limit option is present following its IPv6 header. The headers following the IPv6 header must be examined in strict &#34;left-to-right&#34; order (§4.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.1</td>
@@ -323,7 +326,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> left-to-right extension-header parsing at packet time is kernel datapath parsing; ze carries no per-packet header path, only tunnel netdev creation (internal/plugins/iface/netlink/tunnel_linux.go:44)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.2-1">RFC2473-4.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Loopback encapsulation (entry-point and exit-point are the same node) must be avoided (§4.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.2-1">RFC2473-4.1.2-1</code></td><td colspan="3"><span class="rfc-subject">A particular case of encapsulation which must be avoided is the loopback encapsulation. Loopback encapsulation takes place when a tunnel IPv6 entry-point node encapsulates tunnel IPv6 packets originated from itself, and destined to itself. (§4.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.2</td>
@@ -332,25 +335,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> detecting loopback encapsulation at packet time binds the kernel ip6_tunnel datapath; ze only creates the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.1-1">RFC2473-7.1-1</code></td><td colspan="3"><span class="rfc-subject">Tunnel entry-point node must support fragmentation of tunnel IPv6 packets (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.1-1">RFC2473-7.1-1</code></td><td colspan="3"><span class="rfc-subject">Therefore, like any source of an IPv6 packet, a tunnel entry-point node must support fragmentation of tunnel IPv6 packets. (§7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>7.1</td>
+<td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2473-7.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> fragmenting outbound tunnel packets is a kernel/VPP datapath capability; ze holds no packet-forwarding code, only tunnel config (internal/plugins/iface/netlink/tunnel_linux.go:248)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.1-2">RFC2473-7.1-2</code></td><td colspan="3"><span class="rfc-subject">Tunnel intermediate node must not fragment a packet undergoing forwarding (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.1-2">RFC2473-7.1-2</code></td><td colspan="3"><span class="rfc-subject">A tunnel intermediate node that forwards a tunnel packet to another node in the tunnel follows the general IPv6 rule that it must not fragment a packet undergoing forwarding. (§7)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>7.1</td>
+<td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2473-7.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is a routing control plane with no IPv6 forwarding datapath; the intermediate-node no-fragment rule is enforced by the kernel/VPP</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.1-3">RFC2473-7.1-3</code></td><td colspan="3"><span class="rfc-subject">If original IPv6 packet exceeds tunnel MTU and is larger than IPv6 minimum link MTU, discard and send ICMPv6 Packet Too Big with MTU = max(tunnel MTU, IPv6 minimum link MTU) (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.1-3">RFC2473-7.1-3</code></td><td colspan="3"><span class="rfc-subject">if the original IPv6 packet size is larger than the IPv6 minimum link MTU [IPv6-Spec], the entry-point node discards the packet and sends an ICMPv6 &#34;Packet Too Big&#34; message to the source address of the original packet with the recommended MTU size field set to the tunnel MTU or the IPv6 minimum link MTU, whichever is larger, i.e. max (tunnel MTU, IPv6 minimum link MTU). (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
@@ -359,7 +362,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> tunnel-MTU comparison, discard, and ICMPv6 Packet Too Big generation are kernel ip6_tunnel datapath actions ze does not perform</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.1-4">RFC2473-7.1-4</code></td><td colspan="3"><span class="rfc-subject">If original IPv6 packet exceeds tunnel MTU but is equal or smaller than IPv6 minimum link MTU, encapsulate then fragment the tunnel packet (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.1-4">RFC2473-7.1-4</code></td><td colspan="3"><span class="rfc-subject">if the original IPv6 packet is equal or smaller than the IPv6 minimum link MTU, the tunnel entry-point node encapsulates the original packet, and subsequently fragments the resulting IPv6 tunnel packet into IPv6 fragments that do not exceed the Path MTU to the tunnel exit-point. (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
@@ -368,7 +371,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> encapsulate-then-fragment is a kernel/VPP datapath operation; ze only configures the tunnel interface (internal/plugins/iface/netlink/tunnel_linux.go:248)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.2-1">RFC2473-7.2-1</code></td><td colspan="3"><span class="rfc-subject">If original IPv4 packet has DF set and exceeds tunnel MTU, discard and send ICMP unreachable/packet-too-big with tunnel MTU (§7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.2-1">RFC2473-7.2-1</code></td><td colspan="3"><span class="rfc-subject">if in the original IPv4 packet header the Don&#39;t Fragment - DF - bit flag is SET, the entry-point node discards the packet and returns an ICMP message. The ICMP message has the type = &#34;unreachable&#34;, the code = &#34;packet too big&#34;, and the recommended MTU size field set to the size of the tunnel MTU - see sections 6.7 and 8.3. (§7.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.2</td>
@@ -386,7 +389,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> relaying tunnel-internal ICMP errors to the original source is a kernel ip6_tunnel datapath function ze does not perform</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-3.1-1">RFC2473-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Tunnel extension headers should appear in the order recommended by IPv6 specifications (§3.1, §5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-3.1-1">RFC2473-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Tunnel extension headers should appear in the order recommended by the specifications that define the extension headers (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1</td>
@@ -395,7 +398,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-6.3-1">RFC2473-6.3-1</code></td><td colspan="3"><span class="rfc-subject">The &#34;single-hop&#34; mechanism should be implemented by setting tunnel hop limit independently of the original header (§6.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-6.3-1">RFC2473-6.3-1</code></td><td colspan="3"><span class="rfc-subject">The &#34;single-hop&#34; mechanism should be implemented by having the tunnel entry point node set a tunnel IPv6 header hop limit independently of the hop limit of the original header. (§6.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.3</td>
@@ -404,7 +407,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.2-2">RFC2473-4.1.2-2</code></td><td colspan="3"><span class="rfc-subject">Implementation should check and reject configuration of a tunnel where entry-point and exit-point addresses belong to the same node (§4.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.2-2">RFC2473-4.1.2-2</code></td><td colspan="3"><span class="rfc-subject">To avoid such a case, it is recommended that an implementation have a mechanism that checks and rejects the configuration of a tunnel in which both the entry-point and exit-point node addresses belong to the same node. (§4.1.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1.2</td>
@@ -413,7 +416,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.2-3">RFC2473-4.1.2-3</code></td><td colspan="3"><span class="rfc-subject">Encapsulating engine should check for and reject encapsulation where tunnel endpoint addresses match original packet source/destination addresses (§4.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.2-3">RFC2473-4.1.2-3</code></td><td colspan="3"><span class="rfc-subject">It is also recommended that the encapsulating engine check for and reject the encapsulation of a packet that has the pair of tunnel entry-point and exit-point addresses identical with the pair of original packet source and final destination addresses. (§4.1.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1.2</td>
@@ -422,7 +425,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.3-1">RFC2473-4.1.3-1</code></td><td colspan="3"><span class="rfc-subject">Maximum hops on a path with tunnels should be controlled by both original packet hop limit and tunnel encapsulation limit (§4.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.3-1">RFC2473-4.1.3-1</code></td><td colspan="3"><span class="rfc-subject">When the path of a packet from source to final destination includes tunnels, the maximum number of hops that the packet can traverse should be controlled by two mechanisms used together to avoid the negative effects of recursive encapsulation in routing loops: (a) the original packet hop limit. It is decremented at each forwarding operation performed on an original packet. This includes each encapsulation of the original packet. It does not include nested encapsulations of the original packet (b) the tunnel IPv6 packet encapsulation limit. (§4.1.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1.3</td>
@@ -431,7 +434,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-6.3-2">RFC2473-6.3-2</code></td><td colspan="3"><span class="rfc-subject">Tunnel hop limit should be configured to ensure packets reach exit-point and expire quickly on routing loops (§6.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-6.3-2">RFC2473-6.3-2</code></td><td colspan="3"><span class="rfc-subject">It is recommended that the tunnel hop limit be configured with a value that ensures: (a) that tunnel IPv6 packets can reach the tunnel exit-point node (b) a quick expiration of the tunnel packet if a routing loop occurs within the IPv6 tunnel. (§6.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.3</td>
@@ -440,7 +443,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-6.1-1">RFC2473-6.1-1</code></td><td colspan="3"><span class="rfc-subject">Tunnel entry-point node address should be validated at tunnel configuration time (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-6.1-1">RFC2473-6.1-1</code></td><td colspan="3"><span class="rfc-subject">The tunnel entry-point node address is one of the valid IPv6 unicast addresses of the entry-point node - the validation of the address at tunnel configuration time is recommended. (§6.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1</td>
@@ -449,7 +452,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-6.4-1">RFC2473-6.4-1</code></td><td colspan="3"><span class="rfc-subject">Traffic Class in tunnel header MAY be inherited from inner packet or set per-tunnel (§6.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-6.4-1">RFC2473-6.4-1</code></td><td colspan="3"><span class="rfc-subject">The configured Packet Traffic Class can also indicate whether the value of the Traffic Class field in the tunnel header is copied from the original header, or it is set to the pre-configured value. (§6.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.4</td>
@@ -458,7 +461,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.1-5">RFC2473-4.1.1-5</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY allow per-tunnel override of the encapsulation limit (§4.1.1, §6.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.1-5">RFC2473-4.1.1-5</code></td><td colspan="3"><span class="rfc-subject">A tunnel entry-point node may be configured to include a Tunnel Encapsulation Limit option as part of the information prepended to all packets entering a tunnel at that node. (§4.1.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.1.1</td>
@@ -467,7 +470,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-5.1-1">RFC2473-5.1-1</code></td><td colspan="3"><span class="rfc-subject">Tunnel entry-point node may append IPv6 extension headers (Hop-by-Hop, Routing, etc.) to the tunnel header (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-5.1-1">RFC2473-5.1-1</code></td><td colspan="3"><span class="rfc-subject">Depending on IPv6 node configuration parameters, a tunnel entry-point node may append to the tunnel IPv6 main header one or more IPv6 extension headers, such as a Hop-by-Hop Options header, a Routing header, or others. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.1</td>
@@ -485,7 +488,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc2473-4.1.1-1"><code>RFC2473-4.1.1-1</code></a> When Tunnel Encapsulation Limit option value reaches zero, discard packet and send ICMPv6 Parameter Problem (code 0, pointer to limit octet) (§4.1.1)</td>
+<tr><td><a href="#rfc2473-4.1.1-1"><code>RFC2473-4.1.1-1</code></a> If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is zero, the packet is discarded and an ICMP Parameter Problem message [ICMP-Spec] is sent to the source of the packet, which is the previous tunnel entry-point node. The Code field of the Parameter Problem message is set to zero (&#34;erroneous header field encountered&#34;) and the Pointer field is set to point to the third octet of the Tunnel Encapsulation Limit option (i.e., the octet containing the limit value of zero). (§4.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the tunnel-node datapath that processes the encapsulation-limit option and emits ICMPv6 Parameter Problem is the kernel ip6_tunnel module; ze only creates and configures the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44)</td>
 </tr>
@@ -493,35 +496,35 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: decrementing and re-emitting the encapsulation-limit option during encapsulation is a kernel/VPP datapath action; ze supplies only the configured limit via netlink (internal/plugins/iface/netlink/tunnel_linux.go:266)</td>
 </tr>
-<tr><td><a href="#rfc2473-4.1.1-3"><code>RFC2473-4.1.1-3</code></a> When no Tunnel Encapsulation Limit option is found but a limit is configured, include a Tunnel Encapsulation Limit option with the configured value (§4.1.1)</td>
+<tr><td><a href="#rfc2473-4.1.1-3"><code>RFC2473-4.1.1-3</code></a> If a Tunnel Encapsulation Limit option is not found in the packet entering the tunnel and if an encapsulation limit has been configured for this tunnel, a Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. The limit value in the option is set to the configured limit. (§4.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: inserting the configured encapsulation-limit option is done by the kernel ip6_tunnel datapath; ze passes IFLA_IPTUN_ENCAP_LIMIT at internal/plugins/iface/netlink/tunnel_linux.go:266-267</td>
 </tr>
-<tr><td><a href="#rfc2473-4.1.1-4"><code>RFC2473-4.1.1-4</code></a> Examine headers following the IPv6 header in strict left-to-right order when checking for Tunnel Encapsulation Limit option (§4.1.1)</td>
+<tr><td><a href="#rfc2473-4.1.1-4"><code>RFC2473-4.1.1-4</code></a> Examine the packet to see if a Tunnel Encapsulation Limit option is present following its IPv6 header. The headers following the IPv6 header must be examined in strict &#34;left-to-right&#34; order (§4.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: left-to-right extension-header parsing at packet time is kernel datapath parsing; ze carries no per-packet header path, only tunnel netdev creation (internal/plugins/iface/netlink/tunnel_linux.go:44)</td>
 </tr>
-<tr><td><a href="#rfc2473-4.1.2-1"><code>RFC2473-4.1.2-1</code></a> Loopback encapsulation (entry-point and exit-point are the same node) must be avoided (§4.1.2)</td>
+<tr><td><a href="#rfc2473-4.1.2-1"><code>RFC2473-4.1.2-1</code></a> A particular case of encapsulation which must be avoided is the loopback encapsulation. Loopback encapsulation takes place when a tunnel IPv6 entry-point node encapsulates tunnel IPv6 packets originated from itself, and destined to itself. (§4.1.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: detecting loopback encapsulation at packet time binds the kernel ip6_tunnel datapath; ze only creates the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44)</td>
 </tr>
-<tr><td><a href="#rfc2473-7.1-1"><code>RFC2473-7.1-1</code></a> Tunnel entry-point node must support fragmentation of tunnel IPv6 packets (§7.1)</td>
+<tr><td><a href="#rfc2473-7.1-1"><code>RFC2473-7.1-1</code></a> Therefore, like any source of an IPv6 packet, a tunnel entry-point node must support fragmentation of tunnel IPv6 packets. (§7)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: fragmenting outbound tunnel packets is a kernel/VPP datapath capability; ze holds no packet-forwarding code, only tunnel config (internal/plugins/iface/netlink/tunnel_linux.go:248)</td>
 </tr>
-<tr><td><a href="#rfc2473-7.1-2"><code>RFC2473-7.1-2</code></a> Tunnel intermediate node must not fragment a packet undergoing forwarding (§7.1)</td>
+<tr><td><a href="#rfc2473-7.1-2"><code>RFC2473-7.1-2</code></a> A tunnel intermediate node that forwards a tunnel packet to another node in the tunnel follows the general IPv6 rule that it must not fragment a packet undergoing forwarding. (§7)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is a routing control plane with no IPv6 forwarding datapath; the intermediate-node no-fragment rule is enforced by the kernel/VPP</td>
 </tr>
-<tr><td><a href="#rfc2473-7.1-3"><code>RFC2473-7.1-3</code></a> If original IPv6 packet exceeds tunnel MTU and is larger than IPv6 minimum link MTU, discard and send ICMPv6 Packet Too Big with MTU = max(tunnel MTU, IPv6 minimum link MTU) (§7.1)</td>
+<tr><td><a href="#rfc2473-7.1-3"><code>RFC2473-7.1-3</code></a> if the original IPv6 packet size is larger than the IPv6 minimum link MTU [IPv6-Spec], the entry-point node discards the packet and sends an ICMPv6 &#34;Packet Too Big&#34; message to the source address of the original packet with the recommended MTU size field set to the tunnel MTU or the IPv6 minimum link MTU, whichever is larger, i.e. max (tunnel MTU, IPv6 minimum link MTU). (§7.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: tunnel-MTU comparison, discard, and ICMPv6 Packet Too Big generation are kernel ip6_tunnel datapath actions ze does not perform</td>
 </tr>
-<tr><td><a href="#rfc2473-7.1-4"><code>RFC2473-7.1-4</code></a> If original IPv6 packet exceeds tunnel MTU but is equal or smaller than IPv6 minimum link MTU, encapsulate then fragment the tunnel packet (§7.1)</td>
+<tr><td><a href="#rfc2473-7.1-4"><code>RFC2473-7.1-4</code></a> if the original IPv6 packet is equal or smaller than the IPv6 minimum link MTU, the tunnel entry-point node encapsulates the original packet, and subsequently fragments the resulting IPv6 tunnel packet into IPv6 fragments that do not exceed the Path MTU to the tunnel exit-point. (§7.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: encapsulate-then-fragment is a kernel/VPP datapath operation; ze only configures the tunnel interface (internal/plugins/iface/netlink/tunnel_linux.go:248)</td>
 </tr>
-<tr><td><a href="#rfc2473-7.2-1"><code>RFC2473-7.2-1</code></a> If original IPv4 packet has DF set and exceeds tunnel MTU, discard and send ICMP unreachable/packet-too-big with tunnel MTU (§7.2)</td>
+<tr><td><a href="#rfc2473-7.2-1"><code>RFC2473-7.2-1</code></a> if in the original IPv4 packet header the Don&#39;t Fragment - DF - bit flag is SET, the entry-point node discards the packet and returns an ICMP message. The ICMP message has the type = &#34;unreachable&#34;, the code = &#34;packet too big&#34;, and the recommended MTU size field set to the size of the tunnel MTU - see sections 6.7 and 8.3. (§7.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: DF handling and ICMP unreachable/too-big generation for encapsulated IPv4 are kernel datapath behavior; ze only sets PMtuDisc via netlink (internal/plugins/iface/netlink/tunnel_linux.go:210-214)</td>
 </tr>
@@ -536,7 +539,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2473-4.1.1-1"><code>RFC2473-4.1.1-1</code></a></h3>
-<p>When Tunnel Encapsulation Limit option value reaches zero, discard packet and send ICMPv6 Parameter Problem (code 0, pointer to limit octet) (§4.1.1)</p>
+<p>If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is zero, the packet is discarded and an ICMP Parameter Problem message [ICMP-Spec] is sent to the source of the packet, which is the previous tunnel entry-point node. The Code field of the Parameter Problem message is set to zero (&#34;erroneous header field encountered&#34;) and the Pointer field is set to point to the third octet of the Tunnel Encapsulation Limit option (i.e., the octet containing the limit value of zero). (§4.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2473-4.1.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2473-4.1.1-2"><code>RFC2473-4.1.1-2</code></a></h3>
@@ -544,35 +547,35 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2473-4.1.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2473-4.1.1-3"><code>RFC2473-4.1.1-3</code></a></h3>
-<p>When no Tunnel Encapsulation Limit option is found but a limit is configured, include a Tunnel Encapsulation Limit option with the configured value (§4.1.1)</p>
+<p>If a Tunnel Encapsulation Limit option is not found in the packet entering the tunnel and if an encapsulation limit has been configured for this tunnel, a Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. The limit value in the option is set to the configured limit. (§4.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2473-4.1.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2473-4.1.1-4"><code>RFC2473-4.1.1-4</code></a></h3>
-<p>Examine headers following the IPv6 header in strict left-to-right order when checking for Tunnel Encapsulation Limit option (§4.1.1)</p>
+<p>Examine the packet to see if a Tunnel Encapsulation Limit option is present following its IPv6 header. The headers following the IPv6 header must be examined in strict &#34;left-to-right&#34; order (§4.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2473-4.1.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc2473-4.1.2-1"><code>RFC2473-4.1.2-1</code></a></h3>
-<p>Loopback encapsulation (entry-point and exit-point are the same node) must be avoided (§4.1.2)</p>
+<p>A particular case of encapsulation which must be avoided is the loopback encapsulation. Loopback encapsulation takes place when a tunnel IPv6 entry-point node encapsulates tunnel IPv6 packets originated from itself, and destined to itself. (§4.1.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2473-4.1.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2473-7.1-1"><code>RFC2473-7.1-1</code></a></h3>
-<p>Tunnel entry-point node must support fragmentation of tunnel IPv6 packets (§7.1)</p>
+<p>Therefore, like any source of an IPv6 packet, a tunnel entry-point node must support fragmentation of tunnel IPv6 packets. (§7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2473-7.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2473-7.1-2"><code>RFC2473-7.1-2</code></a></h3>
-<p>Tunnel intermediate node must not fragment a packet undergoing forwarding (§7.1)</p>
+<p>A tunnel intermediate node that forwards a tunnel packet to another node in the tunnel follows the general IPv6 rule that it must not fragment a packet undergoing forwarding. (§7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2473-7.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2473-7.1-3"><code>RFC2473-7.1-3</code></a></h3>
-<p>If original IPv6 packet exceeds tunnel MTU and is larger than IPv6 minimum link MTU, discard and send ICMPv6 Packet Too Big with MTU = max(tunnel MTU, IPv6 minimum link MTU) (§7.1)</p>
+<p>if the original IPv6 packet size is larger than the IPv6 minimum link MTU [IPv6-Spec], the entry-point node discards the packet and sends an ICMPv6 &#34;Packet Too Big&#34; message to the source address of the original packet with the recommended MTU size field set to the tunnel MTU or the IPv6 minimum link MTU, whichever is larger, i.e. max (tunnel MTU, IPv6 minimum link MTU). (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2473-7.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2473-7.1-4"><code>RFC2473-7.1-4</code></a></h3>
-<p>If original IPv6 packet exceeds tunnel MTU but is equal or smaller than IPv6 minimum link MTU, encapsulate then fragment the tunnel packet (§7.1)</p>
+<p>if the original IPv6 packet is equal or smaller than the IPv6 minimum link MTU, the tunnel entry-point node encapsulates the original packet, and subsequently fragments the resulting IPv6 tunnel packet into IPv6 fragments that do not exceed the Path MTU to the tunnel exit-point. (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2473-7.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc2473-7.2-1"><code>RFC2473-7.2-1</code></a></h3>
-<p>If original IPv4 packet has DF set and exceeds tunnel MTU, discard and send ICMP unreachable/packet-too-big with tunnel MTU (§7.2)</p>
+<p>if in the original IPv4 packet header the Don&#39;t Fragment - DF - bit flag is SET, the entry-point node discards the packet and returns an ICMP message. The ICMP message has the type = &#34;unreachable&#34;, the code = &#34;packet too big&#34;, and the recommended MTU size field set to the size of the tunnel MTU - see sections 6.7 and 8.3. (§7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2473-7.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2473-8-1"><code>RFC2473-8-1</code></a></h3>
@@ -589,7 +592,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-09-27</td>
 </tr>
 <tr><td>Register</td>
 <td>prose</td>
@@ -823,9 +826,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><code>11</code></td>
 <td>not stated</td>
-<td>1</td>
+<td>0</td>
 <td>walked</td>
 <td>not stated</td>
+</tr>
+<tr><td><code>A.1</code></td>
+<td>Appendix subsection A.1</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix subsection A.1. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>A.1.1</code></td>
+<td>Appendix subsection A.1.1</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix subsection A.1.1. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>A.1.2</code></td>
+<td>Appendix subsection A.1.2</td>
+<td>1</td>
+<td>walked</td>
+<td>Appendix subsection A.1.2. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of section 11, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote.</td>
 </tr>
 </tbody>
 </table>
@@ -855,7 +876,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>the keyword sits inside the noun phrase &#34;the minimum link MTU size required for IPv6 [IPv6-Spec]&#34;, which names a constant; the sentence itself restates the rule of section 7.1 in indicative prose</td>
 <td>According to the general rules described in 7.1, an ICMP &#34;packet too big&#34; message is sent to the source of the original packet only if the original packet size is larger than the minimum link MTU size required for IPv6 [IPv6-Spec].</td>
 </tr>
-<tr><td><code>11:1</code></td>
+<tr><td><code>A.1.2:1</code></td>
 <td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
 <td>the Internet Society copyright notice; its &#34;must&#34; binds anyone republishing the document, not an implementation</td>
 <td>However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.</td>
@@ -896,7 +917,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

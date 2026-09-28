@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8203 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8203: BGP Administrative Shutdown Communication. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8203: BGP Administrative Shutdown Communication. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8203 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8203: BGP Administrative Shutdown Communication. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8203: BGP Administrative Shutdown Communication. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8203 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8203: BGP Administrative Shutdown Communication. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8203: BGP Administrative Shutdown Communication. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 5 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>9</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -337,7 +345,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L407" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Valid</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-2-5">RFC8203-2-5</code></td><td colspan="3"><span class="rfc-subject">Reporting of Shutdown Communication should include methods such as Syslog (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-2-5">RFC8203-2-5</code></td><td colspan="3"><span class="rfc-subject">Mechanisms concerning the reporting of information contained in the Shutdown Communication are implementation specific but SHOULD include methods such as Syslog [RFC5424]. (§2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2 - Shutdown Communication</td>
@@ -346,7 +354,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-4-1">RFC8203-4-1</code></td><td colspan="3"><span class="rfc-subject">Log a message for the operator when an invalid Length value or invalid UTF-8 sequence is received (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-4-1">RFC8203-4-1</code></td><td colspan="3"><span class="rfc-subject">If a Shutdown Communication with an invalid Length value, or an invalid UTF-8 sequence is received, a message indicating this event SHOULD be logged for the attention of the operator. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4 - Error Handling</td>
@@ -355,7 +363,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-2-6">RFC8203-2-6</code></td><td colspan="3"><span class="rfc-subject">Sender may include a UTF-8 encoded string in the Cease NOTIFICATION (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-2-6">RFC8203-2-6</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker decides to terminate its session with a BGP neighbor, and it sends a NOTIFICATION message with the Error Code &#34;Cease&#34; and Error Subcode &#34;Administrative Shutdown&#34; or &#34;Administrative Reset&#34; [RFC4486], it MAY include an UTF-8 encoded string. (§2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2 - Shutdown Communication</td>
@@ -364,7 +372,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-4-2">RFC8203-4-2</code></td><td colspan="3"><span class="rfc-subject">Erroneous or malformed Shutdown Communication may be logged in hexdump format (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-4-2">RFC8203-4-2</code></td><td colspan="3"><span class="rfc-subject">An erroneous or malformed Shutdown Communication itself MAY be logged in a hexdump format. (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4 - Error Handling</td>
@@ -384,7 +392,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8203-2-1"><code>RFC8203-2-1</code></a></h3>
 <p>Subcode: the Error Subcode value MUST be one of the following values: 2 (&#34;Administrative Shutdown&#34;) or 4 (&#34;Administrative Reset&#34;). (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence constrains the Cease NOTIFICATION that carries a Shutdown Communication: its subcode MUST be 2 or 4. Forbidden behaviour: Ze sending a Shutdown Communication under any other Cease subcode. The sender gate is session_connection.go (BuildShutdownData only for NotifyCeaseAdminShutdown/NotifyCeaseAdminReset), and no tagged unit asserts it. TestRFC8203Subcode asserts only the receive side: ShutdownMessage extracts for 2 and 4 (require.Equal &#34;hi&#34;) and returns empty for subcode 3 (require.Empty). The sender clause has no assertion that goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -404,7 +412,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 </div>
 <h3><a href="#rfc8203-2-2"><code>RFC8203-2-2</code></a></h3>
 <p>The length value MUST range from 0 to 128 inclusive. (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: Ze emitting a Length above 128. TestRFC8203LengthCap feeds a 200-byte message to BuildShutdownData and require.Equal(byte(128), data[0]) goes red if the cap is lost. Receive-side 129-255 acceptance follows RFC 9003 and is covered by the row&#39;s {single-polarity: positive} marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -419,7 +427,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 </div>
 <h3><a href="#rfc8203-2-3"><code>RFC8203-2-3</code></a></h3>
 <p>Shutdown Communication: to support international characters, the Shutdown Communication field MUST be encoded using UTF-8. (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence is a sender duty: the field MUST be encoded using UTF-8. Forbidden behaviour: BuildShutdownData emitting invalid UTF-8, from an invalid input string or from a 128-octet cut inside a multibyte character. BuildShutdownData strips invalid UTF-8 (bytes.ToValidUTF8) and walks back to a character boundary, but no tagged unit feeds it invalid UTF-8 or a multibyte string longer than 128 octets. The positive tag (TestRFC8203UTF8Valid) round-trips valid UTF-8, and the negative tag (TestRFC8203UTF8Invalid) proves receive rejection, which is RFC8203-2-4&#39;s rule.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -439,7 +447,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 </div>
 <h3><a href="#rfc8203-6-1"><code>RFC8203-6-1</code></a></h3>
 <p>UTF-8 &#34;Shortest Form&#34; encoding is REQUIRED to guard against the technical issues outlined in [UTR36]. (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Shortest Form is REQUIRED of the encoding on both sides. Receive side: TestRFC8203ShortestFormUTF8 require.Error on the overlong 0xC0 0xAF goes red if ShutdownMessage accepts it, and 0xC3 0xA9 is accepted. Send side: no tagged unit feeds BuildShutdownData an overlong sequence, so Ze emitting a non-shortest-form Shutdown Communication has no assertion that goes red (ToValidUTF8 would strip it, unasserted).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -459,7 +467,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 </div>
 <h3><a href="#rfc8203-2-4"><code>RFC8203-2-4</code></a></h3>
 <p>A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: the receiver interpreting an invalid UTF-8 sequence. TestRFC8203UTF8Invalid feeds 0xff 0xfe 0xfd and require.Error plus require.Empty(msg) go red if ShutdownMessage returns decoded text. The negative tag TestRFC8203UTF8Valid proves valid multibyte text is still interpreted (require.Equal &#34;日本語&#34;).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -625,7 +633,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

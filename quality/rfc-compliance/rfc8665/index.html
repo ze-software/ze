@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8665 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8665: OSPF Extensions for Segment Routing. 48 gated MUST-level requirements, 14 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8665: OSPF Extensions for Segment Routing. 48 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8665 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8665: OSPF Extensions for Segment Routing. 48 gated MUST-level requirements, 14 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8665: OSPF Extensions for Segment Routing. 48 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8665 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8665: OSPF Extensions for Segment Routing. 48 gated MUST-level requirements, 14 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8665: OSPF Extensions for Segment Routing. 48 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -119,7 +119,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>60.4%</strong><b>29 of 48 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.4%</strong><b>5 of 48 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 48 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>3.2%</strong><b>2 of 63 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>18.7%</strong><b>14 of 75 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>29.2%</strong><b>14 of 48 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>28</strong><b>of 48 gated MUSTs judged</b><p>9 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 48 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>14</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -221,16 +225,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>63</td>
+<td>75</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>63</td>
+<td>75</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>28</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>2</td>
+<td>14</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8665.md</code></td>
@@ -345,7 +349,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the SR capability read walks every RI Opaque LSA in the LSDB and assigns the per-router entry from whichever view it reaches last, with no flooding-scope comparison -- srRemoteCapabilities iterates e.lsdb.OpaqueLSAsByType at internal/plugins/ospf/sr_install.go:238-241 and its record closure assigns caps[router] and algos[router] at internal/plugins/ospf/sr_install.go:222-229 -- so an AS-scoped RI LSA can override the area-scoped one. Disclosed in docs/features/rfc-status.md RFC 8665 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.1-5">RFC8665-3.1-5</code></td><td colspan="3"><span class="rfc-subject">If the SR-Algorithm TLV appears in RI Opaque LSAs with the same flooding scope, use the one with the numerically smallest Instance ID and ignore subsequent instances (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.1-5">RFC8665-3.1-5</code></td><td colspan="3"><span class="rfc-subject">If the SR-Algorithm TLV appears in multiple Router Information Opaque LSAs that have the same flooding scope, the SR-Algorithm TLV in the Router Information (RI) Opaque LSA with the numerically smallest Instance ID MUST be used and subsequent instances of the SR-Algorithm TLV MUST be ignored. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -354,7 +358,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the SR capability read compares no Instance ID. The opaque view carries OpaqueID, the RFC 7770 Instance ID, but srRemoteCapabilities ignores it and the last view processed wins, internal/plugins/ospf/sr_install.go:238-241 with the assignment at internal/plugins/ospf/sr_install.go:222-229. Disclosed in docs/features/rfc-status.md RFC 8665 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.2-1">RFC8665-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Range Size in the SID/Label Range TLV MUST be greater than 0 (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.2-1">RFC8665-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Range Size: 3-octet SID/label range size (i.e., the number of SIDs or labels in the range including the first SID/label). It MUST be greater than 0. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
@@ -426,7 +430,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the receive path appends every decoded SID/Label Range to the originator SRGB with no overlap detection, srDecodeRemoteCapabilities internal/plugins/ospf/sr.go:337-342, and SRGB.Label maps an index by plain concatenation in advertised order, internal/plugins/ospf/sr/srgb.go:93-105, so overlapping received ranges are concatenated rather than resolved per RFC 8660. The non-overlap check covers only this router&#39;s own configured ranges, internal/plugins/ospf/sr/config.go:116-121. Disclosed in docs/features/rfc-status.md RFC 8665 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.2-14">RFC8665-3.2-14</code></td><td colspan="3"><span class="rfc-subject">The Reserved field MUST be ignored on reception (SID/Label Range, SRLB, SRMS Preference, Extended Prefix Range, Prefix-SID, Adj-SID, LAN Adj-SID) (§3.2, §3.3, §3.4, §4, §5, §6.1, §6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.2-14">RFC8665-3.2-14</code></td><td colspan="3"><span class="rfc-subject">Reserved: SHOULD be set to 0 on transmission and MUST be ignored on reception (§3.2, §3.3, §3.4, §4, §5, §6.1, §6.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
@@ -435,7 +439,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/reserved_rfc8665_test.go#L75" title="internal/plugins/ospf/sr/reserved_rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665NonReservedOctetIsRead</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.3-1">RFC8665-3.3-1</code></td><td colspan="3"><span class="rfc-subject">Range Size in the SRLB TLV MUST be greater than 0 (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.3-1">RFC8665-3.3-1</code></td><td colspan="3"><span class="rfc-subject">Range Size: 3-octet SID/Label range size (i.e., the number of SIDs or labels in the range including the first SID/Label). It MUST be greater than 0. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3</td>
@@ -489,7 +493,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the received SRMS preference is decoded into srRemoteCapabilities.SRMSPref, internal/plugins/ospf/sr.go:349-358, and nothing consumes it: srRemoteCapabilities keeps only the SRGB and the algorithm list, internal/plugins/ospf/sr_install.go:222-229, so no narrowest-flooding-scope selection exists. Disclosed in docs/features/rfc-status.md RFC 8665 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.4-3">RFC8665-3.4-3</code></td><td colspan="3"><span class="rfc-subject">If the SRMS Preference TLV appears in RI Opaque LSAs with the same flooding scope, use the one with the numerically smallest Instance ID and ignore subsequent instances (§3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.4-3">RFC8665-3.4-3</code></td><td colspan="3"><span class="rfc-subject">If the SRMS Preference TLV appears in multiple Router Information Opaque LSAs that have the same flooding scope, the SRMS Preference TLV in the Router Information Opaque LSA with the numerically smallest Instance ID MUST be used and subsequent instances of the SRMS Preference TLV MUST be ignored. (§3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.4</td>
@@ -498,7 +502,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the decode keeps the first SRMS Preference TLV within one LSA body, internal/plugins/ospf/sr.go:349-358, but nothing compares instances across LSAs and the preference is never consumed, internal/plugins/ospf/sr_install.go:222-229, so there is no smallest-Instance-ID tie-break. Disclosed in docs/features/rfc-status.md RFC 8665 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-4-1">RFC8665-4-1</code></td><td colspan="3"><span class="rfc-subject">All prefix ranges in a single OSPF Extended Prefix Opaque LSA MUST have the same flooding scope (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-4-1">RFC8665-4-1</code></td><td colspan="3"><span class="rfc-subject">all prefix ranges included in a single OSPF Extended Prefix Opaque LSA MUST have the same flooding scope. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -525,16 +529,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the Extended Prefix Range encoder writes the caller&#39;s Range Size verbatim with no capacity check against the Prefix Length and no 224.0.0.0/3 exclusion, EncodeExtPrefixRangeValueV4 internal/plugins/ospf/sr/codec.go:482-494, and the decoder reads it back unchecked, internal/plugins/ospf/sr/codec.go:497-523. Disclosed in docs/features/rfc-status.md RFC 8665 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-1">RFC8665-5-1</code></td><td colspan="3"><span class="rfc-subject">Reserved bits (other than NP/M/E/V/L) in the Prefix-SID Flags MUST be zero when sent and are ignored when received (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-1">RFC8665-5-1</code></td><td colspan="3"><span class="rfc-subject">Other bits: Reserved. These MUST be zero when sent and are ignored when received. (§5)</span></td></tr>
 <tr><td></td>
-<td>MUST NOT</td>
+<td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L209" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDReservedFlagBitsZeroOnSend</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L224" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDReservedFlagBitsIgnoredOnReceive</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-2">RFC8665-5-2</code></td><td colspan="3"><span class="rfc-subject">If set, then the penultimate hop MUST NOT pop the Prefix-SID before delivering packets to the node that advertised the Prefix-SID. (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-2">RFC8665-5-2</code></td><td colspan="3"><span class="rfc-subject">NP-Flag: No-PHP (Penultimate Hop Popping) Flag. If set, then the penultimate hop MUST NOT pop the Prefix-SID before delivering packets to the node that advertised the Prefix-SID. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5</td>
@@ -543,7 +547,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L331" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PHPPopsWhenNoPHPFlagClear</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-3">RFC8665-5-3</code></td><td colspan="3"><span class="rfc-subject">If set, any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with the Explicit NULL label (0 for IPv4) before forwarding the packet. (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-3">RFC8665-5-3</code></td><td colspan="3"><span class="rfc-subject">E-Flag: Explicit Null Flag. If set, any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with the Explicit NULL label (0 for IPv4) before forwarding the packet. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -575,8 +579,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-5-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_prefix_sid_per_router_test.go#L67" title="internal/plugins/ospf/sr_prefix_sid_per_router_test.go" target="_blank" rel="noopener"><code>TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L261" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L212" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L329" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665DuplicatePrefixSIDsAllIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_prefix_sid_per_router_test.go#L50" title="internal/plugins/ospf/sr_prefix_sid_per_router_test.go" target="_blank" rel="noopener"><code>TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L223" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-7">RFC8665-5-7</code></td><td colspan="3"><span class="rfc-subject">When calculating the outgoing label for the prefix, the router MUST take into account, as described below, the E-, NP-, and M-Flags advertised by the next-hop router if that router advertised the SID for the prefix. (§5)</span></td></tr>
@@ -606,7 +614,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the same builder applies no NP-set / E-clear rule to a redistributed prefix, srBuildPrefixSID internal/plugins/ospf/sr.go:197-213; the AS-external Extended Prefix advertisement carries whatever flags the prefix-sid configuration sets, internal/plugins/ospf/ext_prefix.go:162-176. Disclosed in docs/features/rfc-status.md RFC 8665 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-10">RFC8665-5-10</code></td><td colspan="3"><span class="rfc-subject">If the NP-Flag is not set, any upstream neighbor of the Prefix-SID originator MUST pop the Prefix-SID (PHP) and the received E-Flag is ignored (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-10">RFC8665-5-10</code></td><td colspan="3"><span class="rfc-subject">If the NP-Flag is not set, then: Any upstream neighbor of the Prefix-SID originator MUST pop the Prefix-SID. This is equivalent to the penultimate hop-popping mechanism used in the MPLS data plane. The received E-Flag is ignored. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -615,7 +623,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L315" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665NoPHPKeepsPrefixSIDLabel</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-11">RFC8665-5-11</code></td><td colspan="3"><span class="rfc-subject">If the NP-Flag is set and the E-Flag is not set, any upstream neighbor MUST keep the Prefix-SID on top of the stack (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-11">RFC8665-5-11</code></td><td colspan="3"><span class="rfc-subject">If the NP-Flag is set and the E-Flag is not set, then: Any upstream neighbor of the Prefix-SID originator MUST keep the Prefix-SID on top of the stack. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -624,7 +632,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L349" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665ExplicitNullReplacesPrefixSID</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-12">RFC8665-5-12</code></td><td colspan="3"><span class="rfc-subject">Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label. (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-12">RFC8665-5-12</code></td><td colspan="3"><span class="rfc-subject">If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -642,9 +650,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L376" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665MappingServerFlagClearHonorsNPAndE</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-6.1-1">RFC8665-6.1-1</code></td><td colspan="3"><span class="rfc-subject">Reserved bits (5-7) in the Adj-SID Flags MUST be zero when sent and are ignored when received (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-6.1-1">RFC8665-6.1-1</code></td><td colspan="3"><span class="rfc-subject">Other bits: Reserved. These MUST be zero when sent and are ignored when received. (§6.1)</span></td></tr>
 <tr><td></td>
-<td>MUST NOT</td>
+<td>MUST</td>
 <td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-6.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L389" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDReservedFlagBitsZeroOnSend</code></a></span></div>
@@ -728,11 +736,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-9-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_length_before_flags_test.go#L56" title="internal/plugins/ospf/sr_length_before_flags_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthBeforeFlagsIgnoresLSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L121" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L72" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_malformed_lsa_test.go#L29" title="internal/plugins/ospf/rfc8665_malformed_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidTLVIgnoresLSA</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L460" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665WellFormedTLVsDecode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_length_before_flags_test.go#L68" title="internal/plugins/ospf/sr_length_before_flags_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthBeforeFlagsIgnoresLSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L129" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L84" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_malformed_lsa_test.go#L38" title="internal/plugins/ospf/rfc8665_malformed_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidTLVIgnoresLSA</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L472" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665TruncatedTLVsRejectedWithoutPanic</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.1-6">RFC8665-3.1-6</code></td><td colspan="3"><span class="rfc-subject">The SR-Algorithm TLV SHOULD only be advertised once in the RI Opaque LSA (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.1-6">RFC8665-3.1-6</code></td><td colspan="3"><span class="rfc-subject">The SR-Algorithm TLV is optional. It SHOULD only be advertised once in the Router Information Opaque LSA. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1</td>
@@ -741,7 +757,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.2-9">RFC8665-3.2-9</code></td><td colspan="3"><span class="rfc-subject">The Reserved field SHOULD be set to 0 on transmission (SID/Label Range, SRLB, SRMS Preference, Extended Prefix Range, Prefix-SID, Adj-SID, LAN Adj-SID) (§3.2, §3.3, §3.4, §4, §5, §6.1, §6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.2-9">RFC8665-3.2-9</code></td><td colspan="3"><span class="rfc-subject">Reserved: SHOULD be set to 0 on transmission (§3.2, §3.3, §3.4, §4, §5, §6.1, §6.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2</td>
@@ -750,7 +766,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.3-5">RFC8665-3.3-5</code></td><td colspan="3"><span class="rfc-subject">Each time a SID from the SRLB is allocated, it SHOULD also be reported to all components (controller/applications) (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.3-5">RFC8665-3.3-5</code></td><td colspan="3"><span class="rfc-subject">Each time a SID from the SRLB is allocated, it SHOULD also be reported to all components (e.g., controller or applications) in order for these components to have an up-to-date view of the current SRLB allocation. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.3</td>
@@ -759,7 +775,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.4-4">RFC8665-3.4-4</code></td><td colspan="3"><span class="rfc-subject">For the SRMS Preference TLV, AS-scoped flooding SHOULD be used (§3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.4-4">RFC8665-3.4-4</code></td><td colspan="3"><span class="rfc-subject">For the purpose of the SRMS Preference TLV advertisement, AS-scoped flooding SHOULD be used. (§3.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.4</td>
@@ -768,7 +784,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-14">RFC8665-5-14</code></td><td colspan="3"><span class="rfc-subject">PHP behavior SHOULD be done for Mapping-Server-advertised SIDs in the intra-area / inter-area / external downstream-neighbor cases described (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-14">RFC8665-5-14</code></td><td colspan="3"><span class="rfc-subject">However, PHP behavior SHOULD be done in the following cases: The Prefix is intra-area type and the downstream neighbor is the originator of the prefix. The Prefix is inter-area type and the downstream neighbor is an ABR, which is advertising prefix reachability and is also generating the Extended Prefix TLV with the A-Flag set for this prefix as described in Section 2.1 of [RFC7684]. The Prefix is external type and the downstream neighbor is an ASBR, which is advertising prefix reachability and is also generating the Extended Prefix TLV with the A-Flag set for this prefix as described in Section 2.1 of [RFC7684]. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -777,7 +793,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.3-1">RFC8665-7.3-1</code></td><td colspan="3"><span class="rfc-subject">When an SR-capable ASBR generates Type-5 LSAs, it SHOULD also originate OSPF Extended Prefix Opaque LSAs (§7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.3-1">RFC8665-7.3-1</code></td><td colspan="3"><span class="rfc-subject">When an ASBR, which supports SR, generates Type-5 LSAs, it SHOULD also originate OSPF Extended Prefix Opaque LSAs as described in [RFC7684]. (§7.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7.3</td>
@@ -786,7 +802,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.3-2">RFC8665-7.3-2</code></td><td colspan="3"><span class="rfc-subject">When an NSSA ABR translates Type-7 LSAs into Type-5 LSAs, it SHOULD also advertise the Prefix-SID for the prefix (§7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.3-2">RFC8665-7.3-2</code></td><td colspan="3"><span class="rfc-subject">When a Not-So-Stubby Area (NSSA) [RFC3101] ABR translates Type-7 LSAs into Type-5 LSAs, it SHOULD also advertise the Prefix-SID for the prefix. (§7.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7.3</td>
@@ -795,7 +811,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-10-2">RFC8665-10-2</code></td><td colspan="3"><span class="rfc-subject">Stronger authentication mechanisms such as RFC 7474 SHOULD be used where attackers may have network access (§10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-10-2">RFC8665-10-2</code></td><td colspan="3"><span class="rfc-subject">While OSPF is under a single administrative domain, there can be deployments where potential attackers have access to one or more networks in the OSPF routing domain. In these deployments, stronger authentication mechanisms such as those specified in [RFC7474] SHOULD be used. (§10)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>10</td>
@@ -804,19 +820,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-9-2">RFC8665-9-2</code></td><td colspan="3"><span class="rfc-subject">Reception of malformed TLVs or sub-TLVs SHOULD be counted and/or logged for further analysis (§9, §10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-9-2">RFC8665-9-2</code></td><td colspan="3"><span class="rfc-subject">Reception of malformed TLVs or sub-TLVs SHOULD be counted and/or logged for further analysis. (§10)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>9</td>
+<td>10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-9-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-9-3">RFC8665-9-3</code></td><td colspan="3"><span class="rfc-subject">Logging of malformed TLVs and sub-TLVs SHOULD be rate limited to prevent a DoS attack (§9, §10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-9-3">RFC8665-9-3</code></td><td colspan="3"><span class="rfc-subject">Logging of malformed TLVs and sub-TLVs SHOULD be rate limited to prevent a Denial of Service (DoS) attack (distributed or otherwise) from overloading the OSPF control plane. (§10)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>9</td>
+<td>10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-9-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -849,7 +865,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.2-13">RFC8665-3.2-13</code></td><td colspan="3"><span class="rfc-subject">Multiple occurrences of the SID/Label Range TLV MAY be advertised to advertise multiple ranges (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.2-13">RFC8665-3.2-13</code></td><td colspan="3"><span class="rfc-subject">Multiple occurrences of the SID/Label Range TLV MAY be advertised in order to advertise multiple ranges. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.2</td>
@@ -858,7 +874,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.3-6">RFC8665-3.3-6</code></td><td colspan="3"><span class="rfc-subject">SIDs from the SRLB MAY be used for Adjacency SIDs and by components other than OSPF (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.3-6">RFC8665-3.3-6</code></td><td colspan="3"><span class="rfc-subject">SIDs from the SRLB MAY be used for Adjacency SIDs but also by components other than the OSPF protocol. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.3</td>
@@ -867,7 +883,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.3-7">RFC8665-3.3-7</code></td><td colspan="3"><span class="rfc-subject">The SRLB TLV MAY appear multiple times in the RI Opaque LSA (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.3-7">RFC8665-3.3-7</code></td><td colspan="3"><span class="rfc-subject">The SRLB TLV MAY appear multiple times in the Router Information Opaque LSA (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.3</td>
@@ -885,7 +901,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.3-9">RFC8665-3.3-9</code></td><td colspan="3"><span class="rfc-subject">A router advertising the SRLB TLV MAY also have other label ranges outside the SRLB for local allocation (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.3-9">RFC8665-3.3-9</code></td><td colspan="3"><span class="rfc-subject">A router advertising the SRLB TLV MAY also have other label ranges, outside of the SRLB, used for its local allocation purposes and not advertised in the SRLB TLV. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.3</td>
@@ -894,7 +910,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.4-5">RFC8665-3.4-5</code></td><td colspan="3"><span class="rfc-subject">The SRMS Preference TLV MAY only be advertised once in the RI Opaque LSA (§3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.4-5">RFC8665-3.4-5</code></td><td colspan="3"><span class="rfc-subject">The SRMS Preference TLV MAY only be advertised once in the Router Information Opaque LSA (§3.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.4</td>
@@ -903,7 +919,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.4-6">RFC8665-3.4-6</code></td><td colspan="3"><span class="rfc-subject">If SRMS advertisements are only used inside the server&#39;s area, area-scoped flooding MAY be used (§3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.4-6">RFC8665-3.4-6</code></td><td colspan="3"><span class="rfc-subject">If the SRMS advertisements from the SRMS server are only used inside the SRMS server&#39;s area, area-scoped flooding MAY be used. (§3.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.4</td>
@@ -912,7 +928,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-4-4">RFC8665-4-4</code></td><td colspan="3"><span class="rfc-subject">Multiple OSPF Extended Prefix Range TLVs MAY be advertised in each Extended Prefix Opaque LSA (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-4-4">RFC8665-4-4</code></td><td colspan="3"><span class="rfc-subject">Multiple OSPF Extended Prefix Range TLVs MAY be advertised in each OSPF Extended Prefix Opaque LSA (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4</td>
@@ -921,7 +937,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-15">RFC8665-5-15</code></td><td colspan="3"><span class="rfc-subject">The Prefix-SID Sub-TLV MAY appear more than once in the parent TLV (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-15">RFC8665-5-15</code></td><td colspan="3"><span class="rfc-subject">The Prefix-SID Sub-TLV is a sub-TLV of the OSPF Extended Prefix TLV described in [RFC7684] and the OSPF Extended Prefix Range TLV described in Section 4. It MAY appear more than once in the parent TLV (§5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5</td>
@@ -930,7 +946,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-6.1-3">RFC8665-6.1-3</code></td><td colspan="3"><span class="rfc-subject">The Adj-SID Sub-TLV MAY appear multiple times in the Extended Link TLV (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-6.1-3">RFC8665-6.1-3</code></td><td colspan="3"><span class="rfc-subject">Adj-SID is an optional sub-TLV of the Extended Link TLV defined in [RFC7684]. It MAY appear multiple times in the Extended Link TLV. (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.1</td>
@@ -939,7 +955,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-6.1-4">RFC8665-6.1-4</code></td><td colspan="3"><span class="rfc-subject">An SR-capable router MAY allocate an Adj-SID for each of its adjacencies and set the B-Flag when eligible for FRR protection (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-6.1-4">RFC8665-6.1-4</code></td><td colspan="3"><span class="rfc-subject">An SR-capable router MAY allocate an Adj-SID for each of its adjacencies and set the B-Flag when the adjacency is eligible for protection by an FRR mechanism (IP or MPLS) as described in Section 3.5 of [RFC8402]. (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.1</td>
@@ -966,7 +982,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-6.1-7">RFC8665-6.1-7</code></td><td colspan="3"><span class="rfc-subject">When the G-Flag is set, the Adj-SID MAY be assigned to other adjacencies as well (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-6.1-7">RFC8665-6.1-7</code></td><td colspan="3"><span class="rfc-subject">When set, the G-Flag indicates that the Adj-SID refers to a group of adjacencies (and therefore MAY be assigned to other adjacencies as well). (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.1</td>
@@ -984,7 +1000,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-6.2-2">RFC8665-6.2-2</code></td><td colspan="3"><span class="rfc-subject">The LAN Adj-SID Sub-TLV MAY appear multiple times in the Extended Link TLV (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-6.2-2">RFC8665-6.2-2</code></td><td colspan="3"><span class="rfc-subject">The LAN Adjacency SID is an optional sub-TLV of the Extended Link TLV defined in [RFC7684]. It MAY appear multiple times in the Extended Link TLV. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.2</td>
@@ -1002,7 +1018,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.1-4">RFC8665-7.1-4</code></td><td colspan="3"><span class="rfc-subject">An OSPFv2 router that supports SR MAY advertise Prefix-SIDs for any prefix to which it advertises reachability (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.1-4">RFC8665-7.1-4</code></td><td colspan="3"><span class="rfc-subject">An OSPFv2 router that supports Segment Routing MAY advertise Prefix- SIDs for any prefix to which it is advertising reachability (e.g., a loopback IP address as described in Section 5). (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>7.1</td>
@@ -1011,7 +1027,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.4.1-2">RFC8665-7.4.1-2</code></td><td colspan="3"><span class="rfc-subject">An Adj-SID MAY be advertised for any adjacency on a P2P link in neighbor state 2-Way or higher (§7.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.4.1-2">RFC8665-7.4.1-2</code></td><td colspan="3"><span class="rfc-subject">An Adj-SID MAY be advertised for any adjacency on a point-to-point (P2P) link that is in neighbor state 2-Way or higher. (§7.4.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>7.4.1</td>
@@ -1020,7 +1036,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.4.1-3">RFC8665-7.4.1-3</code></td><td colspan="3"><span class="rfc-subject">If a P2P-link adjacency transitions from the FULL state, the Adj-SID for that adjacency MAY be removed from the area (§7.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.4.1-3">RFC8665-7.4.1-3</code></td><td colspan="3"><span class="rfc-subject">If the adjacency on a P2P link transitions from the FULL state, then the Adj-SID for that adjacency MAY be removed from the area. (§7.4.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>7.4.1</td>
@@ -1029,7 +1045,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.4.2-1">RFC8665-7.4.2-1</code></td><td colspan="3"><span class="rfc-subject">Each router on a broadcast/NBMA/hybrid network MAY advertise the Adj-SID for its adjacency to the DR (§7.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.4.2-1">RFC8665-7.4.2-1</code></td><td colspan="3"><span class="rfc-subject">When Segment Routing is used, each router on the broadcast, NBMA, or hybrid network MAY advertise the Adj-SID for its adjacency to the DR using the Adj-SID Sub-TLV as described in Section 6.1. (§7.4.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>7.4.2</td>
@@ -1038,7 +1054,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.4.2-2">RFC8665-7.4.2-2</code></td><td colspan="3"><span class="rfc-subject">SR-capable routers MAY advertise a LAN Adjacency SID for other neighbors (BDR, DR-OTHER, etc.) on broadcast/NBMA/hybrid networks (§7.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-7.4.2-2">RFC8665-7.4.2-2</code></td><td colspan="3"><span class="rfc-subject">SR-capable routers MAY also advertise a LAN Adjacency SID for other neighbors (e.g., Backup Designated Router, DR-OTHER, etc.) on the broadcast, NBMA, or hybrid network using the LAN Adj-SID Sub-TLV as described in Section 6.2. (§7.4.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>7.4.2</td>
@@ -1047,7 +1063,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.1-7">RFC8665-3.1-7</code></td><td colspan="3"><span class="rfc-subject">For SR-Algorithm TLV, SID/Label Range TLV, and SRLB TLV advertisement, area-scoped flooding is REQUIRED (§3.1, §3.2, §3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.1-7">RFC8665-3.1-7</code></td><td colspan="3"><span class="rfc-subject">For the purpose of SR-Algorithm TLV advertisement, area-scoped flooding is REQUIRED. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>REQUIRED</td>
 <td>3.1</td>
@@ -1069,7 +1085,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>the SR capability read walks every RI Opaque LSA in the LSDB and assigns the per-router entry from whichever view it reaches last, with no flooding-scope comparison -- srRemoteCapabilities iterates e.lsdb.OpaqueLSAsByType at internal/plugins/ospf/sr_install.go:238-241 and its record closure assigns caps[router] and algos[router] at internal/plugins/ospf/sr_install.go:222-229 -- so an AS-scoped RI LSA can override the area-scoped one. Disclosed in docs/features/rfc-status.md RFC 8665 row</td>
 </tr>
-<tr><td><a href="#rfc8665-3.1-5"><code>RFC8665-3.1-5</code></a> If the SR-Algorithm TLV appears in RI Opaque LSAs with the same flooding scope, use the one with the numerically smallest Instance ID and ignore subsequent instances (§3.1)</td>
+<tr><td><a href="#rfc8665-3.1-5"><code>RFC8665-3.1-5</code></a> If the SR-Algorithm TLV appears in multiple Router Information Opaque LSAs that have the same flooding scope, the SR-Algorithm TLV in the Router Information (RI) Opaque LSA with the numerically smallest Instance ID MUST be used and subsequent instances of the SR-Algorithm TLV MUST be ignored. (§3.1)</td>
 <td>{gap}, no test</td>
 <td>the SR capability read compares no Instance ID. The opaque view carries OpaqueID, the RFC 7770 Instance ID, but srRemoteCapabilities ignores it and the last view processed wins, internal/plugins/ospf/sr_install.go:238-241 with the assignment at internal/plugins/ospf/sr_install.go:222-229. Disclosed in docs/features/rfc-status.md RFC 8665 row</td>
 </tr>
@@ -1081,11 +1097,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>the received SRMS preference is decoded into srRemoteCapabilities.SRMSPref, internal/plugins/ospf/sr.go:349-358, and nothing consumes it: srRemoteCapabilities keeps only the SRGB and the algorithm list, internal/plugins/ospf/sr_install.go:222-229, so no narrowest-flooding-scope selection exists. Disclosed in docs/features/rfc-status.md RFC 8665 row</td>
 </tr>
-<tr><td><a href="#rfc8665-3.4-3"><code>RFC8665-3.4-3</code></a> If the SRMS Preference TLV appears in RI Opaque LSAs with the same flooding scope, use the one with the numerically smallest Instance ID and ignore subsequent instances (§3.4)</td>
+<tr><td><a href="#rfc8665-3.4-3"><code>RFC8665-3.4-3</code></a> If the SRMS Preference TLV appears in multiple Router Information Opaque LSAs that have the same flooding scope, the SRMS Preference TLV in the Router Information Opaque LSA with the numerically smallest Instance ID MUST be used and subsequent instances of the SRMS Preference TLV MUST be ignored. (§3.4)</td>
 <td>{gap}, no test</td>
 <td>the decode keeps the first SRMS Preference TLV within one LSA body, internal/plugins/ospf/sr.go:349-358, but nothing compares instances across LSAs and the preference is never consumed, internal/plugins/ospf/sr_install.go:222-229, so there is no smallest-Instance-ID tie-break. Disclosed in docs/features/rfc-status.md RFC 8665 row</td>
 </tr>
-<tr><td><a href="#rfc8665-4-1"><code>RFC8665-4-1</code></a> All prefix ranges in a single OSPF Extended Prefix Opaque LSA MUST have the same flooding scope (§4)</td>
+<tr><td><a href="#rfc8665-4-1"><code>RFC8665-4-1</code></a> all prefix ranges included in a single OSPF Extended Prefix Opaque LSA MUST have the same flooding scope. (§4)</td>
 <td>{gap}, no test</td>
 <td>ze originates no OSPF Extended Prefix Range TLV for IPv4. extPrefixOnOriginate builds one Extended Prefix Opaque LSA per advertised prefix carrying a single Extended Prefix TLV, internal/plugins/ospf/ext_prefix.go:61-80, and never populates ExtPrefixLSA.Ranges; the range value encoder exists at internal/plugins/ospf/sr/codec.go:482-494 with no caller outside tests, so no code assigns a flooding scope to a prefix range or keeps the ranges in one LSA scope-uniform. Disclosed in docs/features/rfc-status.md RFC 8665 row</td>
 </tr>
@@ -1149,7 +1165,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-3.1-2"><code>RFC8665-3.1-2</code></a></h3>
 <p>Local policy at the node claiming support for Algorithm 1 MUST NOT alter the SPF paths computed by Algorithm 1. (§3.1, §8.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. single polarity (annotated, argument holds): the obligation binds only a node claiming Algorithm 1, and the only producer of that claim is srBuildAlgorithm. Forbidden precondition: advertising Algorithm 1; TestRFC8665SRAlgorithmTLVAdvertisesAlgorithmZeroOnly decodes the emitted TLV and fails unless it is exactly {0}, so any Algorithm 1 claim goes red. With no claim there is no Algorithm 1 SPF for local policy to alter and no violating input exists</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1164,7 +1180,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-3.1-3"><code>RFC8665-3.1-3</code></a></h3>
 <p>When multiple SR-Algorithm TLVs are received from a given router, the receiver MUST use the first occurrence of the TLV in the Router Information Opaque LSA. (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: using a later SR-Algorithm TLV of the same RI LSA. TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored feeds srDecodeRemoteCapabilities (the receive decode) one body with {0} then {1} and fails unless the result is exactly {0}, red on last-wins and on union; positive TestRFC8665SingleAlgorithmAndSRMSInstanceUsed pins the single-TLV case</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1187,12 +1203,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8665-3.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc8665-3.1-5"><code>RFC8665-3.1-5</code></a></h3>
-<p>If the SR-Algorithm TLV appears in RI Opaque LSAs with the same flooding scope, use the one with the numerically smallest Instance ID and ignore subsequent instances (§3.1)</p>
+<p>If the SR-Algorithm TLV appears in multiple Router Information Opaque LSAs that have the same flooding scope, the SR-Algorithm TLV in the Router Information (RI) Opaque LSA with the numerically smallest Instance ID MUST be used and subsequent instances of the SR-Algorithm TLV MUST be ignored. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8665-3.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc8665-3.2-1"><code>RFC8665-3.2-1</code></a></h3>
-<p>Range Size in the SID/Label Range TLV MUST be greater than 0 (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Range Size: 3-octet SID/label range size (i.e., the number of SIDs or labels in the range including the first SID/label). It MUST be greater than 0. (§3.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: a Range Size of 0 sent or accepted. Receive: TestRFC8665RangeSizeZeroRejected zeroes only the size of a valid value and requires DecodeRangeValue to error, and srDecodeRemoteCapabilities appends a range only on rerr == nil. Send: the same test requires SRConfig.Validate to reject a configured SRGB of size 0, and Validate gates the config verify (validateSRConfig, register.go) before any SRGB reaches srWire. Positive TestRFC8665RangeTLVRoundTrip decodes size 100</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1232,7 +1248,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-3.2-3"><code>RFC8665-3.2-3</code></a></h3>
 <p>If more than one SID/Label Sub-TLV is present, the SID/ Label Range TLV MUST be ignored. (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: using a range TLV that carries two SID/Label sub-TLVs. TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored builds two valid sub-TLVs and requires DecodeRangeValue to error, red on a decoder that picks one; the SRGB case of srDecodeRemoteCapabilities appends only on rerr == nil, so the error is the ignore. Positive TestRFC8665RangeWithSingleSIDLabelAccepted accepts exactly one</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1252,7 +1268,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-3.2-4"><code>RFC8665-3.2-4</code></a></h3>
 <p>* The originating router MUST encode each range into a different SID/Label Range TLV. (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. single polarity (annotated, argument holds: srBuildSRGB emits one RITLV per configured range and cannot pack two). TestRFC8665EachRangeInItsOwnTLV requires two type-9 TLVs from two ranges, each decoding as a single-sub-TLV range with the expected base in order, red on packing</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1267,7 +1283,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-3.2-5"><code>RFC8665-3.2-5</code></a></h3>
 <p>The originating router MUST ensure the order is the same after a graceful restart (using checkpointing, nonvolatile storage, or any other mechanism) in order to ensure the SID/Label range and SID index correspondence is preserved across graceful restarts. (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC8665RangeOrderStableAcrossRestart feeds the same Go slice to srConfiguredRouter twice, so it proves srBuildSRGB is deterministic but bypasses parseSegmentRouting (sr_config.go), the step the single-polarity annotation says rebuilds the order after a restart; a parser that reordered ranges would stay green (questions 2 and 4)</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1282,7 +1298,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-3.2-6"><code>RFC8665-3.2-6</code></a></h3>
 <p>* The receiving router MUST adhere to the order in which the ranges are advertised when calculating a SID/Label from a SID index. (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SRGB.Label is asserted in order: index 5 over ranges 20000.. then 16000.. must be 16000 and the reversed order must differ at index 0, red on a sorted mapping. But the order the receiver adheres to is produced by srDecodeRemoteCapabilities, which appends decoded ranges into caps.SRGB, and no tagged unit decodes two SID/Label Range TLVs from an RI body and checks the resulting order; a decode that sorted or reordered ranges stays green (question 4)</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1302,7 +1318,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-3.2-7"><code>RFC8665-3.2-7</code></a></h3>
 <p>* The originating router MUST NOT advertise overlapping ranges. (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: advertising overlapping SRGB ranges. TestRFC8665OverlappingRangesRejected requires SRConfig.Validate to reject 16000+100 with 16050+100, red on a missing overlap check; Validate gates the config verify (validateSRConfig, register.go) so the advertised SRGB is only a validated one. Positive TestRFC8665NonOverlappingRangesAccepted accepts disjoint ranges</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1325,8 +1341,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8665-3.2-8, so no unit is bound to it.</p>
 <h3><a href="#rfc8665-3.2-14"><code>RFC8665-3.2-14</code></a></h3>
-<p>The Reserved field MUST be ignored on reception (SID/Label Range, SRLB, SRMS Preference, Extended Prefix Range, Prefix-SID, Adj-SID, LAN Adj-SID) (§3.2, §3.3, §3.4, §4, §5, §6.1, §6.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Reserved: SHOULD be set to 0 on transmission and MUST be ignored on reception (§3.2, §3.3, §3.4, §4, §5, §6.1, §6.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. the MUST clause is reception: TestRFC8665ReservedFieldIgnoredOnReception sets the Reserved octets of all seven SR TLV/sub-TLV decoders to 0xff and fails unless the decode is DeepEqual to the zero case and error-free, red on a decoder that reads or rejects Reserved; TestRFC8665NonReservedOctetIsRead flips a read octet and requires a changed decode, so the equality is not vacuous. The transmission clause is a SHOULD, carried by row RFC8665-3.2-9, not by this MUST row Re-stamped 2026-09-27 by DF-OSPF-C after a rename only: the tag&#39;s prose names the range decoder DecodeExtPrefixRangeValueV4 (was decodeExtPrefixRangeValueV4, now exported for the RFC 8665 Section 9 LSA-level check); no assertion changed. REV-OSPF independent re-audit 2026-09-27: kept enforced. Forbidden: a decoder that rejects or reads a Reserved octet; TestRFC8665ReservedFieldIgnoredOnReception sets every Reserved octet of all seven SR decoders to 0xff and fails unless the decode is error-free and DeepEqual to the clean one; TestRFC8665NonReservedOctetIsRead proves the equality is not vacuous. The transmission SHOULD is row RFC8665-3.2-9. The body change since the earlier stamp is the decodeExtPrefixRangeValueV4 to DecodeExtPrefixRangeValueV4 rename only.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1345,8 +1361,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8665-3.3-1"><code>RFC8665-3.3-1</code></a></h3>
-<p>Range Size in the SRLB TLV MUST be greater than 0 (§3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Range Size: 3-octet SID/Label range size (i.e., the number of SIDs or labels in the range including the first SID/Label). It MUST be greater than 0. (§3.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: an SRLB Range Size of 0 sent or accepted. Receive: the SRLB case of srDecodeRemoteCapabilities uses DecodeRangeValue with an rerr == nil gate, and TestRFC8665RangeSizeZeroRejected requires it to reject size 0. Send: the same test requires Validate to reject a configured SRLB of size 0 (the cfgLB case), and Validate gates config verify. Positive TestRFC8665RangeTLVRoundTrip</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1386,7 +1402,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-3.3-3"><code>RFC8665-3.3-3</code></a></h3>
 <p>If more than one SID/Label Sub-TLV is present, the SRLB TLV MUST be ignored. (§3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: using an SRLB TLV that carries two SID/Label sub-TLVs. The V4TypeSRLB case of srDecodeRemoteCapabilities calls the same DecodeRangeValue and appends only on rerr == nil; TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored requires that decoder to reject the two-sub-TLV value, red on a decoder that picks one. Positive accepts exactly one</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1406,7 +1422,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-3.3-4"><code>RFC8665-3.3-4</code></a></h3>
 <p>The originating router MUST NOT advertise overlapping ranges. (§3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: advertising overlapping SRLB ranges. TestRFC8665OverlappingRangesRejected requires Validate to reject two overlapping SRLB ranges (and an SRLB overlapping the SRGB), red on a missing check; Validate gates config verify. Positive TestRFC8665NonOverlappingRangesAccepted accepts disjoint SRLB ranges</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1426,7 +1442,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-3.4-1"><code>RFC8665-3.4-1</code></a></h3>
 <p>When multiple SRMS Preference TLVs are received from a given router, the receiver MUST use the first occurrence of the TLV in the Router Information Opaque LSA. (§3.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: using a later SRMS Preference TLV of the same RI LSA. TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored decodes an RI body with Preference 100 then 250 via srDecodeRemoteCapabilities and fails unless SRMSPref is 100, red on last-wins; positive pins the single-TLV case. The preference has no consumer (RFC8665-3.4-2 gap), so the decode is the only use</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1449,11 +1465,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8665-3.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8665-3.4-3"><code>RFC8665-3.4-3</code></a></h3>
-<p>If the SRMS Preference TLV appears in RI Opaque LSAs with the same flooding scope, use the one with the numerically smallest Instance ID and ignore subsequent instances (§3.4)</p>
+<p>If the SRMS Preference TLV appears in multiple Router Information Opaque LSAs that have the same flooding scope, the SRMS Preference TLV in the Router Information Opaque LSA with the numerically smallest Instance ID MUST be used and subsequent instances of the SRMS Preference TLV MUST be ignored. (§3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8665-3.4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8665-4-1"><code>RFC8665-4-1</code></a></h3>
-<p>All prefix ranges in a single OSPF Extended Prefix Opaque LSA MUST have the same flooding scope (§4)</p>
+<p>all prefix ranges included in a single OSPF Extended Prefix Opaque LSA MUST have the same flooding scope. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8665-4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8665-4-2"><code>RFC8665-4-2</code></a></h3>
@@ -1465,8 +1481,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8665-4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8665-5-1"><code>RFC8665-5-1</code></a></h3>
-<p>Reserved bits (other than NP/M/E/V/L) in the Prefix-SID Flags MUST be zero when sent and are ignored when received (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Other bits: Reserved. These MUST be zero when sent and are ignored when received. (§5)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. two clauses. Sent: TestRFC8665PrefixSIDReservedFlagBitsZeroOnSend encodes every defined flag and fails if mask 0x83 is set, red on an encoder leaking a reserved bit. Received: TestRFC8665PrefixSIDReservedFlagBitsIgnoredOnReceive sets 0x83 and requires no error and a decode equal to the clean one, red on a decoder that rejects or interprets them</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1485,8 +1501,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8665-5-2"><code>RFC8665-5-2</code></a></h3>
-<p>If set, then the penultimate hop MUST NOT pop the Prefix-SID before delivering packets to the node that advertised the Prefix-SID. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>NP-Flag: No-PHP (Penultimate Hop Popping) Flag. If set, then the penultimate hop MUST NOT pop the Prefix-SID before delivering packets to the node that advertised the Prefix-SID. (§5)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: popping when NP is set. TestRFC8665NoPHPKeepsPrefixSIDLabel requires OutgoingActionFor(NP=1) to be ActionKeep with the label imposed; negative TestRFC8665PHPPopsWhenNoPHPFlagClear requires NP=0 to pop, so the no-pop rule is tied to the flag. Sole producer of the penultimate-hop action; wiring is row RFC8665-5-7</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1505,8 +1521,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8665-5-3"><code>RFC8665-5-3</code></a></h3>
-<p>If set, any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with the Explicit NULL label (0 for IPv4) before forwarding the packet. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>E-Flag: Explicit Null Flag. If set, any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with the Explicit NULL label (0 for IPv4) before forwarding the packet. (§5)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. clause &#39;replace with Explicit NULL&#39; is asserted at the decision helper: TestRFC8665ExplicitNullReplacesPrefixSID requires OutgoingActionFor(NP=1,E=1) to be ActionExplicitNull, and the E=0 case keeps 16009. Clause &#39;(0 for IPv4)&#39; has no red assertion: the test compares the imposed label with the constant ExplicitNullV4 itself, so a wrong constant stays green, and the family choice srExplicitNull (sr_install.go) that hands the installer ExplicitNullV4 is driven by no tagged unit; no tagged unit drives E=1 through installRoutes/installPrefixSID (questions 2 and 4)</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1526,7 +1542,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-5-4"><code>RFC8665-5-4</code></a></h3>
 <p>A router receiving a Prefix-SID from a remote node and with an algorithm value that the remote node has not advertised in the SR-Algorithm TLV (Section 3.1) MUST ignore the Prefix-SID Sub- TLV. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: installing a Prefix-SID whose algorithm the originator did not advertise. TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised drives installRoutes with the originator advertising {1} only and a usable SRGB and requires no mpls-fib entry at all; without the check the NP=0 penultimate-hop route would emit a pop entry, so the len == 0 assertion goes red. Positive with {0} requires push label 16009</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1546,7 +1562,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-5-5"><code>RFC8665-5-5</code></a></h3>
 <p>All other combinations of V-Flag and L-Flag are invalid and any SID Advertisement received with an invalid setting for V- and L-Flags MUST be ignored. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: accepting a SID with V set and L clear or the reverse. TestRFC8665InvalidVLCombinationIgnored requires Prefix-SID, Adj-SID and LAN Adj-SID decoders to error on both invalid pairs; the receive callers (srRemotePrefixSIDs sr_install.go, sr_tilfa.go) use a SID only on derr == nil, so the error is the ignore. Positive TestRFC8665ValidVLCombinationsDecode decodes V=0/L=0 index and V=1/L=1 label forms</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1566,27 +1582,47 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-5-6"><code>RFC8665-5-6</code></a></h3>
 <p>If an OSPF router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA-OSPF2 strict re-audit 2026-09-27 (independent of DF-OSPF-E). RFC 8665 Section 5 (rfc8665.txt:649-650): &#39;If an OSPF router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored.&#39; Proven clauses: one router&#39;s repeated Prefix-SID, equal (TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored negative, two LSAs and two sub-TLVs: !rs.Duplicate goes red) or differing (TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate negative; TestRFC8665DuplicatePrefixSIDsAllIgnored); scope limits prefix, topology (MT-ID 5), algorithm, router and area in the positive cases, each red if its key field or the per-(area,router) count is dropped. &#39;Ignored&#39; is proven for the MPLS installer only: removing `|| rs.Duplicate` from srInstaller (sr_install.go:80) reddens TestRFC8665DuplicatePrefixSIDsAllIgnored. Weak because the second reader of the same map, srTILFAResolver.PrefixSIDLabel (sr_tilfa.go:40), skips a Duplicate entry and no tagged unit asserts it: with `|| rs.Duplicate` removed there, every RFC8665-5-6 unit stays green (work/agents/RA-OSPF2/mutation.log), so a TI-LFA repair stack may use a Prefix-SID the RFC says to ignore without any red. Also unasserted: a router that repeats its Prefix-SID must not condemn another router&#39;s single Prefix-SID for the same scope (no case mixes a repeating and a single advertiser).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L223" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L329" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665DuplicatePrefixSIDsAllIgnored</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_prefix_sid_per_router_test.go#L50" title="internal/plugins/ospf/sr_prefix_sid_per_router_test.go" target="_blank" rel="noopener"><code>TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L212" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L261" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_prefix_sid_per_router_test.go#L67" title="internal/plugins/ospf/sr_prefix_sid_per_router_test.go" target="_blank" rel="noopener"><code>TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8665-5-7"><code>RFC8665-5-7</code></a></h3>
 <p>When calculating the outgoing label for the prefix, the router MUST take into account, as described below, the E-, NP-, and M-Flags advertised by the next-hop router if that router advertised the SID for the prefix. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. through installRoutes only the NP-clear PHP case of the next-hop originator and the transit-hop swap are asserted; the E-Flag (Explicit NULL) and M-Flag outcomes via the next-hop are never driven through the installer, so ignoring E or M there stays green (question 4)</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1613,8 +1649,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8665-5-9, so no unit is bound to it.</p>
 <h3><a href="#rfc8665-5-10"><code>RFC8665-5-10</code></a></h3>
-<p>If the NP-Flag is not set, any upstream neighbor of the Prefix-SID originator MUST pop the Prefix-SID (PHP) and the received E-Flag is ignored (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the NP-Flag is not set, then: Any upstream neighbor of the Prefix-SID originator MUST pop the Prefix-SID. This is equivalent to the penultimate hop-popping mechanism used in the MPLS data plane. The received E-Flag is ignored. (§5)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. two clauses. Pop: TestRFC8665PHPPopsWhenNoPHPFlagClear requires OutgoingActionFor(NP=0) to be ActionPHP and OutgoingLabel to impose nothing; E ignored: the same case sets E=1, so honoring E goes red. Negative TestRFC8665NoPHPKeepsPrefixSIDLabel: NP=1 must not pop. OutgoingActionFor is the sole producer of the penultimate-hop action (sr_install.go, sr_fib.go); the wiring to the next-hop case is row RFC8665-5-7</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1633,8 +1669,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8665-5-11"><code>RFC8665-5-11</code></a></h3>
-<p>If the NP-Flag is set and the E-Flag is not set, any upstream neighbor MUST keep the Prefix-SID on top of the stack (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the NP-Flag is set and the E-Flag is not set, then: Any upstream neighbor of the Prefix-SID originator MUST keep the Prefix-SID on top of the stack. (§5)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: popping or replacing the SID with NP=1/E=0. TestRFC8665NoPHPKeepsPrefixSIDLabel requires ActionKeep with label 16009 imposed; negative TestRFC8665ExplicitNullReplacesPrefixSID requires NP=1/E=1 not to keep, so the keep rule is tied to E clear. The installer takes its action from OutgoingActionFor/OutgoingLabel; wiring is row RFC8665-5-7</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1653,8 +1689,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8665-5-12"><code>RFC8665-5-12</code></a></h3>
-<p>Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label. (§5)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the NP=1/E=1 decision is asserted: TestRFC8665ExplicitNullReplacesPrefixSID requires ActionExplicitNull, and TestRFC8665NoPHPKeepsPrefixSIDLabel requires NP=1/E=0 to keep 16009. But &#39;an Explicit NULL label&#39; is proven only as label == ExplicitNullV4, the constant compared with itself, so an Explicit NULL constant of the wrong value stays green, and no tagged unit drives E=1 through installRoutes/installPrefixSID or checks the label the installer programs (questions 2 and 4)</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1693,8 +1729,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8665-6.1-1"><code>RFC8665-6.1-1</code></a></h3>
-<p>Reserved bits (5-7) in the Adj-SID Flags MUST be zero when sent and are ignored when received (§6.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Other bits: Reserved. These MUST be zero when sent and are ignored when received. (§6.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. two clauses. Sent: TestRFC8665AdjSIDReservedFlagBitsZeroOnSend encodes all five flags for Adj-SID and LAN Adj-SID and fails if bits 5-7 (0x07) are set. Received: TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive sets 0x07 and requires no error and a decode equal to the clean one</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1760,7 +1796,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC8665-7.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8665-7.4.1-1"><code>RFC8665-7.4.1-1</code></a></h3>
 <p>If the adjacency transitions to a state lower than 2-Way, then the Adj-SID Advertisement MUST be withdrawn from the area. (§7.4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the tests call srAdjManager.neighborLost directly and assert the store entry, the pop entry and the SRLB label are removed; neither the neighbor-FSM hook srAdjNeighborLost (sr_adjsid.go) nor the re-origination it triggers is exercised, so removing the hook or originateSelfLSAsDeferred leaves the Adj-SID advertised with the tests green (question 2)</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1780,7 +1816,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-10-1"><code>RFC8665-10-1</code></a></h3>
 <p>Implementations MUST assure that malformed TLVs and sub-TLVs defined in this document are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§10)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. two clauses. (a) detected: TestRFC8665TruncatedTLVsRejectedWithoutPanic requires ErrMalformed for every truncation below the field layout of six codecs (range, SRMS, Prefix-SID, Adj-SID, LAN Adj-SID, Extended Prefix Range), red on a decoder that accepts a short value; (b) no crash: the same loop fails on a panic for every prefix length. Gap: the SR-Algorithm TLV (§3.1), a TLV this document defines, is in no case of srWellFormedValues, and its decoder DecodeAlgorithmValue (sr/codec.go) accepts any length including 0, so a malformed SR-Algorithm TLV is neither detected nor driven by any tagged unit (question 4)</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1800,27 +1836,67 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-9-1"><code>RFC8665-9-1</code></a></h3>
 <p>For any new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored. (§9)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA-OSPF2 strict re-audit 2026-09-27 (independent of DF-OSPF-E). RFC 8665 Section 9 (rfc8665.txt, s9): &#39;For any new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored.&#39; Kept weak; DF-OSPF-E&#39;s gaps confirmed at source. Proven at LSA level in tagged units: Prefix-SID too long/short/length-and-flags, Extended Prefix Range, Adj-SID, LAN Adj-SID length-and-flags (TestRFC8665LengthBeforeFlagsIgnoresLSA, TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA, TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA), SRLB truncated and SRMS short in the RI LSA (TestRFC8665LengthInvalidTLVIgnoresLSA), positive polarity in each. Unproven clauses: the SID/Label Range (SRGB) TLV with an invalid length: srDecodeRemoteCapabilities (sr.go:348) returns empty capabilities on ErrLength, but TestRFC8665LengthInvalidTLVIgnoresLSA&#39;s invalid map carries only srlb-truncated and srms-short, so turning the SRGB branch&#39;s return into continue leaves every tagged unit green; the BGP-LS export reader is asserted only by the untagged TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L129" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L84" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_malformed_lsa_test.go#L38" title="internal/plugins/ospf/rfc8665_malformed_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidTLVIgnoresLSA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L472" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665TruncatedTLVsRejectedWithoutPanic</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_length_before_flags_test.go#L68" title="internal/plugins/ospf/sr_length_before_flags_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthBeforeFlagsIgnoresLSA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L121" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L72" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_malformed_lsa_test.go#L29" title="internal/plugins/ospf/rfc8665_malformed_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidTLVIgnoresLSA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L460" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665WellFormedTLVsDecode</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_length_before_flags_test.go#L56" title="internal/plugins/ospf/sr_length_before_flags_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthBeforeFlagsIgnoresLSA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8665-3.1-7"><code>RFC8665-3.1-7</code></a></h3>
-<p>For SR-Algorithm TLV, SID/Label Range TLV, and SRLB TLV advertisement, area-scoped flooding is REQUIRED (§3.1, §3.2, §3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>For the purpose of SR-Algorithm TLV advertisement, area-scoped flooding is REQUIRED. (§3.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: flooding the SR-Algorithm TLV at a non-area scope, or not at area scope. TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes fails if type 8 is registered at AS or link scope; TestRFC8665SRCapabilityTLVsAreAreaScoped fails if it is missing at area scope. riTLVBuildersForScope is the sole producer of each scope&#39;s TLV set: buildRIInstances (ri.go) reads it unconditionally for the RI LSA of that scope, so the registry assertion is the emitted-LSA content</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2134,7 +2210,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

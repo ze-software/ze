@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4862 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4862: IPv6 Stateless Address Autoconfiguration. 16 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4862: IPv6 Stateless Address Autoconfiguration. 16 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4862 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4862: IPv6 Stateless Address Autoconfiguration. 16 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4862: IPv6 Stateless Address Autoconfiguration. 16 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4862 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4862: IPv6 Stateless Address Autoconfiguration. 16 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4862: IPv6 Stateless Address Autoconfiguration. 16 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -314,7 +317,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no DAD at all, so the anycast exclusion is enforced by the kernel that performs DAD</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4-5">RFC4862-5.4-5</code></td><td colspan="3"><span class="rfc-subject">New implementations MUST NOT skip DAD for a global address that reuses the link-local interface identifier (the DAD &#34;optimization&#34;) (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4-5">RFC4862-5.4-5</code></td><td colspan="3"><span class="rfc-subject">Note that there are implementations deployed that only perform Duplicate Address Detection for the link-local address and skip the test for the global address that uses the same interface identifier as that of the link-local address. Whereas this document does not invalidate such implementations, this kind of &#34;optimization&#34; is NOT RECOMMENDED, and new implementations MUST NOT do that optimization. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.4</td>
@@ -359,7 +362,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> NS response suppression for tentative addresses is enforced by the kernel neighbor subsystem that owns the tentative state; ze answers no NS</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.5-1">RFC4862-5.4.5-1</code></td><td colspan="3"><span class="rfc-subject">A tentative address that is determined to be a duplicate MUST NOT be assigned to an interface (§5.4.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.5-1">RFC4862-5.4.5-1</code></td><td colspan="3"><span class="rfc-subject">A tentative address that is determined to be a duplicate as described above MUST NOT be assigned to an interface (§5.4.5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.4.5</td>
@@ -395,7 +398,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> datagram acceptance for a deprecated address is a kernel IP-stack behavior; ze runs no IP forwarding/receive datapath</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-5">RFC4862-5.5.4-5</code></td><td colspan="3"><span class="rfc-subject">If an implementation prevents new communication from using a deprecated address, system management MUST have the ability to disable that facility (§5.5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-5">RFC4862-5.5.4-5</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY prevent any new communication from using a deprecated address, but system management MUST have the ability to disable such a facility (§5.5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.5.4 - Four sites</td>
@@ -404,7 +407,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements no facility that prevents new communication on a deprecated address; deprecated-address source selection is the kernel&#39;s, configured via kernel sysctls ze passes through (internal/component/iface/config_sysctl.go:73-79)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-6">RFC4862-5.5.4-6</code></td><td colspan="3"><span class="rfc-subject">The facility preventing new communication on a deprecated address MUST be disabled by default (§5.5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-6">RFC4862-5.5.4-6</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY prevent any new communication from using a deprecated address, but system management MUST have the ability to disable such a facility, and the facility MUST be disabled by default. (§5.5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.5.4 - Four sites</td>
@@ -422,7 +425,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> source-address selection excluding invalid (expired) addresses is a kernel function; ze originates no traffic bound by SLAAC source selection and only observes lifetimes via netlink (internal/plugins/iface/netlink/slaac_linux.go:46)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-8">RFC4862-5.5.4-8</code></td><td colspan="3"><span class="rfc-subject">An invalid address MUST NOT be recognized as a destination on a receiving interface (§5.5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-8">RFC4862-5.5.4-8</code></td><td colspan="3"><span class="rfc-subject">An invalid address MUST NOT be used as a source address in outgoing communications and MUST NOT be recognized as a destination on a receiving interface. (§5.5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.5.4 - Four sites</td>
@@ -440,7 +443,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4-4">RFC4862-5.4-4</code></td><td colspan="3"><span class="rfc-subject">Performing DAD only for the link-local address and skipping the global address that reuses its interface identifier is NOT RECOMMENDED (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4-4">RFC4862-5.4-4</code></td><td colspan="3"><span class="rfc-subject">Note that there are implementations deployed that only perform Duplicate Address Detection for the link-local address and skip the test for the global address that uses the same interface identifier as that of the link-local address. Whereas this document does not invalidate such implementations, this kind of &#34;optimization&#34; is NOT RECOMMENDED (§5.4)</span></td></tr>
 <tr><td></td>
 <td>NOT RECOMMENDED</td>
 <td>5.4</td>
@@ -449,7 +452,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.2-2">RFC4862-5.4.2-2</code></td><td colspan="3"><span class="rfc-subject">If the Neighbor Solicitation is the first message sent after interface (re)initialization, the node SHOULD delay joining the solicited-node multicast address by a random delay between 0 and MAX_RTR_SOLICITATION_DELAY (§5.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.2-2">RFC4862-5.4.2-2</code></td><td colspan="3"><span class="rfc-subject">If the Neighbor Solicitation is going to be the first message sent from an interface after interface (re)initialization, the node SHOULD delay joining the solicited-node multicast address by a random delay between 0 and MAX_RTR_SOLICITATION_DELAY as specified in [RFC4861]. (§5.4.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.4.2</td>
@@ -458,7 +461,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.2-3">RFC4862-5.4.2-3</code></td><td colspan="3"><span class="rfc-subject">Even when not the first message, the node SHOULD delay joining the solicited-node multicast address by a random delay between 0 and MAX_RTR_SOLICITATION_DELAY if the address being checked is configured by a multicasted router advertisement (§5.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.2-3">RFC4862-5.4.2-3</code></td><td colspan="3"><span class="rfc-subject">Even if the Neighbor Solicitation is not going to be the first message sent, the node SHOULD delay joining the solicited-node multicast address by a random delay between 0 and MAX_RTR_SOLICITATION_DELAY if the address being checked is configured by a router advertisement message sent to a multicast address. (§5.4.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.4.2</td>
@@ -467,7 +470,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.5-2">RFC4862-5.4.5-2</code></td><td colspan="3"><span class="rfc-subject">On DAD failure, the node SHOULD log a system management error (§5.4.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.5-2">RFC4862-5.4.5-2</code></td><td colspan="3"><span class="rfc-subject">A tentative address that is determined to be a duplicate as described above MUST NOT be assigned to an interface, and the node SHOULD log a system management error. (§5.4.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.4.5</td>
@@ -476,7 +479,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.5-3">RFC4862-5.4.5-3</code></td><td colspan="3"><span class="rfc-subject">If the duplicate link-local address is formed from a hardware-based interface identifier (e.g., EUI-64), IP operation on the interface SHOULD be disabled (§5.4.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.5-3">RFC4862-5.4.5-3</code></td><td colspan="3"><span class="rfc-subject">If the address is a link-local address formed from an interface identifier based on the hardware address, which is supposed to be uniquely assigned (e.g., EUI-64 for an Ethernet interface), IP operation on the interface SHOULD be disabled. (§5.4.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.4.5</td>
@@ -503,7 +506,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-2">RFC4862-5.5.4-2</code></td><td colspan="3"><span class="rfc-subject">A deprecated address SHOULD NOT be used to initiate new communications if an alternate (non-deprecated) address of sufficient scope can easily be used instead (§5.5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-2">RFC4862-5.5.4-2</code></td><td colspan="3"><span class="rfc-subject">A deprecated address SHOULD continue to be used as a source address in existing communications, but SHOULD NOT be used to initiate new communications if an alternate (non-deprecated) address of sufficient scope can easily be used instead. (§5.5.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>5.5.4 - Four sites</td>
@@ -512,7 +515,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.6-1">RFC4862-5.6-1</code></td><td colspan="3"><span class="rfc-subject">If there is no security difference, the most recently obtained values SHOULD have precedence over information learned earlier (§5.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.6-1">RFC4862-5.6-1</code></td><td colspan="3"><span class="rfc-subject">In any case, if there is no security difference, the most recently obtained values SHOULD have precedence over information learned earlier. (§5.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.6</td>
@@ -521,7 +524,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.5-4">RFC4862-5.4.5-4</code></td><td colspan="3"><span class="rfc-subject">If the duplicate link-local address is not formed from a hardware-based interface identifier, IP operation on the interface MAY be continued (§5.4.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.5-4">RFC4862-5.4.5-4</code></td><td colspan="3"><span class="rfc-subject">On the other hand, if the duplicate link-local address is not formed from an interface identifier based on the hardware address, which is supposed to be uniquely assigned, IP operation on the interface MAY be continued. (§5.4.5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.4.5</td>
@@ -530,7 +533,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.3-1">RFC4862-5.5.3-1</code></td><td colspan="3"><span class="rfc-subject">A node MAY wish to log a system management error when the preferred lifetime is greater than the valid lifetime (§5.5.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.3-1">RFC4862-5.5.3-1</code></td><td colspan="3"><span class="rfc-subject">If the preferred lifetime is greater than the valid lifetime, silently ignore the Prefix Information option. A node MAY wish to log a system management error in this case. (§5.5.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.5.3</td>
@@ -539,7 +542,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.3-3">RFC4862-5.5.3-3</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY wish to log a system management error when the prefix length plus interface identifier length is not 128 bits (§5.5.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.3-3">RFC4862-5.5.3-3</code></td><td colspan="3"><span class="rfc-subject">If the sum of the prefix length and interface identifier length does not equal 128 bits, the Prefix Information option MUST be ignored. An implementation MAY wish to log a system management error in this case. (§5.5.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.5.3</td>
@@ -578,7 +581,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no DAD at all, so the anycast exclusion is enforced by the kernel that performs DAD</td>
 </tr>
-<tr><td><a href="#rfc4862-5.4-5"><code>RFC4862-5.4-5</code></a> New implementations MUST NOT skip DAD for a global address that reuses the link-local interface identifier (the DAD &#34;optimization&#34;) (§5.4)</td>
+<tr><td><a href="#rfc4862-5.4-5"><code>RFC4862-5.4-5</code></a> Note that there are implementations deployed that only perform Duplicate Address Detection for the link-local address and skip the test for the global address that uses the same interface identifier as that of the link-local address. Whereas this document does not invalidate such implementations, this kind of &#34;optimization&#34; is NOT RECOMMENDED, and new implementations MUST NOT do that optimization. (§5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the kernel decides which addresses undergo DAD; ze forms no addresses and applies no DAD optimization</td>
 </tr>
@@ -598,7 +601,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: NS response suppression for tentative addresses is enforced by the kernel neighbor subsystem that owns the tentative state; ze answers no NS</td>
 </tr>
-<tr><td><a href="#rfc4862-5.4.5-1"><code>RFC4862-5.4.5-1</code></a> A tentative address that is determined to be a duplicate MUST NOT be assigned to an interface (§5.4.5)</td>
+<tr><td><a href="#rfc4862-5.4.5-1"><code>RFC4862-5.4.5-1</code></a> A tentative address that is determined to be a duplicate as described above MUST NOT be assigned to an interface (§5.4.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the kernel decides DAD outcome and refuses assignment on collision; ze only observes the resulting non-tentative address via netlink (internal/plugins/iface/netlink/slaac_linux.go:30)</td>
 </tr>
@@ -614,11 +617,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: datagram acceptance for a deprecated address is a kernel IP-stack behavior; ze runs no IP forwarding/receive datapath</td>
 </tr>
-<tr><td><a href="#rfc4862-5.5.4-5"><code>RFC4862-5.5.4-5</code></a> If an implementation prevents new communication from using a deprecated address, system management MUST have the ability to disable that facility (§5.5.4)</td>
+<tr><td><a href="#rfc4862-5.5.4-5"><code>RFC4862-5.5.4-5</code></a> An implementation MAY prevent any new communication from using a deprecated address, but system management MUST have the ability to disable such a facility (§5.5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze implements no facility that prevents new communication on a deprecated address; deprecated-address source selection is the kernel&#39;s, configured via kernel sysctls ze passes through (internal/component/iface/config_sysctl.go:73-79)</td>
 </tr>
-<tr><td><a href="#rfc4862-5.5.4-6"><code>RFC4862-5.5.4-6</code></a> The facility preventing new communication on a deprecated address MUST be disabled by default (§5.5.4)</td>
+<tr><td><a href="#rfc4862-5.5.4-6"><code>RFC4862-5.5.4-6</code></a> An implementation MAY prevent any new communication from using a deprecated address, but system management MUST have the ability to disable such a facility, and the facility MUST be disabled by default. (§5.5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: any such default lives in the kernel source-address-selection logic; ze provides no deprecated-address-blocking facility to default off</td>
 </tr>
@@ -626,7 +629,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: source-address selection excluding invalid (expired) addresses is a kernel function; ze originates no traffic bound by SLAAC source selection and only observes lifetimes via netlink (internal/plugins/iface/netlink/slaac_linux.go:46)</td>
 </tr>
-<tr><td><a href="#rfc4862-5.5.4-8"><code>RFC4862-5.5.4-8</code></a> An invalid address MUST NOT be recognized as a destination on a receiving interface (§5.5.4)</td>
+<tr><td><a href="#rfc4862-5.5.4-8"><code>RFC4862-5.5.4-8</code></a> An invalid address MUST NOT be used as a source address in outgoing communications and MUST NOT be recognized as a destination on a receiving interface. (§5.5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: destination-address acceptance on input is a kernel IP-stack decision; ze has no IPv6 receive datapath that recognizes destinations</td>
 </tr>
@@ -649,7 +652,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4862-5.4-5"><code>RFC4862-5.4-5</code></a></h3>
-<p>New implementations MUST NOT skip DAD for a global address that reuses the link-local interface identifier (the DAD &#34;optimization&#34;) (§5.4)</p>
+<p>Note that there are implementations deployed that only perform Duplicate Address Detection for the link-local address and skip the test for the global address that uses the same interface identifier as that of the link-local address. Whereas this document does not invalidate such implementations, this kind of &#34;optimization&#34; is NOT RECOMMENDED, and new implementations MUST NOT do that optimization. (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.4-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4862-5.4.1-1"><code>RFC4862-5.4.1-1</code></a></h3>
@@ -669,7 +672,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.4.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4862-5.4.5-1"><code>RFC4862-5.4.5-1</code></a></h3>
-<p>A tentative address that is determined to be a duplicate MUST NOT be assigned to an interface (§5.4.5)</p>
+<p>A tentative address that is determined to be a duplicate as described above MUST NOT be assigned to an interface (§5.4.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.4.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4862-5.5-2"><code>RFC4862-5.5-2</code></a></h3>
@@ -685,11 +688,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.5.4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4862-5.5.4-5"><code>RFC4862-5.5.4-5</code></a></h3>
-<p>If an implementation prevents new communication from using a deprecated address, system management MUST have the ability to disable that facility (§5.5.4)</p>
+<p>An implementation MAY prevent any new communication from using a deprecated address, but system management MUST have the ability to disable such a facility (§5.5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.5.4-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4862-5.5.4-6"><code>RFC4862-5.5.4-6</code></a></h3>
-<p>The facility preventing new communication on a deprecated address MUST be disabled by default (§5.5.4)</p>
+<p>An implementation MAY prevent any new communication from using a deprecated address, but system management MUST have the ability to disable such a facility, and the facility MUST be disabled by default. (§5.5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.5.4-6, so no unit is bound to it.</p>
 <h3><a href="#rfc4862-5.5.4-7"><code>RFC4862-5.5.4-7</code></a></h3>
@@ -697,7 +700,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.5.4-7, so no unit is bound to it.</p>
 <h3><a href="#rfc4862-5.5.4-8"><code>RFC4862-5.5.4-8</code></a></h3>
-<p>An invalid address MUST NOT be recognized as a destination on a receiving interface (§5.5.4)</p>
+<p>An invalid address MUST NOT be used as a source address in outgoing communications and MUST NOT be recognized as a destination on a receiving interface. (§5.5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.5.4-8, so no unit is bound to it.</p>
 </section>
@@ -1070,7 +1073,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

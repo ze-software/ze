@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 6.2% | 1 of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 1 | of 16 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 16 |
 | Not applicable, so out of scope | 6 |
 | Declared gaps | 1 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 14 |
 | Tagged units | 14 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 1 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc8484.md` |
 | Requirement shard | `rfc/requirements/rfc8484.md` |
@@ -112,7 +114,7 @@ One MUST gap ([`RFC8484-5.1-2`](#rfc8484-5.1-2)): for a NODATA response minAnswe
 | `RFC8484-3-1` | A DoH client MUST NOT use a different URI simply because it was discovered outside of the client's configuration (such as through HTTP/2 server push) or because a server offers an unsolicited response that appears to be a valid answer to a DNS query. (§3) | MUST NOT | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the DoH client's URI-selection logic, and ze implements no DoH client -- it is an authoritative DoH server only (internal/component/resolve performs no upstream HTTPS resolution) |
 | `RFC8484-4.1-1` | Future specifications for new media types for DoH MUST define the variables used for URI Template processing with this protocol. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds authors of new DoH media-type specifications, and ze defines no media type beyond application/dns-message (internal/core/dnsserver/secure.go:47) |
 | `RFC8484-4.1-2` | DoH servers MUST implement both the POST and GET methods (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestDoHListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L123). **negative:** `unit/verify` [`TestDoHMethodNotAllowed`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L230) |
-| `RFC8484-4.1-3` | Irrespective of the value of the Accept request header field, the client MUST be prepared to process "application/dns-message" responses (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds a DoH client preparing to process responses, and ze implements no DoH client (server role only) |
+| `RFC8484-4.1-3` | Irrespective of the value of the Accept request header field, the client MUST be prepared to process "application/dns-message" (as described in Section 6) responses (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds a DoH client preparing to process responses, and ze implements no DoH client (server role only) |
 | `RFC8484-4.2-1` | A DoH server MUST be able to process "application/dns-message" request messages (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestDoHListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L140). **negative:** `unit/verify` [`TestDoHRejectsWrongContentType`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L477) |
 | `RFC8484-5-1` | This protocol MUST be used with the https URI scheme (§5) | MUST | 5 | **positive:** `unit/verify` [`TestDoHListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L124). **negative:** no negative test. **{single-polarity}:** DoH is bound only on a TLS listener and a code guard refuses to start a secure listener without certificate material, so ze serves DoH exclusively over TLS with no cleartext-request rejection to test as a negative (internal/core/dnsserver/secure.go:341, :92-97) |
 | `RFC8484-5.1-1` | The assigned freshness lifetime of a DoH HTTP response MUST be less than or equal to the smallest TTL in the Answer section of the DNS response (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestDoHCacheControlMatchesSmallestTTL`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L539). **negative:** no negative test. **{single-polarity}:** the handler sets Cache-Control max-age to exactly the smallest Answer-section TTL, so the assigned freshness equals (hence never exceeds) that minimum (internal/core/dnsserver/secure.go:416-419, :478) |
@@ -127,15 +129,15 @@ One MUST gap ([`RFC8484-5.1-2`](#rfc8484-5.1-2)): for a NODATA response minAnswe
 | `RFC8484-6-4` | When using the POST method, the data payload for this media type MUST NOT be encoded and is used directly as the HTTP message body (§6) | MUST NOT | 6 | **positive:** `unit/verify` [`TestDoHListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L141). **negative:** no negative test. **{single-polarity}:** the POST branch reads the body raw and the handler unpacks it directly as the wire DNS message with no decoding step, so the only meaningful assertion is that the raw body is used directly (internal/core/dnsserver/secure.go:451, :396) |
 | `RFC8484-4.1-4` | The DoH client SHOULD include an HTTP Accept request header field to indicate what type of content can be understood in response (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8484-4.1-5` | DoH clients using media formats that include the ID field from the DNS message header, such as "application/dns-message", SHOULD use a DNS ID of 0 in every DNS request (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8484-5.1-4` | DoH servers SHOULD assign an explicit HTTP freshness lifetime so that the DoH client is more likely to use fresh DNS data (§5.1) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8484-5.1-4` | In particular, DoH servers SHOULD assign an explicit HTTP freshness lifetime (see Section 4.2 of [RFC7234]) so that the DoH client is more likely to use fresh DNS data. (§5.1) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8484-5.1-5` | A freshness lifetime equal to the smallest TTL in the Answer section is RECOMMENDED (§5.1) | RECOMMENDED | 5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8484-5.2-1` | HTTP/2 is the minimum RECOMMENDED version of HTTP for use with DoH (§5.2) | RECOMMENDED | 5.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8484-8.2-1` | HTTP cookies SHOULD NOT be accepted by DoH clients unless they are explicitly required by a use case (§8.2) | SHOULD NOT | 8.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8484-10-1` | The authentication given DoH servers SHOULD NOT rely on DNS-based references to external resources in the TLS handshake (§10) | SHOULD NOT | 10 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8484-5.2-1` | HTTP/2 [RFC7540] is the minimum RECOMMENDED version of HTTP for use with DoH. (§5.2) | RECOMMENDED | 5.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8484-8.2-1` | HTTP cookies SHOULD NOT be accepted by DOH clients unless they are explicitly required by a use case. (§8.2) | SHOULD NOT | 8.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8484-10-1` | To mitigate the possibility of deadlock, the authentication given DoH servers SHOULD NOT rely on DNS-based references to external resources in the TLS handshake. (§10) | SHOULD NOT | 10 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8484-3-2` | DoH servers MAY support more than one URI Template (§3) | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8484-4.1-6` | The client MAY also process other DNS-related media types it receives (§4.1) | MAY | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8484-4.1-6` | MAY also process other DNS- related media types it receives. (§4.1) | MAY | 4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8484-5.4-3` | Other media types MAY be used as defined by HTTP Content Negotiation (§5.4) | MAY | 5.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8484-6-5` | DoH clients using this media type MAY include one or more Extension Mechanisms for DNS EDNS options in the request (§6) | MAY | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8484-6-5` | DoH clients using this media type MAY have one or more Extension Mechanisms for DNS (EDNS) options [RFC6891] in the request. (§6) | MAY | 6 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -143,7 +145,7 @@ One MUST gap ([`RFC8484-5.1-2`](#rfc8484-5.1-2)): for a NODATA response minAnswe
 |---|---|---|
 | [`RFC8484-3-1`](#rfc8484-3-1) A DoH client MUST NOT use a different URI simply because it was discovered outside of the client's configuration (such as through HTTP/2 server push) or because a server offers an unsolicited response that appears to be a valid answer to a DNS query. (§3) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the DoH client's URI-selection logic, and ze implements no DoH client -- it is an authoritative DoH server only (internal/component/resolve performs no upstream HTTPS resolution) |
 | [`RFC8484-4.1-1`](#rfc8484-4.1-1) Future specifications for new media types for DoH MUST define the variables used for URI Template processing with this protocol. (§4.1) | no test | no test carries this requirement id; annotated {not-applicable}: this binds authors of new DoH media-type specifications, and ze defines no media type beyond application/dns-message (internal/core/dnsserver/secure.go:47) |
-| [`RFC8484-4.1-3`](#rfc8484-4.1-3) Irrespective of the value of the Accept request header field, the client MUST be prepared to process "application/dns-message" responses (§4.1) | no test | no test carries this requirement id; annotated {not-applicable}: this binds a DoH client preparing to process responses, and ze implements no DoH client (server role only) |
+| [`RFC8484-4.1-3`](#rfc8484-4.1-3) Irrespective of the value of the Accept request header field, the client MUST be prepared to process "application/dns-message" (as described in Section 6) responses (§4.1) | no test | no test carries this requirement id; annotated {not-applicable}: this binds a DoH client preparing to process responses, and ze implements no DoH client (server role only) |
 | [`RFC8484-5.1-2`](#rfc8484-5.1-2) If the DNS response has no records in the Answer section, and the DNS response has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (see [RFC2308]). (§5.1) | {gap}, no test | minAnswerTTL iterates only the Answer section and the handler sets no Cache-Control when that minimum is 0, so a NODATA response's freshness is never capped at the Authority SOA MINIMUM field (internal/core/dnsserver/secure.go:478-488, :416) |
 | [`RFC8484-5.1-3`](#rfc8484-5.1-3) DoH clients MUST account for the Age response header field's value [RFC7234] when calculating the DNS TTL of a response. (§5.1) | no test | no test carries this requirement id; annotated {not-applicable}: this binds a DoH client's TTL computation using the Age response header, and ze implements no DoH client |
 | [`RFC8484-5.3-1`](#rfc8484-5.3-1) Before using DoH response data for DNS resolution, the client MUST establish that the HTTP request URI can be used for the DoH query (§5.3) | no test | no test carries this requirement id; annotated {not-applicable}: this binds a DoH client's URI validation before trusting a response, and ze implements no DoH client |
@@ -182,7 +184,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8484-4.1-3`](#rfc8484-4.1-3)
 
-Irrespective of the value of the Accept request header field, the client MUST be prepared to process "application/dns-message" responses (§4.1)
+Irrespective of the value of the Accept request header field, the client MUST be prepared to process "application/dns-message" (as described in Section 6) responses (§4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -276,7 +278,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 When using the GET method, the data payload for this media type MUST be encoded with base64url [RFC4648] and then provided as a variable named "dns" to the URI Template expansion. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. GET data MUST be base64url and carried in the variable 'dns'. Positive TestDoH... GET is answered. The negative TestDoHGetRejectsBadDNSParam sends a missing 'dns' (goes red if another variable name were read) and '*', which is outside both the base64 and base64url alphabets. A server that decoded standard base64 ('+', '/') would still pass: no assertion sends a standard-alphabet value, so the base64url clause is unproven.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

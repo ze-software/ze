@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 5 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 5 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 4 | of 5 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 5 |
 | Not applicable, so out of scope | 1 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 8 |
 | Tagged units | 8 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 4 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc2348.md` |
 | Requirement shard | `rfc/requirements/rfc2348.md` |
@@ -94,17 +103,17 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2348-x-1` | Server's acknowledged blksize MUST be less than or equal to the client's requested value (Blocksize Option Specification) | MUST | x | **positive:** `unit/verify` [`TestRFC2348BlksizeAckNotAboveRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2348_blksize_test.go#L13). **negative:** `unit/verify` [`TestRFC2348BlksizeAckNotAboveRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2348_blksize_test.go#L17) |
-| `RFC2348-x-2` | Client MUST use the size specified in the OACK, or send ERROR code 8 to terminate (Blocksize Option Specification) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** This requirement governs the TFTP CLIENT (it MUST use the OACK blocksize or send ERROR 8). Ze ships only a TFTP SERVER (internal/plugins/tftpserver/handler.go) with no TFTP client, so there is no client-side code path that consumes an OACK blocksize or emits ERROR 8. |
-| `RFC2348-x-3` | Valid blksize range MUST be 8 to 65464 inclusive (Blocksize Option Specification) | MUST | x | **positive:** `unit/verify` [`TestRFC2348BlksizeRangeEnforced`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2348_blksize_test.go#L52). **negative:** `unit/verify` [`TestRFC2348BlksizeRangeEnforced`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2348_blksize_test.go#L55) |
-| `RFC2348-x-4` | A data block shorter than the negotiated blksize signals end of transfer (Blocksize Option Specification) | MUST | x | **positive:** `unit/verify` [`TestTFTPReadLargeFile`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L383). **negative:** `unit/verify` [`TestTFTPReadExact512`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L468) |
-| `RFC2348-x-5` | If the transfer size is an exact multiple of the blocksize, an extra zero-length data packet MUST be sent to end the transfer (Blocksize Option Specification) | MUST | x | **positive:** `unit/verify` [`TestTFTPReadExact512`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L464). **negative:** `unit/verify` [`TestTFTPReadLargeFile`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L387) |
+| `RFC2348-x-1` | The specified value must be less than or equal to the value specified by the client. (§Blocksize Option Specification) | MUST | Blocksize | **positive:** `unit/verify` [`TestRFC2348BlksizeAckNotAboveRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2348_blksize_test.go#L13). **negative:** `unit/verify` [`TestRFC2348BlksizeAckNotAboveRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2348_blksize_test.go#L17) |
+| `RFC2348-x-2` | The client must then either use the size specified in the OACK, or send an ERROR packet, with error code 8, to terminate the transfer. (§Blocksize Option Specification) | MUST | Blocksize | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** This requirement governs the TFTP CLIENT (it MUST use the OACK blocksize or send ERROR 8). Ze ships only a TFTP SERVER (internal/plugins/tftpserver/handler.go) with no TFTP client, so there is no client-side code path that consumes an OACK blocksize or emits ERROR 8. |
+| `RFC2348-x-3` | Valid values range between "8" and "65464" octets, inclusive. (§Blocksize Option Specification) | MUST | Blocksize | **positive:** `unit/verify` [`TestRFC2348BlksizeRangeEnforced`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2348_blksize_test.go#L52). **negative:** `unit/verify` [`TestRFC2348BlksizeRangeEnforced`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2348_blksize_test.go#L55) |
+| `RFC2348-x-4` | The reception of a data packet with a data length less than the negotiated blocksize is the final packet. (§Blocksize Option Specification) | MUST | Blocksize | **positive:** `unit/verify` [`TestTFTPReadLargeFile`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L383). **negative:** `unit/verify` [`TestTFTPReadExact512`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L468) |
+| `RFC2348-x-5` | If the amount of data to be transfered is an integral multiple of the blocksize, an extra data packet containing no data is sent to end the transfer. (§Blocksize Option Specification) | MUST | Blocksize | **positive:** `unit/verify` [`TestTFTPReadExact512`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L464). **negative:** `unit/verify` [`TestTFTPReadLargeFile`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L387) |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC2348-x-2`](#rfc2348-x-2) Client MUST use the size specified in the OACK, or send ERROR code 8 to terminate (Blocksize Option Specification) | no test | no test carries this requirement id; annotated {not-applicable}: This requirement governs the TFTP CLIENT (it MUST use the OACK blocksize or send ERROR 8). Ze ships only a TFTP SERVER (internal/plugins/tftpserver/handler.go) with no TFTP client, so there is no client-side code path that consumes an OACK blocksize or emits ERROR 8. |
+| [`RFC2348-x-2`](#rfc2348-x-2) The client must then either use the size specified in the OACK, or send an ERROR packet, with error code 8, to terminate the transfer. (§Blocksize Option Specification) | no test | no test carries this requirement id; annotated {not-applicable}: This requirement governs the TFTP CLIENT (it MUST use the OACK blocksize or send ERROR 8). Ze ships only a TFTP SERVER (internal/plugins/tftpserver/handler.go) with no TFTP client, so there is no client-side code path that consumes an OACK blocksize or emits ERROR 8. |
 
 ## Proof state
 
@@ -112,9 +121,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC2348-x-1`](#rfc2348-x-1)
 
-Server's acknowledged blksize MUST be less than or equal to the client's requested value (Blocksize Option Specification)
+The specified value must be less than or equal to the value specified by the client. (§Blocksize Option Specification)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) OACK blksize above the client's request; (b) 'above cap' subtest t.Errorf when acked > 60000, and the within-cap subtest pins 1200 == requested 1200, so an ack that ignores a smaller request also goes red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -123,7 +132,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2348-x-2`](#rfc2348-x-2)
 
-Client MUST use the size specified in the OACK, or send ERROR code 8 to terminate (Blocksize Option Specification)
+The client must then either use the size specified in the OACK, or send an ERROR packet, with error code 8, to terminate the transfer. (§Blocksize Option Specification)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -131,9 +140,9 @@ No test carries RFC2348-x-2, so no unit is bound to it.
 
 ### [`RFC2348-x-3`](#rfc2348-x-3)
 
-Valid blksize range MUST be 8 to 65464 inclusive (Blocksize Option Specification)
+Valid values range between "8" and "65464" octets, inclusive. (§Blocksize Option Specification)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Only 5 and 70000 (rejected) and 512 (accepted) are exercised. The 'inclusive' bounds are never asserted: a parseRRQ that used n > 8 or n < 65464 (rejecting 8 or 65464) or accepted 7 or 65465 stays green. No tagged assertion at 7/8/65464/65465.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -142,9 +151,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2348-x-4`](#rfc2348-x-4)
 
-A data block shorter than the negotiated blksize signals end of transfer (Blocksize Option Specification)
+The reception of a data packet with a data length less than the negotiated blocksize is the final packet. (§Blocksize Option Specification)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestTFTPReadLargeFile reads exactly three blocks and never checks that nothing follows the short block, so a server that kept sending after the short block (not treating it as final) stays green. Both units run at the default 512 without negotiating blksize, so a server that compared against 512 instead of the negotiated blocksize stays green. The negative (TestTFTPReadExact512 continues after a full block) holds.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -153,9 +162,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2348-x-5`](#rfc2348-x-5)
 
-If the transfer size is an exact multiple of the blocksize, an extra zero-length data packet MUST be sent to end the transfer (Blocksize Option Specification)
+If the amount of data to be transfered is an integral multiple of the blocksize, an extra data packet containing no data is sent to end the transfer. (§Blocksize Option Specification)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Positive TestTFTPReadExact512 asserts the zero-length block 2 after a 512-byte file. The negative claims no extra zero-length packet follows a short final block, but TestTFTPReadLargeFile never reads after block 3, so that polarity asserts nothing. Neither unit negotiates a blksize, so 'the blocksize' is only the 512 default.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

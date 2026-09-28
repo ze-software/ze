@@ -2598,10 +2598,56 @@ ze data encode [--crc|--header] [--cap N] &lt;string|-&gt;
 <p><code>--path &lt;store&gt;</code> selects the exact tree directory or <code>.zefs</code> artifact.
 Without it, commands use <code>database/</code> under the configured directory.
 Data commands never initialize a missing live store.</p>
-<p><code>check</code> verifies every frame and names corrupt keys. <code>repair</code> preserves the source
-and writes verified keys to a new tree or blob. It refuses an existing output.
-Integrity exits are <code>0</code> for success, <code>1</code> for corruption or skipped keys, and <code>2</code>
-for an I/O failure or unsafe path.</p>
+<p><code>check</code> verifies every frame and names corrupt keys. A corrupt frame exits <code>1</code>
+before the history walk, because a frame that does not read cannot be told
+apart from a missing one: run <code>repair</code>, then <code>check</code> the output. With every frame
+intact, it walks config history, where each dated entry <code>file/&lt;stamp&gt;/&lt;name&gt;</code> holds <code>sha256:&lt;hex&gt;</code> and
+the bytes live once under <code>object/&lt;hex&gt;</code>. Each finding is one row,
+<code>&lt;severity&gt;: &lt;kind&gt;: &lt;key&gt;: &lt;detail&gt;</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Severity</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>orphan-object</code></td>
+<td>warning</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>dangling-entry</code></td>
+<td>error</td>
+<td>the entry names an object that is absent or does not hash to its name</td>
+</tr>
+<tr>
+<td><code>malformed-entry</code></td>
+<td>error</td>
+<td>the entry value is not <code>sha256:</code> plus 64 lowercase hex</td>
+</tr>
+<tr>
+<td><code>wrong-hash-object</code></td>
+<td>error</td>
+<td>the object's bytes do not hash to its name, both hashes named</td>
+</tr>
+<tr>
+<td><code>dangling-pointer</code></td>
+<td>error</td>
+<td><code>meta/config/&lt;name&gt;/&lt;pointer&gt;</code> names a stamp whose entry does not resolve</td>
+</tr>
+</tbody>
+</table>
+<p><code>repair</code> preserves the source and writes verified keys to a new tree or blob. It
+refuses an existing output. It then drops every dangling or malformed entry and
+every wrong-hash object from the output, one <code>dropped:</code> row each, keeps orphan
+objects, and reports every pointer left naming a dropped entry without moving
+it. Integrity exits are <code>0</code> for success, <code>1</code> for corruption, skipped or dropped
+keys, or a history error, and <code>2</code> for an I/O failure or unsafe path.</p>
+<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, printHistoryFindings -->
+<!-- source: internal/component/config/storage/history_check.go -- CheckHistory, RepairHistory -->
 <p><code>backup</code> copies every key of the store, at any depth and in any namespace, to
 one new blob artifact under one write lock, so a commit is in the backup whole
 or not at all. The artifact is exact-fit unless <code>spare &lt;n&gt;</code> names a percentage
@@ -4579,7 +4625,7 @@ reaches, where the daemon expands the chain.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 06:03 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

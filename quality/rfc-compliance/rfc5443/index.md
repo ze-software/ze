@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 12.5% | 1 of 8 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 5 | of 8 gated MUSTs judged | 5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 8 |
 | Not applicable, so out of scope | 2 |
 | Declared gaps | 1 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 10 |
 | Tagged units | 10 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 5 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc5443.md` |
 | Requirement shard | `rfc/requirements/rfc5443.md` |
@@ -111,28 +113,28 @@ One MUST gap gated in [`rfc/short/rfc5443.md`](https://github.com/ze-software/ze
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5443-2-1` | While LDP is not fully operational on a link, the IGP advertises that link with maximum cost to avoid transit traffic ("when LDP is not 'fully operational' ... on a given link, the IGP will advertise the link with maximum cost to avoid any transit traffic over it") (§2) | MUST | 2 | **positive:** `unit/verify` [`TestLDPSyncForcesMaxMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L145). **negative:** `unit/verify` [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188) |
-| `RFC5443-2-2` | In OSPF, the maximum cost advertised is LSInfinity, the 16-bit value `0xFFFF` ("In the case of OSPF, this cost is LSInfinity (16-bit value 0xFFFF), as proposed in [RFC3137]") (§2) | MUST | 2 | **positive:** `unit/verify` [`TestLDPSyncMaxMetricValue`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L158). **negative:** `unit/verify` [`TestLDPSyncDisabledIsNoOp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L294) |
-| `RFC5443-2-3` | In IS-IS, the maximum metric advertised is `2^24-2` (`0xFFFFFE`) ("In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE)") (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements RFC 5443 LDP-IGP sync only in OSPF (internal/plugins/ospf/ldp_sync.go); IS-IS has no LDP-IGP sync state machine, so there is no IS-IS 2^24-2 max-metric cost-out producer (internal/plugins/isis defines only the generic MaxMetric topology-removal value) |
-| `RFC5443-2-4` | Do not advertise the IS-IS link at `2^24-1` (the per-RFC-5305 maximum link metric), because that removes the link from the topology and loses the last-resort IP path ("if a link is configured with 2^24-1 ... then this link is not advertised in the topology. It is important to keep the link in the topology to allow IP traffic to use the link as a last resort") (§2) | MUST NOT | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze runs no IS-IS LDP-IGP sync (internal/plugins/isis has no sync state machine), so it never originates an LDP-sync-driven IS-IS metric and cannot misuse the 2^24-1 value |
-| `RFC5443-2-5` | Treat LDP as fully operational on a link only when all three conditions hold: an LDP hello adjacency exists, a suitable associated LDP session matching the hello adjacency's LDP Identifier is established to the peer at the other end of the link, and all label bindings have been exchanged over the session ("LDP is considered fully operational on a link when an LDP hello adjacency exists on it, a suitable associated LDP session ... is established ... and all label bindings have been exchanged over the session") (§2) | MUST | 2 | **positive:** `unit/verify` [`TestLDPSyncSubscribesSessionEvents`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L167). **negative:** `unit/verify` [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L190) |
-| `RFC5443-2-6` | When LDP End-of-LIB is implemented, consider the neighbor LDP session fully operational only upon receipt of the End-of-LIB notification message ("The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received") (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the precondition is unmet -- ze's LDP (internal/plugins/ldp) implements no End-of-LIB notification, so ze uses the RFC 5443 hold-down-estimate alternative instead |
-| `RFC5443-3-1` | On broadcast links with more than one IGP/LDP peer, apply the cost-out procedure to the link as a whole, not to an individual peer ("the cost-out procedure can only be applied to the link as a whole and not to an individual peer") (§3) | MUST | 3 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L372). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L375) |
-| `RFC5443-4-1` | Apply the cost-raising mechanism only to the IP link cost, not the TE link cost ("The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes") (§4) | MUST | 4 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L366). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L369) |
-| `RFC5443-3-2` | When a genuine link problem (not merely link bring-up) causes the cost-out, the implementation should issue network management alerts so the operator can address the condition ("an implementation should issue network management alerts to report the error condition and enable the operator to address it") (§3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5443-5-1` | Follow current best security practice for MPLS/GMPLS networks ("implementors should follow the current best security practice [MPLS-GMPLS-Sec]") (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5443-2-7` | Use a configurable hold-down timer after LDP session establishment as the estimation strategy for "all label bindings exchanged" when End-of-LIB is not available ("A simple implementation strategy is to use a configurable hold-down timer to allow LDP session establishment before declaring LDP fully operational") (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5443-2-8` | Omit the hold-down timer entirely when LDP End-of-LIB is implemented ("When LDP End-of-LIB is implemented, the configurable hold-down timer is no longer needed") (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5443-3-3` | As a policy decision on broadcast links, divert traffic away from all peers on the link when LDP service to one peer is unavailable ("a policy decision has to be made whether the unavailability of LDP service to one peer should result in the traffic being diverted away from all the peers on the link") (§3) | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5443-4-2` | Raise the IP cost of a TE tunnel while there is no operational targeted LDP session between tunnel endpoints ("raising the IP cost of the tunnel while there is no operational LDP session will solve the problem") (§4) | MAY | 4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5443-2-1` | In detail: when LDP is not "fully operational" (see below) on a given link, the IGP will advertise the link with maximum cost to avoid any transit traffic over it. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestLDPSyncForcesMaxMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L145). **negative:** `unit/verify` [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188) |
+| `RFC5443-2-2` | In the case of OSPF, this cost is LSInfinity (16-bit value 0xFFFF), as proposed in [RFC3137]. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestLDPSyncMaxMetricValue`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L158). **negative:** `unit/verify` [`TestLDPSyncDisabledIsNoOp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L294) |
+| `RFC5443-2-3` | In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE). (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements RFC 5443 LDP-IGP sync only in OSPF (internal/plugins/ospf/ldp_sync.go); IS-IS has no LDP-IGP sync state machine, so there is no IS-IS 2^24-2 max-metric cost-out producer (internal/plugins/isis defines only the generic MaxMetric topology-removal value) |
+| `RFC5443-2-4` | Indeed, if a link is configured with 2^24-1 (the maximum link metric per [RFC5305]), then this link is not advertised in the topology. It is important to keep the link in the topology to allow IP traffic to use the link as a last resort in case of massive failure. (§2) | MUST NOT | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze runs no IS-IS LDP-IGP sync (internal/plugins/isis has no sync state machine), so it never originates an LDP-sync-driven IS-IS metric and cannot misuse the 2^24-1 value |
+| `RFC5443-2-5` | LDP is considered fully operational on a link when an LDP hello adjacency exists on it, a suitable associated LDP session (matching the LDP Identifier of the hello adjacency) is established to the peer at the other end of the link, and all label bindings have been exchanged over the session. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestLDPSyncSubscribesSessionEvents`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L167). **negative:** `unit/verify` [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L190) |
+| `RFC5443-2-6` | The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the precondition is unmet -- ze's LDP (internal/plugins/ldp) implements no End-of-LIB notification, so ze uses the RFC 5443 hold-down-estimate alternative instead |
+| `RFC5443-3-1` | On broadcast links with more than one IGP/LDP peer, the cost-out procedure can only be applied to the link as a whole and not to an individual peer. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L372). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L375) |
+| `RFC5443-4-1` | The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L366). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L369) |
+| `RFC5443-3-2` | Note however that non- optimal IP forwarding only occurs for a short time after a link comes up or when there is a genuine problem on a link. In the latter case, an implementation should issue network management alerts to report the error condition and enable the operator to address it. (§3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5443-5-1` | These errors are considered general security issues and implementors should follow the current best security practice [MPLS-GMPLS-Sec]. (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5443-2-7` | A simple implementation strategy is to use a configurable hold-down timer to allow LDP session establishment before declaring LDP fully operational. (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5443-2-8` | When LDP End-of-LIB is implemented, the configurable hold-down timer is no longer needed. (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5443-3-3` | So a policy decision has to be made whether the unavailability of LDP service to one peer should result in the traffic being diverted away from all the peers on the link. (§3) | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5443-4-2` | Again, raising the IP cost of the tunnel while there is no operational LDP session will solve the problem. (§4) | MAY | 4 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5443-2-3`](#rfc5443-2-3) In IS-IS, the maximum metric advertised is `2^24-2` (`0xFFFFFE`) ("In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE)") (§2) | {gap}, no test | ze implements RFC 5443 LDP-IGP sync only in OSPF (internal/plugins/ospf/ldp_sync.go); IS-IS has no LDP-IGP sync state machine, so there is no IS-IS 2^24-2 max-metric cost-out producer (internal/plugins/isis defines only the generic MaxMetric topology-removal value) |
-| [`RFC5443-2-4`](#rfc5443-2-4) Do not advertise the IS-IS link at `2^24-1` (the per-RFC-5305 maximum link metric), because that removes the link from the topology and loses the last-resort IP path ("if a link is configured with 2^24-1 ... then this link is not advertised in the topology. It is important to keep the link in the topology to allow IP traffic to use the link as a last resort") (§2) | no test | no test carries this requirement id; annotated {not-applicable}: ze runs no IS-IS LDP-IGP sync (internal/plugins/isis has no sync state machine), so it never originates an LDP-sync-driven IS-IS metric and cannot misuse the 2^24-1 value |
-| [`RFC5443-2-6`](#rfc5443-2-6) When LDP End-of-LIB is implemented, consider the neighbor LDP session fully operational only upon receipt of the End-of-LIB notification message ("The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received") (§2) | no test | no test carries this requirement id; annotated {not-applicable}: the precondition is unmet -- ze's LDP (internal/plugins/ldp) implements no End-of-LIB notification, so ze uses the RFC 5443 hold-down-estimate alternative instead |
+| [`RFC5443-2-3`](#rfc5443-2-3) In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE). (§2) | {gap}, no test | ze implements RFC 5443 LDP-IGP sync only in OSPF (internal/plugins/ospf/ldp_sync.go); IS-IS has no LDP-IGP sync state machine, so there is no IS-IS 2^24-2 max-metric cost-out producer (internal/plugins/isis defines only the generic MaxMetric topology-removal value) |
+| [`RFC5443-2-4`](#rfc5443-2-4) Indeed, if a link is configured with 2^24-1 (the maximum link metric per [RFC5305]), then this link is not advertised in the topology. It is important to keep the link in the topology to allow IP traffic to use the link as a last resort in case of massive failure. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: ze runs no IS-IS LDP-IGP sync (internal/plugins/isis has no sync state machine), so it never originates an LDP-sync-driven IS-IS metric and cannot misuse the 2^24-1 value |
+| [`RFC5443-2-6`](#rfc5443-2-6) The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: the precondition is unmet -- ze's LDP (internal/plugins/ldp) implements no End-of-LIB notification, so ze uses the RFC 5443 hold-down-estimate alternative instead |
 
 ## Proof state
 
@@ -140,9 +142,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC5443-2-1`](#rfc5443-2-1)
 
-While LDP is not fully operational on a link, the IGP advertises that link with maximum cost to avoid transit traffic ("when LDP is not 'fully operational' ... on a given link, the IGP will advertise the link with maximum cost to avoid any transit traffic over it") (§2)
+In detail: when LDP is not "fully operational" (see below) on a given link, the IGP will advertise the link with maximum cost to avoid any transit traffic over it. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Non-compliant: the originated router-LSA keeps the configured cost while LDP is not fully operational. No tagged assertion reads an originated LSA: TestLDPSyncForcesMaxMetric and TestLDPSyncRestoresAfterHoldDown assert effectiveP2PCost, whose only non-test caller is the show snapshot (ldp_sync.go:664); the advertised cost comes from applyLDPSyncOverride setting InterfaceInfo.LDPSyncMaxMetric and lsdb/origination.go:245/279 reading it. Deleting that flag assignment leaves every tag green. Broadcast links are withheld (RFC 6138 style), not costed out, and no tag covers that for this row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -151,9 +153,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5443-2-2`](#rfc5443-2-2)
 
-In OSPF, the maximum cost advertised is LSInfinity, the 16-bit value `0xFFFF` ("In the case of OSPF, this cost is LSInfinity (16-bit value 0xFFFF), as proposed in [RFC3137]") (§2)
+In the case of OSPF, this cost is LSInfinity (16-bit value 0xFFFF), as proposed in [RFC3137]. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Non-compliant: advertising a max cost other than 0xFFFF. TestLDPSyncMaxMetricValue asserts only the constant ospflsdb.LSInfinity == 0xFFFF; no tagged assertion reads the metric the origination emits for an LDPSyncMaxMetric link. The negative (TestLDPSyncDisabledIsNoOp) proves an unmanaged interface keeps its cost, a neighbouring rule, not the value.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -162,7 +164,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5443-2-3`](#rfc5443-2-3)
 
-In IS-IS, the maximum metric advertised is `2^24-2` (`0xFFFFFE`) ("In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE)") (§2)
+In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE). (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -170,7 +172,7 @@ No test carries RFC5443-2-3, so no unit is bound to it.
 
 ### [`RFC5443-2-4`](#rfc5443-2-4)
 
-Do not advertise the IS-IS link at `2^24-1` (the per-RFC-5305 maximum link metric), because that removes the link from the topology and loses the last-resort IP path ("if a link is configured with 2^24-1 ... then this link is not advertised in the topology. It is important to keep the link in the topology to allow IP traffic to use the link as a last resort") (§2)
+Indeed, if a link is configured with 2^24-1 (the maximum link metric per [RFC5305]), then this link is not advertised in the topology. It is important to keep the link in the topology to allow IP traffic to use the link as a last resort in case of massive failure. (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -178,9 +180,9 @@ No test carries RFC5443-2-4, so no unit is bound to it.
 
 ### [`RFC5443-2-5`](#rfc5443-2-5)
 
-Treat LDP as fully operational on a link only when all three conditions hold: an LDP hello adjacency exists, a suitable associated LDP session matching the hello adjacency's LDP Identifier is established to the peer at the other end of the link, and all label bindings have been exchanged over the session ("LDP is considered fully operational on a link when an LDP hello adjacency exists on it, a suitable associated LDP session ... is established ... and all label bindings have been exchanged over the session") (§2)
+LDP is considered fully operational on a link when an LDP hello adjacency exists on it, a suitable associated LDP session (matching the LDP Identifier of the hello adjacency) is established to the peer at the other end of the link, and all label bindings have been exchanged over the session. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Three clauses: hello adjacency exists, a session matching the adjacency's LDP Identifier is established, all bindings exchanged. Tagged units (TestLDPSyncSubscribesSessionEvents, TestLDPSyncRestoresAfterHoldDown) drive the real ldpSyncManager: SessionUp -> hold-down, timer -> synchronized, so a machine declaring sync on SessionUp goes red. No assertion covers the hello-adjacency or the LDP-Identifier-match clause: a session-up for a session not matching the link's adjacency is never exercised.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -189,7 +191,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5443-2-6`](#rfc5443-2-6)
 
-When LDP End-of-LIB is implemented, consider the neighbor LDP session fully operational only upon receipt of the End-of-LIB notification message ("The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received") (§2)
+The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received. (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -197,9 +199,9 @@ No test carries RFC5443-2-6, so no unit is bound to it.
 
 ### [`RFC5443-3-1`](#rfc5443-3-1)
 
-On broadcast links with more than one IGP/LDP peer, apply the cost-out procedure to the link as a whole, not to an individual peer ("the cost-out procedure can only be applied to the link as a whole and not to an individual peer") (§3)
+On broadcast links with more than one IGP/LDP peer, the cost-out procedure can only be applied to the link as a whole and not to an individual peer. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Non-compliant: a per-peer cost-out on a broadcast link. TestLDPSyncTECostUntouched asserts ldpSyncWithholdTransit(notSynced, managed, cutEdge=false) is true and cut-edge false; the function takes no peer input, so the whole-link granularity is structural and no assertion would go red on a per-neighbour withhold introduced in applyLDPSyncOverride. The negative/positive both test RFC 6138 cut-edge logic rather than peer granularity.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -208,9 +210,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5443-4-1`](#rfc5443-4-1)
 
-Apply the cost-raising mechanism only to the IP link cost, not the TE link cost ("The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes") (§4)
+The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The row forbids raising the TE link cost. TestLDPSyncTECostUntouched asserts effectiveP2PCost == LSInfinity (the IP cost override, RFC5443-2-1) and the cut-edge withhold (RFC 6138 section 4); no assertion reads any TE metric. The tag prose says ze originates no TE LSA, yet interface_cost_test.go has TestDerivedCostReachesLDPSyncAndTEMetric, so that claim needs checking. Both tags prove neighbouring rules.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

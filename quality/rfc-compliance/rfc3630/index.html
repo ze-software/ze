@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3630 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3630: Traffic Engineering (TE) Extensions to OSPF Version 2. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 3630: Traffic Engineering (TE) Extensions to OSPF Version 2. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3630 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3630: Traffic Engineering (TE) Extensions to OSPF Version 2. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 3630: Traffic Engineering (TE) Extensions to OSPF Version 2. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3630 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3630: Traffic Engineering (TE) Extensions to OSPF Version 2. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 3630: Traffic Engineering (TE) Extensions to OSPF Version 2. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +226,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -292,7 +295,7 @@ Same OSPF experimental status.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-1-1">RFC3630-1-1</code></td><td colspan="3"><span class="rfc-subject">Non-TE capable nodes must flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (§1) -- the ext-1 opaque carrier floods Type 10 by scope regardless of any TE consumer (Ze: spec-ospf-ext-2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-1-1">RFC3630-1-1</code></td><td colspan="3"><span class="rfc-subject">if non-TE capable nodes exist in the topology, they MUST flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (see [3]). (§1) -- the ext-1 opaque carrier floods Type 10 by scope regardless of any TE consumer; Ze: spec-ospf-ext-2</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>1</td>
@@ -310,7 +313,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental top-level Type range 32768-32777</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-6-2">RFC3630-6-2</code></td><td colspan="3"><span class="rfc-subject">Top-level Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-6-2">RFC3630-6-2</code></td><td colspan="3"><span class="rfc-subject">Here are the guidelines (using terms defined in [10]) for the assignment of top level Types in TE LSAs: o Types in the range 3-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -328,7 +331,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental sub-TLV Type range 32768-32777</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-6-4">RFC3630-6-4</code></td><td colspan="3"><span class="rfc-subject">Sub-TLV Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-6-4">RFC3630-6-4</code></td><td colspan="3"><span class="rfc-subject">The guidelines for the assignment of types for sub-TLVs in a TE LSA are as follows: o Types in the range 10-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -337,7 +340,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved sub-TLV Type range 32778-65535</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-2.4.1-1">RFC3630-2.4.1-1</code></td><td colspan="3"><span class="rfc-subject">If a router advertises BGP routes with the BGP next hop attribute set to the BGP router ID, the Router Address should be the same as the BGP router ID (§2.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-2.4.1-1">RFC3630-2.4.1-1</code></td><td colspan="3"><span class="rfc-subject">If a router advertises BGP routes with the BGP next hop attribute set to the BGP router ID, then the Router Address SHOULD be the same as the BGP router ID. (§2.4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.4.1</td>
@@ -346,7 +349,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-2.5.7-1">RFC3630-2.5.7-1</code></td><td colspan="3"><span class="rfc-subject">Maximum Reservable Bandwidth should be user-configurable; default value should be the Maximum Bandwidth (§2.5.7) -- Ze: `max-reservable-bandwidth` leaf, defaulting to `max-bandwidth` (applyTELinkAttributes)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-2.5.7-1">RFC3630-2.5.7-1</code></td><td colspan="3"><span class="rfc-subject">This SHOULD be user-configurable; the default value should be the Maximum Bandwidth. (§2.5.7) -- Ze: `max-reservable-bandwidth` leaf, defaulting to `max-bandwidth`, in applyTELinkAttributes</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.5.7</td>
@@ -355,7 +358,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-3-1">RFC3630-3-1</code></td><td colspan="3"><span class="rfc-subject">Origination of Traffic Engineering LSAs should be rate-limited to at most one every MinLSInterval (§3) -- Ze reuses the carrier&#39;s MinLSInterval rate-limit (OriginateSelf); a pull-model unchanged body floods nothing</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-3-1">RFC3630-3-1</code></td><td colspan="3"><span class="rfc-subject">In any case, the origination of Traffic Engineering LSAs SHOULD be rate-limited to at most one every MinLSInterval [1]. (§3) -- Ze reuses the carrier&#39;s MinLSInterval rate-limit in OriginateSelf; a pull-model unchanged body floods nothing</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3</td>
@@ -364,7 +367,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-2.5.4-1">RFC3630-2.5.4-1</code></td><td colspan="3"><span class="rfc-subject">An implementation may choose not to send the Remote Interface IP Address sub-TLV for Multi-access links (§2.5.4) -- Ze omits sub-TLV 4 on multi-access links</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-2.5.4-1">RFC3630-2.5.4-1</code></td><td colspan="3"><span class="rfc-subject">If the Link Type of the link is Multi-access, the Remote Interface IP Address is set to 0.0.0.0; alternatively, an implementation MAY choose not to send this sub-TLV. (§2.5.4) -- Ze omits sub-TLV 4 on multi-access links</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.5.4</td>
@@ -373,7 +376,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-3-2">RFC3630-3-2</code></td><td colspan="3"><span class="rfc-subject">An implementation may set thresholds (e.g., a bandwidth change threshold) that trigger immediate flooding (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-3-2">RFC3630-3-2</code></td><td colspan="3"><span class="rfc-subject">an implementation MAY set thresholds (for example, a bandwidth change threshold) that trigger immediate flooding (§3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3</td>
@@ -395,7 +398,7 @@ Same OSPF experimental status.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental top-level Type range 32768-32777</td>
 </tr>
-<tr><td><a href="#rfc3630-6-2"><code>RFC3630-6-2</code></a> Top-level Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6)</td>
+<tr><td><a href="#rfc3630-6-2"><code>RFC3630-6-2</code></a> Here are the guidelines (using terms defined in [10]) for the assignment of top level Types in TE LSAs: o Types in the range 3-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved top-level Type range 32778-65535</td>
 </tr>
@@ -403,7 +406,7 @@ Same OSPF experimental status.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental sub-TLV Type range 32768-32777</td>
 </tr>
-<tr><td><a href="#rfc3630-6-4"><code>RFC3630-6-4</code></a> Sub-TLV Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6)</td>
+<tr><td><a href="#rfc3630-6-4"><code>RFC3630-6-4</code></a> The guidelines for the assignment of types for sub-TLVs in a TE LSA are as follows: o Types in the range 10-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved sub-TLV Type range 32778-65535</td>
 </tr>
@@ -414,8 +417,8 @@ Same OSPF experimental status.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc3630-1-1"><code>RFC3630-1-1</code></a></h3>
-<p>Non-TE capable nodes must flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (§1) -- the ext-1 opaque carrier floods Type 10 by scope regardless of any TE consumer (Ze: spec-ospf-ext-2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>if non-TE capable nodes exist in the topology, they MUST flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (see [3]). (§1) -- the ext-1 opaque carrier floods Type 10 by scope regardless of any TE consumer; Ze: spec-ospf-ext-2</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Non-TE capable nodes MUST flood TE LSAs as any other type 10 opaque LSA. TestRFC3630NonTECapableFloodsTELSAByScope (ospf/lsdb) asserts the TE LSA reaches the retransmit list of the same-area opaque-capable neighbour. That goes red if the carrier drops or withholds TE LSAs. It also asserts the LSA is absent from the other area&#39;s neighbour, which goes red if TE LSAs were flooded beyond area-local scope, unlike any other type 10.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -438,7 +441,7 @@ Same OSPF experimental status.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3630-6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3630-6-2"><code>RFC3630-6-2</code></a></h3>
-<p>Top-level Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6)</p>
+<p>Here are the guidelines (using terms defined in [10]) for the assignment of top level Types in TE LSAs: o Types in the range 3-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3630-6-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3630-6-3"><code>RFC3630-6-3</code></a></h3>
@@ -446,7 +449,7 @@ Same OSPF experimental status.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3630-6-3, so no unit is bound to it.</p>
 <h3><a href="#rfc3630-6-4"><code>RFC3630-6-4</code></a></h3>
-<p>Sub-TLV Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6)</p>
+<p>The guidelines for the assignment of types for sub-TLVs in a TE LSA are as follows: o Types in the range 10-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3630-6-4, so no unit is bound to it.</p>
 </section>
@@ -735,7 +738,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

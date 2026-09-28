@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8362 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps, 37 with no test." />
+        <meta name="description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 37 with no test." />
         <meta property="og:title" content="RFC 8362 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps, 37 with no test." />
+        <meta property="og:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 37 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8362 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps, 37 with no test." />
+        <meta name="twitter:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 37 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -214,6 +214,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>37</td>
 </tr>
@@ -246,7 +249,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): OSPFv3 Link State Advertisement (LSA) Extensibility. OUT OF SCOPE as a document by owner decision, 2026-09-01, marked for future development. The extraction is COMPLETE: the source text is at rfc/full/rfc8362.txt and this summary declares all 50 requirements, 38 of them MUST-level. What Ze has is a by-product of RFC 8666 Segment Routing rather than the framework this document defines: three of the seven Extended LSA types are originated, and only when segment routing is enabled (v6OriginateSR, internal/plugins/ospf/sr_origination_v6.go); receipt decoding is reached from one place and reads Prefix-SIDs alone (v6ReceivedPrefixSIDs, sr_reception_v6.go); no SPF calculation reads an Extended LSA, because the base Router-LSA remains the sole SPF vertex; and there is no RFC 8362 configuration surface and none of its Appendix A or B migration machinery. Nine MUST-level requirements are genuinely unmet and 20 more are met only because Ze performs no action on their subject. The most serious is RFC8362-2-1: the seven LS type constants carry the U-bit clear where Section 2 requires it set, which is recorded as a defect in plan/journal/declared-format-contradicts-payload.md and is a fix rather than a scope question. No {gap} annotation is written here, because the scope decision covers the document and the U-bit defect is tracked where a fix is owed.</p>
+<p>Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): OSPFv3 Link State Advertisement (LSA) Extensibility. OUT OF SCOPE as a document by owner decision, 2026-09-01, marked for future development. The extraction is COMPLETE: the source text is at rfc/full/rfc8362.txt and this summary declares all 50 requirements, 38 of them MUST-level. What Ze has is a by-product of RFC 8666 Segment Routing rather than the framework this document defines: three of the seven Extended LSA types are originated, and only when segment routing is enabled (v6OriginateSR, internal/plugins/ospf/sr_origination_v6.go); receipt decoding is reached from one place and reads Prefix-SIDs alone (v6ReceivedPrefixSIDs, sr_reception_v6.go); no SPF calculation reads an Extended LSA, because the base Router-LSA remains the sole SPF vertex; and there is no RFC 8362 configuration surface and none of its Appendix A or B migration machinery. Nine MUST-level requirements are genuinely unmet and 20 more are met only because Ze performs no action on their subject. RFC8362-2-1 was the most serious until a9d0b54387 (2026-09-20) set the U-bit on the Extended LS type constants (internal/plugins/ospf/v3/types/lsa.go, 0xA021 E-Router-LSA), as Section 2 requires; the tagged test does not yet check it on the E-Inter-Area-Prefix-LSA.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Future</p>
@@ -254,7 +257,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 Three of the seven Extended LSA types are framed and originated, and only under <code>segment-routing</code>: E-Router (0x2021), E-Intra-Area-Prefix (0x2029) and E-Inter-Area-Prefix (0x2023), through <code>EncodeExtendedLSABody</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/lsa_extended.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/v3/packet/lsa_extended.go</code></a>). Receipt decoding reads Prefix-SIDs and nothing else. No SPF calculation reads an Extended LSA.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Out of scope as a document by owner decision, 2026-09-01, and tracked for future development. Requirements bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8362.md" target="_blank" rel="noopener"><code>rfc/short/rfc8362.md</code></a>. E-Network, E-Inter-Area-Router, E-AS-External, E-Type-7 and E-Link have no producer, nothing validates an Extended LSA body before it is installed, and there is no migration or compatibility mode. The LS types Ze emits carry the U-bit clear where Section 2 requires it set, so they do not flood past an OSPFv3 router that does not support them; that one is a defect rather than a scope decision.
+Out of scope as a document by owner decision, 2026-09-01, and tracked for future development. Requirements bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8362.md" target="_blank" rel="noopener"><code>rfc/short/rfc8362.md</code></a>. E-Network, E-Inter-Area-Router, E-AS-External, E-Type-7 and E-Link have no producer, nothing validates an Extended LSA body before it is installed, and there is no migration or compatibility mode. The LS types Ze emits carry the U-bit Section 2 requires (fixed in a9d0b54387, 2026-09-20).
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -298,7 +301,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-2-1">RFC8362-2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them.&#34; (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-2-1">RFC8362-2-1</code></td><td colspan="3"><span class="rfc-subject">For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -307,7 +310,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L98" title="internal/plugins/ospf/rfc8362_test.go" target="_blank" rel="noopener"><code>TestRFC8362BaseLSAsKeepUBitClearOnTheWire</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.1.1-1">RFC8362-3.1.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored.&#34; (§3.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.1.1-1">RFC8362-3.1.1-1</code></td><td colspan="3"><span class="rfc-subject">If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored. (§3.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1.1</td>
@@ -316,7 +319,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.2-1">RFC8362-3.2-1</code></td><td colspan="3"><span class="rfc-subject">The Router-Link TLV is only applicable to the E-Router-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.2-1">RFC8362-3.2-1</code></td><td colspan="3"><span class="rfc-subject">The Router-Link TLV is only applicable to the E-Router-LSA (Section 4.1). Inclusion in other Extended LSAs MUST be ignored. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
@@ -325,7 +328,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.3-1">RFC8362-3.3-1</code></td><td colspan="3"><span class="rfc-subject">The Attached-Routers TLV is only applicable to the E-Network-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.3-1">RFC8362-3.3-1</code></td><td colspan="3"><span class="rfc-subject">The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). Inclusion in other Extended LSAs MUST be ignored. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3</td>
@@ -334,7 +337,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.4-1">RFC8362-3.4-1</code></td><td colspan="3"><span class="rfc-subject">The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.4-1">RFC8362-3.4-1</code></td><td colspan="3"><span class="rfc-subject">The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA (Section 4.3). Inclusion in other Extended LSAs MUST be ignored. (§3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.4</td>
@@ -343,7 +346,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.5-1">RFC8362-3.5-1</code></td><td colspan="3"><span class="rfc-subject">The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.5-1">RFC8362-3.5-1</code></td><td colspan="3"><span class="rfc-subject">The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA (Section 4.4). Inclusion in other Extended LSAs MUST be ignored. (§3.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.5</td>
@@ -352,7 +355,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.6-1">RFC8362-3.6-1</code></td><td colspan="3"><span class="rfc-subject">The External-Prefix TLV is only applicable to the E-AS-External-LSA and the E-NSSA-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.6-1">RFC8362-3.6-1</code></td><td colspan="3"><span class="rfc-subject">The External-Prefix TLV is only applicable to the E-AS-External-LSA (Section 4.5) and the E-NSSA-LSA (Section 4.6). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
@@ -361,7 +364,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.7-1">RFC8362-3.7-1</code></td><td colspan="3"><span class="rfc-subject">The Intra-Area-Prefix TLV is only applicable to the E-Link-LSA and the E-Intra-Area-Prefix-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.7-1">RFC8362-3.7-1</code></td><td colspan="3"><span class="rfc-subject">The Intra-Area-Prefix TLV is only applicable to the E-Link-LSA (Section 4.7) and the E-Intra-Area-Prefix-LSA (Section 4.8). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.7</td>
@@ -370,7 +373,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.8-1">RFC8362-3.8-1</code></td><td colspan="3"><span class="rfc-subject">The IPv6 Link-Local Address TLV is only applicable to the E-Link-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.8-1">RFC8362-3.8-1</code></td><td colspan="3"><span class="rfc-subject">The IPv6 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.8</td>
@@ -379,7 +382,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.9-1">RFC8362-3.9-1</code></td><td colspan="3"><span class="rfc-subject">The IPv4 Link-Local Address TLV is only applicable to the E-Link-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.9-1">RFC8362-3.9-1</code></td><td colspan="3"><span class="rfc-subject">The IPv4 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.9)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.9</td>
@@ -388,7 +391,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.10-1">RFC8362-3.10-1</code></td><td colspan="3"><span class="rfc-subject">Of the IPv6-Forwarding-Address sub-TLV, &#34;the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored.&#34; (§3.10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.10-1">RFC8362-3.10-1</code></td><td colspan="3"><span class="rfc-subject">The sub-TLV is optional and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.10</td>
@@ -397,7 +400,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.10-2">RFC8362-3.10-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The IPv6-Forwarding-Address TLV is to be used with IPv6 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families.&#34; (§3.10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.10-2">RFC8362-3.10-2</code></td><td colspan="3"><span class="rfc-subject">The IPv6-Forwarding-Address TLV is to be used with IPv6 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.10</td>
@@ -406,7 +409,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.11-1">RFC8362-3.11-1</code></td><td colspan="3"><span class="rfc-subject">Of the IPv4-Forwarding-Address sub-TLV, &#34;the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored.&#34; (§3.11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.11-1">RFC8362-3.11-1</code></td><td colspan="3"><span class="rfc-subject">The sub-TLV is optional, and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.11</td>
@@ -415,7 +418,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.11-2">RFC8362-3.11-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The IPv4-Forwarding-Address TLV is to be used with IPv4 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families.&#34; (§3.11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.11-2">RFC8362-3.11-2</code></td><td colspan="3"><span class="rfc-subject">The IPv4-Forwarding-Address TLV is to be used with IPv4 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.11</td>
@@ -424,7 +427,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.12-1">RFC8362-3.12-1</code></td><td colspan="3"><span class="rfc-subject">Of the Route-Tag sub-TLV, &#34;the first specified instance is used as the Route Tag as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored.&#34; (§3.12)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.12-1">RFC8362-3.12-1</code></td><td colspan="3"><span class="rfc-subject">The sub-TLV is optional, and the first specified instance is used as the Route Tag as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.12)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.12</td>
@@ -433,7 +436,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.2-1">RFC8362-4.2-1</code></td><td colspan="3"><span class="rfc-subject">In the E-Network-LSA, &#34;Instances of the Attached-Router TLV subsequent to the first MUST be ignored.&#34; (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.2-1">RFC8362-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Instances of the Attached-Router TLV subsequent to the first MUST be ignored. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -442,7 +445,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.3-1">RFC8362-4.3-1</code></td><td colspan="3"><span class="rfc-subject">&#34;In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Prefix LSA MUST contain a single Inter-Area-Prefix TLV.&#34; (§4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.3-1">RFC8362-4.3-1</code></td><td colspan="3"><span class="rfc-subject">In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Prefix LSA MUST contain a single Inter-Area-Prefix TLV. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3</td>
@@ -451,7 +454,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.3-2">RFC8362-4.3-2</code></td><td colspan="3"><span class="rfc-subject">In the E-Inter-Area-Prefix-LSA, &#34;Instances of the Inter-Area-Prefix TLV subsequent to the first MUST be ignored.&#34; (§4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.3-2">RFC8362-4.3-2</code></td><td colspan="3"><span class="rfc-subject">Instances of the Inter-Area-Prefix TLV subsequent to the first MUST be ignored. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3</td>
@@ -460,7 +463,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.4-1">RFC8362-4.4-1</code></td><td colspan="3"><span class="rfc-subject">&#34;In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Router-LSA MUST contain a single Inter-Area-Router TLV.&#34; (§4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.4-1">RFC8362-4.4-1</code></td><td colspan="3"><span class="rfc-subject">In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Router-LSA MUST contain a single Inter-Area-Router TLV. (§4.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
@@ -469,7 +472,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.4-2">RFC8362-4.4-2</code></td><td colspan="3"><span class="rfc-subject">In the E-Inter-Area-Router-LSA, &#34;Instances of the Inter-Area-Router TLV subsequent to the first MUST be ignored.&#34; (§4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.4-2">RFC8362-4.4-2</code></td><td colspan="3"><span class="rfc-subject">Instances of the Inter-Area-Router TLV subsequent to the first MUST be ignored. (§4.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
@@ -478,7 +481,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.5-1">RFC8362-4.5-1</code></td><td colspan="3"><span class="rfc-subject">For the E-AS-External-LSA, &#34;In order to retain compatibility and semantics with the current OSPFv3 specification, each LSA MUST contain a single External-Prefix TLV.&#34; (§4.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.5-1">RFC8362-4.5-1</code></td><td colspan="3"><span class="rfc-subject">In order to retain compatibility and semantics with the current OSPFv3 specification, each LSA MUST contain a single External-Prefix TLV. (§4.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.5</td>
@@ -487,7 +490,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.5-2">RFC8362-4.5-2</code></td><td colspan="3"><span class="rfc-subject">In the E-AS-External-LSA, &#34;Instances of the External-Prefix TLV subsequent to the first MUST be ignored.&#34; (§4.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.5-2">RFC8362-4.5-2</code></td><td colspan="3"><span class="rfc-subject">Instances of the External-Prefix TLV subsequent to the first MUST be ignored. (§4.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.5</td>
@@ -496,7 +499,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.7-1">RFC8362-4.7-1</code></td><td colspan="3"><span class="rfc-subject">Of the IPv6 Link-Local Address TLV in the E-Link-LSA, &#34;Instances following the first MUST be ignored.&#34; (§4.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.7-1">RFC8362-4.7-1</code></td><td colspan="3"><span class="rfc-subject">A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.7</td>
@@ -505,7 +508,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.7-2">RFC8362-4.7-2</code></td><td colspan="3"><span class="rfc-subject">Of the IPv6 Link-Local Address TLV, &#34;For IPv4 address families as defined in [OSPFV3-AF], this TLV MUST be ignored.&#34; (§4.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.7-2">RFC8362-4.7-2</code></td><td colspan="3"><span class="rfc-subject">A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. For IPv4 address families as defined in [OSPFV3-AF], this TLV MUST be ignored. (§4.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.7</td>
@@ -514,7 +517,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.7-3">RFC8362-4.7-3</code></td><td colspan="3"><span class="rfc-subject">Of the IPv4 Link-Local Address TLV in the E-Link-LSA, &#34;Instances following the first MUST be ignored.&#34; (§4.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.7-3">RFC8362-4.7-3</code></td><td colspan="3"><span class="rfc-subject">Similarly, only a single instance of the IPv4 Link-Local Address TLV (Section 3.9) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.7</td>
@@ -523,7 +526,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.8-1">RFC8362-4.8-1</code></td><td colspan="3"><span class="rfc-subject">For the E-Intra-Area-Prefix-LSA, &#34;The Referenced LS Type MUST be either an E-Router-LSA (0xA021) or an E-Network-LSA (0xA022).&#34; (§4.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.8-1">RFC8362-4.8-1</code></td><td colspan="3"><span class="rfc-subject">The Referenced LS Type MUST be either an E-Router-LSA (0xA021) or an E-Network-LSA (0xA022). (§4.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.8</td>
@@ -532,7 +535,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-5-1">RFC8362-5-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded.&#34; (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-5-1">RFC8362-5-1</code></td><td colspan="3"><span class="rfc-subject">Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5</td>
@@ -541,7 +544,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-5-2">RFC8362-5-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs.&#34; (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-5-2">RFC8362-5-2</code></td><td colspan="3"><span class="rfc-subject">Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -550,7 +553,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.2-1">RFC8362-6.2-1</code></td><td colspan="3"><span class="rfc-subject">In sparse-mode, &#34;if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5.&#34; (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.2-1">RFC8362-6.2-1</code></td><td colspan="3"><span class="rfc-subject">However, if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.2</td>
@@ -559,7 +562,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-1">RFC8362-6.3-1</code></td><td colspan="3"><span class="rfc-subject">All implementations MUST adhere to the TLV processing rules, of which rule 1 is: &#34;Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs.&#34; (§6.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-1">RFC8362-6.3-1</code></td><td colspan="3"><span class="rfc-subject">To ensure compatibility of future TLV-based LSA extensions, all implementations MUST adhere to these rules: 1. Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs. (§6.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.3</td>
@@ -568,7 +571,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-2">RFC8362-6.3-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Whether or not partial deployment of a given TLV is supported MUST be specified.&#34; (§6.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-2">RFC8362-6.3-2</code></td><td colspan="3"><span class="rfc-subject">Whether or not partial deployment of a given TLV is supported MUST be specified. (§6.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.3</td>
@@ -577,7 +580,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-3">RFC8362-6.3-3</code></td><td colspan="3"><span class="rfc-subject">&#34;If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV.&#34; (§6.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-3">RFC8362-6.3-3</code></td><td colspan="3"><span class="rfc-subject">If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV. (§6.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.3</td>
@@ -586,7 +589,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-4">RFC8362-6.3-4</code></td><td colspan="3"><span class="rfc-subject">&#34;If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV.&#34; (§6.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-4">RFC8362-6.3-4</code></td><td colspan="3"><span class="rfc-subject">If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV. (§6.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.3</td>
@@ -595,7 +598,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-5">RFC8362-6.3-5</code></td><td colspan="3"><span class="rfc-subject">&#34;Documents specifying future TLVs or Sub-TLVs MUST specify the requirements for usage of those TLVs or sub-TLVs.&#34; (§6.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-5">RFC8362-6.3-5</code></td><td colspan="3"><span class="rfc-subject">Documents specifying future TLVs or Sub-TLVs MUST specify the requirements for usage of those TLVs or sub-TLVs. (§6.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.3</td>
@@ -604,7 +607,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-8.1-1">RFC8362-8.1-1</code></td><td colspan="3"><span class="rfc-subject">Top-level TLV types 32768-33023 are reserved for experimental use; &#34;these will not be registered with IANA and MUST NOT be mentioned by RFCs.&#34; (§8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-8.1-1">RFC8362-8.1-1</code></td><td colspan="3"><span class="rfc-subject">Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>8.1</td>
@@ -613,7 +616,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-8.1-2">RFC8362-8.1-2</code></td><td colspan="3"><span class="rfc-subject">For top-level TLV types, &#34;Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned.&#34; (§8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-8.1-2">RFC8362-8.1-2</code></td><td colspan="3"><span class="rfc-subject">Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.1</td>
@@ -622,7 +625,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-8.2-1">RFC8362-8.2-1</code></td><td colspan="3"><span class="rfc-subject">Sub-TLV types 32768-33023 are reserved for experimental use; &#34;these will not be registered with IANA and MUST NOT be mentioned by RFCs.&#34; (§8.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-8.2-1">RFC8362-8.2-1</code></td><td colspan="3"><span class="rfc-subject">Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>8.2</td>
@@ -631,7 +634,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-8.2-2">RFC8362-8.2-2</code></td><td colspan="3"><span class="rfc-subject">For sub-TLV types, &#34;Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned.&#34; (§8.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-8.2-2">RFC8362-8.2-2</code></td><td colspan="3"><span class="rfc-subject">Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.2</td>
@@ -640,7 +643,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.1-1">RFC8362-3.1-1</code></td><td colspan="3"><span class="rfc-subject">The applicability of the LA-bit is expanded, and &#34;it SHOULD be set in Inter-Area-Prefix TLVs ... when the advertised host IPv6 address ... is an interface address.&#34; (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.1-1">RFC8362-3.1-1</code></td><td colspan="3"><span class="rfc-subject">The applicability of the LA-bit is expanded, and it SHOULD be set in Inter-Area-Prefix TLVs and MAY be set in External-Prefix TLVs when the advertised host IPv6 address, i.e., PrefixLength = 128 for the IPv6 Address Family or PrefixLength = 32 for the IPv4 Address Family [OSPFV3-AF], is an interface address. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1</td>
@@ -649,7 +652,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.7-4">RFC8362-4.7-4</code></td><td colspan="3"><span class="rfc-subject">&#34;A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA.&#34; (§4.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.7-4">RFC8362-4.7-4</code></td><td colspan="3"><span class="rfc-subject">A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. (§4.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.7</td>
@@ -658,7 +661,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.7-5">RFC8362-4.7-5</code></td><td colspan="3"><span class="rfc-subject">&#34;Similarly, only a single instance of the IPv4 Link-Local Address TLV (Section 3.9) SHOULD be included in the E-Link-LSA.&#34; (§4.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.7-5">RFC8362-4.7-5</code></td><td colspan="3"><span class="rfc-subject">Similarly, only a single instance of the IPv4 Link-Local Address TLV (Section 3.9) SHOULD be included in the E-Link-LSA. (§4.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.7</td>
@@ -667,7 +670,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.7-6">RFC8362-4.7-6</code></td><td colspan="3"><span class="rfc-subject">Of the IPv4 Link-Local Address TLV, &#34;For OSPFv3 IPv6 address families as defined in [OSPFV3-AF], this TLV SHOULD be ignored.&#34; (§4.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-4.7-6">RFC8362-4.7-6</code></td><td colspan="3"><span class="rfc-subject">Similarly, only a single instance of the IPv4 Link-Local Address TLV (Section 3.9) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. For OSPFv3 IPv6 address families as defined in [OSPFV3-AF], this TLV SHOULD be ignored. (§4.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.7</td>
@@ -676,7 +679,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-5-3">RFC8362-5-3</code></td><td colspan="3"><span class="rfc-subject">&#34;Reception of malformed LSAs SHOULD be counted and/or logged for examination by the administrator of the OSPFv3 routing domain.&#34; (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-5-3">RFC8362-5-3</code></td><td colspan="3"><span class="rfc-subject">Reception of malformed LSAs SHOULD be counted and/or logged for examination by the administrator of the OSPFv3 routing domain. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -685,7 +688,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6-1">RFC8362-6-1</code></td><td colspan="3"><span class="rfc-subject">For future TLV-based OSPFv3 LSA extensions, &#34;Both full and, if applicable, partial deployment SHOULD be specified&#34;. (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6-1">RFC8362-6-1</code></td><td colspan="3"><span class="rfc-subject">Both full and, if applicable, partial deployment SHOULD be specified for future TLV- based OSPFv3 LSA extensions. (§6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6</td>
@@ -694,7 +697,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-6">RFC8362-6.3-6</code></td><td colspan="3"><span class="rfc-subject">&#34;If a TLV or sub-TLV is recognized but the length is less than the minimum, then the LSA should be considered malformed, and it SHOULD NOT be acknowledged.&#34; (§6.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-6">RFC8362-6.3-6</code></td><td colspan="3"><span class="rfc-subject">If a TLV or sub-TLV is recognized but the length is less than the minimum, then the LSA should be considered malformed, and it SHOULD NOT be acknowledged. (§6.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>6.3</td>
@@ -703,7 +706,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-7">RFC8362-6.3-7</code></td><td colspan="3"><span class="rfc-subject">&#34;Additionally, the occurrence SHOULD be logged with enough information to identify the LSA by type, Link State ID, originator, and sequence number and identify the TLV or sub-TLV in error.&#34; (§6.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-7">RFC8362-6.3-7</code></td><td colspan="3"><span class="rfc-subject">Additionally, the occurrence SHOULD be logged with enough information to identify the LSA by type, Link State ID, originator, and sequence number and identify the TLV or sub-TLV in error. (§6.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.3</td>
@@ -712,7 +715,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-b-1">RFC8362-B-1</code></td><td colspan="3"><span class="rfc-subject">&#34;disabling AreaExtendedLSASupport for a regular OSPFv3 area (not a Stub or NSSA area) when ExtendedLSASupport is enabled is contradictory and SHOULD be prohibited by implementations.&#34; (§B)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-b-1">RFC8362-B-1</code></td><td colspan="3"><span class="rfc-subject">For regular areas, i.e., areas where AS-scoped LSAs are flooded, disabling AreaExtendedLSASupport for a regular OSPFv3 area (not a Stub or NSSA area) when ExtendedLSASupport is enabled is contradictory and SHOULD be prohibited by implementations. (§B)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>B</td>
@@ -721,7 +724,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3-1">RFC8362-3-1</code></td><td colspan="3"><span class="rfc-subject">&#34;In general, TLVs and sub-TLVs MAY occur in any order, and the specification should define whether the TLV or sub-TLV is required and the behavior when there are multiple occurrences of the TLV or sub-TLV.&#34; (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3-1">RFC8362-3-1</code></td><td colspan="3"><span class="rfc-subject">In general, TLVs and sub-TLVs MAY occur in any order, and the specification should define whether the TLV or sub-TLV is required and the behavior when there are multiple occurrences of the TLV or sub-TLV. (§3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3</td>
@@ -730,7 +733,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.1-2">RFC8362-3.1-2</code></td><td colspan="3"><span class="rfc-subject">The LA-bit &#34;MAY be set in External-Prefix TLVs when the advertised host IPv6 address ... is an interface address.&#34; (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.1-2">RFC8362-3.1-2</code></td><td colspan="3"><span class="rfc-subject">The applicability of the LA-bit is expanded, and it SHOULD be set in Inter-Area-Prefix TLVs and MAY be set in External-Prefix TLVs when the advertised host IPv6 address, i.e., PrefixLength = 128 for the IPv6 Address Family or PrefixLength = 32 for the IPv4 Address Family [OSPFV3-AF], is an interface address. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1</td>
@@ -739,7 +742,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.1.1-2">RFC8362-3.1.1-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The advertising router MAY choose NOT to set the N-bit even when the above conditions are met.&#34; (§3.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.1.1-2">RFC8362-3.1.1-2</code></td><td colspan="3"><span class="rfc-subject">The advertising router MAY choose NOT to set the N-bit even when the above conditions are met. (§3.1.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1.1</td>
@@ -757,151 +760,151 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc8362-3.1.1-1"><code>RFC8362-3.1.1-1</code></a> &#34;If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored.&#34; (§3.1.1)</td>
+<tr><td><a href="#rfc8362-3.1.1-1"><code>RFC8362-3.1.1-1</code></a> If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored. (§3.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.2-1"><code>RFC8362-3.2-1</code></a> The Router-Link TLV is only applicable to the E-Router-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.2)</td>
+<tr><td><a href="#rfc8362-3.2-1"><code>RFC8362-3.2-1</code></a> The Router-Link TLV is only applicable to the E-Router-LSA (Section 4.1). Inclusion in other Extended LSAs MUST be ignored. (§3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.3-1"><code>RFC8362-3.3-1</code></a> The Attached-Routers TLV is only applicable to the E-Network-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.3)</td>
+<tr><td><a href="#rfc8362-3.3-1"><code>RFC8362-3.3-1</code></a> The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). Inclusion in other Extended LSAs MUST be ignored. (§3.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.4-1"><code>RFC8362-3.4-1</code></a> The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.4)</td>
+<tr><td><a href="#rfc8362-3.4-1"><code>RFC8362-3.4-1</code></a> The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA (Section 4.3). Inclusion in other Extended LSAs MUST be ignored. (§3.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.5-1"><code>RFC8362-3.5-1</code></a> The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.5)</td>
+<tr><td><a href="#rfc8362-3.5-1"><code>RFC8362-3.5-1</code></a> The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA (Section 4.4). Inclusion in other Extended LSAs MUST be ignored. (§3.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.6-1"><code>RFC8362-3.6-1</code></a> The External-Prefix TLV is only applicable to the E-AS-External-LSA and the E-NSSA-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.6)</td>
+<tr><td><a href="#rfc8362-3.6-1"><code>RFC8362-3.6-1</code></a> The External-Prefix TLV is only applicable to the E-AS-External-LSA (Section 4.5) and the E-NSSA-LSA (Section 4.6). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.7-1"><code>RFC8362-3.7-1</code></a> The Intra-Area-Prefix TLV is only applicable to the E-Link-LSA and the E-Intra-Area-Prefix-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.7)</td>
+<tr><td><a href="#rfc8362-3.7-1"><code>RFC8362-3.7-1</code></a> The Intra-Area-Prefix TLV is only applicable to the E-Link-LSA (Section 4.7) and the E-Intra-Area-Prefix-LSA (Section 4.8). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.7)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.8-1"><code>RFC8362-3.8-1</code></a> The IPv6 Link-Local Address TLV is only applicable to the E-Link-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.8)</td>
+<tr><td><a href="#rfc8362-3.8-1"><code>RFC8362-3.8-1</code></a> The IPv6 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.8)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.9-1"><code>RFC8362-3.9-1</code></a> The IPv4 Link-Local Address TLV is only applicable to the E-Link-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.9)</td>
+<tr><td><a href="#rfc8362-3.9-1"><code>RFC8362-3.9-1</code></a> The IPv4 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.9)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.10-1"><code>RFC8362-3.10-1</code></a> Of the IPv6-Forwarding-Address sub-TLV, &#34;the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored.&#34; (§3.10)</td>
+<tr><td><a href="#rfc8362-3.10-1"><code>RFC8362-3.10-1</code></a> The sub-TLV is optional and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.10)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.10-2"><code>RFC8362-3.10-2</code></a> &#34;The IPv6-Forwarding-Address TLV is to be used with IPv6 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families.&#34; (§3.10)</td>
+<tr><td><a href="#rfc8362-3.10-2"><code>RFC8362-3.10-2</code></a> The IPv6-Forwarding-Address TLV is to be used with IPv6 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.10)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.11-1"><code>RFC8362-3.11-1</code></a> Of the IPv4-Forwarding-Address sub-TLV, &#34;the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored.&#34; (§3.11)</td>
+<tr><td><a href="#rfc8362-3.11-1"><code>RFC8362-3.11-1</code></a> The sub-TLV is optional, and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.11)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.11-2"><code>RFC8362-3.11-2</code></a> &#34;The IPv4-Forwarding-Address TLV is to be used with IPv4 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families.&#34; (§3.11)</td>
+<tr><td><a href="#rfc8362-3.11-2"><code>RFC8362-3.11-2</code></a> The IPv4-Forwarding-Address TLV is to be used with IPv4 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.11)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.12-1"><code>RFC8362-3.12-1</code></a> Of the Route-Tag sub-TLV, &#34;the first specified instance is used as the Route Tag as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored.&#34; (§3.12)</td>
+<tr><td><a href="#rfc8362-3.12-1"><code>RFC8362-3.12-1</code></a> The sub-TLV is optional, and the first specified instance is used as the Route Tag as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.12)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-4.2-1"><code>RFC8362-4.2-1</code></a> In the E-Network-LSA, &#34;Instances of the Attached-Router TLV subsequent to the first MUST be ignored.&#34; (§4.2)</td>
+<tr><td><a href="#rfc8362-4.2-1"><code>RFC8362-4.2-1</code></a> Instances of the Attached-Router TLV subsequent to the first MUST be ignored. (§4.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-4.3-1"><code>RFC8362-4.3-1</code></a> &#34;In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Prefix LSA MUST contain a single Inter-Area-Prefix TLV.&#34; (§4.3)</td>
+<tr><td><a href="#rfc8362-4.3-1"><code>RFC8362-4.3-1</code></a> In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Prefix LSA MUST contain a single Inter-Area-Prefix TLV. (§4.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-4.3-2"><code>RFC8362-4.3-2</code></a> In the E-Inter-Area-Prefix-LSA, &#34;Instances of the Inter-Area-Prefix TLV subsequent to the first MUST be ignored.&#34; (§4.3)</td>
+<tr><td><a href="#rfc8362-4.3-2"><code>RFC8362-4.3-2</code></a> Instances of the Inter-Area-Prefix TLV subsequent to the first MUST be ignored. (§4.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-4.4-1"><code>RFC8362-4.4-1</code></a> &#34;In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Router-LSA MUST contain a single Inter-Area-Router TLV.&#34; (§4.4)</td>
+<tr><td><a href="#rfc8362-4.4-1"><code>RFC8362-4.4-1</code></a> In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Router-LSA MUST contain a single Inter-Area-Router TLV. (§4.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-4.4-2"><code>RFC8362-4.4-2</code></a> In the E-Inter-Area-Router-LSA, &#34;Instances of the Inter-Area-Router TLV subsequent to the first MUST be ignored.&#34; (§4.4)</td>
+<tr><td><a href="#rfc8362-4.4-2"><code>RFC8362-4.4-2</code></a> Instances of the Inter-Area-Router TLV subsequent to the first MUST be ignored. (§4.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-4.5-1"><code>RFC8362-4.5-1</code></a> For the E-AS-External-LSA, &#34;In order to retain compatibility and semantics with the current OSPFv3 specification, each LSA MUST contain a single External-Prefix TLV.&#34; (§4.5)</td>
+<tr><td><a href="#rfc8362-4.5-1"><code>RFC8362-4.5-1</code></a> In order to retain compatibility and semantics with the current OSPFv3 specification, each LSA MUST contain a single External-Prefix TLV. (§4.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-4.5-2"><code>RFC8362-4.5-2</code></a> In the E-AS-External-LSA, &#34;Instances of the External-Prefix TLV subsequent to the first MUST be ignored.&#34; (§4.5)</td>
+<tr><td><a href="#rfc8362-4.5-2"><code>RFC8362-4.5-2</code></a> Instances of the External-Prefix TLV subsequent to the first MUST be ignored. (§4.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-4.7-1"><code>RFC8362-4.7-1</code></a> Of the IPv6 Link-Local Address TLV in the E-Link-LSA, &#34;Instances following the first MUST be ignored.&#34; (§4.7)</td>
+<tr><td><a href="#rfc8362-4.7-1"><code>RFC8362-4.7-1</code></a> A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-4.7-2"><code>RFC8362-4.7-2</code></a> Of the IPv6 Link-Local Address TLV, &#34;For IPv4 address families as defined in [OSPFV3-AF], this TLV MUST be ignored.&#34; (§4.7)</td>
+<tr><td><a href="#rfc8362-4.7-2"><code>RFC8362-4.7-2</code></a> A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. For IPv4 address families as defined in [OSPFV3-AF], this TLV MUST be ignored. (§4.7)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-4.7-3"><code>RFC8362-4.7-3</code></a> Of the IPv4 Link-Local Address TLV in the E-Link-LSA, &#34;Instances following the first MUST be ignored.&#34; (§4.7)</td>
+<tr><td><a href="#rfc8362-4.7-3"><code>RFC8362-4.7-3</code></a> Similarly, only a single instance of the IPv4 Link-Local Address TLV (Section 3.9) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-4.8-1"><code>RFC8362-4.8-1</code></a> For the E-Intra-Area-Prefix-LSA, &#34;The Referenced LS Type MUST be either an E-Router-LSA (0xA021) or an E-Network-LSA (0xA022).&#34; (§4.8)</td>
+<tr><td><a href="#rfc8362-4.8-1"><code>RFC8362-4.8-1</code></a> The Referenced LS Type MUST be either an E-Router-LSA (0xA021) or an E-Network-LSA (0xA022). (§4.8)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-5-1"><code>RFC8362-5-1</code></a> &#34;Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded.&#34; (§5)</td>
+<tr><td><a href="#rfc8362-5-1"><code>RFC8362-5-1</code></a> Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-5-2"><code>RFC8362-5-2</code></a> &#34;Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs.&#34; (§5)</td>
+<tr><td><a href="#rfc8362-5-2"><code>RFC8362-5-2</code></a> Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-6.2-1"><code>RFC8362-6.2-1</code></a> In sparse-mode, &#34;if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5.&#34; (§6.2)</td>
+<tr><td><a href="#rfc8362-6.2-1"><code>RFC8362-6.2-1</code></a> However, if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5. (§6.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-6.3-1"><code>RFC8362-6.3-1</code></a> All implementations MUST adhere to the TLV processing rules, of which rule 1 is: &#34;Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs.&#34; (§6.3)</td>
+<tr><td><a href="#rfc8362-6.3-1"><code>RFC8362-6.3-1</code></a> To ensure compatibility of future TLV-based LSA extensions, all implementations MUST adhere to these rules: 1. Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs. (§6.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-6.3-2"><code>RFC8362-6.3-2</code></a> &#34;Whether or not partial deployment of a given TLV is supported MUST be specified.&#34; (§6.3)</td>
+<tr><td><a href="#rfc8362-6.3-2"><code>RFC8362-6.3-2</code></a> Whether or not partial deployment of a given TLV is supported MUST be specified. (§6.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-6.3-3"><code>RFC8362-6.3-3</code></a> &#34;If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV.&#34; (§6.3)</td>
+<tr><td><a href="#rfc8362-6.3-3"><code>RFC8362-6.3-3</code></a> If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV. (§6.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-6.3-4"><code>RFC8362-6.3-4</code></a> &#34;If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV.&#34; (§6.3)</td>
+<tr><td><a href="#rfc8362-6.3-4"><code>RFC8362-6.3-4</code></a> If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV. (§6.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-6.3-5"><code>RFC8362-6.3-5</code></a> &#34;Documents specifying future TLVs or Sub-TLVs MUST specify the requirements for usage of those TLVs or sub-TLVs.&#34; (§6.3)</td>
+<tr><td><a href="#rfc8362-6.3-5"><code>RFC8362-6.3-5</code></a> Documents specifying future TLVs or Sub-TLVs MUST specify the requirements for usage of those TLVs or sub-TLVs. (§6.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-8.1-1"><code>RFC8362-8.1-1</code></a> Top-level TLV types 32768-33023 are reserved for experimental use; &#34;these will not be registered with IANA and MUST NOT be mentioned by RFCs.&#34; (§8.1)</td>
+<tr><td><a href="#rfc8362-8.1-1"><code>RFC8362-8.1-1</code></a> Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-8.1-2"><code>RFC8362-8.1-2</code></a> For top-level TLV types, &#34;Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned.&#34; (§8.1)</td>
+<tr><td><a href="#rfc8362-8.1-2"><code>RFC8362-8.1-2</code></a> Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-8.2-1"><code>RFC8362-8.2-1</code></a> Sub-TLV types 32768-33023 are reserved for experimental use; &#34;these will not be registered with IANA and MUST NOT be mentioned by RFCs.&#34; (§8.2)</td>
+<tr><td><a href="#rfc8362-8.2-1"><code>RFC8362-8.2-1</code></a> Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-8.2-2"><code>RFC8362-8.2-2</code></a> For sub-TLV types, &#34;Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned.&#34; (§8.2)</td>
+<tr><td><a href="#rfc8362-8.2-2"><code>RFC8362-8.2-2</code></a> Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
@@ -912,7 +915,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8362-2-1"><code>RFC8362-2-1</code></a></h3>
-<p>&#34;For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them.&#34; (§2)</p>
+<p>For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -932,151 +935,151 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 </table>
 </div>
 <h3><a href="#rfc8362-3.1.1-1"><code>RFC8362-3.1.1-1</code></a></h3>
-<p>&#34;If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored.&#34; (§3.1.1)</p>
+<p>If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored. (§3.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.1.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-3.2-1"><code>RFC8362-3.2-1</code></a></h3>
-<p>The Router-Link TLV is only applicable to the E-Router-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.2)</p>
+<p>The Router-Link TLV is only applicable to the E-Router-LSA (Section 4.1). Inclusion in other Extended LSAs MUST be ignored. (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-3.3-1"><code>RFC8362-3.3-1</code></a></h3>
-<p>The Attached-Routers TLV is only applicable to the E-Network-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.3)</p>
+<p>The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). Inclusion in other Extended LSAs MUST be ignored. (§3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-3.4-1"><code>RFC8362-3.4-1</code></a></h3>
-<p>The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.4)</p>
+<p>The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA (Section 4.3). Inclusion in other Extended LSAs MUST be ignored. (§3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-3.5-1"><code>RFC8362-3.5-1</code></a></h3>
-<p>The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.5)</p>
+<p>The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA (Section 4.4). Inclusion in other Extended LSAs MUST be ignored. (§3.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-3.6-1"><code>RFC8362-3.6-1</code></a></h3>
-<p>The External-Prefix TLV is only applicable to the E-AS-External-LSA and the E-NSSA-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.6)</p>
+<p>The External-Prefix TLV is only applicable to the E-AS-External-LSA (Section 4.5) and the E-NSSA-LSA (Section 4.6). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-3.7-1"><code>RFC8362-3.7-1</code></a></h3>
-<p>The Intra-Area-Prefix TLV is only applicable to the E-Link-LSA and the E-Intra-Area-Prefix-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.7)</p>
+<p>The Intra-Area-Prefix TLV is only applicable to the E-Link-LSA (Section 4.7) and the E-Intra-Area-Prefix-LSA (Section 4.8). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.7-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-3.8-1"><code>RFC8362-3.8-1</code></a></h3>
-<p>The IPv6 Link-Local Address TLV is only applicable to the E-Link-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.8)</p>
+<p>The IPv6 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.8-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-3.9-1"><code>RFC8362-3.9-1</code></a></h3>
-<p>The IPv4 Link-Local Address TLV is only applicable to the E-Link-LSA: &#34;Inclusion in other Extended LSAs MUST be ignored.&#34; (§3.9)</p>
+<p>The IPv4 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.9-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-3.10-1"><code>RFC8362-3.10-1</code></a></h3>
-<p>Of the IPv6-Forwarding-Address sub-TLV, &#34;the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored.&#34; (§3.10)</p>
+<p>The sub-TLV is optional and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.10-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-3.10-2"><code>RFC8362-3.10-2</code></a></h3>
-<p>&#34;The IPv6-Forwarding-Address TLV is to be used with IPv6 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families.&#34; (§3.10)</p>
+<p>The IPv6-Forwarding-Address TLV is to be used with IPv6 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.10-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-3.11-1"><code>RFC8362-3.11-1</code></a></h3>
-<p>Of the IPv4-Forwarding-Address sub-TLV, &#34;the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored.&#34; (§3.11)</p>
+<p>The sub-TLV is optional, and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.11)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.11-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-3.11-2"><code>RFC8362-3.11-2</code></a></h3>
-<p>&#34;The IPv4-Forwarding-Address TLV is to be used with IPv4 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families.&#34; (§3.11)</p>
+<p>The IPv4-Forwarding-Address TLV is to be used with IPv4 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.11)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.11-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-3.12-1"><code>RFC8362-3.12-1</code></a></h3>
-<p>Of the Route-Tag sub-TLV, &#34;the first specified instance is used as the Route Tag as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored.&#34; (§3.12)</p>
+<p>The sub-TLV is optional, and the first specified instance is used as the Route Tag as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.12)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-3.12-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-4.2-1"><code>RFC8362-4.2-1</code></a></h3>
-<p>In the E-Network-LSA, &#34;Instances of the Attached-Router TLV subsequent to the first MUST be ignored.&#34; (§4.2)</p>
+<p>Instances of the Attached-Router TLV subsequent to the first MUST be ignored. (§4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-4.3-1"><code>RFC8362-4.3-1</code></a></h3>
-<p>&#34;In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Prefix LSA MUST contain a single Inter-Area-Prefix TLV.&#34; (§4.3)</p>
+<p>In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Prefix LSA MUST contain a single Inter-Area-Prefix TLV. (§4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-4.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-4.3-2"><code>RFC8362-4.3-2</code></a></h3>
-<p>In the E-Inter-Area-Prefix-LSA, &#34;Instances of the Inter-Area-Prefix TLV subsequent to the first MUST be ignored.&#34; (§4.3)</p>
+<p>Instances of the Inter-Area-Prefix TLV subsequent to the first MUST be ignored. (§4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-4.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-4.4-1"><code>RFC8362-4.4-1</code></a></h3>
-<p>&#34;In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Router-LSA MUST contain a single Inter-Area-Router TLV.&#34; (§4.4)</p>
+<p>In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Router-LSA MUST contain a single Inter-Area-Router TLV. (§4.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-4.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-4.4-2"><code>RFC8362-4.4-2</code></a></h3>
-<p>In the E-Inter-Area-Router-LSA, &#34;Instances of the Inter-Area-Router TLV subsequent to the first MUST be ignored.&#34; (§4.4)</p>
+<p>Instances of the Inter-Area-Router TLV subsequent to the first MUST be ignored. (§4.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-4.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-4.5-1"><code>RFC8362-4.5-1</code></a></h3>
-<p>For the E-AS-External-LSA, &#34;In order to retain compatibility and semantics with the current OSPFv3 specification, each LSA MUST contain a single External-Prefix TLV.&#34; (§4.5)</p>
+<p>In order to retain compatibility and semantics with the current OSPFv3 specification, each LSA MUST contain a single External-Prefix TLV. (§4.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-4.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-4.5-2"><code>RFC8362-4.5-2</code></a></h3>
-<p>In the E-AS-External-LSA, &#34;Instances of the External-Prefix TLV subsequent to the first MUST be ignored.&#34; (§4.5)</p>
+<p>Instances of the External-Prefix TLV subsequent to the first MUST be ignored. (§4.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-4.5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-4.7-1"><code>RFC8362-4.7-1</code></a></h3>
-<p>Of the IPv6 Link-Local Address TLV in the E-Link-LSA, &#34;Instances following the first MUST be ignored.&#34; (§4.7)</p>
+<p>A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-4.7-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-4.7-2"><code>RFC8362-4.7-2</code></a></h3>
-<p>Of the IPv6 Link-Local Address TLV, &#34;For IPv4 address families as defined in [OSPFV3-AF], this TLV MUST be ignored.&#34; (§4.7)</p>
+<p>A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. For IPv4 address families as defined in [OSPFV3-AF], this TLV MUST be ignored. (§4.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-4.7-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-4.7-3"><code>RFC8362-4.7-3</code></a></h3>
-<p>Of the IPv4 Link-Local Address TLV in the E-Link-LSA, &#34;Instances following the first MUST be ignored.&#34; (§4.7)</p>
+<p>Similarly, only a single instance of the IPv4 Link-Local Address TLV (Section 3.9) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-4.7-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-4.8-1"><code>RFC8362-4.8-1</code></a></h3>
-<p>For the E-Intra-Area-Prefix-LSA, &#34;The Referenced LS Type MUST be either an E-Router-LSA (0xA021) or an E-Network-LSA (0xA022).&#34; (§4.8)</p>
+<p>The Referenced LS Type MUST be either an E-Router-LSA (0xA021) or an E-Network-LSA (0xA022). (§4.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-4.8-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-5-1"><code>RFC8362-5-1</code></a></h3>
-<p>&#34;Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded.&#34; (§5)</p>
+<p>Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-5-2"><code>RFC8362-5-2</code></a></h3>
-<p>&#34;Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs.&#34; (§5)</p>
+<p>Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-6.2-1"><code>RFC8362-6.2-1</code></a></h3>
-<p>In sparse-mode, &#34;if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5.&#34; (§6.2)</p>
+<p>However, if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5. (§6.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-6.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-6.3-1"><code>RFC8362-6.3-1</code></a></h3>
-<p>All implementations MUST adhere to the TLV processing rules, of which rule 1 is: &#34;Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs.&#34; (§6.3)</p>
+<p>To ensure compatibility of future TLV-based LSA extensions, all implementations MUST adhere to these rules: 1. Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs. (§6.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-6.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-6.3-2"><code>RFC8362-6.3-2</code></a></h3>
-<p>&#34;Whether or not partial deployment of a given TLV is supported MUST be specified.&#34; (§6.3)</p>
+<p>Whether or not partial deployment of a given TLV is supported MUST be specified. (§6.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-6.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-6.3-3"><code>RFC8362-6.3-3</code></a></h3>
-<p>&#34;If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV.&#34; (§6.3)</p>
+<p>If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV. (§6.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-6.3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-6.3-4"><code>RFC8362-6.3-4</code></a></h3>
-<p>&#34;If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV.&#34; (§6.3)</p>
+<p>If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV. (§6.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-6.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-6.3-5"><code>RFC8362-6.3-5</code></a></h3>
-<p>&#34;Documents specifying future TLVs or Sub-TLVs MUST specify the requirements for usage of those TLVs or sub-TLVs.&#34; (§6.3)</p>
+<p>Documents specifying future TLVs or Sub-TLVs MUST specify the requirements for usage of those TLVs or sub-TLVs. (§6.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-6.3-5, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-8.1-1"><code>RFC8362-8.1-1</code></a></h3>
-<p>Top-level TLV types 32768-33023 are reserved for experimental use; &#34;these will not be registered with IANA and MUST NOT be mentioned by RFCs.&#34; (§8.1)</p>
+<p>Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-8.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-8.1-2"><code>RFC8362-8.1-2</code></a></h3>
-<p>For top-level TLV types, &#34;Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned.&#34; (§8.1)</p>
+<p>Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-8.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-8.2-1"><code>RFC8362-8.2-1</code></a></h3>
-<p>Sub-TLV types 32768-33023 are reserved for experimental use; &#34;these will not be registered with IANA and MUST NOT be mentioned by RFCs.&#34; (§8.2)</p>
+<p>Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-8.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8362-8.2-2"><code>RFC8362-8.2-2</code></a></h3>
-<p>For sub-TLV types, &#34;Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned.&#34; (§8.2)</p>
+<p>Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8362-8.2-2, so no unit is bound to it.</p>
 </section>
@@ -1115,7 +1118,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

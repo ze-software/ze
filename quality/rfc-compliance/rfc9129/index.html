@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9129 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9129: YANG Data Model for the OSPF Protocol. 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 9129: YANG Data Model for the OSPF Protocol. 0 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9129 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9129: YANG Data Model for the OSPF Protocol. 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 9129: YANG Data Model for the OSPF Protocol. 0 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9129 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9129: YANG Data Model for the OSPF Protocol. 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 9129: YANG Data Model for the OSPF Protocol. 0 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -126,7 +126,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>0</strong><b>of 7 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (blocked), so every share below reads what the summary records rather than what the gate enforces</p></article>
+<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>0</strong><b>of 6 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (blocked), so every share below reads what the summary records rather than what the gate enforces</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 0 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 0 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 0 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
@@ -200,7 +200,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Not enrolled (blocked)</td>
 </tr>
 <tr><td>Requirements</td>
-<td>7</td>
+<td>6</td>
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>0</td>
@@ -209,6 +209,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
@@ -236,14 +239,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><code>rfc/requirements/rfc9129.md</code></td>
 </tr>
 <tr><td>RFC text</td>
-<td>this checkout does not carry the RFC&#39;s own text</td>
+<td><code>rfc/full/rfc9129.txt</code></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Not enrolled (blocked, something outside the summary stops the extraction, and it is named in the reason): YANG Data Model for the OSPF Protocol. No source text at rfc/full/rfc9129.txt or rfc/drafts/rfc9129.txt, so check_enrolment refuses the enrolment. Fetch https://www.rfc-editor.org/rfc/rfc9129.txt, then extract.</p>
+<p>Not enrolled (blocked, something outside the summary stops the extraction, and it is named in the reason): YANG Data Model for the OSPF Protocol. The text is at rfc/full/rfc9129.txt (fetched 2026-09-26); enrolment waits on its extraction walk.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 9129.</p>
@@ -256,7 +259,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9129-2.5-1">RFC9129-2.5-1</code></td><td colspan="3"><span class="rfc-subject">Instance carries `address-family` / `router-id` semantics equivalent to §2.5</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9129-2.5-1">RFC9129-2.5-1</code></td><td colspan="3"><span class="rfc-subject">The &#34;ospf&#34; container is the top-level container in this data model. It represents an OSPF protocol instance and contains the router-level configuration and operational state. (§2.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.5</td>
@@ -265,7 +268,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9129-2.6-1">RFC9129-2.6-1</code></td><td colspan="3"><span class="rfc-subject">Area list keyed by `area-id` with `area-type` covering normal/stub/nssa (§2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9129-2.6-1">RFC9129-2.6-1</code></td><td colspan="3"><span class="rfc-subject">The &#34;area&#34; container contains OSPF area configuration and the list of interface containers representing all the OSPF interfaces in the area. (§2.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.6</td>
@@ -274,16 +277,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9129-2.6-2">RFC9129-2.6-2</code></td><td colspan="3"><span class="rfc-subject">Area `ranges/range` aggregation with `advertise` + `cost`, and stub/NSSA `default-cost` (§2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9129-2.6-2">RFC9129-2.6-2</code></td><td colspan="3"><span class="rfc-subject">Summarizes routes matching the address/mask. Applicable to Area Border Routers (ABRs) only. (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>2.6</td>
+<td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9129-2.6-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9129-2.7-1">RFC9129-2.7-1</code></td><td colspan="3"><span class="rfc-subject">Interface carries `interface-type` (broadcast/point-to-point/nbma/point-to-multipoint), `cost`, `hello-interval`, `dead-interval`, `retransmit-interval`, `transmit-delay`, `priority`, `passive`, `mtu-ignore` (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9129-2.7-1">RFC9129-2.7-1</code></td><td colspan="3"><span class="rfc-subject">The &#34;interface&#34; container contains OSPF interface configuration and operational state. (§2.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.7</td>
@@ -292,25 +295,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9129-2.7-2">RFC9129-2.7-2</code></td><td colspan="3"><span class="rfc-subject">Authentication supports a key-chain reference per RFC 8177 plus explicit key + crypto-algorithm (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9129-2.7-2">RFC9129-2.7-2</code></td><td colspan="3"><span class="rfc-subject">Key chain or explicit key parameter specification. (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>2.7</td>
+<td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9129-2.7-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9129-2.5-2">RFC9129-2.5-2</code></td><td colspan="3"><span class="rfc-subject">Operational state exposes neighbors (with adjacency state), LSDB by scope, and statistics (§2.5, §2.6)</span></td></tr>
-<tr><td></td>
-<td>SHOULD</td>
-<td>2.5</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9129-2.5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9129-2.9-1">RFC9129-2.9-1</code></td><td colspan="3"><span class="rfc-subject">Provide `clear-neighbor` / `clear-database` RPC equivalents (§2.9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9129-2.9-1">RFC9129-2.9-1</code></td><td colspan="3"><span class="rfc-subject">The &#34;ietf-ospf&#34; module defines two RPC operations: clear-database: Resets the contents of a particular OSPF LSDB, forces neighbor adjacencies to the &#39;DOWN&#39; state, and reoriginates self-originated LSAs. clear-neighbor: Resets a particular OSPF neighbor or group of neighbors associated with an OSPF interface. (§2.9)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2.9</td>
@@ -364,7 +358,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

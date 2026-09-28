@@ -56,6 +56,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 7 |
 | Not applicable, so out of scope | 7 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
@@ -92,32 +93,32 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2782-Applicability-1` | A protocol specification indicating SRV use MUST define the symbolic name to be used in the Service field of the SRV record (§Applicability) | MUST | Applicability | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this MUST binds the author of a protocol specification that adopts SRV to define the Service token; ze authors no such specification -- the _Service._Proto owner name is operator config data served verbatim (internal/plugins/geodns/config.go:319, server.go:111), not a name ze defines |
-| `RFC2782-Applicability-2` | Such a specification MUST also include security considerations (§Applicability) | MUST | Applicability | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is a security-considerations obligation on the author of an SRV-adopting protocol specification; ze publishes no such specification |
+| `RFC2782-Applicability-1` | Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. (§Applicability) | MUST | Applicability | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this MUST binds the author of a protocol specification that adopts SRV to define the Service token; ze authors no such specification -- the _Service._Proto owner name is operator config data served verbatim (internal/plugins/geodns/config.go:319, server.go:111), not a name ze defines |
+| `RFC2782-Applicability-2` | Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. It also MUST include security considerations. (§Applicability) | MUST | Applicability | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is a security-considerations obligation on the author of an SRV-adopting protocol specification; ze publishes no such specification |
 | `RFC2782-Priority-1` | A client MUST attempt to contact the target host with the lowest-numbered priority it can reach (§Priority) | MUST | Priority | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze implements no SRV-cognizant connecting client; geodns is authoritative and serves SRV verbatim without selection (internal/plugins/geodns/server.go:111), and internal/component/resolve/dns returns target:port strings without contacting or ordering by priority (resolver.go:321) -- no production code resolves TypeSRV |
-| `RFC2782-Target-1` | There MUST be one or more address records for the Target name (§Target) | MUST | Target | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** an SRV Target is an arbitrary FQDN that commonly lives outside any zone geodns is authoritative for, so geodns cannot require in-zone address records for it (internal/plugins/geodns/config.go:319); the address-record obligation belongs to the target's own authoritative zone |
-| `RFC2782-Target-2` | The Target name MUST NOT be an alias, in the sense of RFC 1034 or RFC 2181 (§Target) | MUST NOT | Target | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** geodns serves no CNAME record type (internal/plugins/geodns/record.go:10-14), so a geodns SRV Target can never resolve to a geodns-served alias; whether an external target name is a CNAME is outside geodns's authority |
-| `RFC2782-Notes-2` | A client MUST parse all of the RRs in the reply (§Notes) | MUST | Notes | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this parse-all-RRs MUST governs the SRV-cognizant client that locates and connects to servers; ze has no such client. internal/component/resolve/dns iterates every answer RR (resolver.go:299) but is a generic stub resolver surfacing data, not a connecting SRV client, and no production code drives it with TypeSRV |
-| `RFC2782-Notes-3` | If the Additional Data section lacks address records for all the SRV RRs, the client MUST look up the missing address records before connecting (§Notes) | MUST | Notes | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Additional-section address follow-up before connecting is a connecting-SRV-client obligation ze does not implement; internal/component/resolve/dns never reads the Additional section and never connects (resolver.go:299), and geodns as a server emits no target address glue for SRV answers (server.go:182-188) |
-| `RFC2782-Applicability-3` | Service SRV records SHOULD NOT be used in the absence of such a protocol specification (§Applicability) | SHOULD NOT | Applicability | **positive:** no positive test. **negative:** no negative test |
-| `RFC2782-Priority-2` | Target hosts with the same priority SHOULD be tried in an order defined by the weight field (§Priority) | SHOULD | Priority | **positive:** no positive test. **negative:** no negative test |
+| `RFC2782-Target-1` | There MUST be one or more address records for this name (§Target) | MUST | Target | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** an SRV Target is an arbitrary FQDN that commonly lives outside any zone geodns is authoritative for, so geodns cannot require in-zone address records for it (internal/plugins/geodns/config.go:319); the address-record obligation belongs to the target's own authoritative zone |
+| `RFC2782-Target-2` | There MUST be one or more address records for this name, the name MUST NOT be an alias (in the sense of RFC 1034 or RFC 2181). (§Target) | MUST NOT | Target | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** geodns serves no CNAME record type (internal/plugins/geodns/record.go:10-14), so a geodns SRV Target can never resolve to a geodns-served alias; whether an external target name is a CNAME is outside geodns's authority |
+| `RFC2782-Notes-2` | A client MUST parse all of the RR's in the reply. (§Notes) | MUST | Notes | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this parse-all-RRs MUST governs the SRV-cognizant client that locates and connects to servers; ze has no such client. internal/component/resolve/dns iterates every answer RR (resolver.go:299) but is a generic stub resolver surfacing data, not a connecting SRV client, and no production code drives it with TypeSRV |
+| `RFC2782-Notes-3` | If the Additional Data section doesn't contain address records for all the SRV RR's and the client may want to connect to the target host(s) involved, the client MUST look up the address record(s). (§Notes) | MUST | Notes | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Additional-section address follow-up before connecting is a connecting-SRV-client obligation ze does not implement; internal/component/resolve/dns never reads the Additional section and never connects (resolver.go:299), and geodns as a server emits no target address glue for SRV answers (server.go:182-188) |
+| `RFC2782-Applicability-3` | Service SRV records SHOULD NOT be used in the absence of such specification. (§Applicability) | SHOULD NOT | Applicability | **positive:** no positive test. **negative:** no negative test |
+| `RFC2782-Priority-2` | target hosts with the same priority SHOULD be tried in an order defined by the weight field. (§Priority) | SHOULD | Priority | **positive:** no positive test. **negative:** no negative test |
 | `RFC2782-Weight-1` | Larger weights SHOULD be given a proportionately higher probability of being selected (§Weight) | SHOULD | Weight | **positive:** no positive test. **negative:** no negative test |
-| `RFC2782-Weight-2` | Domain administrators SHOULD use Weight 0 when there is no server selection to do (§Weight) | SHOULD | Weight | **positive:** no positive test. **negative:** no negative test |
-| `RFC2782-Weight-3` | The specified ordering algorithm SHOULD be used to order the SRV RRs of the same priority (§Weight) | SHOULD | Weight | **positive:** no positive test. **negative:** no negative test |
-| `RFC2782-Usage-1` | A SRV-cognizant client SHOULD use the specified procedure to locate servers and connect to the preferred one (§Usage) | SHOULD | Usage | **positive:** no positive test. **negative:** no negative test |
+| `RFC2782-Weight-2` | Domain administrators SHOULD use Weight 0 when there isn't any server selection to do, to make the RR easier to read for humans (less noisy). (§Weight) | SHOULD | Weight | **positive:** no positive test. **negative:** no negative test |
+| `RFC2782-Weight-3` | The following algorithm SHOULD be used to order the SRV RRs of the same priority (§Weight) | SHOULD | Weight | **positive:** no positive test. **negative:** no negative test |
+| `RFC2782-Usage-1` | A SRV-cognizant client SHOULD use this procedure to locate a list of servers and connect to the preferred one (§Usage) | SHOULD | Usage | **positive:** no positive test. **negative:** no negative test |
 | `RFC2782-Notes-1` | Port numbers SHOULD NOT be used in place of the symbolic service or protocol names (§Notes) | SHOULD NOT | Notes | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC2782-Applicability-1`](#rfc2782-applicability-1) A protocol specification indicating SRV use MUST define the symbolic name to be used in the Service field of the SRV record (§Applicability) | no test | no test carries this requirement id; annotated {not-applicable}: this MUST binds the author of a protocol specification that adopts SRV to define the Service token; ze authors no such specification -- the _Service._Proto owner name is operator config data served verbatim (internal/plugins/geodns/config.go:319, server.go:111), not a name ze defines |
-| [`RFC2782-Applicability-2`](#rfc2782-applicability-2) Such a specification MUST also include security considerations (§Applicability) | no test | no test carries this requirement id; annotated {not-applicable}: this is a security-considerations obligation on the author of an SRV-adopting protocol specification; ze publishes no such specification |
+| [`RFC2782-Applicability-1`](#rfc2782-applicability-1) Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. (§Applicability) | no test | no test carries this requirement id; annotated {not-applicable}: this MUST binds the author of a protocol specification that adopts SRV to define the Service token; ze authors no such specification -- the _Service._Proto owner name is operator config data served verbatim (internal/plugins/geodns/config.go:319, server.go:111), not a name ze defines |
+| [`RFC2782-Applicability-2`](#rfc2782-applicability-2) Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. It also MUST include security considerations. (§Applicability) | no test | no test carries this requirement id; annotated {not-applicable}: this is a security-considerations obligation on the author of an SRV-adopting protocol specification; ze publishes no such specification |
 | [`RFC2782-Priority-1`](#rfc2782-priority-1) A client MUST attempt to contact the target host with the lowest-numbered priority it can reach (§Priority) | no test | no test carries this requirement id; annotated {not-applicable}: ze implements no SRV-cognizant connecting client; geodns is authoritative and serves SRV verbatim without selection (internal/plugins/geodns/server.go:111), and internal/component/resolve/dns returns target:port strings without contacting or ordering by priority (resolver.go:321) -- no production code resolves TypeSRV |
-| [`RFC2782-Target-1`](#rfc2782-target-1) There MUST be one or more address records for the Target name (§Target) | no test | no test carries this requirement id; annotated {not-applicable}: an SRV Target is an arbitrary FQDN that commonly lives outside any zone geodns is authoritative for, so geodns cannot require in-zone address records for it (internal/plugins/geodns/config.go:319); the address-record obligation belongs to the target's own authoritative zone |
-| [`RFC2782-Target-2`](#rfc2782-target-2) The Target name MUST NOT be an alias, in the sense of RFC 1034 or RFC 2181 (§Target) | no test | no test carries this requirement id; annotated {not-applicable}: geodns serves no CNAME record type (internal/plugins/geodns/record.go:10-14), so a geodns SRV Target can never resolve to a geodns-served alias; whether an external target name is a CNAME is outside geodns's authority |
-| [`RFC2782-Notes-2`](#rfc2782-notes-2) A client MUST parse all of the RRs in the reply (§Notes) | no test | no test carries this requirement id; annotated {not-applicable}: this parse-all-RRs MUST governs the SRV-cognizant client that locates and connects to servers; ze has no such client. internal/component/resolve/dns iterates every answer RR (resolver.go:299) but is a generic stub resolver surfacing data, not a connecting SRV client, and no production code drives it with TypeSRV |
-| [`RFC2782-Notes-3`](#rfc2782-notes-3) If the Additional Data section lacks address records for all the SRV RRs, the client MUST look up the missing address records before connecting (§Notes) | no test | no test carries this requirement id; annotated {not-applicable}: Additional-section address follow-up before connecting is a connecting-SRV-client obligation ze does not implement; internal/component/resolve/dns never reads the Additional section and never connects (resolver.go:299), and geodns as a server emits no target address glue for SRV answers (server.go:182-188) |
+| [`RFC2782-Target-1`](#rfc2782-target-1) There MUST be one or more address records for this name (§Target) | no test | no test carries this requirement id; annotated {not-applicable}: an SRV Target is an arbitrary FQDN that commonly lives outside any zone geodns is authoritative for, so geodns cannot require in-zone address records for it (internal/plugins/geodns/config.go:319); the address-record obligation belongs to the target's own authoritative zone |
+| [`RFC2782-Target-2`](#rfc2782-target-2) There MUST be one or more address records for this name, the name MUST NOT be an alias (in the sense of RFC 1034 or RFC 2181). (§Target) | no test | no test carries this requirement id; annotated {not-applicable}: geodns serves no CNAME record type (internal/plugins/geodns/record.go:10-14), so a geodns SRV Target can never resolve to a geodns-served alias; whether an external target name is a CNAME is outside geodns's authority |
+| [`RFC2782-Notes-2`](#rfc2782-notes-2) A client MUST parse all of the RR's in the reply. (§Notes) | no test | no test carries this requirement id; annotated {not-applicable}: this parse-all-RRs MUST governs the SRV-cognizant client that locates and connects to servers; ze has no such client. internal/component/resolve/dns iterates every answer RR (resolver.go:299) but is a generic stub resolver surfacing data, not a connecting SRV client, and no production code drives it with TypeSRV |
+| [`RFC2782-Notes-3`](#rfc2782-notes-3) If the Additional Data section doesn't contain address records for all the SRV RR's and the client may want to connect to the target host(s) involved, the client MUST look up the address record(s). (§Notes) | no test | no test carries this requirement id; annotated {not-applicable}: Additional-section address follow-up before connecting is a connecting-SRV-client obligation ze does not implement; internal/component/resolve/dns never reads the Additional section and never connects (resolver.go:299), and geodns as a server emits no target address glue for SRV answers (server.go:182-188) |
 
 ## Proof state
 
@@ -125,7 +126,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC2782-Applicability-1`](#rfc2782-applicability-1)
 
-A protocol specification indicating SRV use MUST define the symbolic name to be used in the Service field of the SRV record (§Applicability)
+Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. (§Applicability)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -133,7 +134,7 @@ No test carries RFC2782-Applicability-1, so no unit is bound to it.
 
 ### [`RFC2782-Applicability-2`](#rfc2782-applicability-2)
 
-Such a specification MUST also include security considerations (§Applicability)
+Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. It also MUST include security considerations. (§Applicability)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -149,7 +150,7 @@ No test carries RFC2782-Priority-1, so no unit is bound to it.
 
 ### [`RFC2782-Target-1`](#rfc2782-target-1)
 
-There MUST be one or more address records for the Target name (§Target)
+There MUST be one or more address records for this name (§Target)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -157,7 +158,7 @@ No test carries RFC2782-Target-1, so no unit is bound to it.
 
 ### [`RFC2782-Target-2`](#rfc2782-target-2)
 
-The Target name MUST NOT be an alias, in the sense of RFC 1034 or RFC 2181 (§Target)
+There MUST be one or more address records for this name, the name MUST NOT be an alias (in the sense of RFC 1034 or RFC 2181). (§Target)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -165,7 +166,7 @@ No test carries RFC2782-Target-2, so no unit is bound to it.
 
 ### [`RFC2782-Notes-2`](#rfc2782-notes-2)
 
-A client MUST parse all of the RRs in the reply (§Notes)
+A client MUST parse all of the RR's in the reply. (§Notes)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -173,7 +174,7 @@ No test carries RFC2782-Notes-2, so no unit is bound to it.
 
 ### [`RFC2782-Notes-3`](#rfc2782-notes-3)
 
-If the Additional Data section lacks address records for all the SRV RRs, the client MUST look up the missing address records before connecting (§Notes)
+If the Additional Data section doesn't contain address records for all the SRV RR's and the client may want to connect to the target host(s) involved, the client MUST look up the address record(s). (§Notes)
 
 Audit verdict: not audited: no reader has judged these tests
 

@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 4 | of 4 gated MUSTs judged | 4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 4 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 8 |
 | Tagged units | 8 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 4 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc5187.md` |
 | Requirement shard | `rfc/requirements/rfc5187.md` |
@@ -100,8 +109,8 @@ Same OSPF experimental status.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5187-2.2-1` | Grace Period TLV (Type=1, Length=4): "This TLV MUST always appear in a grace-LSA" (§2.2) | MUST | 2.2 | **positive:** `unit/verify` [`TestGraceLSARoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L12). **negative:** `unit/verify` [`TestGraceLSADecodeMissingMandatory`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L65) |
-| `RFC5187-2.2-2` | Graceful Restart Reason TLV (Type=2, Length=1): "This TLV MUST always appear in a grace-LSA" (§2.2) | MUST | 2.2 | **positive:** `unit/verify` [`TestGraceLSARoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L16). **negative:** `unit/verify` [`TestGraceLSADecodeMissingMandatory`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L69) |
+| `RFC5187-2.2-1` | Grace Period (Type=1, Length=4). The number of seconds that the router's neighbors should continue to advertise the router as fully adjacent, regardless of the state of database synchronization between the router and its neighbors. This TLV MUST always appear in a grace-LSA. (§2.2) | MUST | 2.2 | **positive:** `unit/verify` [`TestGraceLSARoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L12). **negative:** `unit/verify` [`TestGraceLSADecodeMissingMandatory`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L65) |
+| `RFC5187-2.2-2` | Graceful restart reason (Type=2, Length=1). Encodes the reason for the router restart, as one of the following: 0 (unknown), 1 (software restart), 2 (software reload/upgrade), or 3 (switch to redundant control processor). This TLV MUST always appear in a grace-LSA. (§2.2) | MUST | 2.2 | **positive:** `unit/verify` [`TestGraceLSARoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L16). **negative:** `unit/verify` [`TestGraceLSADecodeMissingMandatory`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L69) |
 | `RFC5187-3.1-1` | Hence, to avoid network churn during graceful restart, the restarting router MUST preserve the LSA ID to prefix correspondence across graceful restarts. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_nvs_test.go#L60). **negative:** `unit/verify` [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_nvs_test.go#L110) |
 | `RFC5187-3.2-1` | Therefore, the OSPFv3 Interface ID, as described in section 3.1.2 of [OSPFv3], MUST be preserved by the restarting router across restarts. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_nvs_test.go#L63). **negative:** `unit/verify` [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_nvs_test.go#L114) |
 
@@ -115,9 +124,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC5187-2.2-1`](#rfc5187-2.2-1)
 
-Grace Period TLV (Type=1, Length=4): "This TLV MUST always appear in a grace-LSA" (§2.2)
+Grace Period (Type=1, Length=4). The number of seconds that the router's neighbors should continue to advertise the router as fully adjacent, regardless of the state of database synchronization between the router and its neighbors. This TLV MUST always appear in a grace-LSA. (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a grace-LSA without the Grace Period TLV (Type=1, Length=4), originated or accepted. TestGraceLSARoundTrip asserts the EncodeGraceLSA body length equals period(4)+reason(1)+addr(4) TLVs and round-trips GracePeriod; TestGraceLSADecodeMissingMandatory asserts DecodeGraceLSA rejects a Reason-only body. Neither reads the type octets: encode and decode both use GraceTLVPeriod, so a wrong type number (the TLV absent on the wire as Type 1) stays green. The tagged units are the shared codec; the OSPFv3 origination path (gr_restarter.go, LS type 0x000B) is not driven.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -126,9 +135,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5187-2.2-2`](#rfc5187-2.2-2)
 
-Graceful Restart Reason TLV (Type=2, Length=1): "This TLV MUST always appear in a grace-LSA" (§2.2)
+Graceful restart reason (Type=2, Length=1). Encodes the reason for the router restart, as one of the following: 0 (unknown), 1 (software restart), 2 (software reload/upgrade), or 3 (switch to redundant control processor). This TLV MUST always appear in a grace-LSA. (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a grace-LSA without the Graceful restart reason TLV (Type=2, Length=1). TestGraceLSARoundTrip asserts the encoded body length and round-trips Reason; TestGraceLSADecodeMissingMandatory asserts a Period-only body is rejected. No assertion reads the type octet: both sides use GraceTLVReason, so a wrong type number stays green. The OSPFv3 origination path (gr_restarter.go) is not driven.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -139,7 +148,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Hence, to avoid network churn during graceful restart, the restarting router MUST preserve the LSA ID to prefix correspondence across graceful restarts. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: the restarted router re-originating a prefix under a different LSA ID. TestRestartFactPersistsAcrossRestart asserts only that a restartFact map written by the test reads back from the store (PrefixLSIDs["2001:db8::/64"] == 42). The producers that capture the map before restart (capturePrefixLSIDs, gr_restarter.go:45) and apply it after (restorePrefixLSIDs, gr_restarter.go:148, gr_preserve.go) are not in any tagged unit, so a no-op capture or restore stays green. The negative, TestStaleRestartFactIgnored, proves expiry of the restart fact, a neighbouring rule.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -150,7 +159,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Therefore, the OSPFv3 Interface ID, as described in section 3.1.2 of [OSPFv3], MUST be preserved by the restarting router across restarts. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: the restarted router using a different OSPFv3 Interface ID for an interface. TestRestartFactPersistsAcrossRestart asserts only the store round-trip of a test-built InterfaceIDs map (eth1 == 9). captureInterfaceIDs (gr_restarter.go:44) and restoreInterfaceIDs (gr_restarter.go:149, gr_preserve.go) are not in any tagged unit, so a no-op capture or restore stays green. The negative, TestStaleRestartFactIgnored, proves expiry of the restart fact, a neighbouring rule.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

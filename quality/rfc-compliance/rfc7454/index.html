@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7454 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7454: BGP Operations and Security. 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7454: BGP Operations and Security. 0 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7454 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7454: BGP Operations and Security. 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7454: BGP Operations and Security. 0 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7454 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7454: BGP Operations and Security. 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7454: BGP Operations and Security. 0 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -211,6 +211,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -256,7 +259,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-2-1">RFC7454-2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;network administrators SHOULD carefully appraise this impact before implementation&#34;, for every configured exception to this document (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-2-1">RFC7454-2-1</code></td><td colspan="3"><span class="rfc-subject">every configured exception might have an impact on the entire inter-domain routing environment, and network administrators SHOULD carefully appraise this impact before implementation. (§2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2</td>
@@ -265,7 +268,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-4-1">RFC7454-4-1</code></td><td colspan="3"><span class="rfc-subject">Protection of the BGP speaker &#34;SHOULD be achieved by an Access Control List (ACL) that would discard all packets directed to TCP port 179 on the local device and sourced from an address not known or permitted to become a BGP neighbor&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-4-1">RFC7454-4-1</code></td><td colspan="3"><span class="rfc-subject">The BGP speaker needs to be protected from attempts to subvert the BGP session. This protection SHOULD be achieved by an Access Control List (ACL) that would discard all packets directed to TCP port 179 on the local device and sourced from an address not known or permitted to become a BGP neighbor. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4</td>
@@ -274,7 +277,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-4-2">RFC7454-4-2</code></td><td colspan="3"><span class="rfc-subject">&#34;If supported, an ACL specific to the control plane of the router SHOULD be used (receive-ACL, control-plane policing, etc.)&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-4-2">RFC7454-4-2</code></td><td colspan="3"><span class="rfc-subject">If supported, an ACL specific to the control plane of the router SHOULD be used (receive-ACL, control-plane policing, etc.), to avoid configuration of data-plane filters for packets transiting through the router (and therefore not reaching the control plane). (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4</td>
@@ -283,7 +286,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-5.1-1">RFC7454-5.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;TCP-AO SHOULD be preferred when implemented&#34;, over TCP MD5 (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-5.1-1">RFC7454-5.1-1</code></td><td colspan="3"><span class="rfc-subject">While MD5 is still the most used mechanism due to its availability in vendors&#39; equipment, TCP-AO SHOULD be preferred when implemented. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.1</td>
@@ -292,7 +295,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-5.1-4">RFC7454-5.1-4</code></td><td colspan="3"><span class="rfc-subject">&#34;network administrators SHOULD block spoofed packets (packets with a source IP address belonging to their IP address space) at all edges of their network&#34; (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-5.1-4">RFC7454-5.1-4</code></td><td colspan="3"><span class="rfc-subject">network administrators SHOULD block spoofed packets (packets with a source IP address belonging to their IP address space) at all edges of their network (§5.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.1</td>
@@ -301,7 +304,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-5.2-1">RFC7454-5.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Network administrators SHOULD implement TTL security on directly connected BGP peerings&#34; (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-5.2-1">RFC7454-5.2-1</code></td><td colspan="3"><span class="rfc-subject">Network administrators SHOULD implement TTL security on directly connected BGP peerings. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.2</td>
@@ -310,7 +313,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.1.1-1">RFC7454-6.1.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The IANA IPv4 Special-Purpose Address Registry &#34;SHOULD be used for prefix-filter configuration&#34; (§6.1.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.1.1-1">RFC7454-6.1.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The IANA IPv4 Special-Purpose Address Registry [23] maintains the list of IPv4 special-purpose prefixes and their routing scope, and it SHOULD be used for prefix-filter configuration. (§6.1.1.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.1.1</td>
@@ -319,7 +322,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.1.1-2">RFC7454-6.1.1.1-2</code></td><td colspan="3"><span class="rfc-subject">IPv4 prefixes &#34;with value &#34;False&#34; in column &#34;Global&#34; SHOULD be discarded on Internet BGP peerings&#34; (§6.1.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.1.1-2">RFC7454-6.1.1.1-2</code></td><td colspan="3"><span class="rfc-subject">Prefixes with value &#34;False&#34; in column &#34;Global&#34; SHOULD be discarded on Internet BGP peerings. (§6.1.1.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.1.1</td>
@@ -328,7 +331,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.1.2-1">RFC7454-6.1.1.2-1</code></td><td colspan="3"><span class="rfc-subject">The IANA IPv6 Special-Purpose Address Registry &#34;SHOULD be used for prefix-filter configuration&#34; (§6.1.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.1.2-1">RFC7454-6.1.1.2-1</code></td><td colspan="3"><span class="rfc-subject">The IANA IPv6 Special-Purpose Address Registry [24] maintains the list of IPv6 special-purpose prefixes and their routing scope, and it SHOULD be used for prefix-filter configuration. (§6.1.1.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.1.2</td>
@@ -337,7 +340,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.1.2-2">RFC7454-6.1.1.2-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Only prefixes with value &#34;False&#34; in column &#34;Global&#34; SHOULD be discarded on Internet BGP peerings&#34;, for IPv6 (§6.1.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.1.2-2">RFC7454-6.1.1.2-2</code></td><td colspan="3"><span class="rfc-subject">Only prefixes with value &#34;False&#34; in column &#34;Global&#34; SHOULD be discarded on Internet BGP peerings. (§6.1.1.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.1.2</td>
@@ -346,7 +349,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.1-1">RFC7454-6.1.2.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;network administrators SHOULD ensure that all IPv6 prefix filters are updated within a maximum of one month after any change in the list of IPv6 prefixes allocated by IANA&#34; (§6.1.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.1-1">RFC7454-6.1.2.1-1</code></td><td colspan="3"><span class="rfc-subject">network administrators SHOULD ensure that all IPv6 prefix filters are updated within a maximum of one month after any change in the list of IPv6 prefixes allocated by IANA. (§6.1.2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.2.1</td>
@@ -355,7 +358,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.1-1">RFC7454-6.1.2.2.1-1</code></td><td colspan="3"><span class="rfc-subject">For IRR-derived prefix filters, &#34;Refreshing the filters on a daily basis SHOULD be considered&#34; (§6.1.2.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.1-1">RFC7454-6.1.2.2.1-1</code></td><td colspan="3"><span class="rfc-subject">Refreshing the filters on a daily basis SHOULD be considered (§6.1.2.2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.2.2.1</td>
@@ -364,7 +367,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.1-2">RFC7454-6.1.2.2.1-2</code></td><td colspan="3"><span class="rfc-subject">&#34;network administrators SHOULD publish and maintain their resources properly in the IRR database maintained by their RIR, when available&#34; (§6.1.2.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.1-2">RFC7454-6.1.2.2.1-2</code></td><td colspan="3"><span class="rfc-subject">network administrators SHOULD publish and maintain their resources properly in the IRR database maintained by their RIR, when available. (§6.1.2.2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.2.2.1</td>
@@ -373,7 +376,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-1">RFC7454-6.1.2.2.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;network administrators SHOULD implement any SIDR proposed mechanism (for example, route origin validation) on top of the other existing mechanisms&#34; (§6.1.2.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-1">RFC7454-6.1.2.2.2-1</code></td><td colspan="3"><span class="rfc-subject">network administrators SHOULD implement any SIDR proposed mechanism (for example, route origin validation) on top of the other existing mechanisms even if they could sometimes appear to be targeting the same goal. (§6.1.2.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.2.2.2</td>
@@ -382,7 +385,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-2">RFC7454-6.1.2.2.2-2</code></td><td colspan="3"><span class="rfc-subject">&#34;If route origin validation is implemented, the reader SHOULD refer to the rules described in RFC 7115&#34; (§6.1.2.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-2">RFC7454-6.1.2.2.2-2</code></td><td colspan="3"><span class="rfc-subject">If route origin validation is implemented, the reader SHOULD refer to the rules described in RFC 7115 [15]. (§6.1.2.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.2.2.2</td>
@@ -391,7 +394,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-3">RFC7454-6.1.2.2.2-3</code></td><td colspan="3"><span class="rfc-subject">&#34;each external route received on a router SHOULD be checked against the Resource Public Key Infrastructure (RPKI) data set&#34; (§6.1.2.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-3">RFC7454-6.1.2.2.2-3</code></td><td colspan="3"><span class="rfc-subject">each external route received on a router SHOULD be checked against the Resource Public Key Infrastructure (RPKI) data set (§6.1.2.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.2.2.2</td>
@@ -400,7 +403,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-4">RFC7454-6.1.2.2.2-4</code></td><td colspan="3"><span class="rfc-subject">&#34;If a corresponding ROA (Route Origin Authorization) is found and is valid, then the prefix SHOULD be accepted&#34; (§6.1.2.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-4">RFC7454-6.1.2.2.2-4</code></td><td colspan="3"><span class="rfc-subject">If a corresponding ROA (Route Origin Authorization) is found and is valid, then the prefix SHOULD be accepted. (§6.1.2.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.2.2.2</td>
@@ -409,7 +412,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-5">RFC7454-6.1.2.2.2-5</code></td><td colspan="3"><span class="rfc-subject">&#34;If the ROA is found and is INVALID, then the prefix SHOULD be discarded&#34; (§6.1.2.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-5">RFC7454-6.1.2.2.2-5</code></td><td colspan="3"><span class="rfc-subject">If the ROA is found and is INVALID, then the prefix SHOULD be discarded. (§6.1.2.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.2.2.2</td>
@@ -418,7 +421,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-6">RFC7454-6.1.2.2.2-6</code></td><td colspan="3"><span class="rfc-subject">&#34;If a ROA is not found, then the prefix SHOULD be accepted&#34; (§6.1.2.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-6">RFC7454-6.1.2.2.2-6</code></td><td colspan="3"><span class="rfc-subject">If a ROA is not found, then the prefix SHOULD be accepted (§6.1.2.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.2.2.2</td>
@@ -427,7 +430,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-7">RFC7454-6.1.2.2.2-7</code></td><td colspan="3"><span class="rfc-subject">Where no ROA is found, &#34;the corresponding route SHOULD be given a low preference&#34; (§6.1.2.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-7">RFC7454-6.1.2.2.2-7</code></td><td colspan="3"><span class="rfc-subject">If a ROA is not found, then the prefix SHOULD be accepted, but the corresponding route SHOULD be given a low preference. (§6.1.2.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.2.2.2</td>
@@ -436,7 +439,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-8">RFC7454-6.1.2.2.2-8</code></td><td colspan="3"><span class="rfc-subject">&#34;network administrators SHOULD sign their routing objects so their routes can be validated by other networks running origin validation&#34; (§6.1.2.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2.2.2-8">RFC7454-6.1.2.2.2-8</code></td><td colspan="3"><span class="rfc-subject">network administrators SHOULD sign their routing objects so their routes can be validated by other networks running origin validation. (§6.1.2.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.2.2.2</td>
@@ -445,7 +448,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.4-1">RFC7454-6.1.4-1</code></td><td colspan="3"><span class="rfc-subject">&#34;A network SHOULD filter its own prefixes on peerings with all its peers (inbound direction)&#34; (§6.1.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.4-1">RFC7454-6.1.4-1</code></td><td colspan="3"><span class="rfc-subject">A network SHOULD filter its own prefixes on peerings with all its peers (inbound direction). (§6.1.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.4</td>
@@ -454,7 +457,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.5.1-2">RFC7454-6.1.5.1-2</code></td><td colspan="3"><span class="rfc-subject">&#34;If the IXP LAN prefix is accepted at all, it SHOULD only be accepted from the ASes that the IXP authorizes to announce it&#34; (§6.1.5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.5.1-2">RFC7454-6.1.5.1-2</code></td><td colspan="3"><span class="rfc-subject">If the IXP LAN prefix is accepted at all, it SHOULD only be accepted from the ASes that the IXP authorizes to announce it (§6.1.5.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.5.1</td>
@@ -463,7 +466,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.5.2-1">RFC7454-6.1.5.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;any IXP member SHOULD make sure it has a route for the IXP LAN prefix or a less specific prefix on all its routers&#34; (§6.1.5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.5.2-1">RFC7454-6.1.5.2-1</code></td><td colspan="3"><span class="rfc-subject">any IXP member SHOULD make sure it has a route for the IXP LAN prefix or a less specific prefix on all its routers (§6.1.5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.5.2</td>
@@ -472,7 +475,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.5.2-2">RFC7454-6.1.5.2-2</code></td><td colspan="3"><span class="rfc-subject">An IXP member SHOULD make sure &#34;that it announces the IXP LAN prefix or the less specific route (up to a default route) to its downstreams&#34; (§6.1.5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.5.2-2">RFC7454-6.1.5.2-2</code></td><td colspan="3"><span class="rfc-subject">any IXP member SHOULD make sure it has a route for the IXP LAN prefix or a less specific prefix on all its routers and that it announces the IXP LAN prefix or the less specific route (up to a default route) to its downstreams. (§6.1.5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.5.2</td>
@@ -481,7 +484,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.5.2-3">RFC7454-6.1.5.2-3</code></td><td colspan="3"><span class="rfc-subject">&#34;The announcements done for this purpose SHOULD pass IRR-generated filters described in Section 6.1.2.2.1 as well as &#34;prefixes that are too specific&#34; filters described in Section 6.1.3&#34; (§6.1.5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.5.2-3">RFC7454-6.1.5.2-3</code></td><td colspan="3"><span class="rfc-subject">The announcements done for this purpose SHOULD pass IRR-generated filters described in Section 6.1.2.2.1 as well as &#34;prefixes that are too specific&#34; filters described in Section 6.1.3. (§6.1.5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.1.5.2</td>
@@ -490,7 +493,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.2.1.1.2-1">RFC7454-6.2.1.1.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Before applying a strict policy, the reader SHOULD check the impact on the filter and make sure the solution is not worse than the problem&#34; (§6.2.1.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.2.1.1.2-1">RFC7454-6.2.1.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Before applying a strict policy, the reader SHOULD check the impact on the filter and make sure the solution is not worse than the problem. (§6.2.1.1.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.2.1.1.2</td>
@@ -499,7 +502,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.2.2.1-1">RFC7454-6.2.2.1-1</code></td><td colspan="3"><span class="rfc-subject">With end customers, &#34;only customer prefixes SHOULD be accepted&#34; (§6.2.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.2.2.1-1">RFC7454-6.2.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The inbound policy with end customers is pretty straightforward: only customer prefixes SHOULD be accepted (§6.2.2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.2.2.1</td>
@@ -508,7 +511,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.2.2.1-2">RFC7454-6.2.2.1-2</code></td><td colspan="3"><span class="rfc-subject">With end customers, prefixes other than the customer&#39;s &#34;SHOULD be discarded&#34; (§6.2.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.2.2.1-2">RFC7454-6.2.2.1-2</code></td><td colspan="3"><span class="rfc-subject">The inbound policy with end customers is pretty straightforward: only customer prefixes SHOULD be accepted, all others SHOULD be discarded. (§6.2.2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.2.2.1</td>
@@ -517,7 +520,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-1">RFC7454-9-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Network administrators SHOULD accept from customers only 2-byte or 4-byte AS paths containing ASNs belonging to (or authorized to transit through) the customer&#34; (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-1">RFC7454-9-1</code></td><td colspan="3"><span class="rfc-subject">Network administrators SHOULD accept from customers only 2-byte or 4-byte AS paths containing ASNs belonging to (or authorized to transit through) the customer. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>9</td>
@@ -526,7 +529,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-2">RFC7454-9-2</code></td><td colspan="3"><span class="rfc-subject">Where those filter expressions cannot be built, administrators &#34;SHOULD consider accepting only path lengths relevant to the type of customer they have&#34; (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-2">RFC7454-9-2</code></td><td colspan="3"><span class="rfc-subject">If network administrators cannot build and generate filtering expressions to implement this, they SHOULD consider accepting only path lengths relevant to the type of customer they have (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>9</td>
@@ -535,7 +538,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-3">RFC7454-9-3</code></td><td colspan="3"><span class="rfc-subject">Where those filter expressions cannot be built, administrators &#34;SHOULD try to discourage excessive prepending in such paths&#34; (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-3">RFC7454-9-3</code></td><td colspan="3"><span class="rfc-subject">If network administrators cannot build and generate filtering expressions to implement this, they SHOULD consider accepting only path lengths relevant to the type of customer they have (as in, if these customers are a leaf or have customers of their own) and SHOULD try to discourage excessive prepending in such paths. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>9</td>
@@ -544,7 +547,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-5">RFC7454-9-5</code></td><td colspan="3"><span class="rfc-subject">Where an upstream offers black-hole origination based on a private AS number, &#34;in that case, prefixes SHOULD be accepted&#34; (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-5">RFC7454-9-5</code></td><td colspan="3"><span class="rfc-subject">An exception could occur when an upstream is offering some particular service like black-hole origination based on a private AS number: in that case, prefixes SHOULD be accepted. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>9</td>
@@ -553,7 +556,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-10">RFC7454-9-10</code></td><td colspan="3"><span class="rfc-subject">Private AS numbers &#34;SHOULD be stripped when received from BGP peers that are not party to such private arrangements&#34; (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-10">RFC7454-9-10</code></td><td colspan="3"><span class="rfc-subject">Private AS numbers are conventionally used in contexts that are &#34;private&#34; and SHOULD NOT be used in advertisements to BGP peers that are not party to such private arrangements, and they SHOULD be stripped when received from BGP peers that are not party to such private arrangements. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>9</td>
@@ -562,7 +565,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-10-1">RFC7454-10-1</code></td><td colspan="3"><span class="rfc-subject">&#34;an inbound route policy SHOULD be applied on IXP peerings in order to set the next hop for accepted prefixes to the BGP peer IP address (belonging to the IXP LAN) that sent the prefix&#34; (§10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-10-1">RFC7454-10-1</code></td><td colspan="3"><span class="rfc-subject">an inbound route policy SHOULD be applied on IXP peerings in order to set the next hop for accepted prefixes to the BGP peer IP address (belonging to the IXP LAN) that sent the prefix (§10)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>10</td>
@@ -571,7 +574,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-10-3">RFC7454-10-3</code></td><td colspan="3"><span class="rfc-subject">&#34;This policy also SHOULD be adjusted if the best practice of Remote Triggered Black Holing (aka RTBH as described in RFC 6666) is implemented&#34; (§10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-10-3">RFC7454-10-3</code></td><td colspan="3"><span class="rfc-subject">This policy also SHOULD be adjusted if the best practice of Remote Triggered Black Holing (aka RTBH as described in RFC 6666 [13]) is implemented. (§10)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>10</td>
@@ -580,7 +583,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-11-1">RFC7454-11-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Network administrators SHOULD scrub inbound communities with their number in the high-order bits, and allow only those communities that customers/peers can use as a signaling mechanism&#34; (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-11-1">RFC7454-11-1</code></td><td colspan="3"><span class="rfc-subject">Network administrators SHOULD scrub inbound communities with their number in the high-order bits, and allow only those communities that customers/peers can use as a signaling mechanism (§11)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>11</td>
@@ -589,7 +592,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-11-3">RFC7454-11-3</code></td><td colspan="3"><span class="rfc-subject">Administrators &#34;SHOULD keep original communities when they apply a community&#34; (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-11-3">RFC7454-11-3</code></td><td colspan="3"><span class="rfc-subject">In particular, they SHOULD keep original communities when they apply a community. (§11)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>11</td>
@@ -598,7 +601,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-a-1">RFC7454-A-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Any IXP member SHOULD make sure it filters prefixes more specific than X.Y.0.0/23 from all its EBGP peers&#34;, where X.Y.0.0/23 is the IXP LAN prefix (§A)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-a-1">RFC7454-A-1</code></td><td colspan="3"><span class="rfc-subject">Any IXP member SHOULD make sure it filters prefixes more specific than X.Y.0.0/23 from all its EBGP peers. (§A)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>A</td>
@@ -607,7 +610,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-a-2">RFC7454-A-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The IXP SHOULD originate X.Y.0.0/22 and advertise it to its members through an EBGP peering&#34;, where X.Y.0.0/22 is the IXP allocation (§A)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-a-2">RFC7454-A-2</code></td><td colspan="3"><span class="rfc-subject">The IXP SHOULD originate X.Y.0.0/22 and advertise it to its members through an EBGP peering (most likely from its BGP route servers, configured with AS64496). (§A)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>A</td>
@@ -616,7 +619,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-a-3">RFC7454-A-3</code></td><td colspan="3"><span class="rfc-subject">&#34;The IXP members SHOULD accept the IXP prefix only if it passes the IRR generated filters&#34; (§A)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-a-3">RFC7454-A-3</code></td><td colspan="3"><span class="rfc-subject">The IXP members SHOULD accept the IXP prefix only if it passes the IRR generated filters (§A)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>A</td>
@@ -625,7 +628,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-a-4">RFC7454-A-4</code></td><td colspan="3"><span class="rfc-subject">&#34;IXP members SHOULD then advertise X.Y.0.0/22 prefix to their downstreams&#34; (§A)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-a-4">RFC7454-A-4</code></td><td colspan="3"><span class="rfc-subject">IXP members SHOULD then advertise X.Y.0.0/22 prefix to their downstreams. (§A)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>A</td>
@@ -634,7 +637,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2-1">RFC7454-6.1.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Network administrators SHOULD NOT consider solutions described in this section if they are not capable of maintaining updated prefix filters&#34;, for unallocated-prefix filtering (§6.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.2-1">RFC7454-6.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Network administrators SHOULD NOT consider solutions described in this section if they are not capable of maintaining updated prefix filters: the damage would probably be worse than the intended security policy. (§6.1.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>6.1.2</td>
@@ -643,7 +646,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.4-2">RFC7454-6.1.4-2</code></td><td colspan="3"><span class="rfc-subject">&#34;In some cases, for example, multihoming scenarios, such filters SHOULD NOT be applied, as this would break the desired redundancy&#34;, for local-AS prefix filters (§6.1.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.4-2">RFC7454-6.1.4-2</code></td><td colspan="3"><span class="rfc-subject">In some cases, for example, multihoming scenarios, such filters SHOULD NOT be applied, as this would break the desired redundancy. (§6.1.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>6.1.4</td>
@@ -652,7 +655,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.5.1-1">RFC7454-6.1.5.1-1</code></td><td colspan="3"><span class="rfc-subject">A network on an IXP &#34;SHOULD NOT accept more-specific prefixes for the IXP LAN prefix from any of its external BGP peers&#34; (§6.1.5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.5.1-1">RFC7454-6.1.5.1-1</code></td><td colspan="3"><span class="rfc-subject">When a network is present on an IXP and peers with other IXP members over a common subnet (IXP LAN prefix), it SHOULD NOT accept more- specific prefixes for the IXP LAN prefix from any of its external BGP peers. (§6.1.5.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>6.1.5.1</td>
@@ -661,7 +664,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-4">RFC7454-9-4</code></td><td colspan="3"><span class="rfc-subject">&#34;Network administrators SHOULD NOT accept prefixes with private AS numbers in the AS path unless the prefixes are from customers&#34; (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-4">RFC7454-9-4</code></td><td colspan="3"><span class="rfc-subject">Network administrators SHOULD NOT accept prefixes with private AS numbers in the AS path unless the prefixes are from customers. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>9</td>
@@ -670,7 +673,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-6">RFC7454-9-6</code></td><td colspan="3"><span class="rfc-subject">&#34;Network administrators SHOULD NOT accept prefixes when the first AS number in the AS path is not the one of the peer&#39;s unless the peering is done toward a BGP route server ... with transparent AS path handling&#34; (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-6">RFC7454-9-6</code></td><td colspan="3"><span class="rfc-subject">Network administrators SHOULD NOT accept prefixes when the first AS number in the AS path is not the one of the peer&#39;s unless the peering is done toward a BGP route server [17] (for example, on an IXP) with transparent AS path handling. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>9</td>
@@ -679,7 +682,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-7">RFC7454-9-7</code></td><td colspan="3"><span class="rfc-subject">&#34;Network administrators SHOULD NOT advertise prefixes with a nonempty AS path unless they intend to provide transit for these prefixes&#34; (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-7">RFC7454-9-7</code></td><td colspan="3"><span class="rfc-subject">Network administrators SHOULD NOT advertise prefixes with a nonempty AS path unless they intend to provide transit for these prefixes. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>9</td>
@@ -688,7 +691,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-8">RFC7454-9-8</code></td><td colspan="3"><span class="rfc-subject">&#34;Network administrators SHOULD NOT advertise prefixes with upstream AS numbers in the AS path to their peering AS unless they intend to provide transit for these prefixes&#34; (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-8">RFC7454-9-8</code></td><td colspan="3"><span class="rfc-subject">Network administrators SHOULD NOT advertise prefixes with upstream AS numbers in the AS path to their peering AS unless they intend to provide transit for these prefixes. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>9</td>
@@ -697,7 +700,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-9">RFC7454-9-9</code></td><td colspan="3"><span class="rfc-subject">Private AS numbers &#34;SHOULD NOT be used in advertisements to BGP peers that are not party to such private arrangements&#34; (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-9">RFC7454-9-9</code></td><td colspan="3"><span class="rfc-subject">Private AS numbers are conventionally used in contexts that are &#34;private&#34; and SHOULD NOT be used in advertisements to BGP peers that are not party to such private arrangements (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>9</td>
@@ -706,7 +709,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-11">RFC7454-9-11</code></td><td colspan="3"><span class="rfc-subject">&#34;Network administrators SHOULD NOT override BGP&#39;s default behavior, i.e., they should not accept their own AS number in the AS path&#34; (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-9-11">RFC7454-9-11</code></td><td colspan="3"><span class="rfc-subject">Network administrators SHOULD NOT override BGP&#39;s default behavior, i.e., they should not accept their own AS number in the AS path. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>9</td>
@@ -715,7 +718,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-10-2">RFC7454-10-2</code></td><td colspan="3"><span class="rfc-subject">&#34;This policy SHOULD NOT be used on route-server peerings or on peerings where network administrators intentionally permit the other side to send third-party next hops&#34; (§10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-10-2">RFC7454-10-2</code></td><td colspan="3"><span class="rfc-subject">This policy SHOULD NOT be used on route-server peerings or on peerings where network administrators intentionally permit the other side to send third-party next hops. (§10)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>10</td>
@@ -724,7 +727,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-11-2">RFC7454-11-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Networks administrators SHOULD NOT remove other communities applied on received routes&#34; (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-11-2">RFC7454-11-2</code></td><td colspan="3"><span class="rfc-subject">Networks administrators SHOULD NOT remove other communities applied on received routes (communities not removed after application of the previous statement). (§11)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>11</td>
@@ -733,7 +736,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-11-4">RFC7454-11-4</code></td><td colspan="3"><span class="rfc-subject">&#34;network administrators SHOULD NOT (generally) remove the no-export community, as it is usually announced by their peer for a certain purpose&#34; (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-11-4">RFC7454-11-4</code></td><td colspan="3"><span class="rfc-subject">In particular, network administrators SHOULD NOT (generally) remove the no-export community, as it is usually announced by their peer for a certain purpose. (§11)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>11</td>
@@ -742,7 +745,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-5.1-3">RFC7454-5.1-3</code></td><td colspan="3"><span class="rfc-subject">&#34;operators are RECOMMENDED to consider the trade-offs and to apply TCP session protection where appropriate&#34; (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-5.1-3">RFC7454-5.1-3</code></td><td colspan="3"><span class="rfc-subject">operators are RECOMMENDED to consider the trade-offs and to apply TCP session protection where appropriate. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>5.1</td>
@@ -751,7 +754,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.6.1-1">RFC7454-6.1.6.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Typically, the 0.0.0.0/0 prefix is not intended to be accepted or advertised except in specific customer/provider configurations; general filtering outside of these is RECOMMENDED&#34; (§6.1.6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.6.1-1">RFC7454-6.1.6.1-1</code></td><td colspan="3"><span class="rfc-subject">Typically, the 0.0.0.0/0 prefix is not intended to be accepted or advertised except in specific customer/provider configurations; general filtering outside of these is RECOMMENDED. (§6.1.6.1)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>6.1.6.1</td>
@@ -760,7 +763,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.6.2-1">RFC7454-6.1.6.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Typically, the ::/0 prefix is not intended to be accepted or advertised except in specific customer/provider configurations; general filtering outside of these is RECOMMENDED&#34; (§6.1.6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.1.6.2-1">RFC7454-6.1.6.2-1</code></td><td colspan="3"><span class="rfc-subject">Typically, the ::/0 prefix is not intended to be accepted or advertised except in specific customer/provider configurations; general filtering outside of these is RECOMMENDED. (§6.1.6.2)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>6.1.6.2</td>
@@ -769,7 +772,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.2-1">RFC7454-6.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;It is RECOMMENDED that each Autonomous System configures rules for advertised and received routes at all its borders&#34; (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-6.2-1">RFC7454-6.2-1</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED that each Autonomous System configures rules for advertised and received routes at all its borders (§6.2)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>6.2</td>
@@ -778,7 +781,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-7-1">RFC7454-7-1</code></td><td colspan="3"><span class="rfc-subject">&#34;This document RECOMMENDS following IETF and RIPE recommendations and using BGP route flap dampening with the adjusted configured thresholds&#34; (§7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-7-1">RFC7454-7-1</code></td><td colspan="3"><span class="rfc-subject">This document RECOMMENDS following IETF and RIPE recommendations and using BGP route flap dampening with the adjusted configured thresholds. (§7)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>7</td>
@@ -787,7 +790,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-8-1">RFC7454-8-1</code></td><td colspan="3"><span class="rfc-subject">&#34;It is RECOMMENDED to configure a limit on the number of routes to be accepted from a peer&#34; (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-8-1">RFC7454-8-1</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to configure a limit on the number of routes to be accepted from a peer. (§8)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>8</td>
@@ -796,7 +799,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-8-2">RFC7454-8-2</code></td><td colspan="3"><span class="rfc-subject">&#34;From peers, it is RECOMMENDED to have a limit lower than the number of routes in the Internet&#34; (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-8-2">RFC7454-8-2</code></td><td colspan="3"><span class="rfc-subject">From peers, it is RECOMMENDED to have a limit lower than the number of routes in the Internet. (§8)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>8</td>
@@ -805,7 +808,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-8-3">RFC7454-8-3</code></td><td colspan="3"><span class="rfc-subject">&#34;From upstreams that provide full routing, it is RECOMMENDED to have a limit higher than the number of routes in the Internet&#34; (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-8-3">RFC7454-8-3</code></td><td colspan="3"><span class="rfc-subject">From upstreams that provide full routing, it is RECOMMENDED to have a limit higher than the number of routes in the Internet. (§8)</span></td></tr>
 <tr><td></td>
 <td>RECOMMENDED</td>
 <td>8</td>
@@ -814,7 +817,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-4-3">RFC7454-4-3</code></td><td colspan="3"><span class="rfc-subject">&#34;In addition to strict filtering, rate-limiting MAY be configured for accepted BGP traffic&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-4-3">RFC7454-4-3</code></td><td colspan="3"><span class="rfc-subject">In addition to strict filtering, rate-limiting MAY be configured for accepted BGP traffic. (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4</td>
@@ -823,7 +826,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-5.1-2">RFC7454-5.1-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Protection of TCP sessions used by BGP is thus NOT REQUIRED even when peerings are established over shared networks where spoofing can be done (like IXPs)&#34; (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7454-5.1-2">RFC7454-5.1-2</code></td><td colspan="3"><span class="rfc-subject">Protection of TCP sessions used by BGP is thus NOT REQUIRED even when peerings are established over shared networks where spoofing can be done (like IXPs) (§5.1)</span></td></tr>
 <tr><td></td>
 <td>OPTIONAL</td>
 <td>5.1</td>
@@ -877,7 +880,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

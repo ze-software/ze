@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-09-21 - Ze</title>
+        <meta name="description" content="Ze can back up and restore its configuration store, including on a running router. BGP gained AIGP and BGP-LS export, and every RFC Ze implements has now been read end to end. The release queue closed" />
+        <meta property="og:title" content="Week of 2026-09-21 - Ze" />
+        <meta property="og:description" content="Ze can back up and restore its configuration store, including on a running router. BGP gained AIGP and BGP-LS export, and every RFC Ze implements has now been read end to end. The release queue closed" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-09-21 - Ze" />
+        <meta name="twitter:description" content="Ze can back up and restore its configuration store, including on a running router. BGP gained AIGP and BGP-LS export, and every RFC Ze implements has now been read end to end. The release queue closed" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-09-21/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-09-21/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Weekly update</span>
+    <h1 id="post-title">Week of 2026-09-21</h1>
+    <p>Ze can back up and restore its configuration store, including on a running router. BGP gained AIGP and BGP-LS export, and every RFC Ze implements has now been read end to end.</p>
+<p>The release queue closed the week at 191 required work items and 219 nice-to-have, against 157 and 183 at the start. 74 items joined and 4 left. Almost everything that joined is a defect or a missing behavior found by reading the RFCs end to end. Three of the four that left are the backup and restore work below. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/</p>
+</div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="💾 Configuration store">
+                        <div class="md-content">
+                            <h2>💾 Configuration store</h2>
+                            <p>The store is now a <code>database/</code> directory beside the configuration file. Each configuration version is kept once, under its SHA-256, and checked on every read. A store created before this change has to be initialised again.
+New:</p>
+<ul>
+<li><code>ze data backup &lt;file&gt;</code> writes the whole store to one file, taken under the store lock, so a commit is in the backup whole or not at all.</li>
+<li><code>ze data restore &lt;file&gt; config</code> adds the backup's configuration as a new version. <code>ze data restore &lt;file&gt; full</code> replaces the whole store and keeps the old one aside.</li>
+<li><code>request data backup path &lt;file&gt;</code> and <code>request data restore path &lt;file&gt; config</code> do the same on a running daemon. A restored configuration goes live only if the normal reload accepts it.</li>
+<li><code>ze init --from &lt;path or URL&gt; --sha256 &lt;hex&gt;</code> creates a store from a backup, fetched over http or https and checked before anything is written.</li>
+<li><code>ze config edit --backup &lt;file&gt;</code> edits a backup with no daemon running.</li>
+<li><code>ze data check</code>, <code>ze data repair</code> and <code>ze doctor</code> report missing or corrupted history entries.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ BGP">
+                        <div class="md-content">
+                            <h2>🛰️ BGP</h2>
+                            <p>New:</p>
+<ul>
+<li>AIGP best-path selection and re-advertisement (RFC 7311), under <code>session aigp</code> with <code>enabled</code>, <code>originate</code> (default false), <code>link-metric</code> and <code>domain-as</code>.</li>
+<li>BGP-LS export of BGP, OSPF and IS-IS link state (<code>bgp-ls-export</code>), and Egress Peer Engineering (<code>bgp-epe</code>).</li>
+<li>RPKI over TLS, under <code>rpki cache-server &lt;name&gt; tls</code> with <code>ca-certificate</code>, <code>certificate</code> and <code>server-name</code>. ASPA follows revision 28 of the draft.</li>
+<li>The Software Version capability goes out in the draft's own form by default. FRR and ExaBGP expect the older framing, so set <code>software-version encoding legacy</code> for them. <code>ze exabgp migrate</code> writes it for you.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>A reload now applies a changed router-id and local AS. <code>show bgp</code> and the metrics kept the old values.</li>
+<li>A configuration change sends a Cease notification before it stops a session (RFC 4486). Adding one iBGP peer no longer restarts every other session.</li>
+<li>FlowSpec rules are validated against unicast routes (RFC 8955 Section 6), and the firewall installs only the rule BGP selected.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔀 Other protocols">
+                        <div class="md-content">
+                            <h2>🔀 Other protocols</h2>
+                            <p>New:</p>
+<ul>
+<li><code>vpn ipsec unmatched discard</code> drops traffic that no IPsec policy covers (RFC 4301 Section 5). The default stays <code>bypass</code>.</li>
+<li>LDP answers a label mapping above <code>hop-count-max</code> (default 254) with Loop Detected (RFC 5036 Section 3.4.4.1).</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>OSPF sent no grace-LSAs after an unplanned restart when no neighbour was up yet, so helpers never saw the restart (RFC 3623 Section 5).</li>
+<li>A VRRP address owner answered ARP and ND for the virtual address with its physical MAC.</li>
+<li>LDP retried a failed session at the Hello rate. It now backs off from 15 seconds to two minutes.</li>
+<li>A SIGHUP during startup no longer kills ze.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📚 Standards programme">
+                        <div class="md-content">
+                            <h2>📚 Standards programme</h2>
+                            <p>Ze is being checked against every RFC it implements, one MUST at a time. The work continues.</p>
+<p>All 174 RFCs on the list have now been read end to end, against 59 last week. Of 6,282 requirements, 4,403 are MUST-level and 4,027 are checked. 248 still owe a test, against 228 last week: reading the documents in full found requirements the earlier lists had missed.</p>
+<p>The OSPF and VRRP fixes above both came from this reading, and the same reading turned the LDP checklist from 19 requirements into 86. It also removed requirements a summary had invented, which no RFC sentence supports.</p>
+<p>A green run proves everything on the list. The list now comes from reading each document in full, and the work items that joined the queue this week are what that reading found: https://ze-software.net/quality/rfc-compliance/</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔭 Coming up">
+                        <div class="md-content">
+                            <h2>🔭 Coming up</h2>
+                            <p>ExaBGP catch-up. Much of this week went into ExaBGP itself: BGP confederations, route target membership (RFC 4684), ADD-PATH for FlowSpec, <code>prefix-limit</code>, capabilities that can be required, and neighbours that can be disabled and enabled from the API. Its GitHub issue tracker now has no open issues. The only-to-customer support for the compatibility bridge, planned for this week, has not landed yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 28 September 2026 01:15 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

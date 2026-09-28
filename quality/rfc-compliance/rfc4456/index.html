@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4456 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4456: BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP). 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4456: BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP). 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4456 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4456: BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP). 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4456: BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP). 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4456 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4456: BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP). 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4456: BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP). 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,22 +116,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>83.3%</strong><b>5 of 6 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>16.7%</strong><b>1 of 6 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>4 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 20 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>6</strong><b>of 9 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 6 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>4</strong><b>of 9 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 4 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 4 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -202,12 +207,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>9</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>6</td>
+<td>4</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>20</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -242,7 +250,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: BGP Route Reflection: six MUST-level requirements over the reactor RS-fast-path route-reflection code (internal/component/bgp/reactor/forward_rs.go, filter_delta_handlers.go). Five have both polarities: RFC4456-8-1 (set ORIGINATOR_ID if absent) and RFC4456-8-4 (preserve if present) via originatorIDHandler; RFC4456-8-2 (prepend CLUSTER_ID) via clusterListHandler AttrModPrepend; RFC4456-8-3 (ORIGINATOR_ID not fabricated -- it is the originator&#39;s id, not the RR&#39;s, and a present one is not replaced); RFC4456-x-2 (a non-client route is not reflected to a non-client but is to a client). RFC4456-x-1 (must not modify NEXT_HOP/AS_PATH/LOCAL_PREF/MED) is {single-polarity: positive}: on reflection only ORIGINATOR_ID/CLUSTER_LIST ops are emitted, so those four ride through unchanged. Tests: forward_rr_test.go (TestReactorForwardRRInjects/PreservesOriginator/NonClientRule). The 8-5/8-6 SHOULDs are not gated.</p>
+<p>Enrolled: BGP Route Reflection: four MUST-level requirements over the reactor RS-fast-path route-reflection code (internal/component/bgp/reactor/forward_rs.go, filter_delta_handlers.go), each with both polarities: RFC4456-8-1 (ORIGINATOR_ID created on reflection) and RFC4456-8-4 (it carries the originator&#39;s identifier, kept when present) via originatorIDHandler; RFC4456-8-2 (prepend CLUSTER_ID, create the list if empty) via clusterListHandler AttrModPrepend; RFC4456-x-2 (a non-client route is reflected to clients, not to a non-client). RFC4456-8-3 (do not create an ORIGINATOR_ID when one exists) and RFC4456-x-1 (do not modify NEXT_HOP/AS_PATH/LOCAL_PREF/MED) are SHOULD NOT in the RFC (rfc/corrections/rfc4456.md) and still carry their tests. Tests: forward_rr_test.go (TestReactorForwardRRInjects/PreservesOriginator/NonClientRule). The 8-5/8-6/9-1 SHOULDs are not gated.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Supported</p>
@@ -257,11 +265,11 @@ No tracked gap in current source anchors.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>5</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>1</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -280,28 +288,27 @@ No tracked gap in current source anchors.
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>6</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>4</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc4456-8-1"><code>RFC4456-8-1</code></a>, <a href="#rfc4456-8-2"><code>RFC4456-8-2</code></a>, <a href="#rfc4456-8-3"><code>RFC4456-8-3</code></a>, <a href="#rfc4456-8-4"><code>RFC4456-8-4</code></a>, <a href="#rfc4456-x-2"><code>RFC4456-x-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc4456-x-1"><code>RFC4456-x-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc4456-8-1"><code>RFC4456-8-1</code></a>, <a href="#rfc4456-8-2"><code>RFC4456-8-2</code></a>, <a href="#rfc4456-8-4"><code>RFC4456-8-4</code></a>, <a href="#rfc4456-x-2"><code>RFC4456-x-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-x-1">RFC4456-x-1</code></td><td colspan="3"><span class="rfc-subject">An RR MUST NOT modify the NEXT_HOP, AS_PATH, LOCAL_PREF, or MED attributes of a reflected route (Route Reflection Rules)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-x-1">RFC4456-x-1</code></td><td colspan="3"><span class="rfc-subject">In addition, when a RR reflects a route, it SHOULD NOT modify the following path attributes: NEXT_HOP, AS_PATH, LOCAL_PREF, and MED. (§10)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
-<td>x</td>
+<td>SHOULD NOT</td>
+<td>10 - Implementation Considerations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4456-x-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L157" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRInjects</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> on reflection the RR forwarding path emits only ORIGINATOR_ID and CLUSTER_LIST modifications (internal/component/bgp/reactor/forward_rs.go:337-339) and never a NEXT_HOP/AS_PATH/LOCAL_PREF/MED op, so those four are always carried through in the verbatim wire; there is no RR scenario that modifies them to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRInjects</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-1">RFC4456-8-1</code></td><td colspan="3"><span class="rfc-subject">When an RR reflects a route from a client to a non-client or to another client, it MUST set the ORIGINATOR_ID to the BGP Identifier of the originator if not already present (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-1">RFC4456-8-1</code></td><td colspan="3"><span class="rfc-subject">This attribute is 4 bytes long and it will be created by an RR in reflecting a route. (§8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8 - Avoiding Routing Information Loops</td>
@@ -309,31 +316,31 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L149" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRInjects</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_build_withdraw_shape_test.go#L436" title="internal/component/bgp/reactor/forward_build_withdraw_shape_test.go" target="_blank" rel="noopener"><code>TestForwardReflectionLeavesAWithdrawalUntouched</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L180" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesOriginator</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L141" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L142" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L268" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L269" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-2">RFC4456-8-2</code></td><td colspan="3"><span class="rfc-subject">When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST. (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-2">RFC4456-8-2</code></td><td colspan="3"><span class="rfc-subject">When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one. (§8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8 - Avoiding Routing Information Loops</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4456-8-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L151" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRInjects</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L184" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesOriginator</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L143" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L144" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L270" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L271" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-3">RFC4456-8-3</code></td><td colspan="3"><span class="rfc-subject">ORIGINATOR_ID MUST NOT be created by a speaker that did not originate the route within the local AS (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-3">RFC4456-8-3</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker SHOULD NOT create an ORIGINATOR_ID attribute if one already exists. (§8)</span></td></tr>
 <tr><td></td>
-<td>MUST NOT</td>
+<td>SHOULD NOT</td>
 <td>8 - Avoiding Routing Information Loops</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4456-8-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L153" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRInjects</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L182" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesOriginator</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-4">RFC4456-8-4</code></td><td colspan="3"><span class="rfc-subject">ORIGINATOR_ID value MUST be preserved unchanged through the reflection chain (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-4">RFC4456-8-4</code></td><td colspan="3"><span class="rfc-subject">This attribute will carry the BGP Identifier of the originator of the route in the local AS. (§8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8 - Avoiding Routing Information Loops</td>
@@ -342,16 +349,16 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L155" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRInjects</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-x-2">RFC4456-x-2</code></td><td colspan="3"><span class="rfc-subject">A non-client peer route MUST NOT be reflected to other non-client peers (Route Reflection Rules)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-x-2">RFC4456-x-2</code></td><td colspan="3"><span class="rfc-subject">After the best path is selected, it must do the following depending on the type of peer it is receiving the best path from 1) A route from a Non-Client IBGP peer: Reflect to all the Clients. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>x</td>
+<td>6 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4456-x-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L211" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRNonClientRule</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L213" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRNonClientRule</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-5">RFC4456-8-5</code></td><td colspan="3"><span class="rfc-subject">A router that recognizes ORIGINATOR_ID SHOULD ignore a route received with its own BGP Identifier as the ORIGINATOR_ID (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-5">RFC4456-8-5</code></td><td colspan="3"><span class="rfc-subject">A router that recognizes the ORIGINATOR_ID attribute SHOULD ignore a route received with its BGP Identifier as the ORIGINATOR_ID. (§8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8 - Avoiding Routing Information Loops</td>
@@ -360,7 +367,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-6">RFC4456-8-6</code></td><td colspan="3"><span class="rfc-subject">If the local CLUSTER_ID is found in the CLUSTER_LIST, the advertisement SHOULD be ignored (§8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-6">RFC4456-8-6</code></td><td colspan="3"><span class="rfc-subject">If the local CLUSTER_ID is found in the CLUSTER_LIST, the advertisement received SHOULD be ignored. (§8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8 - Avoiding Routing Information Loops</td>
@@ -369,7 +376,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-9-1">RFC4456-9-1</code></td><td colspan="3"><span class="rfc-subject">A BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length; the length is zero when the route carries no CLUSTER_LIST attribute, and the rule is inserted between RFC 4271 Section 9.1.2.2 Steps f) and g) (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-9-1">RFC4456-9-1</code></td><td colspan="3"><span class="rfc-subject">In addition, the following rule SHOULD be inserted between Steps f) and g): a BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length.  The CLUSTER_LIST length is zero if a route does not carry the CLUSTER_LIST attribute. (§9)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>9 - Impact on Route Selection</td>
@@ -390,8 +397,8 @@ No tracked gap in current source anchors.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc4456-x-1"><code>RFC4456-x-1</code></a></h3>
-<p>An RR MUST NOT modify the NEXT_HOP, AS_PATH, LOCAL_PREF, or MED attributes of a reflected route (Route Reflection Rules)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In addition, when a RR reflects a route, it SHOULD NOT modify the following path attributes: NEXT_HOP, AS_PATH, LOCAL_PREF, and MED. (§10)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestReactorForwardRRInjects pins AS_PATH, NEXT_HOP, MED and LOCAL_PREF byte-identical after reflection, so any modification fails it; single-polarity annotated</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -405,8 +412,8 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc4456-8-1"><code>RFC4456-8-1</code></a></h3>
-<p>When an RR reflects a route from a client to a non-client or to another client, it MUST set the ORIGINATOR_ID to the BGP Identifier of the originator if not already present (§8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>This attribute is 4 bytes long and it will be created by an RR in reflecting a route. (§8)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. positive asserts ORIGINATOR_ID created with the exact value 10.0.0.1 on reflection; negatives assert it is not re-created when present and not injected into a reflected withdrawal or End-of-RIB</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -422,7 +429,7 @@ No tracked gap in current source anchors.
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L142" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L269" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -432,7 +439,7 @@ No tracked gap in current source anchors.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L141" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L268" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -440,8 +447,8 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc4456-8-2"><code>RFC4456-8-2</code></a></h3>
-<p>When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST. (§8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one. (§8)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. positive asserts the list is created as exactly [1.2.3.2] when absent; negative asserts exact bytes [1.2.3.2, 5.5.5.5], prepend before the existing entry, so both sentences of the quote are proven</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -452,7 +459,7 @@ No tracked gap in current source anchors.
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L144" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L271" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -462,7 +469,7 @@ No tracked gap in current source anchors.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L143" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L270" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -470,8 +477,8 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc4456-8-3"><code>RFC4456-8-3</code></a></h3>
-<p>ORIGINATOR_ID MUST NOT be created by a speaker that did not originate the route within the local AS (§8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>A BGP speaker SHOULD NOT create an ORIGINATOR_ID attribute if one already exists. (§8)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. negative asserts an existing ORIGINATOR_ID 9.9.9.9 survives reflection unchanged, which is the SHOULD NOT itself; positive shows creation when none exists</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -490,8 +497,8 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc4456-8-4"><code>RFC4456-8-4</code></a></h3>
-<p>ORIGINATOR_ID value MUST be preserved unchanged through the reflection chain (§8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>This attribute will carry the BGP Identifier of the originator of the route in the local AS. (§8)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Both units assert the exact ORIGINATOR_ID (10.0.0.1 created, 9.9.9.9 kept) and that it is not the RR&#39;s own id 1.2.3.2, but rrForward gives the source peer address 10.0.0.1 AND remote router id 0x0A000001 (10.0.0.1): a producer that filled ORIGINATOR_ID from the neighbour address instead of the BGP Identifier (reactor_api_forward.go remoteRouterID) produces the same bytes and stays green. The sentence&#39;s object, the originator&#39;s BGP Identifier, is not distinguished from the peer address. The negative tag&#39;s prose also describes the 8-1 creation clause.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -510,8 +517,8 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc4456-x-2"><code>RFC4456-x-2</code></a></h3>
-<p>A non-client peer route MUST NOT be reflected to other non-client peers (Route Reflection Rules)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>After the best path is selected, it must do the following depending on the type of peer it is receiving the best path from 1) A route from a Non-Client IBGP peer: Reflect to all the Clients. (§6)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. asserts nil output for non-client to non-client and non-nil for non-client to client; tag polarity labels are inverted against the new quote, whose conforming case is reflection to a client</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -530,8 +537,8 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc4456-9-1"><code>RFC4456-9-1</code></a></h3>
-<p>A BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length; the length is zero when the route carries no CLUSTER_LIST attribute, and the rule is inserted between RFC 4271 Section 9.1.2.2 Steps f) and g) (§9)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In addition, the following rule SHOULD be inserted between Steps f) and g): a BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length.  The CLUSTER_LIST length is zero if a route does not carry the CLUSTER_LIST attribute. (§9)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. SelectBest and SelectBestExplain asserted on shorter-list win, absent-as-zero win, step f precedence and fall-through to step g; clusterListEntries pins absent and empty as zero</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -566,10 +573,10 @@ No tracked gap in current source anchors.
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Reviewer</td>
-<td>ze-work agent, spec-rfcgate-6 phase 5, rfc4456</td>
+<td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-08-31</td>
+<td>2026-09-27</td>
 </tr>
 <tr><td>Register</td>
 <td>prose</td>
@@ -701,9 +708,21 @@ No tracked gap in current source anchors.
 </tr>
 <tr><td><code>14.2</code></td>
 <td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>Informative References (RFC 4223, RFC 3065, RFC 1966, RFC 2385, RFC 2796 and RFC 2119). A reference list with no site. Appendix A and Appendix B follow as their own sections: non-normative comparisons with RFC 2796 and RFC 1966 that record what changed, including that the CLUSTER_ID addition moved from &#39;append&#39; to &#39;prepend&#39; to match deployed code, which is stated as an obligation by section 8 and captured there.</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>Appendix A</td>
+<td>0</td>
+<td>walked</td>
+<td>Appendix A. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
+</tr>
+<tr><td><code>B</code></td>
+<td>not stated</td>
 <td>1</td>
 <td>walked</td>
-<td>Informative References (RFC 4223, RFC 3065, RFC 1966, RFC 2385, RFC 2796 and RFC 2119), and, because no numbered heading follows it, the whole tail of the document: Appendix A, Appendix B, Authors&#39; Addresses, the Full Copyright Statement, the Intellectual Property notice and the RFC Editor funding acknowledgement. The section is recorded as walked rather than skipped because that span holds prose beyond a reference list. Appendix A and Appendix B are non-normative comparisons with RFC 2796 and RFC 1966 that record what changed, including that the CLUSTER_ID addition moved from &#39;append&#39; to &#39;prepend&#39; to match deployed code, which is stated as an obligation by section 8 and captured there. The one site is the Intellectual Property notice, excluded below.</td>
+<td>Appendix B, the comparison with RFC 1966, and, because no heading follows it, the tail of the document: Authors&#39; Addresses, the Full Copyright Statement, the Intellectual Property notice and the RFC Editor funding acknowledgement. The section is recorded as walked because that span holds prose beyond a reference list. The one site is the Intellectual Property notice, excluded below.</td>
 </tr>
 </tbody>
 </table>
@@ -758,9 +777,9 @@ No tracked gap in current source anchors.
 <td>Avoiding Routing Information Loops, CLUSTER_LIST. The second half of the same obligation: the sentence before it requires the prepend, and this one says what to do when there is nothing to prepend to. rfc/short/rfc4456.md carries both in one row, &#39;MUST prepend its local CLUSTER_ID to the CLUSTER_LIST (creating one if absent)&#39;, which site 8:1 maps.</td>
 <td>If the CLUSTER_LIST is empty, it MUST create a new one.</td>
 </tr>
-<tr><td><code>14.2:1</code></td>
+<tr><td><code>B:1</code></td>
 <td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
-<td>The Intellectual Property notice from the RFC&#39;s closing boilerplate, which the section splitter attributes to 14.2 because no numbered heading follows the informative reference list. It invites interested parties to tell the IETF about patents and directs no protocol behaviour. It is boilerplate the extractor did not strip.</td>
+<td>The Intellectual Property notice from the RFC&#39;s closing boilerplate, which falls in Appendix B because no heading follows it. It invites interested parties to tell the IETF about patents and directs no protocol behaviour. It is boilerplate the extractor did not strip.</td>
 <td>The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard.</td>
 </tr>
 </tbody>
@@ -799,7 +818,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

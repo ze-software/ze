@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5709 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5709: OSPFv2 HMAC-SHA Cryptographic Authentication. 14 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5709: OSPFv2 HMAC-SHA Cryptographic Authentication. 14 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5709 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5709: OSPFv2 HMAC-SHA Cryptographic Authentication. 14 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5709: OSPFv2 HMAC-SHA Cryptographic Authentication. 14 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5709 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5709: OSPFv2 HMAC-SHA Cryptographic Authentication. 14 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5709: OSPFv2 HMAC-SHA Cryptographic Authentication. 14 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -120,7 +120,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>14.3%</strong><b>2 of 14 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 38 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>2.6%</strong><b>1 of 38 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -130,6 +130,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>14</strong><b>of 14 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,10 +231,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>38</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>14</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5709.md</code></td>
@@ -292,7 +300,7 @@ Same OSPF experimental status.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3-1">RFC5709-3-1</code></td><td colspan="3"><span class="rfc-subject">Implement HMAC-SHA-256 for OSPFv2 Cryptographic Authentication (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3-1">RFC5709-3-1</code></td><td colspan="3"><span class="rfc-subject">Of the above, implementations of this specification MUST include support for at least: HMAC-SHA-256 (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -301,7 +309,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L87" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthSignVerifyCrypto</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3-2">RFC5709-3-2</code></td><td colspan="3"><span class="rfc-subject">Implement HMAC-SHA-1 (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3-2">RFC5709-3-2</code></td><td colspan="3"><span class="rfc-subject">and SHOULD include support for: HMAC-SHA-1 (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3</td>
@@ -310,7 +318,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3-3">RFC5709-3-3</code></td><td colspan="3"><span class="rfc-subject">Implement Keyed-MD5 for backwards compatibility with RFC 2328 deployments (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3-3">RFC5709-3-3</code></td><td colspan="3"><span class="rfc-subject">and SHOULD also (for backwards compatibility with existing implementations and deployments) include support for: Keyed-MD5 (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3</td>
@@ -319,7 +327,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3-4">RFC5709-3-4</code></td><td colspan="3"><span class="rfc-subject">Implement HMAC-SHA-384 and HMAC-SHA-512 (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3-4">RFC5709-3-4</code></td><td colspan="3"><span class="rfc-subject">and MAY also include support for: HMAC-SHA-384 HMAC-SHA-512 (§3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3</td>
@@ -337,7 +345,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> keyConfig binds KeyID and Algorithm independently and resolveChainKeys/signKey honor each per-key algorithm with no fixed algorithm-per-KeyID mapping, so this is a permissive config capability with no forbidden (supported-algorithm, KeyID) pairing to reject (internal/plugins/ospf/auth_keystore.go:239-253, :292-324)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.1-1">RFC5709-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Set AuType to 2 (Cryptographic Authentication) for SHA/HMAC-authenticated packets (Section 3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.1-1">RFC5709-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Second, set the Authentication Type to Cryptographic Authentication (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -346,7 +354,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L73" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthStoreSignVerify</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.1-2">RFC5709-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Set the Authentication Data Length field to the hash length in bytes (20/32/48/64) (Section 3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.1-2">RFC5709-3.1-2</code></td><td colspan="3"><span class="rfc-subject">set the Authentication Data Length field to the length (measured in bytes, not bits) of the cryptographic hash that will be used. When any NIST SHS algorithm is used in HMAC mode with OSPFv2 Cryptographic Authentication, the Authentication Data Length is equal to the normal hash output length (measured in bytes) for the specific NIST SHS algorithm in use. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -355,7 +363,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L229" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsExtraTrailerBytes</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.1-3">RFC5709-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Set the 32-bit Cryptographic Sequence Number per RFC 2328 Appendix D (Section 3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.1-3">RFC5709-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Third, the 32-bit cryptographic sequence number is set in accordance with the procedures in RFC 2328, Appendix D that are applicable to the Cryptographic Authentication type. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -364,7 +372,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L140" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.1-4">RFC5709-3.1-4</code></td><td colspan="3"><span class="rfc-subject">Append the computed digest after the OSPF packet (Authentication Trailer), not inside the 8-byte auth field (Section 3.1, Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.1-4">RFC5709-3.1-4</code></td><td colspan="3"><span class="rfc-subject">Fourth, the message digest is then calculated and appended to the OSPF packet, as described below in Section 3.3. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -373,7 +381,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L230" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsExtraTrailerBytes</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.3-1">RFC5709-3.3-1</code></td><td colspan="3"><span class="rfc-subject">Fill the Authentication Trailer with Apad (0x878FE1F3 repeated L/4 times) before computing the hash (Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.3-1">RFC5709-3.3-1</code></td><td colspan="3"><span class="rfc-subject">First, the OSPFv2 packet&#39;s Authentication Trailer (which is the appendage described in RFC 2328, Section D.4.3, Page 233, items (6)(a) and (6)(d)) is filled with the value Apad, and the Authentication Type field is set to 2. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3</td>
@@ -383,7 +391,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L431" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestRFC5709ReceiveRejectsWrongHashConstruction</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.3-2">RFC5709-3.3-2</code></td><td colspan="3"><span class="rfc-subject">Derive Ko to length L: Ko = K, H(K), or K zero-padded to L (Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.3-2">RFC5709-3.3-2</code></td><td colspan="3"><span class="rfc-subject">In this application, Ko is always L octets long. If the Authentication Key (K) is L octets long, then Ko is equal to K. If the Authentication Key (K) is more than L octets long, then Ko is set to H(K). If the Authentication Key (K) is less than L octets long, then Ko is set to the Authentication Key (K) with zeros appended to the end of the Authentication Key (K), such that Ko is L octets long. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3</td>
@@ -394,7 +402,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L432" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestRFC5709ReceiveRejectsWrongHashConstruction</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.3-3">RFC5709-3.3-3</code></td><td colspan="3"><span class="rfc-subject">Compute First-Hash = H(Ko XOR Ipad || OSPFv2 Packet) and Second-Hash = H(Ko XOR Opad || First-Hash) (Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.3-3">RFC5709-3.3-3</code></td><td colspan="3"><span class="rfc-subject">Then, a First-Hash, also known as the inner hash, is computed as follows: First-Hash = H(Ko XOR Ipad || (OSPFv2 Packet)) Implementation Notes: Note that the First-Hash above includes the Authentication Trailer containing the Apad value, as well as the OSPF packet, as per RFC 2328, Section D.4.3. The definition of Apad (above) ensures it is always the same length as the hash output. This is consistent with RFC 2328. The &#34;(OSPFv2 Packet)&#34; mentioned in the First-Hash (above) does include the OSPF Authentication Trailer. The digest length for SHA-1 is 20 bytes; for SHA-256, 32 bytes; for SHA-384, 48 bytes; and for SHA-512, 64 bytes. (3) SECOND-HASH Then a Second-Hash, also known as the outer hash, is computed as follows: Second-Hash = H(Ko XOR Opad || First-Hash) (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3</td>
@@ -404,7 +412,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L433" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestRFC5709ReceiveRejectsWrongHashConstruction</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.3-4">RFC5709-3.3-4</code></td><td colspan="3"><span class="rfc-subject">Place Second-Hash as the Authentication Data of length L in the trailer (Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.3-4">RFC5709-3.3-4</code></td><td colspan="3"><span class="rfc-subject">The resulting Second-Hash becomes the Authentication Data that is sent in the Authentication Trailer of the OSPFv2 packet. The length of the Authentication Trailer is always identical to the message digest size of the specific hash function H that is being used. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3</td>
@@ -414,7 +422,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L434" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestRFC5709ReceiveRejectsWrongHashConstruction</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.4-1">RFC5709-3.4-1</code></td><td colspan="3"><span class="rfc-subject">On receive, save the wire digest, replace the trailer with Apad, recompute, and compare (Section 3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.4-1">RFC5709-3.4-1</code></td><td colspan="3"><span class="rfc-subject">the cryptographic calculation of the message digest follows the procedure in Section 3.3 above when any NIST SHS algorithm in the HMAC mode is in use. Kindly recall that the cryptographic algorithm/mode in use is indicated implicitly by the KeyID of the received OSPFv2 packet. Implementation Notes: One must save the received digest value before calculating the expected digest value, so that after that calculation the received value can be compared with the expected value to determine whether to accept that OSPF packet. RFC 2328, Section D.4.3 (6) (c) should be read very closely prior to implementing the above. With SHA algorithms in HMAC mode, Apad is placed where the MD5 key would be put if Keyed-MD5 were in use. (§3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.4</td>
@@ -428,7 +436,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L435" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestRFC5709ReceiveRejectsWrongHashConstruction</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.4-2">RFC5709-3.4-2</code></td><td colspan="3"><span class="rfc-subject">Select algorithm/key on receive implicitly from the packet&#39;s Key ID (Section 3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.4-2">RFC5709-3.4-2</code></td><td colspan="3"><span class="rfc-subject">Kindly recall that the cryptographic algorithm/mode in use is indicated implicitly by the KeyID of the received OSPFv2 packet. (§3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.4</td>
@@ -448,16 +456,16 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_test.go#L572" title="internal/plugins/ospf/config_test.go" target="_blank" rel="noopener"><code>TestKeyRolloverGapRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.2-2">RFC5709-3.2-2</code></td><td colspan="3"><span class="rfc-subject">Revert to an unauthenticated condition when the last key expires (Section 3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.2-2">RFC5709-3.2-2</code></td><td colspan="3"><span class="rfc-subject">In the event that the last key associated with an interface expires, it is unacceptable to revert to an unauthenticated condition, and not advisable to disrupt routing. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5709-3.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L301" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSignKeyNoRevertWhenAllExpired</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L344" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSignKeyNoRevertWhenAllExpired</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> selectSendKey returns the most-recently-starting key when every send-lifetime has expired and signKey never yields AuTypeNull for a resolved chain, so the forbidden revert-to-unauthenticated transition is structurally absent and there is no packet-reject direction (internal/plugins/ospf/auth_keystore.go:263-287)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.2-3">RFC5709-3.2-3</code></td><td colspan="3"><span class="rfc-subject">Set KeyStartAccept &lt; KeyStartGenerate and KeyStopGenerate &lt; KeyStopAccept (Section 3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.2-3">RFC5709-3.2-3</code></td><td colspan="3"><span class="rfc-subject">In order to achieve smooth key transition, KeyStartAccept SHOULD be less than KeyStartGenerate and KeyStopGenerate SHOULD be less than KeyStopAccept. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2</td>
@@ -466,7 +474,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.2-4">RFC5709-3.2-4</code></td><td colspan="3"><span class="rfc-subject">Never send the Authentication Key or Algorithm over the wire in cleartext; persist key storage across restart (Section 3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.2-4">RFC5709-3.2-4</code></td><td colspan="3"><span class="rfc-subject">This information SHOULD never be sent over the wire in cleartext form. At present, valid values are Keyed-MD5, HMAC-SHA-1, HMAC-SHA-256, HMAC-SHA- 384, and HMAC-SHA-512. Authentication Key This is the cryptographic key used for cryptographic authentication with this OSPFv2 SA. This value SHOULD never be sent over the wire in cleartext form. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2</td>
@@ -485,8 +493,8 @@ Same OSPF experimental status.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5709-3-1"><code>RFC5709-3-1</code></a></h3>
-<p>Implement HMAC-SHA-256 for OSPFv2 Cryptographic Authentication (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Of the above, implementations of this specification MUST include support for at least: HMAC-SHA-256 (§3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: an implementation without a correct HMAC-SHA-256; (b) TestOSPFAuthSignVerifyCrypto/hmac-sha-256 asserts Sign succeeds and the trailer equals rfc5709ReferenceDigest, an independent test-side HMAC-SHA-256 construction, and that Verify accepts it; the negative rejects a wrong-key digest</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -506,7 +514,7 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc5709-3-5"><code>RFC5709-3-5</code></a></h3>
 <p>An implementation of this specification MUST allow network operators to configure ANY authentication algorithm supported by that implementation for use with ANY given KeyID value that is configured into that OSPFv2 router. (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an operator config that refuses a supported algorithm under some KeyID, or fixes an algorithm per KeyID; (b) none: the tagged TestOSPFAuthSignVerifyCrypto builds packet.AuthKey directly with the single KeyID 7 and never goes through operator configuration (parseOSPFConfig/validateConfig), so a config path that rejected e.g. hmac-sha-1 at key-id 200 would stay green</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -520,8 +528,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5709-3.1-1"><code>RFC5709-3.1-1</code></a></h3>
-<p>Set AuType to 2 (Cryptographic Authentication) for SHA/HMAC-authenticated packets (Section 3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Second, set the Authentication Type to Cryptographic Authentication (§3.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: sending an HMAC-SHA packet whose Authentication Type is not Cryptographic Authentication (2); (b) TestEngineSignPacketCrypto asserts the on-wire AuType of eng.signPacket output equals AuTypeCryptographic; negative TestOSPFAuthStoreSignVerify asserts a non-crypto AuType packet is refused under crypto config</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -540,8 +548,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5709-3.1-2"><code>RFC5709-3.1-2</code></a></h3>
-<p>Set the Authentication Data Length field to the hash length in bytes (20/32/48/64) (Section 3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>set the Authentication Data Length field to the length (measured in bytes, not bits) of the cryptographic hash that will be used. When any NIST SHS algorithm is used in HMAC mode with OSPFv2 Cryptographic Authentication, the Authentication Data Length is equal to the normal hash output length (measured in bytes) for the specific NIST SHS algorithm in use. (§3.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an Authentication Data Length other than the hash output length L; (b) positive TestOSPFAuthSignVerifyCrypto asserts af[3]==authDigestLen(algo), whose expected value comes from the production table and is cross-checked only through the reference digest length; the tagged negative TestOSPFAuthCryptoRejectsExtraTrailerBytes appends a byte after the trailer and leaves af[3] correct, so it proves trailer framing, and no tagged unit presents a packet whose Auth Data Length field is wrong (Verify&#39;s int(af[3]) != l guard is unexercised)</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -560,8 +568,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5709-3.1-3"><code>RFC5709-3.1-3</code></a></h3>
-<p>Set the 32-bit Cryptographic Sequence Number per RFC 2328 Appendix D (Section 3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Third, the 32-bit cryptographic sequence number is set in accordance with the procedures in RFC 2328, Appendix D that are applicable to the Cryptographic Authentication type. (§3.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: a sender that sets the 32-bit sequence number other than per RFC 2328 App D, i.e. that lets it decrease between packets; (b) none: TestOSPFAuthSignVerifyCrypto only proves a caller-supplied 42 is written at offset 4, and the negative TestOSPFAuthReplay proves the receiver&#39;s replay check, a neighbouring receive-side rule; no tagged unit asserts the engine emits non-decreasing sequence numbers across successive packets Re-read 2026-09-27 (DF-OSPF-B): the AuType 2 equal sequence is now accepted per RFC 2328 D.4.3; the tag asserts only 5 &lt; 11 dropped, and 10 &lt; stored 11 dropped.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -569,7 +577,7 @@ Same OSPF experimental status.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L140" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L63" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthSignVerifyCrypto</code></a></td>
@@ -580,8 +588,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5709-3.1-4"><code>RFC5709-3.1-4</code></a></h3>
-<p>Append the computed digest after the OSPF packet (Authentication Trailer), not inside the 8-byte auth field (Section 3.1, Section 3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Fourth, the message digest is then calculated and appended to the OSPF packet, as described below in Section 3.3. (§3.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a digest not appended after the OSPF packet (e.g. inside the 8-byte auth field or counted in Packet Length); (b) TestOSPFAuthSignVerifyCrypto asserts Packet Length == plen, len(signed) == plen+L and signed[plen:] equals the independent reference digest over signed[:plen]; negative TestOSPFAuthCryptoRejectsExtraTrailerBytes rejects a trailer that is not exactly the appended digest</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -600,8 +608,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5709-3.3-1"><code>RFC5709-3.3-1</code></a></h3>
-<p>Fill the Authentication Trailer with Apad (0x878FE1F3 repeated L/4 times) before computing the hash (Section 3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>First, the OSPFv2 packet&#39;s Authentication Trailer (which is the appendage described in RFC 2328, Section D.4.3, Page 233, items (6)(a) and (6)(d)) is filled with the value Apad, and the Authentication Type field is set to 2. (§3.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: hashing with a trailer not filled with Apad, or with the AuType field not 2; (b) TestOSPFAuthSignVerifyCrypto asserts the trailer equals rfc5709ReferenceDigest, which fills literal 0x878FE1F3 x L/4 over the AuType-2 packet; TestRFC5709ReceiveRejectsWrongHashConstruction/zero-apad asserts Verify rejects a zero-filled-trailer digest</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -625,8 +633,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5709-3.3-2"><code>RFC5709-3.3-2</code></a></h3>
-<p>Derive Ko to length L: Ko = K, H(K), or K zero-padded to L (Section 3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In this application, Ko is always L octets long. If the Authentication Key (K) is L octets long, then Ko is equal to K. If the Authentication Key (K) is more than L octets long, then Ko is set to H(K). If the Authentication Key (K) is less than L octets long, then Ko is set to the Authentication Key (K) with zeros appended to the end of the Authentication Key (K), such that Ko is L octets long. (§3.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: Ko not equal to K at L, not H(K) above L, not zero-padded below L; (b) TestRFC5709ReceiveIndependentDigest asserts Sign equals an independent construction and Verify accepts for SHA-256 keys of 31, 32 and 33 octets, TestOSPFAuthSignVerifyCrypto covers a 28-octet key hashed for SHA-1; TestRFC5709ReceiveRejectsWrongHashConstruction/underived-long-key asserts the raw 33-octet key (standard HMAC, B=64) is rejected</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -655,8 +663,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5709-3.3-3"><code>RFC5709-3.3-3</code></a></h3>
-<p>Compute First-Hash = H(Ko XOR Ipad || OSPFv2 Packet) and Second-Hash = H(Ko XOR Opad || First-Hash) (Section 3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Then, a First-Hash, also known as the inner hash, is computed as follows: First-Hash = H(Ko XOR Ipad || (OSPFv2 Packet)) Implementation Notes: Note that the First-Hash above includes the Authentication Trailer containing the Apad value, as well as the OSPF packet, as per RFC 2328, Section D.4.3. The definition of Apad (above) ensures it is always the same length as the hash output. This is consistent with RFC 2328. The &#34;(OSPFv2 Packet)&#34; mentioned in the First-Hash (above) does include the OSPF Authentication Trailer. The digest length for SHA-1 is 20 bytes; for SHA-256, 32 bytes; for SHA-384, 48 bytes; and for SHA-512, 64 bytes. (3) SECOND-HASH Then a Second-Hash, also known as the outer hash, is computed as follows: Second-Hash = H(Ko XOR Opad || First-Hash) (§3.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a digest other than H(Ko XOR Opad || H(Ko XOR Ipad || packet-with-Apad-trailer)), or of the wrong length; (b) TestOSPFAuthSignVerifyCrypto asserts the trailer equals hmacWithPad (test-side Ipad/Opad construction) for all four SHA algorithms, fixing the 20/32/48/64 lengths; TestRFC5709ReceiveRejectsWrongHashConstruction/inner-hash-only asserts an inner hash alone is rejected</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -680,8 +688,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5709-3.3-4"><code>RFC5709-3.3-4</code></a></h3>
-<p>Place Second-Hash as the Authentication Data of length L in the trailer (Section 3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The resulting Second-Hash becomes the Authentication Data that is sent in the Authentication Trailer of the OSPFv2 packet. The length of the Authentication Trailer is always identical to the message digest size of the specific hash function H that is being used. (§3.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a trailer carrying anything but Second-Hash, or of a length other than the digest size; (b) TestOSPFAuthSignVerifyCrypto asserts len(signed)==plen+L and the trailer equals the reference Second-Hash; TestRFC5709ReceiveRejectsWrongHashConstruction/inner-hash-only asserts a length-L inner hash is rejected, and a flipped trailer byte is rejected</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -705,8 +713,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5709-3.4-1"><code>RFC5709-3.4-1</code></a></h3>
-<p>On receive, save the wire digest, replace the trailer with Apad, recompute, and compare (Section 3.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>the cryptographic calculation of the message digest follows the procedure in Section 3.3 above when any NIST SHS algorithm in the HMAC mode is in use. Kindly recall that the cryptographic algorithm/mode in use is indicated implicitly by the KeyID of the received OSPFv2 packet. Implementation Notes: One must save the received digest value before calculating the expected digest value, so that after that calculation the received value can be compared with the expected value to determine whether to accept that OSPF packet. RFC 2328, Section D.4.3 (6) (c) should be read very closely prior to implementing the above. With SHA algorithms in HMAC mode, Apad is placed where the MD5 key would be put if Keyed-MD5 were in use. (§3.4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: verifying without the section 3.3 computation, overwriting the received digest before comparing, not placing Apad in the trailer, or not selecting by KeyID; (b) TestRFC5709ReceiveRejectsWrongHashConstruction asserts zero-Apad, underived-key and inner-only digests are rejected while the valid control is accepted; TestOSPFAuthSignVerifyCrypto rejects a flipped digest byte; TestRFC5709ReceiveIndependentDigest accepts an independent digest and asserts Verify left the wire bytes unchanged; TestEngineReceiveSelectsSecurityAssociation rejects packets outside the KeyID&#39;s association and counts them</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -750,8 +758,8 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5709-3.4-2"><code>RFC5709-3.4-2</code></a></h3>
-<p>Select algorithm/key on receive implicitly from the packet&#39;s Key ID (Section 3.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Kindly recall that the cryptographic algorithm/mode in use is indicated implicitly by the KeyID of the received OSPFv2 packet. (§3.4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: choosing the algorithm or key other than by the received KeyID (trying other associations); (b) TestEngineReceiveSelectsSecurityAssociation asserts a KeyID 8 (SHA-512) packet signed with SHA-256 and a KeyID 9 packet signed with KeyID 7&#39;s secret are rejected even though another configured association verifies them, and unknown KeyID 99 is rejected; TestOSPFAuthCryptoRejectsKeyIDMismatch rejects a non-matching KeyID with the same secret; positives accept each KeyID under its own algorithm</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -781,7 +789,7 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc5709-3.2-1"><code>RFC5709-3.2-1</code></a></h3>
 <p>When a new key replaces an old, the KeyStartGenerate time for the new key MUST be less than or equal to the KeyStopGenerate time of the old key. (Section 3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a new key whose KeyStartGenerate is after the old key&#39;s KeyStopGenerate; (b) TestKeyRolloverGapRejected asserts validateConfig returns ErrKeyRolloverGap for start 2026-03-01 after end 2026-02-01, and TestKeyRolloverOverlapAccepted asserts an overlapping rollover validates. The equal-time boundary is not exercised</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -800,14 +808,14 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5709-3.2-2"><code>RFC5709-3.2-2</code></a></h3>
-<p>Revert to an unauthenticated condition when the last key expires (Section 3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>In the event that the last key associated with an interface expires, it is unacceptable to revert to an unauthenticated condition, and not advisable to disrupt routing. (§3.2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: the interface reverting to an unauthenticated condition when its last key expires, on generation or on acceptance; (b) TestSignKeyNoRevertWhenAllExpired asserts signKey still returns AuTypeCryptographic with key 2 after every send-lifetime expired, covering generation at the store level only; no tagged unit asserts that after the last key&#39;s accept-lifetime expires an unauthenticated (AuType 0) packet is still refused, and none drives it through eng.signPacket to the wire</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L301" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSignKeyNoRevertWhenAllExpired</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L344" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSignKeyNoRevertWhenAllExpired</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1002,7 +1010,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

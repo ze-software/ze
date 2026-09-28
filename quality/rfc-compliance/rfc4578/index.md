@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 5 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 5 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 1 | of 5 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 5 |
 | Not applicable, so out of scope | 4 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 2 |
 | Tagged units | 2 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 1 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc4578.md` |
 | Requirement shard | `rfc/requirements/rfc4578.md` |
@@ -102,22 +111,22 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC4578-2.1-1` | Option 93 (Client System Architecture Type) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.1) | MUST | 2.1 - Client System Architecture Type Option Definition, option 93 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DHCP server, not a PXE client; it reads a received option 93 to select a bootfile (parsePXEArch, internal/plugins/dhcpserver/handler.go:505) but emits no option 93 in its OFFER/ACK replies (appendPXEOptions, internal/plugins/dhcpserver/handler.go:292) and ze has no PXE Boot Server Discovery echo code path -- it sets PXE_DISCOVERY_CONTROL to skip that exchange (internal/plugins/dhcpserver/handler.go:325) |
-| `RFC4578-2.1-2` | Option 93 Len field MUST be an even number greater than zero (Section 2.1) | MUST | 2.1 - Client System Architecture Type Option Definition, option 93 | **positive:** `unit/verify` [`TestParsePXEArch`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L923). **negative:** `unit/verify` [`TestParsePXEArch`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L926) |
-| `RFC4578-2.2-1` | Option 94 (Client Network Interface Identifier) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DHCP server, not a PXE client; ze has no option 94 code path -- it neither reads nor emits option 94 anywhere under internal/plugins/dhcpserver/ (grep for 94/UNDI in handler.go finds nothing) |
-| `RFC4578-2.3-1` | Option 97 (Client Machine Identifier) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.3) | MUST | 2.3 - Client Machine Identifier Option Definition, option 97 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DHCP server, not a PXE client; ze has no option 97 code path -- it neither reads nor emits option 97 (the client machine GUID) anywhere under internal/plugins/dhcpserver/ |
+| `RFC4578-2.1-1` | This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers. (Section 2.1) | MUST | 2.1 - Client System Architecture Type Option Definition, option 93 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DHCP server, not a PXE client; it reads a received option 93 to select a bootfile (parsePXEArch, internal/plugins/dhcpserver/handler.go:505) but emits no option 93 in its OFFER/ACK replies (appendPXEOptions, internal/plugins/dhcpserver/handler.go:292) and ze has no PXE Boot Server Discovery echo code path -- it sets PXE_DISCOVERY_CONTROL to skip that exchange (internal/plugins/dhcpserver/handler.go:325) |
+| `RFC4578-2.1-2` | Octet "n" gives the number of octets containing "architecture types" (not including the code and len fields). It MUST be an even number greater than zero. (Section 2.1) | MUST | 2.1 - Client System Architecture Type Option Definition, option 93 | **positive:** `unit/verify` [`TestParsePXEArch`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L923). **negative:** `unit/verify` [`TestParsePXEArch`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L926) |
+| `RFC4578-2.2-1` | This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers. (Section 2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DHCP server, not a PXE client; ze has no option 94 code path -- it neither reads nor emits option 94 anywhere under internal/plugins/dhcpserver/ (grep for 94/UNDI in handler.go finds nothing) |
+| `RFC4578-2.3-1` | This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers. (Section 2.3) | MUST | 2.3 - Client Machine Identifier Option Definition, option 97 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DHCP server, not a PXE client; ze has no option 97 code path -- it neither reads nor emits option 97 (the client machine GUID) anywhere under internal/plugins/dhcpserver/ |
 | `RFC4578-2.4-1` | All compliant PXE clients MUST include a request for DHCP options 128 through 135 in all DHCP and PXE packets (Section 2.4) | MUST | 2.4 - Options Requested by PXE Clients | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DHCP server, not a PXE client; this requirement binds the PXE client to request options 128-135, a role ze never plays |
 | `RFC4578-2.1-3` | Clients that support more than one architecture type MAY include a list of these types in their initial DHCP and PXE boot server packets (Section 2.1) | MAY | 2.1 - Client System Architecture Type Option Definition, option 93 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4578-2.1-4` | The list of supported architecture types MAY be reduced in any packet exchange between the client and server(s) (Section 2.1) | MAY | 2.1 - Client System Architecture Type Option Definition, option 93 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4578-2.4-2` | Options 128-135 MAY be present in the DHCP and PXE boot server replies (Section 2.4) | MAY | 2.4 - Options Requested by PXE Clients | **positive:** no positive test. **negative:** no negative test |
+| `RFC4578-2.4-2` | These options MAY be present in the DHCP and PXE boot server replies and are meant for use by the downloaded network bootstrap programs. (Section 2.4) | MAY | 2.4 - Options Requested by PXE Clients | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC4578-2.1-1`](#rfc4578-2.1-1) Option 93 (Client System Architecture Type) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze is a DHCP server, not a PXE client; it reads a received option 93 to select a bootfile (parsePXEArch, internal/plugins/dhcpserver/handler.go:505) but emits no option 93 in its OFFER/ACK replies (appendPXEOptions, internal/plugins/dhcpserver/handler.go:292) and ze has no PXE Boot Server Discovery echo code path -- it sets PXE_DISCOVERY_CONTROL to skip that exchange (internal/plugins/dhcpserver/handler.go:325) |
-| [`RFC4578-2.2-1`](#rfc4578-2.2-1) Option 94 (Client Network Interface Identifier) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze is a DHCP server, not a PXE client; ze has no option 94 code path -- it neither reads nor emits option 94 anywhere under internal/plugins/dhcpserver/ (grep for 94/UNDI in handler.go finds nothing) |
-| [`RFC4578-2.3-1`](#rfc4578-2.3-1) Option 97 (Client Machine Identifier) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze is a DHCP server, not a PXE client; ze has no option 97 code path -- it neither reads nor emits option 97 (the client machine GUID) anywhere under internal/plugins/dhcpserver/ |
+| [`RFC4578-2.1-1`](#rfc4578-2.1-1) This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers. (Section 2.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze is a DHCP server, not a PXE client; it reads a received option 93 to select a bootfile (parsePXEArch, internal/plugins/dhcpserver/handler.go:505) but emits no option 93 in its OFFER/ACK replies (appendPXEOptions, internal/plugins/dhcpserver/handler.go:292) and ze has no PXE Boot Server Discovery echo code path -- it sets PXE_DISCOVERY_CONTROL to skip that exchange (internal/plugins/dhcpserver/handler.go:325) |
+| [`RFC4578-2.2-1`](#rfc4578-2.2-1) This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers. (Section 2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze is a DHCP server, not a PXE client; ze has no option 94 code path -- it neither reads nor emits option 94 anywhere under internal/plugins/dhcpserver/ (grep for 94/UNDI in handler.go finds nothing) |
+| [`RFC4578-2.3-1`](#rfc4578-2.3-1) This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers. (Section 2.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze is a DHCP server, not a PXE client; ze has no option 97 code path -- it neither reads nor emits option 97 (the client machine GUID) anywhere under internal/plugins/dhcpserver/ |
 | [`RFC4578-2.4-1`](#rfc4578-2.4-1) All compliant PXE clients MUST include a request for DHCP options 128 through 135 in all DHCP and PXE packets (Section 2.4) | no test | no test carries this requirement id; annotated {not-applicable}: ze is a DHCP server, not a PXE client; this requirement binds the PXE client to request options 128-135, a role ze never plays |
 
 ## Proof state
@@ -126,7 +135,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC4578-2.1-1`](#rfc4578-2.1-1)
 
-Option 93 (Client System Architecture Type) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.1)
+This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers. (Section 2.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -134,9 +143,9 @@ No test carries RFC4578-2.1-1, so no unit is bound to it.
 
 ### [`RFC4578-2.1-2`](#rfc4578-2.1-2)
 
-Option 93 Len field MUST be an even number greater than zero (Section 2.1)
+Octet "n" gives the number of octets containing "architecture types" (not including the code and len fields). It MUST be an even number greater than zero. (Section 2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: accepting an option 93 whose Len is odd, or zero. TestParsePXEArch: 'too long' (Len 3) and 'too short' (Len 1) want 0, so the odd clause is enforced, and 'UEFI x64' (Len 2) is the positive. The 'greater than zero' clause has no case: no row carries an option 93 with Len 0 (the 'missing' row omits the option entirely), so a parser that accepted a zero-length option stays green. No even length above 2 is accepted either.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -145,7 +154,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4578-2.2-1`](#rfc4578-2.2-1)
 
-Option 94 (Client Network Interface Identifier) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.2)
+This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers. (Section 2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -153,7 +162,7 @@ No test carries RFC4578-2.2-1, so no unit is bound to it.
 
 ### [`RFC4578-2.3-1`](#rfc4578-2.3-1)
 
-Option 97 (Client Machine Identifier) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.3)
+This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers. (Section 2.3)
 
 Audit verdict: not audited: no reader has judged these tests
 

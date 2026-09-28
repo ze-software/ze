@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 19 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 19 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 17 | of 19 gated MUSTs judged | 9 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 19 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 19 |
 | Not applicable, so out of scope | 3 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 53 |
 | Tagged units | 53 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 17 |
 | Discrimination records | 1 |
 | Summary | `rfc/short/rfc9234.md` |
 | Requirement shard | `rfc/requirements/rfc9234.md` |
@@ -106,11 +115,11 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: [`test
 | `RFC9234-4.1-2` | An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability. (S4.1) | MUST NOT | 4.1 - BGP Role Capability | **positive:** `unit/verify` [`TestExtractRoleCapabilities_ParseBGPConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/config_test.go#L290). **negative:** no negative test. **{single-polarity}:** parseRoleContainer (internal/component/bgp/plugins/role/config.go:66) reads a single import role per peer and extractRoleCapabilities (config.go:213) emits exactly one CapabilityDecl per peer, so no code path can advertise multiple Role capabilities and only the exactly-one assertion is constructible |
 | `RFC9234-4.2-1` | If the BGP Role Capability is advertised, and one is also received from the peer, the Roles MUST correspond to the relationships in Table 2. (S4.2) | MUST | 4.2 - Role Correctness | **positive:** `unit/verify` [`TestValidateOpenRolePair_ValidPairs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L21). **negative:** `unit/verify` [`TestValidateOpenRolePairRunsForADynamicGroupMember`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/dynamic_group_test.go#L122). **negative:** `unit/verify` [`TestValidateOpenRolePair_InvalidPairs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L65) |
 | `RFC9234-4.2-2` | If the Roles do not correspond, the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11). (S4.2) | MUST | 4.2 - Role Correctness | **positive:** `unit/verify` [`TestAskOpenValidatorsLeavesASilentPluginPending`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/validate_test.go#L267). **positive:** `unit/verify` [`TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/validate_test.go#L223). **positive:** `unit/verify` [`TestValidateOpenRolePairRunsForADynamicGroupMember`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/dynamic_group_test.go#L123). **positive:** `unit/verify` [`TestValidateOpenRolePair_InvalidPairs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L66). **negative:** `unit/verify` [`TestBroadcastValidateOpenAcceptsAPeerWithNoPerPeerPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/validate_test.go#L250). **negative:** `unit/verify` [`TestValidateOpenRolePair_ValidPairs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L22) |
-| `RFC9234-4.2-3` | If multiple Role Capabilities received with different values, MUST reject with Role Mismatch Notification (S4.2) | MUST | 4.2 - Role Correctness | **positive:** `unit/verify` [`TestValidateOpenRolePair_MultipleDifferentRoles`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L163). **negative:** `unit/verify` [`TestValidateOpenRolePair_MultipleSameRoles`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L193) |
+| `RFC9234-4.2-3` | If multiple BGP Role Capabilities are received and not all of them have the same value, then the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11). (§4.2) | MUST | 4.2 - Role Correctness | **positive:** `unit/verify` [`TestValidateOpenRolePair_MultipleDifferentRoles`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L163). **negative:** `unit/verify` [`TestValidateOpenRolePair_MultipleSameRoles`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L193) |
 | `RFC9234-5-1` | If a route with the OTC Attribute is received from a Customer or an RS-Client, then it is a route leak and MUST be considered ineligible (see Section 3). (S5) | MUST | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestCheckOTCIngress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L335). **positive:** `unit/verify` [`TestOTCIngressGateRunsForADynamicGroupMember`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/dynamic_group_test.go#L81). **negative:** `unit/verify` [`TestCheckOTCIngress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L345) |
-| `RFC9234-5-2` | Route with OTC from Peer where OTC value != Peer's ASN MUST be considered ineligible (S5) | MUST | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCIngressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L505). **negative:** `unit/verify` [`TestOTCIngressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L497) |
-| `RFC9234-5-3` | Route from Provider/Peer/RS without OTC: OTC MUST be added with remote AS number (S5) | MUST | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCIngressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L481). **negative:** `unit/verify` [`TestCheckOTCIngress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L330). **negative:** `unit/verify` [`TestOTCIngressNoStampOnMPUnreachOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1989). **negative:** `unit/verify` [`TestOTCIngressNoStampOnPureWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1961) |
-| `RFC9234-5-4` | Route to Customer/Peer/RS-Client without OTC: OTC MUST be added with local AS number (S5) | MUST | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCEgressStampMod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L964). **positive:** `unit/verify` [`TestOTCEgressStampsMixedWithdrawAndAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1928). **positive:** `unit/verify` [`TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1125). **negative:** `unit/verify` [`TestOTCEgressNoStampOnMPUnreachOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1887). **negative:** `unit/verify` [`TestOTCEgressNoStampOnPureWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1866). **negative:** `unit/verify` [`TestOTCEgressNoStampProvider`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1003). **positive:** `functional/verify` [`role-otc-fwd-withdraw.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-fwd-withdraw.ci#L8). **positive:** `functional/verify` [`role-otc-rs-client-dest-stamp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-client-dest-stamp.ci#L12). **positive:** `functional/verify` [`role-otc-rs-withdraw-eor.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-withdraw-eor.ci#L14). **negative:** `functional/verify` [`role-otc-fwd-withdraw.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-fwd-withdraw.ci#L11). **negative:** `functional/verify` [`role-otc-rs-withdraw-eor.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-withdraw-eor.ci#L17). **positive:** `interop/nightly` [`checkOTCWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L855). **negative:** `interop/nightly` [`checkOTCWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L856) |
+| `RFC9234-5-2` | If a route with the OTC Attribute is received from a Peer (i.e., remote AS with a Peer Role) and the Attribute has a value that is not equal to the remote (i.e., Peer's) AS number, then it is a route leak and MUST be considered ineligible. (§5) | MUST | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCIngressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L505). **negative:** `unit/verify` [`TestOTCIngressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L497) |
+| `RFC9234-5-3` | If a route is received from a Provider, a Peer, or an RS and the OTC Attribute is not present, then it MUST be added with a value equal to the AS number of the remote AS. (§5) | MUST | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCIngressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L481). **negative:** `unit/verify` [`TestCheckOTCIngress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L330). **negative:** `unit/verify` [`TestOTCIngressNoStampOnMPUnreachOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1989). **negative:** `unit/verify` [`TestOTCIngressNoStampOnPureWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1961) |
+| `RFC9234-5-4` | If a route is to be advertised to a Customer, a Peer, or an RS- Client (when the sender is an RS), and the OTC Attribute is not present, then when advertising the route, an OTC Attribute MUST be added with a value equal to the AS number of the local AS. (§5) | MUST | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCEgressStampMod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L964). **positive:** `unit/verify` [`TestOTCEgressStampsMixedWithdrawAndAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1928). **positive:** `unit/verify` [`TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1125). **negative:** `unit/verify` [`TestOTCEgressNoStampOnMPUnreachOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1887). **negative:** `unit/verify` [`TestOTCEgressNoStampOnPureWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1866). **negative:** `unit/verify` [`TestOTCEgressNoStampProvider`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1003). **positive:** `functional/verify` [`role-otc-fwd-withdraw.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-fwd-withdraw.ci#L8). **positive:** `functional/verify` [`role-otc-rs-client-dest-stamp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-client-dest-stamp.ci#L12). **positive:** `functional/verify` [`role-otc-rs-withdraw-eor.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-withdraw-eor.ci#L14). **negative:** `functional/verify` [`role-otc-fwd-withdraw.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-fwd-withdraw.ci#L11). **negative:** `functional/verify` [`role-otc-rs-withdraw-eor.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-withdraw-eor.ci#L17). **positive:** `interop/nightly` [`checkOTCWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L855). **negative:** `interop/nightly` [`checkOTCWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L856) |
 | `RFC9234-5-5` | If a route already contains the OTC Attribute, it MUST NOT be propagated to Providers, Peers, or RSes. (S5) | MUST NOT | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCEgressWireBytesCheck`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1723). **negative:** `unit/verify` [`TestOTCEgressWireBytesCheck`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1724) |
 | `RFC9234-5-6` | Once the OTC Attribute has been set, it MUST be preserved unchanged (this also applies to an AS Confederation). (S5) | MUST | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCAttrModHandlerExistingPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1511). **negative:** `unit/verify` [`TestOTCAttrModHandlerNewAttr`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1490) |
 | `RFC9234-5-7` | If an OTC Attribute is added on egress from the AS Confederation, its value MUST equal the AS Confederation Identifier. (S5) | MUST | 5 - BGP Only to Customer (OTC) Attribute | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze does not operate as an AS Confederation (no confederation-identifier or member-AS config exists anywhere in config or the role plugin); the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses only dest.LocalAS, so there is no confederation egress boundary at which a confederation identifier could be stamped |
@@ -119,13 +128,13 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: [`test
 | `RFC9234-5-10` | The described ingress and egress procedures are applicable only for the address families AFI 1 (IPv4) and AFI 2 (IPv6) with SAFI 1 (unicast) in both cases and MUST NOT be applied to other address families by default. (S5) | MUST NOT | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestIsPayloadUnicastMPUnreachFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L2020). **positive:** `unit/verify` [`TestOTCEgressNonUnicastWithdrawalNotProcessed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L2063). **positive:** `unit/verify` [`TestOTCEgressUnicastOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1369). **positive:** `unit/verify` [`TestOTCNonUnicastWithdrawalSkipsOTCProcedures`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L2103). **negative:** `unit/verify` [`TestOTCEgressStampMod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L965) |
 | `RFC9234-5-11` | The operator MUST NOT have the ability to modify the procedures defined in this section. (S5) | MUST NOT | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCEgressWireBytesCheck`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1725). **negative:** no negative test. **{single-polarity}:** checkOTCIngress (internal/component/bgp/plugins/role/otc.go:164) and OTCEgressFilter (otc.go:384) take no operator override, peerRoleConfig (config.go:17) exposes no disable flag, and the wire-bytes OTC suppression at otc.go:384 runs before and independent of the export policy, so the procedures cannot be switched off by configuration and a modifiable negative is not constructible |
 | `RFC9234-6-1` | Roles MUST NOT be configured on an eBGP session with a Complex peering relationship. (S6) | MUST NOT | 6 - Additional Considerations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze has no representation of a Complex peering relationship; parseRoleContainer (internal/component/bgp/plugins/role/config.go:66) parses one role per peer with no relationship-complexity classification, so there is no ze code path that could place a role on a complex session to guard against |
-| `RFC9234-3.1-1` | Customer/RS-Client/Peer: routes from Provider/Peer/RS MUST NOT be propagated (S3.1) | MUST NOT | 3.1 - Peering Relationships | **positive:** `unit/verify` [`TestOTCEgressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L661). **positive:** `unit/verify` [`TestOTCEgressSuppressProviderLearnedWithoutMeta`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1071). **negative:** `unit/verify` [`TestOTCEgressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L671) |
-| `RFC9234-5-12` | UPDATE with malformed OTC Attribute (length != 4) SHALL be handled as treat-as-withdraw (S5) | SHALL | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCIngressMalformedTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1773). **negative:** `unit/verify` [`TestCheckOTCIngress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L346) |
-| `RFC9234-4-1` | One of the defined Roles SHOULD be configured for each eBGP session (S4) | SHOULD | 4 - BGP Role | **positive:** no positive test. **negative:** no negative test |
-| `RFC9234-4.2-4` | If Role Capability sent but not received, SHOULD ignore absence and proceed (S4.2) | SHOULD | 4.2 - Role Correctness | **positive:** no positive test. **negative:** no negative test |
-| `RFC9234-6-2` | If Complex peering can be segregated into multiple sessions, BGP Roles SHOULD be used on each (S6) | SHOULD | 6 - Additional Considerations | **positive:** no positive test. **negative:** no negative test |
-| `RFC9234-4.2-5` | Operator may apply strict mode requiring Role capability from peer (S4.2) | MAY | 4.2 - Role Correctness | **positive:** `unit/verify` [`TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/dynamic_group_test.go#L175). **negative:** no negative test |
-| `RFC9234-5-13` | BGP Role negotiation and OTC procedures NOT RECOMMENDED between ASes in AS Confederation (S5) | NOT RECOMMENDED | 5 - BGP Only to Customer (OTC) Attribute | **positive:** no positive test. **negative:** no negative test |
+| `RFC9234-3.1-1` | Customer: MAY propagate any route learned from a Customer, or that is locally originated, to a Provider. All other routes MUST NOT be propagated. Route Server (RS): MAY propagate any available route to a Route Server Client (RS-Client). Route Server Client (RS-Client): MAY propagate any route learned from a Customer, or that is locally originated, to an RS. All other routes MUST NOT be propagated. Peer: MAY propagate any route learned from a Customer, or that is locally originated, to a Peer. All other routes MUST NOT be propagated. (§3.1) | MUST NOT | 3.1 - Peering Relationships | **positive:** `unit/verify` [`TestOTCEgressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L661). **positive:** `unit/verify` [`TestOTCEgressSuppressProviderLearnedWithoutMeta`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1071). **negative:** `unit/verify` [`TestOTCEgressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L671) |
+| `RFC9234-5-12` | The OTC Attribute is considered malformed if the length value is not 4. An UPDATE message with a malformed OTC Attribute SHALL be handled using the approach of "treat-as-withdraw" [RFC7606]. (§5) | SHALL | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCIngressMalformedTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1773). **negative:** `unit/verify` [`TestCheckOTCIngress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L346) |
+| `RFC9234-4-1` | One of the Roles described below SHOULD be configured at the local AS for each eBGP session (see definitions in Section 3) based on the local AS's knowledge of its Role. (§4) | SHOULD | 4 - BGP Role | **positive:** no positive test. **negative:** no negative test |
+| `RFC9234-4.2-4` | For backward compatibility, if the BGP Role Capability is sent but one is not received, the BGP Speaker SHOULD ignore the absence of the BGP Role Capability and proceed with session establishment. (§4.2) | SHOULD | 4.2 - Role Correctness | **positive:** no positive test. **negative:** no negative test |
+| `RFC9234-6-2` | If multiple eBGP sessions can segregate the Complex peering relationship into eBGP sessions with normal peering relationships, BGP Roles SHOULD be used on each of the resulting eBGP sessions. (§6) | SHOULD | 6 - Additional Considerations | **positive:** no positive test. **negative:** no negative test |
+| `RFC9234-4.2-5` | An operator may choose to apply a "strict mode" in which the receipt of a BGP Role Capability from the remote AS is required. When operating in the "strict mode", if the BGP Role Capability is sent but one is not received, the connection is rejected using the Role Mismatch Notification (code 2, subcode 11). (§4.2) | MAY | 4.2 - Role Correctness | **positive:** `unit/verify` [`TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/dynamic_group_test.go#L175). **negative:** no negative test |
+| `RFC9234-5-13` | The BGP Role negotiation and OTC-Attribute-based procedures specified in this document are NOT RECOMMENDED to be used between autonomous systems in an AS Confederation [RFC5065]. (§5) | NOT RECOMMENDED | 5 - BGP Only to Customer (OTC) Attribute | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -143,7 +152,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 If the BGP Role is locally configured, the eBGP speaker MUST advertise the BGP Role Capability in the BGP OPEN message. (S4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. non-compliant: an OPEN sent with no Role capability although a role is configured. TestExtractRoleCapabilities_ParseBGPConfig require.Len(caps,1) + Code==9 goes red only if the role plugin stops DECLARING the capability; no tagged unit reads the OPEN ze sends, so an engine that dropped the declaration stays green (question 2 fails for the 'in the BGP OPEN message' clause). Negative (no/invalid/empty role -> no capability) is sound. Candidate tag: test/plugin/dynamic-peer-gets-group-role-capability.ci if it asserts code 9 in the OPEN bytes
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -154,7 +163,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability. (S4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. single-polarity positive. non-compliant: an OPEN carrying two Role capabilities. TestExtractRoleCapabilities_ParseBGPConfig require.Len(caps,1) and require.Len(cap.Peers,1) pin one declaration per peer at the plugin; no tagged unit counts Role capabilities in the OPEN ze encodes, so duplication after the declaration is unobserved (question 2 fails at the OPEN)
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -164,7 +173,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the BGP Role Capability is advertised, and one is also received from the peer, the Roles MUST correspond to the relationships in Table 2. (S4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. non-compliant: accepting a pair outside Table 2. TestValidateOpenRolePair_InvalidPairs assert.False(output.Accept) over customer/customer, provider/provider, rs/rs, rsclient/rsclient, provider/rs, customer/peer, and TestValidateOpenRolePairRunsForADynamicGroupMember asserts RS/RS refused; positive TestValidateOpenRolePair_ValidPairs assert.True over all five Table 2 pairs
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -176,7 +185,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the Roles do not correspond, the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11). (S4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. non-compliant: a mismatched pair rejected with a different NOTIFICATION, or not rejected. The plugin units assert Accept=false with NotifyCode 2 / NotifySubcode 11 in validateOpenRolePair's OUTPUT; TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy covers only the unanswered-plugin path at the engine. No tagged unit observes the engine turning a plugin mismatch verdict into the NOTIFICATION it sends and closing the connection (question 2 fails for 'reject the connection'). Candidate: a mismatch .ci like test/plugin/role-strict-enforcement.ci, which asserts 03020B on the wire for strict mode
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -189,9 +198,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9234-4.2-3`](#rfc9234-4.2-3)
 
-If multiple Role Capabilities received with different values, MUST reject with Role Mismatch Notification (S4.2)
+If multiple BGP Role Capabilities are received and not all of them have the same value, then the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11). (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. non-compliant: multiple differing Role capabilities accepted or refused with another code. TestValidateOpenRolePair_MultipleDifferentRoles asserts Accept=false, 2/11 in the plugin output; negative TestValidateOpenRolePair_MultipleSameRoles asserts identical duplicates accepted. As for RFC9234-4.2-2, no tagged unit observes the connection rejected with the NOTIFICATION on the wire
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -202,7 +211,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If a route with the OTC Attribute is received from a Customer or an RS-Client, then it is a route leak and MUST be considered ineligible (see Section 3). (S5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. non-compliant: OTC route from Customer or RS-Client accepted. TestCheckOTCIngress reject_customer_with_otc and reject_rs_client_with_otc assert otcRejectLeak; TestOTCIngressGateRunsForADynamicGroupMember asserts accept=false for an RS-Client member; negative accept_provider_has_otc/accept_rs_has_otc assert otcAccept
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -212,9 +221,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9234-5-2`](#rfc9234-5-2)
 
-Route with OTC from Peer where OTC value != Peer's ASN MUST be considered ineligible (S5)
+If a route with the OTC Attribute is received from a Peer (i.e., remote AS with a Peer Role) and the Attribute has a value that is not equal to the remote (i.e., Peer's) AS number, then it is a route leak and MUST be considered ineligible. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. non-compliant: Peer route whose OTC differs from the Peer's AS accepted. TestOTCIngressFilter reject_peer_otc_mismatch asserts accept=false (OTC 65099 vs PeerAS 65003); negative accept_peer_otc_matches asserts accept=true and no rewrite; TestCheckOTCIngress also pins reject_peer_otc_wrong and zero ASN
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -223,9 +232,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9234-5-3`](#rfc9234-5-3)
 
-Route from Provider/Peer/RS without OTC: OTC MUST be added with remote AS number (S5)
+If a route is received from a Provider, a Peer, or an RS and the OTC Attribute is not present, then it MUST be added with a value equal to the AS number of the remote AS. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. non-compliant: a route without OTC from Provider, Peer or RS left unstamped or stamped with another ASN. TestOTCIngressFilter stamp_from_provider finds OTC == remote AS 65002 in the rewritten payload; TestCheckOTCIngress stamp_from_provider/peer/rs assert stampASN == remote ASN for each of the three roles. Negatives: Customer/RS-Client not stamped, pure withdrawal and MP_UNREACH-only not stamped
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -236,9 +245,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9234-5-4`](#rfc9234-5-4)
 
-Route to Customer/Peer/RS-Client without OTC: OTC MUST be added with local AS number (S5)
+If a route is to be advertised to a Customer, a Peer, or an RS- Client (when the sender is an RS), and the OTC Attribute is not present, then when advertising the route, an OTC Attribute MUST be added with a value equal to the AS number of the local AS. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. non-compliant: a route to a Customer, Peer or RS-Client advertised without OTC == local AS. Customer: TestOTCEgressStampMod (op code 35, value 65000), TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig, role-otc-fwd-withdraw.ci, role-otc-rs-withdraw-eor.ci; RS-Client: role-otc-rs-client-dest-stamp.ci. The Peer destination has no tagged assertion (TestOTCEgressStampPeer, untagged, asserts Gao-Rexford suppression, not a stamp), so one of the three listed cases is unproven (question 4). The scope negative TestOTCEgressNoStampProvider uses a payload with no NLRI, which payloadAdvertisesNLRI already refuses, so it stays green with the destination gate removed (question 3)
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -260,7 +269,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If a route already contains the OTC Attribute, it MUST NOT be propagated to Providers, Peers, or RSes. (S5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. non-compliant: an OTC-carrying route sent to a Provider, Peer or RS. TestOTCEgressWireBytesCheck asserts OTCEgressFilter false for each of the three destinations with no source config, true for an OTC route to a Customer and for a no-OTC route to a Provider
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -271,7 +280,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Once the OTC Attribute has been set, it MUST be preserved unchanged (this also applies to an AS Confederation). (S5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. non-compliant: an existing OTC value rewritten. TestOTCAttrModHandlerExistingPreserved plans OTC 65001 from source against a set op of 65000 and asserts the emitted value is 65001. Negative TestOTCAttrModHandlerNewAttr: no prior OTC, so the op's value is emitted. The confederation parenthetical has no ze code path (RFC9234-5-7/5-8 are not-applicable)
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -298,7 +307,7 @@ No test carries RFC9234-5-8, so no unit is bound to it.
 
 On egress from the Internet- facing AS, the OTC Attribute MUST NOT contain a value other than the Internet-facing ASN. (S5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity positive. non-compliant: egress OTC carrying a value other than the local (internet-facing) AS. TestOTCEgressStampLocalASN asserts the stamped value is dest.LocalAS 64999, not src AS 65001 nor dest peer AS 65002
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -308,7 +317,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The described ingress and egress procedures are applicable only for the address families AFI 1 (IPv4) and AFI 2 (IPv6) with SAFI 1 (unicast) in both cases and MUST NOT be applied to other address families by default. (S5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. non-compliant: OTC procedures applied to a non AFI1/2 SAFI1 family. Egress stamp: TestOTCEgressUnicastOnly (ipv4 multicast, mods.Len()==0) and TestOTCEgressNonUnicastWithdrawalNotProcessed (VPNv4); egress rule 2: TestOTCNonUnicastWithdrawalSkipsOTCProcedures egress_rule_2_does_not_suppress; ingress rule 1: its ingress_rule_1_does_not_reject subtest; family gate: TestIsPayloadUnicastMPUnreachFamily. Negative TestOTCEgressStampMod stamps IPv4 unicast
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -322,7 +331,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The operator MUST NOT have the ability to modify the procedures defined in this section. (S5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. single-polarity positive. The sentence covers every ingress and egress procedure of Section 5. TestOTCEgressWireBytesCheck shows only egress rule 2 running with no source role config. No tagged unit shows the ingress procedures or the egress stamp surviving an operator setting (for example an export policy or a role option), so the claim 'cannot be switched off by configuration' rests on the marker's code reading, not on an assertion (question 4)
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -338,9 +347,9 @@ No test carries RFC9234-6-1, so no unit is bound to it.
 
 ### [`RFC9234-3.1-1`](#rfc9234-3.1-1)
 
-Customer/RS-Client/Peer: routes from Provider/Peer/RS MUST NOT be propagated (S3.1)
+Customer: MAY propagate any route learned from a Customer, or that is locally originated, to a Provider. All other routes MUST NOT be propagated. Route Server (RS): MAY propagate any available route to a Route Server Client (RS-Client). Route Server Client (RS-Client): MAY propagate any route learned from a Customer, or that is locally originated, to an RS. All other routes MUST NOT be propagated. Peer: MAY propagate any route learned from a Customer, or that is locally originated, to a Peer. All other routes MUST NOT be propagated. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. the quote holds three MUST NOTs: Customer, RS-Client and Peer roles propagate only Customer-learned or local routes. TestOTCEgressFilter asserts suppression for Provider-learned->Provider, Peer-learned->Peer, Peer-learned->RS, RS-learned->Provider; TestOTCEgressSuppressProviderLearnedWithoutMeta for Provider-learned->Provider with no meta. Provider-learned->Peer/RS, RS-learned->Peer/RS and Peer-learned->Provider have no assertion (question 4). The same unit's untagged subtest src_role_rs_to_provider_accept asserts an RS-Client-learned route IS sent to a Provider, which the Customer rule's 'All other routes MUST NOT be propagated' forbids (question 1; see findings)
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -350,9 +359,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9234-5-12`](#rfc9234-5-12)
 
-UPDATE with malformed OTC Attribute (length != 4) SHALL be handled as treat-as-withdraw (S5)
+The OTC Attribute is considered malformed if the length value is not 4. An UPDATE message with a malformed OTC Attribute SHALL be handled using the approach of "treat-as-withdraw" [RFC7606]. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. non-compliant: an OTC of length other than 4 not handled as treat-as-withdraw. TestOTCIngressMalformedTreatAsWithdraw asserts the NLRI moves to withdrawn, attribute length 0, OTC gone, and TestCheckOTCIngress malformed_* assert otcTreatWithdraw for every role, but every tagged malformed input has length 3. Lengths above 4 and 0 are driven only by TestOTCBoundaryLength (untagged, detection only), so 'not 4' is proven for the short side alone. Negative (length 4 accepted) is sound
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -361,9 +370,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9234-4.2-5`](#rfc9234-4.2-5)
 
-Operator may apply strict mode requiring Role capability from peer (S4.2)
+An operator may choose to apply a "strict mode" in which the receipt of a BGP Role Capability from the remote AS is required. When operating in the "strict mode", if the BGP Role Capability is sent but one is not received, the connection is rejected using the Role Mismatch Notification (code 2, subcode 11). (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. MAY; the quote carries the strict-mode rejection sentence. Positive TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole asserts Accept=false, 2/11, reason 'strict' and a compliant member accepted. No negative polarity is tagged: the non-strict acceptance of a missing capability (TestValidateOpenRolePair_NoPeerRole_NoStrict, untagged) is not claimed, and no {single-polarity} marker. Wire proof exists untagged in test/plugin/role-strict-enforcement.ci
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

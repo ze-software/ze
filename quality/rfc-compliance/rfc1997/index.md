@@ -15,6 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 5 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 5 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 3.8% | 1 of 26 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 5 | of 5 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -44,7 +45,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +57,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 5 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 26 |
 | Tagged units | 26 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 5 |
 | Discrimination records | 1 |
 | Summary | `rfc/short/rfc1997.md` |
 | Requirement shard | `rfc/requirements/rfc1997.md` |
@@ -102,15 +104,15 @@ Gated per requirement in [`rfc/short/rfc1997.md`](https://github.com/ze-software
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC1997-Well-1` | Routes with NO_EXPORT community MUST NOT be advertised outside a BGP confederation boundary (§Well-known Communities) | MUST NOT | Well | **positive:** `unit/verify` [`TestForwardNoExportSkipsExternalPeerOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L197). **positive:** `unit/verify` [`TestWellKnownNoExportRefusesExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L34). **negative:** `unit/verify` [`TestForwardNoExportStillWithdrawsFromExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L364). **negative:** `unit/verify` [`TestForwardWithoutNoExportReachesExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L223). **negative:** `unit/verify` [`TestWellKnownNoExportAllowsInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L48). **positive:** `functional/verify` [`wellknown-no-export-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-egress.ci#L1). **negative:** `functional/verify` [`wellknown-no-export-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-egress.ci#L7). **negative:** `functional/verify` [`wellknown-no-export-withdraw-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-withdraw-egress.ci#L1). **positive:** `interop/nightly` [`checkNoExportBoundary`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1053). **negative:** `interop/nightly` [`checkNoExportBoundary`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1054) |
-| `RFC1997-Well-2` | Routes with NO_ADVERTISE community MUST NOT be advertised to other BGP peers (§Well-known Communities) | MUST NOT | Well | **positive:** `unit/verify` [`TestForwardNoAdvertiseSkipsEveryPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L242). **positive:** `unit/verify` [`TestWellKnownNoAdvertiseRefusesEveryPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L59). **negative:** `unit/verify` [`TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L72). **positive:** `functional/verify` [`wellknown-no-advertise-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L1). **negative:** `functional/verify` [`wellknown-no-advertise-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L5) |
-| `RFC1997-Well-3` | Routes with NO_EXPORT_SUBCONFED community MUST NOT be advertised to external BGP peers, including peers in other member ASes inside a confederation (§Well-known Communities) | MUST NOT | Well | **positive:** `unit/verify` [`TestForwardNoExportSubconfedSkipsExternalPeerOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L259). **positive:** `unit/verify` [`TestWellKnownNoExportSubconfedRefusesExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L83). **negative:** `unit/verify` [`TestWellKnownNoExportSubconfedAllowsInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L95). **positive:** `functional/verify` [`wellknown-no-advertise-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L8). **negative:** `functional/verify` [`wellknown-no-advertise-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L12) |
-| `RFC1997-Encoding-1` | Attribute length MUST be a multiple of 4 (§Encoding Rules) | MUST | Encoding | **positive:** `unit/verify` [`TestCommunitiesParse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L44). **negative:** `unit/verify` [`TestCommunitiesParseRejectsNonMultipleOf4`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L54) |
-| `RFC1997-Well-4` | Well-known community operations SHALL be implemented in any community-attribute-aware BGP speaker (§Well-known Communities) | SHALL | Well | **positive:** `unit/verify` [`TestForwardWellKnownNeedsNoOperatorPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L279). **positive:** `unit/verify` [`TestWellKnownAllThreeOperationsImplemented`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L104). **negative:** `unit/verify` [`TestForwardOtherReservedCommunitiesReachExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L297). **negative:** `unit/verify` [`TestWellKnownIgnoresOtherReservedCommunities`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L122) |
-| `RFC1997-Aggregation-1` | When aggregating routes without ATOMIC_AGGREGATE, the resulting aggregate SHOULD have a COMMUNITIES attribute containing all communities from all aggregated routes (§Aggregation) | SHOULD | Aggregation | **positive:** no positive test. **negative:** no negative test |
-| `RFC1997-Operation-1` | A BGP speaker MAY use the COMMUNITIES attribute to control which routing information it accepts, prefers, or distributes (§Operation) | MAY | Operation | **positive:** no positive test. **negative:** no negative test |
-| `RFC1997-Operation-2` | A BGP speaker receiving a route without COMMUNITIES MAY append this attribute when propagating to peers (§Operation) | MAY | Operation | **positive:** no positive test. **negative:** no negative test |
-| `RFC1997-Operation-3` | A BGP speaker receiving a route with COMMUNITIES MAY modify the attribute according to local policy (§Operation) | MAY | Operation | **positive:** no positive test. **negative:** no negative test |
+| `RFC1997-Well-1` | NO_EXPORT (0xFFFFFF01) All routes received carrying a communities attribute containing this value MUST NOT be advertised outside a BGP confederation boundary (a stand-alone autonomous system that is not part of a confederation should be considered a confederation itself). (§Well-known Communities) | MUST NOT | Well | **positive:** `unit/verify` [`TestForwardNoExportSkipsExternalPeerOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L197). **positive:** `unit/verify` [`TestWellKnownNoExportRefusesExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L34). **negative:** `unit/verify` [`TestForwardNoExportStillWithdrawsFromExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L364). **negative:** `unit/verify` [`TestForwardWithoutNoExportReachesExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L223). **negative:** `unit/verify` [`TestWellKnownNoExportAllowsInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L48). **positive:** `functional/verify` [`wellknown-no-export-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-egress.ci#L1). **negative:** `functional/verify` [`wellknown-no-export-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-egress.ci#L7). **negative:** `functional/verify` [`wellknown-no-export-withdraw-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-withdraw-egress.ci#L1). **positive:** `interop/nightly` [`checkNoExportBoundary`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1053). **negative:** `interop/nightly` [`checkNoExportBoundary`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1054) |
+| `RFC1997-Well-2` | NO_ADVERTISE (0xFFFFFF02) All routes received carrying a communities attribute containing this value MUST NOT be advertised to other BGP peers. (§Well-known Communities) | MUST NOT | Well | **positive:** `unit/verify` [`TestForwardNoAdvertiseSkipsEveryPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L242). **positive:** `unit/verify` [`TestWellKnownNoAdvertiseRefusesEveryPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L59). **negative:** `unit/verify` [`TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L72). **positive:** `functional/verify` [`wellknown-no-advertise-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L1). **negative:** `functional/verify` [`wellknown-no-advertise-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L5) |
+| `RFC1997-Well-3` | NO_EXPORT_SUBCONFED (0xFFFFFF03) All routes received carrying a communities attribute containing this value MUST NOT be advertised to external BGP peers (this includes peers in other members autonomous systems inside a BGP confederation). (§Well-known Communities) | MUST NOT | Well | **positive:** `unit/verify` [`TestForwardNoExportSubconfedSkipsExternalPeerOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L259). **positive:** `unit/verify` [`TestWellKnownNoExportSubconfedRefusesExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L83). **negative:** `unit/verify` [`TestWellKnownNoExportSubconfedAllowsInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L95). **positive:** `functional/verify` [`wellknown-no-advertise-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L8). **negative:** `functional/verify` [`wellknown-no-advertise-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L12) |
+| `RFC1997-Encoding-1` | The attribute consists of a set of four octet values, each of which specify a community. (§COMMUNITIES attribute) | MUST | COMMUNITIES | **positive:** `unit/verify` [`TestCommunitiesParse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L44). **negative:** `unit/verify` [`TestCommunitiesParseRejectsNonMultipleOf4`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L54) |
+| `RFC1997-Well-4` | The following communities have global significance and their operations shall be implemented in any community-attribute-aware BGP speaker. (§Well-known Communities) | SHALL | Well | **positive:** `unit/verify` [`TestForwardWellKnownNeedsNoOperatorPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L279). **positive:** `unit/verify` [`TestWellKnownAllThreeOperationsImplemented`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L104). **negative:** `unit/verify` [`TestForwardOtherReservedCommunitiesReachExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L297). **negative:** `unit/verify` [`TestWellKnownIgnoresOtherReservedCommunities`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L122) |
+| `RFC1997-Aggregation-1` | If a range of routes is to be aggregated and the resultant aggregates attribute section does not carry the ATOMIC_AGGREGATE attribute, then the resulting aggregate should have a COMMUNITIES path attribute which contains all communities from all of the aggregated routes. (§Aggregation) | SHOULD | Aggregation | **positive:** no positive test. **negative:** no negative test |
+| `RFC1997-Operation-1` | A BGP speaker may use this attribute to control which routing information it accepts, prefers or distributes to other neighbors. (§Operation) | MAY | Operation | **positive:** no positive test. **negative:** no negative test |
+| `RFC1997-Operation-2` | A BGP speaker receiving a route that does not have the COMMUNITIES path attribute may append this attribute to the route when propagating it to its peers. (§Operation) | MAY | Operation | **positive:** no positive test. **negative:** no negative test |
+| `RFC1997-Operation-3` | A BGP speaker receiving a route with the COMMUNITIES path attribute may modify this attribute according to the local policy. (§Operation) | MAY | Operation | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -122,9 +124,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC1997-Well-1`](#rfc1997-well-1)
 
-Routes with NO_EXPORT community MUST NOT be advertised outside a BGP confederation boundary (§Well-known Communities)
+NO_EXPORT (0xFFFFFF01) All routes received carrying a communities attribute containing this value MUST NOT be advertised outside a BGP confederation boundary (a stand-alone autonomous system that is not part of a confederation should be considered a confederation itself). (§Well-known Communities)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence's own parenthesis defines. Forbidden: a received NO_EXPORT route advertised to an external peer. TestWellKnownNoExportRefusesExternalPeer asserts AllowsEgressTo(false) is false; TestForwardNoExportSkipsExternalPeerOnly asserts NotContains the eBGP address on the forward rail; wellknown-no-export-egress.ci covers the daemon wire. Negatives: the same route still reaches an internal peer (TestWellKnownNoExportAllowsInternalPeer, Contains iBGP), so a speaker that advertises to nobody goes red. Enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -141,9 +143,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1997-Well-2`](#rfc1997-well-2)
 
-Routes with NO_ADVERTISE community MUST NOT be advertised to other BGP peers (§Well-known Communities)
+NO_ADVERTISE (0xFFFFFF02) All routes received carrying a communities attribute containing this value MUST NOT be advertised to other BGP peers. (§Well-known Communities)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence's own parenthesis defines. Forbidden: a received NO_ADVERTISE route advertised to any peer. TestWellKnownNoAdvertiseRefusesEveryPeer asserts AllowsEgressTo false for internal and external; TestForwardNoAdvertiseSkipsEveryPeer asserts the forward set is empty; wellknown-no-advertise-egress.ci on the wire. Negative TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer asserts an ordinary community reaches both. Enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -155,9 +157,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1997-Well-3`](#rfc1997-well-3)
 
-Routes with NO_EXPORT_SUBCONFED community MUST NOT be advertised to external BGP peers, including peers in other member ASes inside a confederation (§Well-known Communities)
+NO_EXPORT_SUBCONFED (0xFFFFFF03) All routes received carrying a communities attribute containing this value MUST NOT be advertised to external BGP peers (this includes peers in other members autonomous systems inside a BGP confederation). (§Well-known Communities)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence's own parenthesis defines. Forbidden: a received NO_EXPORT_SUBCONFED route advertised to an external peer. TestWellKnownNoExportSubconfedRefusesExternalPeer asserts AllowsEgressTo(false) false and TestForwardNoExportSubconfedSkipsExternalPeerOnly asserts NotContains eBGP; the negative asserts an internal peer still receives it. The parenthesis extends 'external' to member-AS peers of a confederation, and with no confederation configurable no such peer exists apart from the external peers already asserted. Enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -169,9 +171,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1997-Encoding-1`](#rfc1997-encoding-1)
 
-Attribute length MUST be a multiple of 4 (§Encoding Rules)
+The attribute consists of a set of four octet values, each of which specify a community. (§COMMUNITIES attribute)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) a COMMUNITIES value that is not a whole set of four-octet values, e.g. 6 octets, silently truncated to one community; (b) TestCommunitiesParseRejectsNonMultipleOf4 require.ErrorIs ErrInvalidLength on 6 octets goes red. Positive TestCommunitiesParse asserts the exact two four-octet communities decoded from 8 octets.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -180,9 +182,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1997-Well-4`](#rfc1997-well-4)
 
-Well-known community operations SHALL be implemented in any community-attribute-aware BGP speaker (§Well-known Communities)
+The following communities have global significance and their operations shall be implemented in any community-attribute-aware BGP speaker. (§Well-known Communities)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence's own parenthesis defines. Forbidden: a community-aware speaker that applies the three operations only under operator policy, or not at all. TestWellKnownAllThreeOperationsImplemented asserts all three bits scanned from the wire with no policy and the route refused to both peer kinds; TestForwardWellKnownNeedsNoOperatorPolicy asserts no export filter is configured and the forward set is empty. Negatives: other reserved communities (NOPEER, LLGR_STALE, BLACKHOLE, GRACEFUL_SHUTDOWN) carry no egress prohibition (TestWellKnownIgnoresOtherReservedCommunities, TestForwardOtherReservedCommunitiesReachExternalPeer). Enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

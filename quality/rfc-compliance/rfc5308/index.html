@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5308 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5308: Routing IPv6 with IS-IS. 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5308: Routing IPv6 with IS-IS. 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5308 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5308: Routing IPv6 with IS-IS. 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5308: Routing IPv6 with IS-IS. 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5308 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5308: Routing IPv6 with IS-IS. 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5308: Routing IPv6 with IS-IS. 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>8</strong><b>of 8 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>20</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>2</td>
@@ -291,7 +299,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-2-1">RFC5308-2-1</code></td><td colspan="3"><span class="rfc-subject">Advertise link-local prefixes in TLV 236 (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-2-1">RFC5308-2-1</code></td><td colspan="3"><span class="rfc-subject">Link-local prefixes MUST NOT be advertised using this TLV. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2</td>
@@ -300,7 +308,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L66" title="internal/plugins/isis/lsdb/origination_ipv6_test.go" target="_blank" rel="noopener"><code>TestISISOriginateTLV236</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-2-2">RFC5308-2-2</code></td><td colspan="3"><span class="rfc-subject">Consider a TLV 236 prefix with metric above MAX_V6_PATH_METRIC (0xFE000000) in normal SPF (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-2-2">RFC5308-2-2</code></td><td colspan="3"><span class="rfc-subject">if a prefix is advertised with a metric larger than MAX_V6_PATH_METRIC (0xFE000000), this prefix MUST not be considered during the normal Shortest Path First (SPF) computation. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2</td>
@@ -309,7 +317,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L206" title="internal/plugins/isis/spf/ipv6_test.go" target="_blank" rel="noopener"><code>TestISISIPv6MetricAboveMaxIgnored</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-2-3">RFC5308-2-3</code></td><td colspan="3"><span class="rfc-subject">Set the external bit to 1 in TLV 236 when the prefix was distributed into IS-IS from another routing protocol (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-2-3">RFC5308-2-3</code></td><td colspan="3"><span class="rfc-subject">If the prefix was distributed into IS-IS from another routing protocol, the external bit SHALL be set to 1. (§2)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>2</td>
@@ -318,7 +326,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/ipv6_rfc5308_test.go#L37" title="internal/plugins/isis/redistribute/ipv6_rfc5308_test.go" target="_blank" rel="noopener"><code>TestRFC5308ConnectedIPv6ClearsExternalBit</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-3-1">RFC5308-3-1</code></td><td colspan="3"><span class="rfc-subject">Carry only link-local IPv6 addresses in TLV 232 in Hellos (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-3-1">RFC5308-3-1</code></td><td colspan="3"><span class="rfc-subject">For Hello PDUs, the &#34;Interface Address&#34; TLV MUST contain only the link-local IPv6 addresses assigned to the interface that is sending the Hello. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -328,7 +336,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L130" title="internal/plugins/isis/circuit/hello_ipv6_test.go" target="_blank" rel="noopener"><code>TestISISIIHTLV232RejectsNonLinkLocal</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-3-2">RFC5308-3-2</code></td><td colspan="3"><span class="rfc-subject">Carry only non-link-local IPv6 addresses in TLV 232 in LSPs (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-3-2">RFC5308-3-2</code></td><td colspan="3"><span class="rfc-subject">For LSPs, the &#34;Interface Address&#34; TLVs MUST contain only the non-link-local IPv6 addresses assigned to the IS. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -337,7 +345,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L111" title="internal/plugins/isis/lsdb/origination_ipv6_test.go" target="_blank" rel="noopener"><code>TestISISOriginateTLV232Scope</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-4-1">RFC5308-4-1</code></td><td colspan="3"><span class="rfc-subject">Advertise the IPv6 NLPID (142, 0x8E) in the NLPID TLV when supporting IPv6 (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-4-1">RFC5308-4-1</code></td><td colspan="3"><span class="rfc-subject">The value of the IPv6 Network Layer Protocol ID (NLPID) is 142 (0x8E). As with [RFC1195] and IPv4, if the IS supports IPv6 routing using IS-IS, it MUST advertise this in the &#34;NLPID&#34; TLV by adding the IPv6 NLPID. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -348,7 +356,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L149" title="internal/plugins/isis/lsdb/origination_ipv6_test.go" target="_blank" rel="noopener"><code>TestISISProtocolsSupportedDualStack</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-5-1">RFC5308-5-1</code></td><td colspan="3"><span class="rfc-subject">Apply the up/down-aware path preference order (Level 1 up, Level 2 up, Level 2 down, Level 1 down) (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-5-1">RFC5308-5-1</code></td><td colspan="3"><span class="rfc-subject">The order of preference between paths for a given prefix MUST be modified to consider the up/down bit. The new order of preference is as follows (from best to worst). 1. Level 1 up prefix 2. Level 2 up prefix 3. Level 2 down prefix 4. Level 1 down prefix (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -367,7 +375,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L251" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-5-3">RFC5308-5-3</code></td><td colspan="3"><span class="rfc-subject">Consider equal-best paths for equal-cost multi-path routing where supported (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-5-3">RFC5308-5-3</code></td><td colspan="3"><span class="rfc-subject">Any remaining multiple paths SHOULD be considered for equal-cost multi-path routing if the router supports this; otherwise, the router can select any one of the multiple paths. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -386,8 +394,8 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5308-2-1"><code>RFC5308-2-1</code></a></h3>
-<p>Advertise link-local prefixes in TLV 236 (Section 2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Link-local prefixes MUST NOT be advertised using this TLV. (§2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a fe80::/64 link-local prefix advertised in TLV 236. (b) TestISISOriginateTLV236 decodes the originated LSP and errors on got[&#34;fe80::/64&#34;] present (negative); the same unit requires the two routable prefixes present with their metric and X bit (positive). The unit runs NonLinkLocalV6Prefixes, the filter lsdb_wiring.go calls on every TLV 236 origination, then Originator.Originate, so breaking the filter reddens it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -406,8 +414,8 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 </table>
 </div>
 <h3><a href="#rfc5308-2-2"><code>RFC5308-2-2</code></a></h3>
-<p>Consider a TLV 236 prefix with metric above MAX_V6_PATH_METRIC (0xFE000000) in normal SPF (Section 2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>if a prefix is advertised with a metric larger than MAX_V6_PATH_METRIC (0xFE000000), this prefix MUST not be considered during the normal Shortest Path First (SPF) computation. (§2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: a TLV 236 prefix with metric &gt; 0xFE000000 considered in normal SPF. (b) TestISISIPv6MetricAboveMaxIgnored asserts 2001:db8:bad::/64 (metric 0xFE000001) is not routed, but its node distance is 0, so clampMetric saturates the path to MaxPathMetric and the accumulated-cost ceiling drops it anyway (TestISISIPv6MetricAtMaxBoundary shows metric == max is already dropped by that ceiling). Removing the per-entry over-max filter leaves the assertion green: the input does not isolate this rule.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -426,8 +434,8 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 </table>
 </div>
 <h3><a href="#rfc5308-2-3"><code>RFC5308-2-3</code></a></h3>
-<p>Set the external bit to 1 in TLV 236 when the prefix was distributed into IS-IS from another routing protocol (Section 2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the prefix was distributed into IS-IS from another routing protocol, the external bit SHALL be set to 1. (§2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a prefix distributed into IS-IS from another routing protocol originated with the X bit 0. (b) TestRFC5308RedistributedIPv6SetsExternalBit injects a bgp-sourced IPv6 route through the redistribute Consumer and t.Fatalf&#39;s on !got[0].External at Level1 and Level2 (positive); TestRFC5308ConnectedIPv6ClearsExternalBit fails if a connected prefix carries External (negative), so an always-set bit is caught too.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -446,8 +454,8 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 </table>
 </div>
 <h3><a href="#rfc5308-3-1"><code>RFC5308-3-1</code></a></h3>
-<p>Carry only link-local IPv6 addresses in TLV 232 in Hellos (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>For Hello PDUs, the &#34;Interface Address&#34; TLV MUST contain only the link-local IPv6 addresses assigned to the interface that is sending the Hello. (§3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: a Hello TLV 232 carrying a non-link-local address, or a link-local address not assigned to the sending interface. (b) TestISISIIHTLV232RejectsNonLinkLocal errors when a global, ULA or multicast address reaches TLV 232 and TestISISIIHTLV232LinkLocal checks the one address IsLinkLocalUnicast, which covers the link-local clause. No tagged assertion compares the emitted address to the address assigned to the sending interface: an encoder emitting a fixed fe80:: address stays green, so the &#39;assigned to the interface that is sending the Hello&#39; clause is unproven.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -471,8 +479,8 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 </table>
 </div>
 <h3><a href="#rfc5308-3-2"><code>RFC5308-3-2</code></a></h3>
-<p>Carry only non-link-local IPv6 addresses in TLV 232 in LSPs (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>For LSPs, the &#34;Interface Address&#34; TLVs MUST contain only the non-link-local IPv6 addresses assigned to the IS. (§3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an LSP TLV 232 carrying a link-local address. (b) TestISISOriginateTLV232Scope errors on a link-local address in the decoded LSP TLV 232, but it pre-filters its input with lsdb.NonLinkLocalV6Addrs, which has no non-test caller. Production fills LevelState.InterfaceAddrsV6 from interfaceIPv6NonLinkLocal (lsdb_wiring.go), and Originator.Originate does not filter, so breaking the production filter leaves the tagged unit green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -491,8 +499,8 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 </table>
 </div>
 <h3><a href="#rfc5308-4-1"><code>RFC5308-4-1</code></a></h3>
-<p>Advertise the IPv6 NLPID (142, 0x8E) in the NLPID TLV when supporting IPv6 (Section 4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The value of the IPv6 Network Layer Protocol ID (NLPID) is 142 (0x8E). As with [RFC1195] and IPv4, if the IS supports IPv6 routing using IS-IS, it MUST advertise this in the &#34;NLPID&#34; TLV by adding the IPv6 NLPID. (§4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an IPv6-capable IS omitting the IPv6 NLPID from TLV 129, or advertising a value other than 142 (0x8E). (b) TestISISProtocolsSupportedDualStack and TestISISIIHTLV232LinkLocal assert the dual-stack NLPID list equals [packet.NLPIDIPv4, packet.NLPIDIPv6] and the IPv4-only cases (TestISISProtocolsSupportedDualStack ipv4-only, TestISISIIHNoTLV232WhenIPv4Only) assert it is absent, which covers the advertise clause. Every comparison is against the constant packet.NLPIDIPv6, never the literal 0x8E, so a wrong constant value stays green: the &#39;is 142 (0x8E)&#39; clause has no red assertion.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -521,8 +529,8 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 </table>
 </div>
 <h3><a href="#rfc5308-5-1"><code>RFC5308-5-1</code></a></h3>
-<p>Apply the up/down-aware path preference order (Level 1 up, Level 2 up, Level 2 down, Level 1 down) (Section 5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The order of preference between paths for a given prefix MUST be modified to consider the up/down bit. The new order of preference is as follows (from best to worst). 1. Level 1 up prefix 2. Level 2 up prefix 3. Level 2 down prefix 4. Level 1 down prefix (§5)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: any path order other than L1-up &gt; L2-up &gt; L2-down &gt; L1-down. (b) TestISISLeakUpDownBit pins L1-up over L2-up (metric 100 vs 10), L2-up over L1-down and L2-down over L1-down; TestISISIPv6LevelArbitration pins L1-up over L2-up on the IPv6 builder. Its case &#39;L2-up beats L2-down&#39; builds only one L2 candidate (l1 nil, one l2), so no assertion goes red if L2-down outranked L2-up, and L1-up over L2-down is never compared. Two adjacent pairs of the four-step order are unproven.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -547,7 +555,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 </div>
 <h3><a href="#rfc5308-5-2"><code>RFC5308-5-2</code></a></h3>
 <p>If, during the SPF, a path metric would exceed MAX_V6_PATH_METRIC, it SHALL be considered to be MAX_V6_PATH_METRIC. (Section 5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a path metric that exceeds MAX_V6_PATH_METRIC kept (or wrapped) instead of taken as MAX_V6_PATH_METRIC. (b) TestISISMetricWidth asserts clampMetric(MaxPathMetric-1, 10) == MaxPathMetric (negative) and clampMetric(1000, 2000) == 3000 (positive). clampMetric is the one saturating adder the IPv6 builder calls (spf/ipv6.go) and MaxPathMetric is 0xFE000000, the MAX_V6_PATH_METRIC value.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -729,7 +737,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

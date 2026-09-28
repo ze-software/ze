@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8956 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8956: Dissemination of Flow Specification Rules for IPv6. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8956: Dissemination of Flow Specification Rules for IPv6. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8956 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8956: Dissemination of Flow Specification Rules for IPv6. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8956: Dissemination of Flow Specification Rules for IPv6. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8956 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8956: Dissemination of Flow Specification Rules for IPv6. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8956: Dissemination of Flow Specification Rules for IPv6. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 9 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>17</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -319,7 +327,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the (AFI 2, SAFI 133/134) assignment is a family-registration constant, not an input guard; the code accepts no alternative value it could reject, so only the positive assignment is assertable</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.1-1">RFC8956-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Padding bits in IPv6 prefix components MUST be 0 on encoding (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.1-1">RFC8956-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Padding bits MUST be 0 on encoding (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -328,7 +336,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L12" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.1-2">RFC8956-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Padding bits in IPv6 prefix components MUST be ignored on decoding (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.1-2">RFC8956-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Padding bits MUST be 0 on encoding and MUST be ignored on decoding. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -346,7 +354,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L11" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentSingleOctet</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.6-2">RFC8956-3.6-2</code></td><td colspan="3"><span class="rfc-subject">Fragment bitmask reserved bits (bits 0,1,2,3,7) MUST be set to 0 on NLRI encoding (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.6-2">RFC8956-3.6-2</code></td><td colspan="3"><span class="rfc-subject">0: MUST be set to 0 on NLRI encoding (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
@@ -355,7 +363,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L46" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentEncodingRespectsEnclosingFamily</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.6-3">RFC8956-3.6-3</code></td><td colspan="3"><span class="rfc-subject">Fragment bitmask reserved bits MUST be ignored during decoding (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.6-3">RFC8956-3.6-3</code></td><td colspan="3"><span class="rfc-subject">0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
@@ -373,7 +381,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L45" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixRejectsMalformedBounds</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-5-1">RFC8956-5-1</code></td><td colspan="3"><span class="rfc-subject">Destination prefix for validation: offset MUST be 0 to pass the validation procedure (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-5-1">RFC8956-5-1</code></td><td colspan="3"><span class="rfc-subject">item a) of the validation procedure should now read as follows: | a) A destination prefix component with offset=0 is embedded in | the Flow Specification (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -382,7 +390,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L284" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.3-1">RFC8956-3.3-1</code></td><td colspan="3"><span class="rfc-subject">Type 3 (Upper-Layer Protocol) values SHOULD be encoded as a single octet (numeric_op len=00) (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.3-1">RFC8956-3.3-1</code></td><td colspan="3"><span class="rfc-subject">Type 3 component values SHOULD be encoded as a single octet (numeric_op len=00). (§3.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.3</td>
@@ -391,7 +399,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.4-1">RFC8956-3.4-1</code></td><td colspan="3"><span class="rfc-subject">Type 7 (ICMPv6 Type) values SHOULD be encoded as a single octet (numeric_op len=00) (§3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.4-1">RFC8956-3.4-1</code></td><td colspan="3"><span class="rfc-subject">Type 7 component values SHOULD be encoded as a single octet (numeric_op len=00). (§3.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.4</td>
@@ -400,7 +408,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.5-1">RFC8956-3.5-1</code></td><td colspan="3"><span class="rfc-subject">Type 8 (ICMPv6 Code) values SHOULD be encoded as a single octet (numeric_op len=00) (§3.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.5-1">RFC8956-3.5-1</code></td><td colspan="3"><span class="rfc-subject">Type 8 component values SHOULD be encoded as a single octet (numeric_op len=00). (§3.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.5</td>
@@ -409,7 +417,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.7-1">RFC8956-3.7-1</code></td><td colspan="3"><span class="rfc-subject">Type 13 (Flow Label) values SHOULD be encoded as 4-octet quantities (numeric_op len=10) (§3.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.7-1">RFC8956-3.7-1</code></td><td colspan="3"><span class="rfc-subject">Type 13 component values SHOULD be encoded as 4-octet quantities (numeric_op len=10). (§3.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.7</td>
@@ -418,7 +426,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-6.1-1">RFC8956-6.1-1</code></td><td colspan="3"><span class="rfc-subject">When multiple VRFs match a redirect, local choice MAY determine which is used (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-6.1-1">RFC8956-6.1-1</code></td><td colspan="3"><span class="rfc-subject">If several local instances match this criteria, the choice between them is a local matter (for example, the instance with the lowest Route Distinguisher value can be elected). (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.1</td>
@@ -472,8 +480,8 @@ Linux firewall packet verification requires the privileged integration carrier. 
 </table>
 </div>
 <h3><a href="#rfc8956-3.1-1"><code>RFC8956-3.1-1</code></a></h3>
-<p>Padding bits in IPv6 prefix components MUST be 0 on encoding (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Padding bits MUST be 0 on encoding (§3.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Non-compliant: nonzero padding bits emitted. TestIPv6FlowPrefixPatternAndPadding re-encodes received patterns whose padding is 0xff and asserts fs.Bytes() and WriteTo equal the canonical zero-padded bytes (e.g. 0xff -&gt; 0xfe for 72/65), and asserts a configured 2001:db8:ffff::/33 encodes its last octet as 0x80 with host bits cleared. Both polarities present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -492,8 +500,8 @@ Linux firewall packet verification requires the privileged integration carrier. 
 </table>
 </div>
 <h3><a href="#rfc8956-3.1-2"><code>RFC8956-3.1-2</code></a></h3>
-<p>Padding bits in IPv6 prefix components MUST be ignored on decoding (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Padding bits MUST be 0 on encoding and MUST be ignored on decoding. (§3.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The quote carries both clauses. Encoding: the canonical-bytes assertions described for RFC8956-3.1-1 go red if padding is emitted nonzero. Decoding: inputs with padding 0xff must parse without error and comp.Prefix() must equal the prefix built from pattern bits only (::7f00:0:0:0/72, 103:8000::/17); a decoder that read padding into the match or rejected nonzero padding fails require.NoError or the Prefix assertion.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -513,7 +521,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 </div>
 <h3><a href="#rfc8956-3.6-1"><code>RFC8956-3.6-1</code></a></h3>
 <p>The Type 12 component bitmask MUST be encoded as a single octet bitmask (bitmask_op len=00). (§3.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Non-compliant: a fragment bitmask encoded wider than one octet. TestRFC8956FragmentSingleOctet encodes a value of ^uint64(0) through IPv6 FlowSpec and VPN producers and asserts the exact bytes {12, 0x81, 0x0e} (len=00, one octet) via WriteTo and Bytes(); the negative requires ParseFlowSpec/ParseFlowSpecVPN to error on a 0x91 (len=01) two-octet operand.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -532,8 +540,8 @@ Linux firewall packet verification requires the privileged integration carrier. 
 </table>
 </div>
 <h3><a href="#rfc8956-3.6-2"><code>RFC8956-3.6-2</code></a></h3>
-<p>Fragment bitmask reserved bits (bits 0,1,2,3,7) MUST be set to 0 on NLRI encoding (§3.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>0: MUST be set to 0 on NLRI encoding (§3.6)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Non-compliant: a reserved bit set in an encoded IPv6 fragment operand. TestRFC8956FragmentEncodingRespectsEnclosingFamily adds DF|IsF and asserts the IPv6 and IPv6-VPN encodings carry 2 (DF bit cleared) while IPv4 carries 3; IsF/FF/LF emit 2, 4, 8. High reserved bits are cleared in the 3.6-1 unit (0x0e from all-ones).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -552,8 +560,8 @@ Linux firewall packet verification requires the privileged integration carrier. 
 </table>
 </div>
 <h3><a href="#rfc8956-3.6-3"><code>RFC8956-3.6-3</code></a></h3>
-<p>Fragment bitmask reserved bits MUST be ignored during decoding (§3.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§3.6)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The quote carries both clauses. Decoding: TestRFC8956FragmentDecodeIgnoresReservedBits parses operands 0xf3, 0xf5, 0xf9, 0xf1 (every reserved bit set) without error and asserts Matches() is IsF, FF, LF, 0; a decoder that kept or rejected reserved bits fails. Encoding: the re-encoded NLRI must equal want with reserved bits zeroed (2, 4, 8, 0).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -573,7 +581,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 </div>
 <h3><a href="#rfc8956-3.1-3"><code>RFC8956-3.1-3</code></a></h3>
 <p>If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset &lt; length &lt; 129 or the component is malformed. (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Out-of-range clause enforced: TestIPv6FlowPrefixRejectsMalformedBounds requires ParseFlowSpec errors for length0/offset1, 64/64, 63/64 and 129/0, and accepts 80/64. The first clause, length = 0 and offset = 0 matches every address, has no assertion in the tagged unit: 0/0 acceptance appears only in TestIPv6FlowPrefixPatternAndPadding (tagged 3.1-1/3.1-2) and nothing asserts it matches every address.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -592,8 +600,8 @@ Linux firewall packet verification requires the privileged integration carrier. 
 </table>
 </div>
 <h3><a href="#rfc8956-5-1"><code>RFC8956-5-1</code></a></h3>
-<p>Destination prefix for validation: offset MUST be 0 to pass the validation procedure (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>item a) of the validation procedure should now read as follows: | a) A destination prefix component with offset=0 is embedded in | the Flow Specification (§5)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Non-compliant: a destination with nonzero offset authorizing a FlowSpec route. TestFlowSpecVPNValidationSeparatesAFIAndRD receives an IPv6 VPN FlowSpec with offset 32 under a same-RD covering default and asserts RouteEligible false and no candidates (Fatal &#39;nonzero destination offset passed IPv6 validation&#39;); the offset-0 destination is authorized by same-RD VPN unicast. The offset check in flowSpecDestination (rib_flowspec_validation.go:118) is shared by SAFI 133 and 134.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -886,7 +894,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 7 | of 6 gated MUSTs judged | 4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 6 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 17 |
 | Tagged units | 17 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 7 |
 | Discrimination records | 1 |
 | Summary | `rfc/short/rfc2918.md` |
 | Requirement shard | `rfc/requirements/rfc2918.md` |
@@ -100,17 +109,17 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2918-2-1` | Capability code MUST be 2, capability length MUST be 0 (S2) | MUST | 2 - Route Refresh Capability | **positive:** `unit/verify` [`TestCapabilityWriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L685). **negative:** `unit/verify` [`TestOpenRejectsMalformedKnownCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L183) |
-| `RFC2918-3-1` | ROUTE-REFRESH message type MUST be 5 (S3) | MUST | 3 - Route-REFRESH Message | **positive:** `unit/verify` [`TestRouteRefreshType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L16). **negative:** `unit/verify` [`TestParseHeaderAllTypes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L39) |
-| `RFC2918-3-2` | ROUTE-REFRESH payload MUST be exactly 4 bytes (AFI 2 + Reserved 1 + SAFI 1) (S3) | MUST | 3 - Route-REFRESH Message | **positive:** `unit/verify` [`TestRouteRefreshPack`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L31). **negative:** `unit/verify` [`TestHandleRouteRefresh_InvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L459). **negative:** `unit/verify` [`TestRouteRefreshUnpackShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L75) |
-| `RFC2918-4-1` | A BGP speaker MUST NOT send a ROUTE-REFRESH message to a peer unless it has received the Route Refresh Capability from that peer (S4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestRFC2918SendRouteRefreshToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L94). **positive:** `unit/verify` [`TestRFC2918SoftClearPeerSendsRefreshToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L158). **negative:** `unit/verify` [`TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L115). **negative:** `unit/verify` [`TestRFC2918SoftClearPeerSkipsPeerWithoutCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L173) |
+| `RFC2918-2-1` | This capability is advertised using the Capability code 2 and Capability length 0. (§2) | MUST | 2 - Route Refresh Capability | **positive:** `unit/verify` [`TestCapabilityWriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L685). **negative:** `unit/verify` [`TestOpenRejectsMalformedKnownCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L183) |
+| `RFC2918-3-1` | The ROUTE-REFRESH message is a new BGP message type defined as follows: Type: 5 - ROUTE-REFRESH (§3) | MUST | 3 - Route-REFRESH Message | **positive:** `unit/verify` [`TestRouteRefreshType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L16). **negative:** `unit/verify` [`TestParseHeaderAllTypes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L39) |
+| `RFC2918-3-2` | Message Format: One <AFI, SAFI> encoded as 0 7 15 23 31 +-------+-------+-------+-------+ \| AFI \| Res. \| SAFI \| +-------+-------+-------+-------+ (§3) | MUST | 3 - Route-REFRESH Message | **positive:** `unit/verify` [`TestRouteRefreshPack`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L31). **negative:** `unit/verify` [`TestHandleRouteRefresh_InvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L459). **negative:** `unit/verify` [`TestRouteRefreshUnpackShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L75) |
+| `RFC2918-4-1` | A BGP speaker may send a ROUTE-REFRESH message to its peer only if it has received the Route Refresh Capability from its peer. (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestRFC2918SendRouteRefreshToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L94). **positive:** `unit/verify` [`TestRFC2918SoftClearPeerSendsRefreshToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L158). **negative:** `unit/verify` [`TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L115). **negative:** `unit/verify` [`TestRFC2918SoftClearPeerSkipsPeerWithoutCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L173) |
 | `RFC2918-4-2` | If a BGP speaker receives from its peer a ROUTE-REFRESH message with the <AFI, SAFI> that the speaker didn't advertise to the peer at the session establishment time via capability advertisement, the speaker shall ignore such a message. (S4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestHandleRouteRefresh_NonNegotiatedFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L544). **negative:** `unit/verify` [`TestRouteRefreshValidLengthDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2417) |
 | `RFC2918-4-3` | Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy. (S4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestHandleRefresh_InternalState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L995). **negative:** `unit/verify` [`TestHandleRefresh_PeerNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1069) |
-| `RFC2918-4-4` | A BGP speaker willing to receive ROUTE-REFRESH SHOULD advertise the Route Refresh Capability to the peer (S4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
-| `RFC2918-4-5` | The AFI/SAFI in a ROUTE-REFRESH SHOULD be one the peer advertised at session establishment (S4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
-| `RFC2918-3-3` | Reserved field SHOULD be set to 0 by the sender (S3) | SHOULD | 3 - Route-REFRESH Message | **positive:** no positive test. **negative:** no negative test |
-| `RFC2918-4-6` | A BGP speaker MAY send a ROUTE-REFRESH message to its peer (sending is optional) (S4) | MAY | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
-| `RFC2918-3-4` | Reserved field SHOULD be ignored by the receiver (even if non-zero) (S3) | SHOULD | 3 - Route-REFRESH Message | **positive:** `unit/verify` [`TestRFC2918ReservedOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reserved_field_test.go#L112). **negative:** `unit/verify` [`TestRFC2918ReservedOctetDoesNotExemptTheMessage`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reserved_field_test.go#L188) |
+| `RFC2918-4-4` | A BGP speaker that is willing to receive the ROUTE-REFRESH message from its peer should advertise the Route Refresh Capability to the peer using BGP Capabilities advertisement [BGP-CAP]. (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
+| `RFC2918-4-5` | The <AFI, SAFI> carried in such a message should be one of the <AFI, SAFI> that the peer has advertised to the speaker at the session establishment time via capability advertisement. (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
+| `RFC2918-3-3` | Res. - Reserved (8 bit) field. Should be set to 0 by the sender (§3) | SHOULD | 3 - Route-REFRESH Message | **positive:** no positive test. **negative:** no negative test |
+| `RFC2918-4-6` | A BGP speaker may send a ROUTE-REFRESH message to its peer (§4) | MAY | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
+| `RFC2918-3-4` | Should be set to 0 by the sender and ignored by the receiver. (§3) | SHOULD | 3 - Route-REFRESH Message | **positive:** `unit/verify` [`TestRFC2918ReservedOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reserved_field_test.go#L112). **negative:** `unit/verify` [`TestRFC2918ReservedOctetDoesNotExemptTheMessage`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reserved_field_test.go#L188) |
 
 ## Gaps and untested MUSTs
 
@@ -122,9 +131,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC2918-2-1`](#rfc2918-2-1)
 
-Capability code MUST be 2, capability length MUST be 0 (S2)
+This capability is advertised using the Capability code 2 and Capability length 0. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: advertising Route Refresh with a code other than 2 or a length other than 0. TestCapabilityWriteTo (capability_test.go) only checks WriteTo writes Len() bytes and that Parse returns the same c.Code(); both sides come from RouteRefresh itself, so a Code() of 3 or a Len() carrying a payload stays green. No assertion names the literal code 2 or the zero length on the emitted bytes. The negative TestOpenRejectsMalformedKnownCapability proves receive-side refusal of length 1, a neighbouring check.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -133,9 +142,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2918-3-1`](#rfc2918-3-1)
 
-ROUTE-REFRESH message type MUST be 5 (S3)
+The ROUTE-REFRESH message is a new BGP message type defined as follows: Type: 5 - ROUTE-REFRESH (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a ROUTE-REFRESH carrying a type other than 5. TestRouteRefreshType asserts r.Type() == msgtype.MessageType(5), red if the send-side type changes. TestParseHeaderAllTypes asserts header type byte 5 decodes to TypeROUTEREFRESH and bytes 1..4 decode to the other types, red if the receive mapping moves.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -144,9 +153,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2918-3-2`](#rfc2918-3-2)
 
-ROUTE-REFRESH payload MUST be exactly 4 bytes (AFI 2 + Reserved 1 + SAFI 1) (S3)
+Message Format: One <AFI, SAFI> encoded as 0 7 15 23 31 +-------+-------+-------+-------+ | AFI | Res. | SAFI | +-------+-------+-------+-------+ (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a body other than one <AFI, SAFI> in 32 bits (AFI 16, Res 8, SAFI 8). TestRouteRefreshPack asserts Len(data) == HeaderLen+4 and each of the four body bytes, red on a wrong size or layout. TestHandleRouteRefresh_InvalidLength asserts ErrInvalidMessage for 3-, 5- and 0-byte bodies, and TestRouteRefreshUnpackShort asserts ErrShortRead for 3 bytes, red if a body of another length is accepted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -156,9 +165,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2918-4-1`](#rfc2918-4-1)
 
-A BGP speaker MUST NOT send a ROUTE-REFRESH message to a peer unless it has received the Route Refresh Capability from that peer (S4)
+A BGP speaker may send a ROUTE-REFRESH message to its peer only if it has received the Route Refresh Capability from its peer. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: sending ROUTE-REFRESH to a peer that did not advertise the capability. TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability (both subtests) and TestRFC2918SoftClearPeerSkipsPeerWithoutCapability assert require.Empty(conn.written()) and RefreshSent == 0, red if either send entry skips the gate. The positives assert the message reaches the wire for a capable peer.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -171,7 +180,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If a BGP speaker receives from its peer a ROUTE-REFRESH message with the <AFI, SAFI> that the speaker didn't advertise to the peer at the session establishment time via capability advertisement, the speaker shall ignore such a message. (S4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: acting on a ROUTE-REFRESH for an <AFI, SAFI> the speaker did not advertise. The positive TestHandleRouteRefresh_NonNegotiatedFamily asserts only NoError; it installs no callback, so a receiver that delivered the request onward or re-advertised would stay green. The negative TestRouteRefreshValidLengthDelivered proves an advertised family is delivered. Also: handleRouteRefresh keys on the negotiated family set, the RFC on what the speaker advertised.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -182,7 +191,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy. (S4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: not re-advertising the Adj-RIB-Out of the requested <AFI, SAFI>, or re-advertising another family. TestHandleRefresh_InternalState asserts both IPv4 routes are sent with meta replay and the IPv6 route is not, red on either. The negative TestHandleRefresh_PeerNotUp installs no updateHook and asserts only that peerUp stays false, so a send to a down peer stays green; and no tagged unit exercises the outbound route filtering policy clause.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -191,9 +200,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2918-3-4`](#rfc2918-3-4)
 
-Reserved field SHOULD be ignored by the receiver (even if non-zero) (S3)
+Should be set to 0 by the sender and ignored by the receiver. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a sender setting the Reserved octet non-zero, or a receiver acting on it. Receiver clause: TestRFC2918ReservedOctetIgnoredOnReceive asserts, for octets 0x00/0x01/0x02/0xAA/0xFF, one onMessageReceived and one onRefreshRecv, Established state and no NOTIFICATION, red if a non-zero octet is refused; TestRFC2918ReservedOctetDoesNotExemptTheMessage asserts a 5-octet body is still refused. Sender clause of the quoted sentence ('Should be set to 0 by the sender'): no tagged unit of this row asserts the sent octet is 0 (TestRouteRefreshPack asserts body[2] == 0 but is tagged RFC2918-3-2 only).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

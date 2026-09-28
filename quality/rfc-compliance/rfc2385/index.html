@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2385 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2385: Protection of BGP Sessions via the TCP MD5 Signature Option. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 2385: Protection of BGP Sessions via the TCP MD5 Signature Option. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2385 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2385: Protection of BGP Sessions via the TCP MD5 Signature Option. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 2385: Protection of BGP Sessions via the TCP MD5 Signature Option. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2385 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2385: Protection of BGP Sessions via the TCP MD5 Signature Option. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 2385: Protection of BGP Sessions via the TCP MD5 Signature Option. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>9</strong><b>of 9 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>15</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>9</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>15</td>
@@ -298,7 +306,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-2.0-1">RFC2385-2.0-1</code></td><td colspan="3"><span class="rfc-subject">The key must be known by both ends of the connection, so the same configured key is installed for the peer on the outbound socket and on the listening socket (§2.0)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-2.0-1">RFC2385-2.0-1</code></td><td colspan="3"><span class="rfc-subject">The nature of the key is deliberately left unspecified, but it must be known by both ends of the connection. (§2.0)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.0 - Proposal</td>
@@ -343,7 +351,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2385_test.go#L90" title="internal/component/bgp/reactor/rfc2385_test.go" target="_blank" rel="noopener"><code>TestRFC2385NoKeyWithoutConfiguration</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-2.0-6">RFC2385-2.0-6</code></td><td colspan="3"><span class="rfc-subject">Every segment sent on a protected connection carries the 16-byte MD5 digest of the TCP pseudo-header, the TCP header with a zero checksum, the segment data and the key, in that order (§2.0)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-2.0-6">RFC2385-2.0-6</code></td><td colspan="3"><span class="rfc-subject">Every segment sent on a TCP connection to be protected against spoofing will contain the 16-byte MD5 digest produced by applying the MD5 algorithm to these items in the following order: 1. the TCP pseudo-header (in the order: source IP address, destination IP address, zero-padded protocol number, and segment length) 2. the TCP header, excluding options, and assuming a checksum of zero 3. the TCP segment data (if any) 4. an independently-specified key or password, known to both TCPs and presumably connection-specific (§2.0)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.0 - Proposal</td>
@@ -352,7 +360,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L159" title="internal/core/network/md5_rfc2385_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2385MismatchedKeyIsDroppedWithNoResponse</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-3.0-1">RFC2385-3.0-1</code></td><td colspan="3"><span class="rfc-subject">The option is Kind 19, Length 18, carrying a 16-byte digest, and it appears in every segment of the connection (§3.0)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-3.0-1">RFC2385-3.0-1</code></td><td colspan="3"><span class="rfc-subject">The proposed option has the following format: +---------+---------+-------------------+ | Kind=19 |Length=18| MD5 digest... | +---------+---------+-------------------+ | | +---------------------------------------+ | | +---------------------------------------+ | | +-------------------+-------------------+ | | +-------------------+ The MD5 digest is always 16 bytes in length, and the option would appear in every segment of a connection. (§3.0)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.0 - Syntax</td>
@@ -379,7 +387,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the option list is assembled by the kernel and ze contributes no TCP option of its own, so there is no rejecting branch a negative test could reach</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-4.5-1">RFC2385-4.5-1</code></td><td colspan="3"><span class="rfc-subject">It is strongly recommended that an implementation support at minimum a key composed of a string of printable ASCII of 80 bytes or less (§4.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-4.5-1">RFC2385-4.5-1</code></td><td colspan="3"><span class="rfc-subject">It is strongly recommended that an implementation be able to support at minimum a key composed of a string of printable ASCII of 80 bytes or less, as this is current practice. (§4.5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.5 - Key configuration</td>
@@ -398,8 +406,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2385-2.0-1"><code>RFC2385-2.0-1</code></a></h3>
-<p>The key must be known by both ends of the connection, so the same configured key is installed for the peer on the outbound socket and on the listening socket (§2.0)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The nature of the key is deliberately left unspecified, but it must be known by both ends of the connection. (§2.0)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Sentence: the key must be known by both ends of the connection. Forbidden: a session carried when only one end holds the key. Negative TestRFC2385KeyOnOneEndOnlyCarriesNoSession (listener keyed, dialer unkeyed) requires a net.Error Timeout, red if the unsigned dial established. Positive TestRFC2385MatchingKeysCarryASignedSession installs the same key through rfc2385Listener and RealDialer.MD5Key (ze&#39;s producers) and requires 256 KiB received.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -419,7 +427,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2385-2.0-2"><code>RFC2385-2.0-2</code></a></h3>
 <p>Upon receiving a signed segment, the receiver must validate it by calculating its own digest from the same data (using its own key) and comparing the two digest. (§2.0)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Sentence: the receiver must validate a signed segment by computing its own digest with its own key and comparing. Forbidden: accepting a segment whose digest does not match. Negative TestRFC2385MismatchedKeyIsDroppedWithNoResponse (listener and dialer keys differ) requires a Timeout, red if the listener accepted the mismatched segment; positive TestRFC2385MatchingKeysCarryASignedSession requires the verified session to carry the payload. Validation is Linux TCP_MD5SIG on the socket ze keys (whole-stack ruling).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -439,7 +447,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2385-2.0-3"><code>RFC2385-2.0-3</code></a></h3>
 <p>A failing comparison must result in the segment being dropped and must not produce any response back to the sender. (§2.0)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Sentence: a failing comparison must drop the segment and must not produce any response. Clause &#39;dropped&#39;: TestRFC2385MismatchedKeyIsDroppedWithNoResponse requires the dial to end in a net.Error Timeout (no session). Clause &#39;no response&#39;: the same unit fails on errors.Is ECONNREFUSED or ECONNRESET, i.e. on an RST coming back. Negative polarity: the matching-key unit requires the verified payload to arrive whole.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -459,7 +467,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2385-2.0-4"><code>RFC2385-2.0-4</code></a></h3>
 <p>Unlike other TCP extensions (e.g., the Window Scale option [RFC1323]), the absence of the option in the SYN,ACK segment must not cause the sender to disable its sending of signatures. (§2.0)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: absence of the option in the SYN,ACK must not cause the sender to disable its sending of signatures. Forbidden: after an unsigned SYN,ACK the next segments/attempts go out unsigned. TestRFC2385FailedConnectDoesNotDisableSigning dials a closed port and asserts only that session.dialer.MD5Key and PeerAddr are unchanged afterwards: it never presents an unsigned SYN,ACK and never observes that the following SYN carries the option (the tag prose claims &#39;the next attempt is signed&#39;, which no assertion reads). Single-polarity marker is on the row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -474,7 +482,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2385-2.0-5"><code>RFC2385-2.0-5</code></a></h3>
 <p>More importantly, the sending of signatures must be under the complete control of the application, not at the mercy of the remote host not understanding the option. (§2.0)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: sending of signatures must be under the complete control of the application, not at the mercy of the remote host not understanding the option. Clause &#39;application control&#39; enforced: TestRFC2385ConfiguredKeyReachesBothSockets asserts the configured password on the dialer and in md5PeersForListener; TestRFC2385NoKeyWithoutConfiguration asserts no key on either when unconfigured. Clause &#39;not at the mercy of the remote host&#39;: no unit tagged 2.0-5 involves a remote host that does not understand the option; the nearest unit (TestRFC2385FailedConnectDoesNotDisableSigning) is tagged 2.0-4 only and itself reads config rather than the wire.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -493,8 +501,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc2385-2.0-6"><code>RFC2385-2.0-6</code></a></h3>
-<p>Every segment sent on a protected connection carries the 16-byte MD5 digest of the TCP pseudo-header, the TCP header with a zero checksum, the segment data and the key, in that order (§2.0)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Every segment sent on a TCP connection to be protected against spoofing will contain the 16-byte MD5 digest produced by applying the MD5 algorithm to these items in the following order: 1. the TCP pseudo-header (in the order: source IP address, destination IP address, zero-padded protocol number, and segment length) 2. the TCP header, excluding options, and assuming a checksum of zero 3. the TCP segment data (if any) 4. an independently-specified key or password, known to both TCPs and presumably connection-specific (§2.0)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Quoted span: every segment contains the 16-byte MD5 digest over pseudo-header, TCP header without options and zero checksum, segment data, then key, in that order. &#39;Every segment signed&#39; is enforced: TestRFC2385MatchingKeysCarryASignedSession moves 256 KiB between two TCP_MD5SIG sockets, which drop unsigned segments, and the mismatched-key unit times out. The digest composition and order is not: both ends are the same Linux kernel, so an implementation that hashed the items in another order or with the checksum included would still verify against itself. No unit recomputes the digest from a captured segment or runs against an independent stack.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -513,8 +521,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc2385-3.0-1"><code>RFC2385-3.0-1</code></a></h3>
-<p>The option is Kind 19, Length 18, carrying a 16-byte digest, and it appears in every segment of the connection (§3.0)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The proposed option has the following format: +---------+---------+-------------------+ | Kind=19 |Length=18| MD5 digest... | +---------+---------+-------------------+ | | +---------------------------------------+ | | +---------------------------------------+ | | +-------------------+-------------------+ | | +-------------------+ The MD5 digest is always 16 bytes in length, and the option would appear in every segment of a connection. (§3.0)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Quoted span: option Kind=19, Length=18, 16-byte digest, appearing in every segment. Presence on every segment follows from the matching-key payload crossing (unsigned segments are dropped) and the mismatched-key timeout (acceptance rests on the digest). Kind 19, Length 18 and the 16-octet digest are never read: both ends are the same kernel, so a different kind or length used symmetrically would pass. No unit captures a segment and asserts the option bytes 0x13 0x12 plus 16 octets.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -534,7 +542,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2385-4.3-1"><code>RFC2385-4.3-1</code></a></h3>
 <p>As with other options that are added to every segment, the size of the MD5 option must be factored into the MSS offered to the other side during connection negotiation. (§4.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: the MD5 option size must be factored into the MSS offered during connection negotiation. Forbidden: an MSS offered as if the 18-octet option were absent. TestRFC2385MatchingKeysCarryASignedSession only asserts 256 KiB crosses a loopback connection (MTU 65536); no assertion reads the MSS option in the SYN or TCP_MAXSEG, and an unreduced MSS on loopback would not visibly fail. Single-polarity marker on the row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -549,7 +557,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2385-4.3-2"><code>RFC2385-4.3-2</code></a></h3>
 <p>This means that the total size of the header plus option must be less than or equal to 60 bytes -- this leaves 40 bytes for options. (§4.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity positive (marker on the row). Sentence: total header plus options must be at most 60 bytes. Forbidden: a SYN whose options (with MD5) do not fit, which the kernel can only resolve by omitting the MD5 option. TestRFC2385MatchingKeysCarryASignedSession dials a listener that holds the key and so drops any unsigned SYN; the dial succeeding (t.Fatalf on DialContext error) proves the SYN, the most option-loaded segment, carried the MD5 option within the 60-octet header.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -727,7 +735,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

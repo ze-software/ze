@@ -15,6 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 1 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 1 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 1 | of 1 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -44,7 +45,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +57,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 1 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 2 |
 | Tagged units | 2 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 1 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc6549.md` |
 | Requirement shard | `rfc/requirements/rfc6549.md` |
@@ -92,10 +94,10 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6549-2-1` | Received packets with an Instance ID not equal to one of the Instance IDs corresponding to one of the configured OSPFv2 Instances for the receiving interface MUST be discarded (§2, §3.1) -- `internal/plugins/ospf/dispatcher.go` (`h.InstanceID != instanceID` discard, before any handler), one engine per Instance ID (`internal/plugins/ospf/multi_instance.go`); spec-ospf-ext-12 | MUST | 2 | **positive:** `unit/verify` [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L454). **negative:** `unit/verify` [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L467) |
-| `RFC6549-6-1` | ("recommended") Implementations of this specification and the OSPF MIB also implement SNMP Notification filtering as specified in Section 6 of RFC 3413 (§6) -- N/A: Ze has no OSPF SNMP MIB surface, so there is nothing to filter (recorded as a Known Limitation) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6549-5-1` | OSPFv2 routers not supporting this specification should only support the default instance (§5) -- Ze at Instance ID 0 is bit-for-bit compatible with base OSPFv2 (`internal/plugins/ospf/packet/header.go`; `TestHeaderInstanceZeroUnchanged`) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6549-3-1` | Setting the OSPFv2 Interface Instance ID to a non-zero value may be accomplished through configuration (§3) -- the per-interface `instance-id` leaf-list (`internal/plugins/ospf/yang/ze-ospf-conf.yang`); spec-ospf-ext-12 | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6549-2-1` | Received packets with an Instance ID not equal to one of the Instance IDs corresponding to one of the configured OSPFv2 Instances for the receiving interface MUST be discarded. (§2, §3.1) -- `internal/plugins/ospf/dispatcher.go`: `h.InstanceID != instanceID` discard, before any handler; one engine per Instance ID in `internal/plugins/ospf/multi_instance.go`; spec-ospf-ext-12 | MUST | 2 | **positive:** `unit/verify` [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L454). **negative:** `unit/verify` [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L467) |
+| `RFC6549-6-1` | Consequently, it is recommended that implementations that implement this specification and the OSPF MIB also implement SNMP Notification filtering as specified in Section 6 of [RFC3413]. (§6) -- N/A: Ze has no OSPF SNMP MIB surface, so there is nothing to filter; recorded as a Known Limitation | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6549-5-1` | OSPFv2 routers not supporting this specification should only support the default instance (§5) -- Ze at Instance ID 0 is bit-for-bit compatible with base OSPFv2: `internal/plugins/ospf/packet/header.go`, `TestHeaderInstanceZeroUnchanged` | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6549-3-1` | The OSPFv2 Interface Instance ID has a default value of 0. Setting it to a non-zero value may be accomplished through configuration. (§3) -- the per-interface `instance-id` leaf-list in `internal/plugins/ospf/yang/ze-ospf-conf.yang`; spec-ospf-ext-12 | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -107,9 +109,9 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC6549-2-1`](#rfc6549-2-1)
 
-Received packets with an Instance ID not equal to one of the Instance IDs corresponding to one of the configured OSPFv2 Instances for the receiving interface MUST be discarded (§2, §3.1) -- `internal/plugins/ospf/dispatcher.go` (`h.InstanceID != instanceID` discard, before any handler), one engine per Instance ID (`internal/plugins/ospf/multi_instance.go`); spec-ospf-ext-12
+Received packets with an Instance ID not equal to one of the Instance IDs corresponding to one of the configured OSPFv2 Instances for the receiving interface MUST be discarded. (§2, §3.1) -- `internal/plugins/ospf/dispatcher.go`: `h.InstanceID != instanceID` discard, before any handler; one engine per Instance ID in `internal/plugins/ospf/multi_instance.go`; spec-ospf-ext-12
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) delivering a packet whose Instance ID differs from the engine's to a handler; (b) TestDispatchDropsMismatchedInstance: handled != 0 after IDs {0,1,4,6,255} to instance 5 fails; negative: the matching ID 5 reaches the handler (handled == 1). One engine per Instance ID covers several configured instances on one interface.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

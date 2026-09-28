@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 3.3% | 1 of 30 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 27 | of 30 gated MUSTs judged | 4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 30 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 30 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 1 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 77 |
 | Tagged units | 77 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 27 |
 | Discrimination records | 41 |
 | Summary | `rfc/short/rfc6793.md` |
 | Requirement shard | `rfc/requirements/rfc6793.md` |
@@ -116,8 +118,8 @@ One MUST-level gap, annotated in [`rfc/short/rfc6793.md`](https://github.com/ze-
 | `RFC6793-4.1-1` | A BGP speaker that supports four-octet AS numbers SHALL advertise this to its peers using BGP Capabilities Advertisements (Section 4.1) | SHALL | 4.1 | **positive:** `unit/verify` [`TestRFC6793OpenAdvertisesFourOctetASCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6793_as4_open_test.go#L60). **negative:** `unit/verify` [`TestRFC6793OpenOmitsCapabilityWhenDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6793_as4_open_test.go#L75) |
 | `RFC6793-4.1-2` | The AS number of the BGP speaker MUST be carried in the Capability Value field of the "support for four-octet AS number capability" (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC6793ASN4CapabilityCarriesSpeakerAS`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc6793_asn4_test.go#L18). **negative:** `unit/verify` [`TestRFC6793ASN4CapabilityValueMustBeFourOctets`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc6793_asn4_test.go#L46) |
 | `RFC6793-4.1-3` | When a NEW BGP speaker processes an OPEN message from another NEW BGP speaker, it MUST use the AS number encoded in the Capability Value field of the "support for four-octet AS number capability" in lieu of the "My Autonomous System" field of the OPEN message. (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** UnpackOpen never populates Open.ASN4 from the code-65 capability -- it sets only Version, MyAS, HoldTime and BGPIdentifier (internal/component/bgp/message/open.go:171-180) -- so the reactor's only OPEN-derived peer AS falls back to the two-octet header field: resolveDynamicPeerSettings reads the always-zero open.ASN4 and keeps uint32(open.MyAS), i.e. AS_TRANS for a non-mappable peer (internal/component/bgp/reactor/reactor_dynamic.go:311-316), and negotiateWith passes that same zero as the peer ASN into Negotiate (internal/component/bgp/reactor/session_negotiate.go:27-32). The route-server plugin does read the capability value for its event view (internal/component/bgp/plugins/rs/server.go:647-649), but that is a reporting path, not the session's peer AS |
-| `RFC6793-4.1-4` | When both peers support four-octet AS, MUST encode AS numbers as four-octet entities in both AS_PATH and AGGREGATOR attributes (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC6793EncodeFourOctetToNewSpeaker`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L33). **negative:** `unit/verify` [`TestRFC6793EncodeTwoOctetToOldSpeaker`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L65) |
-| `RFC6793-4.1-5` | When both peers support four-octet AS, MUST assume received AS_PATH and AGGREGATOR encode AS numbers as four-octet entities (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC6793DecodeFourOctetWhenNegotiated`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L113). **negative:** `unit/verify` [`TestRFC6793DecodeTwoOctetWhenNotNegotiated`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L137) |
+| `RFC6793-4.1-4` | A BGP speaker that advertises such a capability to a particular peer, and receives from that peer the advertisement of such a capability, MUST encode AS numbers as four-octet entities in both the AS_PATH attribute and the AGGREGATOR attribute in the updates it sends to the peer (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC6793EncodeFourOctetToNewSpeaker`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L33). **negative:** `unit/verify` [`TestRFC6793EncodeTwoOctetToOldSpeaker`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L65) |
+| `RFC6793-4.1-5` | A BGP speaker that advertises such a capability to a particular peer, and receives from that peer the advertisement of such a capability, MUST encode AS numbers as four-octet entities in both the AS_PATH attribute and the AGGREGATOR attribute in the updates it sends to the peer and MUST assume that these attributes in the updates received from the peer encode AS numbers as four-octet entities. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC6793DecodeFourOctetWhenNegotiated`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L113). **negative:** `unit/verify` [`TestRFC6793DecodeTwoOctetWhenNotNegotiated`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L137) |
 | `RFC6793-4.1-6` | The new attributes, AS4_PATH and AS4_AGGREGATOR, MUST NOT be carried in an UPDATE message between NEW BGP speakers. (Section 4.1, Section 6) | MUST NOT | 4.1 | **positive:** `unit/verify` [`TestOriginatedUpdateOmitsAS4PathTowardNewSpeaker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc6793_originate_as4_test.go#L290). **positive:** `functional/verify` [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L29). **negative:** `functional/verify` [`rfc6793-narrow-to-old-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-narrow-to-old-speaker.ci#L25) |
 | `RFC6793-4.1-7` | A NEW BGP speaker that receives the AS4_PATH attribute or the AS4_AGGREGATOR attribute in an UPDATE message from another NEW BGP speaker MUST discard the path attribute and continue processing the UPDATE message. (Section 4.1, Section 6) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC6793NewSpeakerAS4AttributesAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L531). **negative:** `unit/verify` [`TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L205). **positive:** `functional/verify` [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L34) |
 | `RFC6793-4.2.1-1` | However, this document does not assume that an Autonomous System with NEW BGP speakers has to have a globally unique two-octet AS number -- AS_TRANS MUST be used when the NEW BGP speaker does not have a two-octet AS number (even if multiple Autonomous Systems would use it). (Section 4.2.1) | MUST | 4.2.1 | **positive:** `unit/verify` [`TestRFC6793OpenMyASIsASTransWithoutTwoOctetAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6793_as4_open_test.go#L88). **negative:** `unit/verify` [`TestRFC6793OpenMyASIsRealASWhenMappable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6793_as4_open_test.go#L104) |
@@ -131,24 +133,24 @@ One MUST-level gap, annotated in [`rfc/short/rfc6793.md`](https://github.com/ze-
 | `RFC6793-4.2.3-1` | When a NEW BGP speaker receives an update from an OLD BGP speaker, it MUST be prepared to receive the AS4_PATH attribute along with the existing AS_PATH attribute. (Section 4.2.3) | MUST | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L202). **negative:** `unit/verify` [`TestRFC6793ASPathAloneNotInventedIntoFourOctet`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L222) |
 | `RFC6793-4.2.3-2` | A NEW BGP speaker MUST also be prepared to receive the AS4_AGGREGATOR attribute along with the AGGREGATOR attribute from an OLD BGP speaker. (Section 4.2.3) | MUST | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793ReceivedAS4AggregatorAccepted`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L237). **negative:** no negative test. **{single-polarity}:** the obligation is to accept the pair, and ParseAttributes has no rejection path to drive negatively: AGGREGATOR is interned and AS4_AGGREGATOR falls through the default branch into OtherAttrs, so every AGGREGATOR plus AS4_AGGREGATOR combination is accepted (internal/component/bgp/plugins/rib/storage/attrparse.go:96-102, :138-140). What ze does with the pair afterwards is governed by RFC6793-4.2.3-3 through -7, which are recorded as gaps |
 | `RFC6793-4.2.3-3` | - the AS4_AGGREGATOR attribute and the AS4_PATH attribute SHALL be ignored, (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L337). **negative:** `unit/verify` [`TestRFC6793AggregatorOfTheWrongWidthIsNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L483). **negative:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L383) |
-| `RFC6793-4.2.3-4` | When both AGGREGATOR and AS4_AGGREGATOR are received and AGGREGATOR.AS != AS_TRANS, AGGREGATOR SHALL be taken as the aggregator info (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L341). **negative:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L387) |
-| `RFC6793-4.2.3-5` | When both AGGREGATOR and AS4_AGGREGATOR are received and AGGREGATOR.AS != AS_TRANS, AS_PATH SHALL be taken as the AS path info (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L345). **negative:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L390) |
+| `RFC6793-4.2.3-4` | When both of the attributes are received, if the AS number in the AGGREGATOR attribute is not AS_TRANS, then: - the AS4_AGGREGATOR attribute and the AS4_PATH attribute SHALL be ignored, - the AGGREGATOR attribute SHALL be taken as the information about the aggregating node (§4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L341). **negative:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L387) |
+| `RFC6793-4.2.3-5` | When both of the attributes are received, if the AS number in the AGGREGATOR attribute is not AS_TRANS, then: - the AS4_AGGREGATOR attribute and the AS4_PATH attribute SHALL be ignored, - the AGGREGATOR attribute SHALL be taken as the information about the aggregating node, and - the AS_PATH attribute SHALL be taken as the AS path information. (§4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L345). **negative:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L390) |
 | `RFC6793-4.2.3-6` | - the AGGREGATOR attribute SHALL be ignored, (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L376). **negative:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L349) |
 | `RFC6793-4.2.3-7` | - the AS4_AGGREGATOR attribute SHALL be taken as the information about the aggregating node, and (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L379). **negative:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L352). **negative:** `unit/verify` [`TestRFC6793LoneAS4AggregatorIsDropped`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L511) |
 | `RFC6793-4.2.3-8` | If the number of AS numbers in the AS_PATH attribute is less than the number of AS numbers in the AS4_PATH attribute, then the AS4_PATH attribute SHALL be ignored, and the AS_PATH attribute SHALL be taken as the AS path information. (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793LongerAS4PathIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L277). **negative:** `unit/verify` [`TestRFC6793LongerASPathPrependsLeadingHops`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L260) |
 | `RFC6793-4.2.3-9` | If the number of AS numbers in the AS_PATH attribute is larger than or equal to the number of AS numbers in the AS4_PATH attribute, then the AS path information SHALL be constructed by taking as many AS numbers and path segments as necessary from the leading part of the AS_PATH attribute, and then prepending them to the AS4_PATH attribute so that the AS path information has a number of AS numbers identical to that of the AS_PATH attribute. (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793EqualCountsPrependNothing`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L418). **positive:** `unit/verify` [`TestRFC6793LeadingASSetIsTakenWhole`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L438). **positive:** `unit/verify` [`TestRFC6793LongerASPathPrependsLeadingHops`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L255). **negative:** `unit/verify` [`TestRFC6793LongerAS4PathIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L282) |
 | `RFC6793-4.2.3-10` | Note that a valid AS_CONFED_SEQUENCE or AS_CONFED_SET path segment SHALL be prepended if it is either the leading path segment or is adjacent to a path segment that is prepended. (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793LeadingConfedSegmentIsPrepended`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L299). **negative:** `unit/verify` [`TestRFC6793UnadjacentConfedSegmentIsNotPrepended`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L319) |
-| `RFC6793-6-1` | AS4_PATH in an UPDATE SHALL be considered malformed if attribute length is not a multiple of two, is too small, segment length is zero or inconsistent, or segment type is undefined (Section 6) | SHALL | 6 | **positive:** `unit/verify` [`TestRFC6793AS4PathWellFormedAccepted`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L164). **positive:** `unit/verify` [`TestRFC6793MalformedAS4PathIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L459). **negative:** `unit/verify` [`TestRFC6793AS4PathMalformedRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L188) |
+| `RFC6793-6-1` | The AS4_PATH attribute in an UPDATE message SHALL be considered malformed under the following conditions: - the attribute length is not a multiple of two or is too small (i.e., less than 6) for the attribute to carry at least one AS number, or - the path segment length in the attribute is either zero or is inconsistent with the attribute length, or - the path segment type in the attribute is not one of the types defined: AS_SEQUENCE, AS_SET, AS_CONFED_SEQUENCE, and AS_CONFED_SET. (§6) | SHALL | 6 | **positive:** `unit/verify` [`TestRFC6793AS4PathWellFormedAccepted`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L164). **positive:** `unit/verify` [`TestRFC6793MalformedAS4PathIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L459). **negative:** `unit/verify` [`TestRFC6793AS4PathMalformedRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L188) |
 | `RFC6793-6-2` | The AS4_AGGREGATOR attribute in an UPDATE message SHALL be considered malformed if the attribute length is not 8. (Section 6) | SHALL | 6 | **positive:** `unit/verify` [`TestRFC6793AS4AggregatorLengthEight`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L217). **negative:** `unit/verify` [`TestRFC6793AS4AggregatorLengthEight`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L219) |
 | `RFC6793-6-3` | A NEW BGP speaker that receives these path segment types in the AS4_PATH attribute of an UPDATE message from an OLD BGP speaker MUST discard these path segments, adjust the relevant attribute fields accordingly, and continue processing the UPDATE message. (Section 6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC6793ReceivedConfedInAS4PathDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L406). **negative:** `unit/verify` [`TestRFC6793ReceivedConfedInAS4PathDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L409) |
 | `RFC6793-6-4` | A NEW BGP speaker that receives a malformed AS4_PATH attribute in an UPDATE message from an OLD BGP speaker MUST discard the attribute and continue processing the UPDATE message. (Section 6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC6793MalformedAS4PathDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L343). **negative:** `unit/verify` [`TestRFC6793WellFormedAS4PathNotDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L377) |
 | `RFC6793-6-5` | A NEW BGP speaker that receives a malformed AS4_AGGREGATOR attribute in an UPDATE message from an OLD BGP speaker MUST discard the attribute and continue processing the UPDATE message. (Section 6) | MUST | 6 | **positive:** `unit/verify` [`TestCollapseAS4DiscardsMalformedAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_collapse_test.go#L482). **negative:** `unit/verify` [`TestCollapseAS4SelectsAggregatorPerSection423`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_collapse_test.go#L350) |
-| `RFC6793-6-6` | When AS4_PATH or AS4_AGGREGATOR is received from a NEW speaker, SHOULD log locally for analysis (Section 6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6793-6-7` | When AS_CONFED_* segments are found in AS4_PATH, SHOULD log locally for analysis (Section 6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6793-6-8` | When malformed AS4_PATH is received, the error SHOULD be logged locally for analysis (Section 6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6793-6-9` | When malformed AS4_AGGREGATOR is received, the error SHOULD be logged locally for analysis (Section 6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6793-5-1` | NEW speakers with non-mappable AS SHOULD use four-octet AS specific extended communities instead of standard communities (Section 5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC6793-7-1` | BGP speakers within an AS MAY be upgraded to support four-octet AS extensions on a piecemeal basis (Section 7) | MAY | 7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6793-6-6` | A NEW BGP speaker that receives the AS4_PATH attribute or the AS4_AGGREGATOR attribute in an UPDATE message from another NEW BGP speaker MUST discard the path attribute and continue processing the UPDATE message. This case SHOULD be logged locally for analysis. (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6793-6-7` | A NEW BGP speaker that receives these path segment types in the AS4_PATH attribute of an UPDATE message from an OLD BGP speaker MUST discard these path segments, adjust the relevant attribute fields accordingly, and continue processing the UPDATE message. This case SHOULD be logged locally for analysis. (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6793-6-8` | A NEW BGP speaker that receives a malformed AS4_PATH attribute in an UPDATE message from an OLD BGP speaker MUST discard the attribute and continue processing the UPDATE message. The error SHOULD be logged locally for analysis. (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6793-6-9` | A NEW BGP speaker that receives a malformed AS4_AGGREGATOR attribute in an UPDATE message from an OLD BGP speaker MUST discard the attribute and continue processing the UPDATE message. The error SHOULD be logged locally for analysis. (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6793-5-1` | Quite clearly, this would not work for a NEW BGP speaker with a non-mappable four-octet AS number. Such BGP speakers should use four-octet AS specific extended communities [RFC5668] instead. (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC6793-7-1` | When an Autonomous System is using a two-octet AS number, then the BGP speakers within that Autonomous System MAY be upgraded to support the four-octet AS number extensions on a piecemeal basis. (§7) | MAY | 7 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -192,9 +194,9 @@ No test carries RFC6793-4.1-3, so no unit is bound to it.
 
 ### [`RFC6793-4.1-4`](#rfc6793-4.1-4)
 
-When both peers support four-octet AS, MUST encode AS numbers as four-octet entities in both AS_PATH and AGGREGATOR attributes (Section 4.1)
+A BGP speaker that advertises such a capability to a particular peer, and receives from that peer the advertisement of such a capability, MUST encode AS numbers as four-octet entities in both the AS_PATH attribute and the AGGREGATOR attribute in the updates it sends to the peer (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793EncodeFourOctetToNewSpeaker drives ASPath/Aggregator WriteToWithContext with an ASN4 context and asserts 4-byte AS_PATH stride and 8-octet AGGREGATOR; the negative shows the 2-octet form without the capability.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -203,9 +205,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC6793-4.1-5`](#rfc6793-4.1-5)
 
-When both peers support four-octet AS, MUST assume received AS_PATH and AGGREGATOR encode AS numbers as four-octet entities (Section 4.1)
+A BGP speaker that advertises such a capability to a particular peer, and receives from that peer the advertisement of such a capability, MUST encode AS numbers as four-octet entities in both the AS_PATH attribute and the AGGREGATOR attribute in the updates it sends to the peer and MUST assume that these attributes in the updates received from the peer encode AS numbers as four-octet entities. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793DecodeFourOctetWhenNegotiated reads ParseASPath/ParseAggregator with fourByte=true and recovers 4200000001; the negative shows the same bytes decode on a 2-octet stride and an 8-octet AGGREGATOR is refused without the capability.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -216,7 +218,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The new attributes, AS4_PATH and AS4_AGGREGATOR, MUST NOT be carried in an UPDATE message between NEW BGP speakers. (Section 4.1, Section 6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. AS4_PATH half is proven (originate builders toward a NEW speaker, and rfc6793-no-as4path-from-new-speaker.ci on the forward path). No unit tagged 4.1-6 proves AS4_AGGREGATOR is not carried between NEW speakers: the .ci input carries no AS4_AGGREGATOR, so its absence at conn=2 is vacuous, and the originate test checks as4PathASNs only.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -228,7 +230,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A NEW BGP speaker that receives the AS4_PATH attribute or the AS4_AGGREGATOR attribute in an UPDATE message from another NEW BGP speaker MUST discard the path attribute and continue processing the UPDATE message. (Section 4.1, Section 6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793NewSpeakerAS4AttributesAreDiscarded (ReconcileASPathFamily, fromNew=true) discards both AS4_PATH and AS4_AGGREGATOR and keeps the UPDATE; the .ci proves it end to end for AS4_PATH; the negative keeps an AS4_PATH from an OLD speaker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -240,7 +242,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 However, this document does not assume that an Autonomous System with NEW BGP speakers has to have a globally unique two-octet AS number -- AS_TRANS MUST be used when the NEW BGP speaker does not have a two-octet AS number (even if multiple Autonomous Systems would use it). (Section 4.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793OpenMyASIsASTransWithoutTwoOctetAS asserts the sent OPEN My AS is 23456 for AS 4200000001; the negative keeps 65001 as itself.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -251,7 +253,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 When communicating with an OLD BGP speaker, a NEW BGP speaker MUST send the AS path information in the AS_PATH attribute encoded with two-octet AS numbers. (Section 4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793EncodeTwoOctetToOldSpeaker asserts a 2-octet AS_PATH with AS_TRANS toward a non-ASN4 context; the negative keeps mappable ASNs unsubstituted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -262,7 +264,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The NEW BGP speaker MUST also send the AS path information in the AS4_PATH attribute (encoded with four-octet AS numbers), except for the case where all of the AS path information is composed of mappable four-octet AS numbers only. (Section 4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Originate builders (message) and TranscodeASPath (wireu) both emit AS4_PATH with the real 4-octet AS toward an OLD speaker; negatives show no AS4_PATH when every AS is mappable.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -276,7 +278,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In this case, the NEW BGP speaker MUST NOT send the AS4_PATH attribute. (Section 4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Originate builders and TranscodeASPath omit AS4_PATH when all ASNs are mappable; negatives show it present for a non-mappable AS.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -289,7 +291,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Whenever the AS path information contains the AS_CONFED_SEQUENCE or AS_CONFED_SET path segment, the NEW BGP speaker MUST exclude such path segments from the AS4_PATH attribute being constructed. (Section 4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC6793ConstructedAS4PathExcludesConfed drives TranscodeASPath 4->2 with an AS_CONFED_SEQUENCE only and asserts it is excluded from the constructed AS4_PATH while the AS_SEQUENCE is kept. The row names AS_CONFED_SEQUENCE or AS_CONFED_SET, and no AS_CONFED_SET reaches this path in any tagged unit, so half the exclusion is unproven
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -300,7 +302,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 To prevent the possible propagation of Confederation-related path segments outside of a Confederation, the path segment types AS_CONFED_SEQUENCE and AS_CONFED_SET [RFC5065] are declared invalid for the AS4_PATH attribute and MUST NOT be included in the AS4_PATH attribute of an UPDATE message. (Section 3, Section 6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793AS4PathWireExcludesConfed: AS4Path.WriteTo/Len skip both confed types and keep AS_SEQUENCE/AS_SET, with Len matching bytes written.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -311,7 +313,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Similarly, if the NEW BGP speaker has to send the AGGREGATOR attribute, and if the aggregating Autonomous System's AS number is a non-mappable four-octet AS number, then the speaker MUST use the AS4_AGGREGATOR attribute and set the AS number field in the existing AGGREGATOR attribute to the reserved AS number, AS_TRANS. (Section 4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Three producers (message originate, wireu TranscodeASPath, rib commit pack) each send AS_TRANS in a 6-octet AGGREGATOR plus AS4_AGGREGATOR with the real AS for a non-mappable aggregator; negatives keep a mappable AS with no companion.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -326,7 +328,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Note that if the AS number is mappable, then the AS4_AGGREGATOR attribute MUST NOT be sent. (Section 4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Same three producers send no AS4_AGGREGATOR for a mappable aggregating AS; negatives show it present for a non-mappable one.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -341,7 +343,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 When a NEW BGP speaker receives an update from an OLD BGP speaker, it MUST be prepared to receive the AS4_PATH attribute along with the existing AS_PATH attribute. (Section 4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath: ReconcileASPathFamily accepts AS_PATH+AS4_PATH from an OLD speaker and uses the AS4_PATH ASNs; the negative shows no 4-octet AS invented without AS4_PATH.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -352,7 +354,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A NEW BGP speaker MUST also be prepared to receive the AS4_AGGREGATOR attribute along with the AGGREGATOR attribute from an OLD BGP speaker. (Section 4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793ReceivedAS4AggregatorAccepted: the AGGREGATOR+AS4_AGGREGATOR pair from an OLD speaker is accepted and the 4-octet aggregating AS survives ingest (single-polarity marker).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -362,7 +364,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 - the AS4_AGGREGATOR attribute and the AS4_PATH attribute SHALL be ignored, (Section 4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793AggregatorWithRealASIgnoresAS4Attributes: with AGGREGATOR.AS 64500 the AS4_PATH does not reach the path and the AS4_AGGREGATOR is discarded; negatives with AS_TRANS use both.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -372,9 +374,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC6793-4.2.3-4`](#rfc6793-4.2.3-4)
 
-When both AGGREGATOR and AS4_AGGREGATOR are received and AGGREGATOR.AS != AS_TRANS, AGGREGATOR SHALL be taken as the aggregator info (Section 4.2.3)
+When both of the attributes are received, if the AS number in the AGGREGATOR attribute is not AS_TRANS, then: - the AS4_AGGREGATOR attribute and the AS4_PATH attribute SHALL be ignored, - the AGGREGATOR attribute SHALL be taken as the information about the aggregating node (§4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Same unit: the AGGREGATOR (64500, 10.0.0.1) is the aggregating node; the AS_TRANS counterpart does not take it.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -383,9 +385,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC6793-4.2.3-5`](#rfc6793-4.2.3-5)
 
-When both AGGREGATOR and AS4_AGGREGATOR are received and AGGREGATOR.AS != AS_TRANS, AS_PATH SHALL be taken as the AS path info (Section 4.2.3)
+When both of the attributes are received, if the AS number in the AGGREGATOR attribute is not AS_TRANS, then: - the AS4_AGGREGATOR attribute and the AS4_PATH attribute SHALL be ignored, - the AGGREGATOR attribute SHALL be taken as the information about the aggregating node, and - the AS_PATH attribute SHALL be taken as the AS path information. (§4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Same unit: the route path is the AS_PATH widened with AS_TRANS intact; the AS_TRANS counterpart reconstructs instead.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -396,7 +398,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 - the AGGREGATOR attribute SHALL be ignored, (Section 4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793AggregatorWithASTransPromotesAS4Aggregator: with AGGREGATOR.AS AS_TRANS the stored aggregator is the AS4_AGGREGATOR value, not AS_TRANS; negative keeps a real-AS AGGREGATOR.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -407,7 +409,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 - the AS4_AGGREGATOR attribute SHALL be taken as the information about the aggregating node, and (Section 4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Same unit: the aggregating node is 4200000001/10.0.0.1 from AS4_AGGREGATOR; negatives: not promoted when AGGREGATOR is real, nor when AS4_AGGREGATOR arrives alone.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -419,7 +421,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the number of AS numbers in the AS_PATH attribute is less than the number of AS numbers in the AS4_PATH attribute, then the AS4_PATH attribute SHALL be ignored, and the AS_PATH attribute SHALL be taken as the AS path information. (Section 4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793LongerAS4PathIsIgnored: AS_PATH 2 ASNs vs AS4_PATH 3 yields the widened AS_PATH only; negative shows AS4_PATH used when AS_PATH is longer.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -430,7 +432,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the number of AS numbers in the AS_PATH attribute is larger than or equal to the number of AS numbers in the AS4_PATH attribute, then the AS path information SHALL be constructed by taking as many AS numbers and path segments as necessary from the leading part of the AS_PATH attribute, and then prepending them to the AS4_PATH attribute so that the AS path information has a number of AS numbers identical to that of the AS_PATH attribute. (Section 4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793LongerASPathPrependsLeadingHops, EqualCountsPrependNothing, LeadingASSetIsTakenWhole assert exact reconstructed bytes; negative: no prepend when AS4_PATH is longer.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -443,7 +445,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Note that a valid AS_CONFED_SEQUENCE or AS_CONFED_SET path segment SHALL be prepended if it is either the leading path segment or is adjacent to a path segment that is prepended. (Section 4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC6793LeadingConfedSegmentIsPrepended proves the leading-segment clause and TestRFC6793UnadjacentConfedSegmentIsNotPrepended a confederation segment that is neither leading nor adjacent. The second clause, a confederation segment adjacent to a prepended segment SHALL be prepended, has no input in any tagged unit
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -452,9 +454,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC6793-6-1`](#rfc6793-6-1)
 
-AS4_PATH in an UPDATE SHALL be considered malformed if attribute length is not a multiple of two, is too small, segment length is zero or inconsistent, or segment type is undefined (Section 6)
+The AS4_PATH attribute in an UPDATE message SHALL be considered malformed under the following conditions: - the attribute length is not a multiple of two or is too small (i.e., less than 6) for the attribute to carry at least one AS number, or - the path segment length in the attribute is either zero or is inconsistent with the attribute length, or - the path segment type in the attribute is not one of the types defined: AS_SEQUENCE, AS_SET, AS_CONFED_SEQUENCE, and AS_CONFED_SET. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793AS4PathMalformedRejected drives every Section 6 condition (odd length, <6 octets, zero and overrunning segment length, undefined type) through ParseAS4Path; positive accepts a well-formed path. The tag at rfc6793_reconcile_test.go TestRFC6793MalformedAS4PathIsDiscarded describes the RFC6793-6-4 discard obligation rather than this row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -466,7 +468,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The AS4_AGGREGATOR attribute in an UPDATE message SHALL be considered malformed if the attribute length is not 8. (Section 6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793AS4AggregatorLengthEight: ParseAS4Aggregator accepts 8 octets and refuses 0,6,7,9,12 with ErrInvalidLength.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -477,7 +479,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A NEW BGP speaker that receives these path segment types in the AS4_PATH attribute of an UPDATE message from an OLD BGP speaker MUST discard these path segments, adjust the relevant attribute fields accordingly, and continue processing the UPDATE message. (Section 6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC6793ReceivedConfedInAS4PathDiscarded injects only an AS_CONFED_SEQUENCE, never an AS_CONFED_SET. Its assertions read the egress AS4_PATH, which AS4Path.WriteTo writes without confederation segments whatever it holds (RFC6793-3-1), so the unit cannot tell a receive-side discard from the encoder's output filter
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -488,7 +490,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A NEW BGP speaker that receives a malformed AS4_PATH attribute in an UPDATE message from an OLD BGP speaker MUST discard the attribute and continue processing the UPDATE message. (Section 6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC6793MalformedAS4PathDiscarded: an odd-length AS4_PATH from an OLD speaker contributes nothing and the rewrite proceeds; negative keeps a well-formed one.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -499,7 +501,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A NEW BGP speaker that receives a malformed AS4_AGGREGATOR attribute in an UPDATE message from an OLD BGP speaker MUST discard the attribute and continue processing the UPDATE message. (Section 6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestCollapseAS4DiscardsMalformedAS4Aggregator: a 7-octet AS4_AGGREGATOR is removed from the collapsed payload, not promoted, NLRI kept, drop reported; negative reads an 8-octet one.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

@@ -353,7 +353,7 @@ restart instead of waiting for Dead Peer Detection.</p>
 <p>The <code>remote-access</code> container is not wired yet. It parses, and no session reads
 it, so a <code>pool</code> assigns no address and an <code>eap-user</code> list authenticates nobody.
 <code>plan/immediate/spec-ipsec-remote-access.md</code> owns the work.</p>
-<!-- source: internal/component/ike/engine/register.go -- runEngine discards the pool it builds from RemoteAccess -->
+<!-- source: internal/component/ike/engine/apply.go -- reloadPool stores the pool in ikeEngineState.pool, which nothing reads -->
 <p>Every EAP mode and X.509 needs a <code>ca-certificate</code>. The daemon refuses a remote
 certificate it cannot chain to that anchor. A certificate with no trust anchor
 authenticates nobody: any self-signed certificate that carries a valid signature
@@ -1611,7 +1611,7 @@ boundaries; neither is a claim that every IKE extension is implemented.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

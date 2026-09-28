@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 7 | of 4 gated MUSTs judged | 6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 4 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 26 |
 | Tagged units | 26 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 7 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc7999.md` |
 | Requirement shard | `rfc/requirements/rfc7999.md` |
@@ -103,21 +112,21 @@ No tracked gap. Every MUST-level row is proven in both polarities. [`RFC7999-3.1
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC7999-3.1-2` | In a bilateral peering relationship, use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it. (§3.1) | MUST | 3.1 - IP Prefix Announcements with BLACKHOLE Community Attached | **positive:** `unit/verify` [`TestAnnounceBlackholeReachesAMemberOfADynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L274). **positive:** `unit/verify` [`TestAnnounceBlackholeReachesAnAgreedPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L98). **negative:** `unit/verify` [`TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L112). **negative:** `unit/verify` [`TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L302) |
-| `RFC7999-3.3-1` | A BGP speaker in a bilateral peering relationship using BLACKHOLE MUST only accept and honor an announcement carrying BLACKHOLE when the announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise (§3.3) | MUST | 3.3 - Accepting Blackholed IP Prefixes | **positive:** `unit/verify` [`TestBlackholeGroupIdentityArrivesOnAStructuredEvent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_dynamic_test.go#L31). **positive:** `unit/verify` [`TestBlackholeRouteTypeStampedOnBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L104). **positive:** `unit/verify` [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L326). **negative:** `unit/verify` [`TestBlackholeNotStampedOutsideAuthorization`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L186). **positive:** `interop/nightly` [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L760). **negative:** `interop/nightly` [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L761) |
-| `RFC7999-3.3-2` | A BGP speaker in a bilateral peering relationship using BLACKHOLE MUST only accept and honor an announcement carrying BLACKHOLE when the receiving party agreed to honor the BLACKHOLE community on that particular BGP session (§3.3) | MUST | 3.3 - Accepting Blackholed IP Prefixes | **positive:** `unit/verify` [`TestBlackholeCommunityRewritesNextHopWhenAgreed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/match_test.go#L170). **positive:** `unit/verify` [`TestBlackholeGroupIdentityArrivesOnAStructuredEvent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_dynamic_test.go#L34). **positive:** `unit/verify` [`TestBlackholeRouteTypeStampedOnBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L107). **positive:** `unit/verify` [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L329). **negative:** `unit/verify` [`TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/match_test.go#L198). **negative:** `unit/verify` [`TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L158). **negative:** `unit/verify` [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L359). **positive:** `interop/nightly` [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L762). **negative:** `interop/nightly` [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L763) |
+| `RFC7999-3.3-1` | BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. (§3.3) | MUST | 3.3 - Accepting Blackholed IP Prefixes | **positive:** `unit/verify` [`TestBlackholeGroupIdentityArrivesOnAStructuredEvent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_dynamic_test.go#L31). **positive:** `unit/verify` [`TestBlackholeRouteTypeStampedOnBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L104). **positive:** `unit/verify` [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L326). **negative:** `unit/verify` [`TestBlackholeNotStampedOutsideAuthorization`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L186). **positive:** `interop/nightly` [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L760). **negative:** `interop/nightly` [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L761) |
+| `RFC7999-3.3-2` | BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. o The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. (§3.3) | MUST | 3.3 - Accepting Blackholed IP Prefixes | **positive:** `unit/verify` [`TestBlackholeCommunityRewritesNextHopWhenAgreed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/match_test.go#L170). **positive:** `unit/verify` [`TestBlackholeGroupIdentityArrivesOnAStructuredEvent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_dynamic_test.go#L34). **positive:** `unit/verify` [`TestBlackholeRouteTypeStampedOnBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L107). **positive:** `unit/verify` [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L329). **negative:** `unit/verify` [`TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/match_test.go#L198). **negative:** `unit/verify` [`TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L158). **negative:** `unit/verify` [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L359). **positive:** `interop/nightly` [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L762). **negative:** `interop/nightly` [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L763) |
 | `RFC7999-3.3-4` | An operator MUST ensure that origin validation techniques (such as the one described in [RFC6811]) do not inadvertently block legitimate announcements carrying the BLACKHOLE community. (§3.3) | MUST | 3.3 - Accepting Blackholed IP Prefixes | **positive:** `unit/verify` [`TestBlackholeSurvivesLengthOnlyInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/blackhole_decision_test.go#L60). **negative:** `unit/verify` [`TestBlackholeDoesNotSurviveAWrongOrigin`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/blackhole_decision_test.go#L80) |
-| `RFC7999-3.1-3` | "The community SHOULD be ignored, if it is received by a network that it [sic] not using it" (§3.1) | SHOULD | 3.1 - IP Prefix Announcements with BLACKHOLE Community Attached | **positive:** no positive test. **negative:** no negative test |
-| `RFC7999-3.1-5` | A network that announces a prefix covering the victim addresses under DDoS duress SHOULD attach the BLACKHOLE community (§3.1) | SHOULD | 3.1 - IP Prefix Announcements with BLACKHOLE Community Attached | **positive:** no positive test. **negative:** no negative test |
-| `RFC7999-3.2-1` | "A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS" (§3.2) | SHOULD | 3.2 - Local Scope of Blackholes | **positive:** `unit/verify` [`TestRFC7999BlackholeFieldHasReader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/blackhole_test.go#L42). **negative:** no negative test. **positive:** `functional/verify` [`community-blackhole-noexport.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-blackhole-noexport.ci#L6) |
-| `RFC7999-3.2-2` | "The community to prevent propagation SHOULD be chosen according to the operator's routing policy" (§3.2) | SHOULD | 3.2 - Local Scope of Blackholes | **positive:** `unit/verify` [`TestBlackholeGuardNoAdvertise`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/blackhole_test.go#L63). **negative:** no negative test |
-| `RFC7999-3.3-3` | In topologies with a route server or other multilateral peering relationships, BGP speakers SHOULD accept and honor BGP announcements under the same two conditions that bind a bilateral speaker (§3.3) | SHOULD | 3.3 - Accepting Blackholed IP Prefixes | **positive:** no positive test. **negative:** no negative test |
-| `RFC7999-4-1` | "Without an explicit configuration directive set by the operator, network elements SHOULD NOT discard traffic destined towards IP prefixes that are tagged with the BLACKHOLE community" (§4) | SHOULD NOT | 4 - Vendor Implementation Recommendations | **positive:** `unit/verify` [`TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L161). **positive:** `unit/verify` [`TestBlackholeNotStampedWithoutAgreement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L135). **negative:** no negative test |
-| `RFC7999-6-1` | The receiving BGP speaker SHOULD verify by applying strict filtering (RFC 7454 Section 6.2.1.1.2) that the peer announcing the prefix is authorized to do so (§6) | SHOULD | 6 - Security Considerations | **positive:** no positive test. **negative:** no negative test |
-| `RFC7999-6-2` | "It is RECOMMENDED that operators use best common practices to protect their BGP sessions, such as the ones in [RFC7454]" (§6) | RECOMMENDED | 6 - Security Considerations | **positive:** no positive test. **negative:** no negative test |
-| `RFC7999-3.1-1` | "This community MAY be used in all bilateral and multilateral BGP deployment scenarios" (§3.1) | MAY | 3.1 - IP Prefix Announcements with BLACKHOLE Community Attached | **positive:** no positive test. **negative:** no negative test |
-| `RFC7999-3.1-4` | A network under DDoS duress MAY announce an IP prefix covering the victim's IP addresses, to signal to neighboring networks that traffic destined for those addresses is to be discarded (§3.1) | MAY | 3.1 - IP Prefix Announcements with BLACKHOLE Community Attached | **positive:** no positive test. **negative:** no negative test |
-| `RFC7999-3.1-6` | "The BLACKHOLE community MAY also be used as one of the trigger communities in a destination-based Remote Triggered Blackhole (RTBH) [RFC5635] configuration" (§3.1) | MAY | 3.1 - IP Prefix Announcements with BLACKHOLE Community Attached | **positive:** no positive test. **negative:** no negative test |
-| `RFC7999-4-2` | Vendors MAY provide a shorthand keyword in their configuration language for the well-known BLACKHOLE community value. The suggested string is "blackhole" (§4) | MAY | 4 - Vendor Implementation Recommendations | **positive:** no positive test. **negative:** no negative test |
+| `RFC7999-3.1-3` | The community SHOULD be ignored, if it is received by a network that it not using it. (§3.1) | SHOULD | 3.1 - IP Prefix Announcements with BLACKHOLE Community Attached | **positive:** no positive test. **negative:** no negative test |
+| `RFC7999-3.1-5` | When a network is under DDoS duress, it MAY announce an IP prefix covering the victim's IP address(es) for the purpose of signaling to neighboring networks that any traffic destined for these IP address(es) should be discarded. In such a scenario, the network operator SHOULD attach the BLACKHOLE community. (§3.1) | SHOULD | 3.1 - IP Prefix Announcements with BLACKHOLE Community Attached | **positive:** no positive test. **negative:** no negative test |
+| `RFC7999-3.2-1` | A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS. (§3.2) | SHOULD | 3.2 - Local Scope of Blackholes | **positive:** `unit/verify` [`TestRFC7999BlackholeFieldHasReader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/blackhole_test.go#L42). **negative:** no negative test. **positive:** `functional/verify` [`community-blackhole-noexport.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-blackhole-noexport.ci#L6) |
+| `RFC7999-3.2-2` | The community to prevent propagation SHOULD be chosen according to the operator's routing policy. (§3.2) | SHOULD | 3.2 - Local Scope of Blackholes | **positive:** `unit/verify` [`TestBlackholeGuardNoAdvertise`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/blackhole_test.go#L63). **negative:** no negative test |
+| `RFC7999-3.3-3` | In topologies with a route server or other multilateral peering relationships, BGP speakers SHOULD accept and honor BGP announcements under the same conditions. (§3.3) | SHOULD | 3.3 - Accepting Blackholed IP Prefixes | **positive:** no positive test. **negative:** no negative test |
+| `RFC7999-4-1` | Without an explicit configuration directive set by the operator, network elements SHOULD NOT discard traffic destined towards IP prefixes that are tagged with the BLACKHOLE community. (§4) | SHOULD NOT | 4 - Vendor Implementation Recommendations | **positive:** `unit/verify` [`TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L161). **positive:** `unit/verify` [`TestBlackholeNotStampedWithoutAgreement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L135). **negative:** no negative test |
+| `RFC7999-6-1` | In order to further limit the impact of unauthorized BGP announcements carrying the BLACKHOLE community, the receiving BGP speaker SHOULD verify by applying strict filtering (see Section 6.2.1.1.2 of [RFC7454]) that the peer announcing the prefix is authorized to do so. (§6) | SHOULD | 6 - Security Considerations | **positive:** no positive test. **negative:** no negative test |
+| `RFC7999-6-2` | It is RECOMMENDED that operators use best common practices to protect their BGP sessions, such as the ones in [RFC7454]. (§6) | RECOMMENDED | 6 - Security Considerations | **positive:** no positive test. **negative:** no negative test |
+| `RFC7999-3.1-1` | This community MAY be used in all bilateral and multilateral BGP deployment scenarios. (§3.1) | MAY | 3.1 - IP Prefix Announcements with BLACKHOLE Community Attached | **positive:** no positive test. **negative:** no negative test |
+| `RFC7999-3.1-4` | When a network is under DDoS duress, it MAY announce an IP prefix covering the victim's IP address(es) for the purpose of signaling to neighboring networks that any traffic destined for these IP address(es) should be discarded. (§3.1) | MAY | 3.1 - IP Prefix Announcements with BLACKHOLE Community Attached | **positive:** no positive test. **negative:** no negative test |
+| `RFC7999-3.1-6` | The BLACKHOLE community MAY also be used as one of the trigger communities in a destination-based Remote Triggered Blackhole (RTBH) [RFC5635] configuration. (§3.1) | MAY | 3.1 - IP Prefix Announcements with BLACKHOLE Community Attached | **positive:** no positive test. **negative:** no negative test |
+| `RFC7999-4-2` | Vendors MAY provide a shorthand keyword in their configuration language to reference the well-known BLACKHOLE community attribute value. The suggested string to be used is "blackhole". (§4) | MAY | 4 - Vendor Implementation Recommendations | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -131,7 +140,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 In a bilateral peering relationship, use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: advertising BLACKHOLE to a bilateral peer that did not agree. internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeReachesAnAgreedPeer / ::TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree / ::TestAnnounceBlackholeReachesAMemberOfADynamicGroup / ::TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup all drive handleAnnounceBlackhole only. The second originating path the enrolment names, send ... unicast community 65535:666, is tested by TestAnnounceUnicastWithBlackholeCommunityMeetsTheSameGate, which carries no tag, and no unit covers re-advertising a received BLACKHOLE-tagged route to an un-agreed peer.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -142,9 +151,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7999-3.3-1`](#rfc7999-3.3-1)
 
-A BGP speaker in a bilateral peering relationship using BLACKHOLE MUST only accept and honor an announcement carrying BLACKHOLE when the announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise (§3.3)
+BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: honoring BLACKHOLE when no equal or shorter authorized prefix covers the announced one. internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath (authorized /24 covers /32: stamped) and ::TestBlackholeNotStampedOutsideAuthorization (uncovered /32: not stamped); ::TestBlackholeRuleForDynamicGroup and rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent use the same /24 over /32. The 'equal' case (announced prefix equal to the authorized one) is never asserted, so a strict-shorter comparison stays green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -157,9 +166,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7999-3.3-2`](#rfc7999-3.3-2)
 
-A BGP speaker in a bilateral peering relationship using BLACKHOLE MUST only accept and honor an announcement carrying BLACKHOLE when the receiving party agreed to honor the BLACKHOLE community on that particular BGP session (§3.3)
+BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. o The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: honoring BLACKHOLE unless BOTH conditions hold. Condition 2 (agreement on the session) is asserted both ways: internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists, ::TestBlackholeRuleForDynamicGroup outside-group subtest, filter_modify/match_test.go::TestBlackholeCommunityRewritesNextHopWhenAgreed / ::TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement. The quoted sentence also carries condition 1, and no unit tagged 3.3-2 has an uncovered-prefix negative or the equal-prefix case (those sit under 3.3-1's tag, without the equal case).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -177,7 +186,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 An operator MUST ensure that origin validation techniques (such as the one described in [RFC6811]) do not inadvertently block legitimate announcements carrying the BLACKHOLE community. (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: origin validation rejecting a legitimate BLACKHOLE announcement. internal/component/bgp/plugins/rpki/blackhole_decision_test.go::TestBlackholeSurvivesLengthOnlyInvalid: a /32 Invalid only by maxLength with BLACKHOLE must be Accept (Error if not). Negative ::TestBlackholeDoesNotSurviveAWrongOrigin keeps a wrong-origin BLACKHOLE rejected, delimiting 'legitimate'. The exemption is operator opt-in (blackholeDecisionPlugin(t, true)), matching the sentence binding the operator.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -186,9 +195,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7999-3.2-1`](#rfc7999-3.2-1)
 
-"A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS" (§3.2)
+A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a received BLACKHOLE route kept without NO_EXPORT/NO_ADVERTISE or similar. internal/component/bgp/plugins/filter_community/blackhole_test.go::TestRFC7999BlackholeFieldHasReader asserts NO_EXPORT appended; test/plugin/community-blackhole-noexport.ci asserts the stored route carries both. Positive only, and the row has no single-polarity marker; no tagged negative (an untagged-route or guard-off case) is tagged for this row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -197,9 +206,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7999-3.2-2`](#rfc7999-3.2-2)
 
-"The community to prevent propagation SHOULD be chosen according to the operator's routing policy" (§3.2)
+The community to prevent propagation SHOULD be chosen according to the operator's routing policy. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a propagation community forced rather than chosen by operator policy. internal/component/bgp/plugins/filter_community/blackhole_test.go::TestBlackholeGuardNoAdvertise asserts the leaf selects NO_ADVERTISE. Positive only with no single-polarity marker; no tagged unit shows that an operator choice is honored over a fixed default in both directions.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -207,9 +216,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7999-4-1`](#rfc7999-4-1)
 
-"Without an explicit configuration directive set by the operator, network elements SHOULD NOT discard traffic destined towards IP prefixes that are tagged with the BLACKHOLE community" (§4)
+Without an explicit configuration directive set by the operator, network elements SHOULD NOT discard traffic destined towards IP prefixes that are tagged with the BLACKHOLE community. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: discarding traffic toward a BLACKHOLE-tagged prefix without an explicit operator directive. internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedWithoutAgreement (no config: RouteType 0 on both rails) and ::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists. Both tags are positive and the row has no single-polarity marker, so the pair is incomplete.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

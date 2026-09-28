@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 6810 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 40 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 40 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 6810 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 40 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 40 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 6810 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 40 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 40 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>10.0%</strong><b>4 of 40 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 40 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 40 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>4</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>15</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>6</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>5</td>
@@ -311,7 +315,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L35" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestWriteSerialQuery</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.1-1">RFC6810-5.1-1</code></td><td colspan="3"><span class="rfc-subject">Max Length MUST NOT be less than Prefix Length (Section 5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.1-1">RFC6810-5.1-1</code></td><td colspan="3"><span class="rfc-subject">Max Length: An 8-bit unsigned integer denoting the longest prefix allowed by the prefix. This MUST NOT be less than the Prefix Length element. (Section 5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -356,7 +360,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side emission obligation -- ze reads End of Data for its serial only (internal/component/bgp/plugins/rpki/rtr_session.go:291) and emits neither Cache Response nor End of Data PDUs whose Session IDs it would have to match</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-1">RFC6810-5.10-1</code></td><td colspan="3"><span class="rfc-subject">If the Erroneous PDU field is empty, Length of Encapsulated PDU MUST be zero (Section 5.10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-1">RFC6810-5.10-1</code></td><td colspan="3"><span class="rfc-subject">If the error is generic (e.g., &#34;Internal Error&#34;) and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (Section 5.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.10</td>
@@ -392,7 +396,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Error Report sender obligation -- ze emits no Error Report PDU (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it never sets Length of Error Text</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-2-1">RFC6810-2-1</code></td><td colspan="3"><span class="rfc-subject">Incoming data associated with new serial MUST NOT be sent until the fetch is complete (Section 2, Serial Number definition)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-2-1">RFC6810-2-1</code></td><td colspan="3"><span class="rfc-subject">As a cache is receiving, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -401,7 +405,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side transmission obligation on serial-associated data -- ze is the consumer; it buffers a delta in pendingVRPs and applies it atomically only at End of Data (internal/component/bgp/plugins/rpki/rtr_session.go:307), and sends no serial-tagged data</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.1-2">RFC6810-5.1-2</code></td><td colspan="3"><span class="rfc-subject">If Session ID mismatch, MUST completely drop the session and flush all data learned from that cache (Section 5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.1-2">RFC6810-5.1-2</code></td><td colspan="3"><span class="rfc-subject">If, at any time, either the router or the cache finds the value of the session identifier is not the same as the other&#39;s, they MUST completely drop the session and the router MUST flush all data learned from that cache. (Section 5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -500,7 +504,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no protected RTR transport -- connectAndSync dials only unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and the plugin has no SSH, TLS, TCP-MD5, or TCP-AO client, so no more protected protocol is available to select</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-1">RFC6810-7.1-1</code></td><td colspan="3"><span class="rfc-subject">Cache servers supporting SSH MUST accept RSA and DSA authentication (Section 7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-1">RFC6810-7.1-1</code></td><td colspan="3"><span class="rfc-subject">Cache servers supporting SSH transport MUST accept RSA and Digital Signature Algorithm (DSA) authentication (Section 7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
@@ -509,7 +513,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-server SSH obligation -- ze runs no RTR SSH server and no SSH client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it performs no SSH authentication</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-2">RFC6810-7.1-2</code></td><td colspan="3"><span class="rfc-subject">SSH user authentication MUST be supported (Section 7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-2">RFC6810-7.1-2</code></td><td colspan="3"><span class="rfc-subject">User authentication MUST be supported (Section 7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
@@ -545,7 +549,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze implements no TLS RTR client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so the client-certificate requirement has no code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-2">RFC6810-7.2-2</code></td><td colspan="3"><span class="rfc-subject">TLS certificates MUST include subjectAltName extension with iPAddress identities (Section 7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-2">RFC6810-7.2-2</code></td><td colspan="3"><span class="rfc-subject">Certificates used to authenticate client routers in this protocol MUST include a subjectAltName extension [RFC5280] containing one or more iPAddress identities (Section 7.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.2</td>
@@ -554,7 +558,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze implements no TLS RTR transport (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it issues and validates no rpki-rtr TLS certificates</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-3">RFC6810-7.2-3</code></td><td colspan="3"><span class="rfc-subject">Cache MUST check IP address of TLS connection against iPAddress identities (Section 7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-3">RFC6810-7.2-3</code></td><td colspan="3"><span class="rfc-subject">when authenticating the router&#39;s certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities (Section 7.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.2</td>
@@ -590,7 +594,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-server-certificate obligation under TLS -- ze runs no RTR TLS server and issues no server certificate (it is a plain-TCP client, internal/component/bgp/plugins/rpki/rtr_session.go:127)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-7">RFC6810-7.2-7</code></td><td colspan="3"><span class="rfc-subject">rpki-rtr TLS implementations MUST NOT use CN-ID identifiers for authentication (Section 7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-7">RFC6810-7.2-7</code></td><td colspan="3"><span class="rfc-subject">rpki-rtr implementations that use TLS MUST NOT use CN-ID identifiers; a CN field may be present in the server certificate&#39;s subject name, but MUST NOT be used for authentication within the rules described in [RFC6125]. (Section 7.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>7.2</td>
@@ -617,7 +621,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-MD5 transport obligation -- ze implements no TCP-MD5 for RTR (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it holds no MD5 keys</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.3-2">RFC6810-7.3-2</code></td><td colspan="3"><span class="rfc-subject">TCP MD5 implementations MUST support hexadecimal sequences of at least 32 characters (Section 7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.3-2">RFC6810-7.3-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST also support hexadecimal sequences of at least 32 characters, i.e., 128 bits. (Section 7.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.3</td>
@@ -662,7 +666,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it supports no RFC 5926 algorithms</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.2-2">RFC6810-6.2-2</code></td><td colspan="3"><span class="rfc-subject">Cache SHOULD send a Notify PDU when its serial changes (Section 6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.2-2">RFC6810-6.2-2</code></td><td colspan="3"><span class="rfc-subject">The cache server SHOULD send a notify PDU with its current Serial Number when the cache&#39;s serial changes (Section 6.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.2</td>
@@ -671,7 +675,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.6-2">RFC6810-5.6-2</code></td><td colspan="3"><span class="rfc-subject">Router receiving a duplicate announcement SHOULD raise Duplicate Announcement Received error (Section 5.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.6-2">RFC6810-5.6-2</code></td><td colspan="3"><span class="rfc-subject">Should the router client receive an IPvX PDU with a {Prefix, Len, Max-Len, ASN} identical to one it already has active, it SHOULD raise a Duplicate Announcement Received error. (Section 5.6)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.6</td>
@@ -689,7 +693,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-5">RFC6810-7-5</code></td><td colspan="3"><span class="rfc-subject">Both caches and routers SHOULD enable transport keep-alives (Section 7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-5">RFC6810-7-5</code></td><td colspan="3"><span class="rfc-subject">To reduce exposure to dropped but non-terminated sessions, both caches and routers SHOULD enable keep-alives when available in the chosen transport protocol. (Section 7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7</td>
@@ -698,7 +702,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.3-2">RFC6810-6.3-2</code></td><td colspan="3"><span class="rfc-subject">Router SHOULD attempt more preferred caches on Cache Reset (Section 6.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.3-2">RFC6810-6.3-2</code></td><td colspan="3"><span class="rfc-subject">Regardless of how this state arose, the cache replies with a Cache Reset to tell the router that it cannot honor the request. When a router receives this, the router SHOULD attempt to connect to any more preferred caches in its cache list. (Section 6.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.3</td>
@@ -707,7 +711,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.4-2">RFC6810-6.4-2</code></td><td colspan="3"><span class="rfc-subject">Router SHOULD attempt other caches on No Data Available (Section 6.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.4-2">RFC6810-6.4-2</code></td><td colspan="3"><span class="rfc-subject">When a router receives this kind of error, the router SHOULD attempt to connect to any other caches in its cache list, in preference order. (Section 6.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.4</td>
@@ -716,7 +720,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-3">RFC6810-8-3</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD retain data from previous cache during switchover (Section 8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-3">RFC6810-8-3</code></td><td colspan="3"><span class="rfc-subject">If a client loses connectivity to a cache it is using, or otherwise decides to switch to a new cache, it SHOULD retain the data from the previous cache until it has a full set of data from one or more other caches. (Section 8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8</td>
@@ -725,7 +729,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-4">RFC6810-8-4</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD delete data from unreachable cache after 2x polling period (Section 8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-4">RFC6810-8-4</code></td><td colspan="3"><span class="rfc-subject">A client SHOULD delete the data from a cache when it has been unable to refresh from that cache for a configurable timer value. The default for that value is twice the polling period for that cache. (Section 8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8</td>
@@ -734,7 +738,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-11-1">RFC6810-11-1</code></td><td colspan="3"><span class="rfc-subject">Cache SHOULD be topologically close to router (Section 11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-11-1">RFC6810-11-1</code></td><td colspan="3"><span class="rfc-subject">It also SHOULD be topologically close so that a minimum of validated routing data are needed to bootstrap a router&#39;s access to a cache. (Section 11)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>11</td>
@@ -743,7 +747,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-5">RFC6810-5.10-5</code></td><td colspan="3"><span class="rfc-subject">If erroneous Error Report PDU received, session SHOULD be dropped (Section 5.10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-5">RFC6810-5.10-5</code></td><td colspan="3"><span class="rfc-subject">If an erroneous Error Report PDU is received, the session SHOULD be dropped. (Section 5.10)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.10</td>
@@ -752,7 +756,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-3">RFC6810-7.1-3</code></td><td colspan="3"><span class="rfc-subject">Cache servers supporting SSH SHOULD accept ECDSA authentication (Section 7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-3">RFC6810-7.1-3</code></td><td colspan="3"><span class="rfc-subject">Cache servers supporting SSH transport MUST accept RSA and Digital Signature Algorithm (DSA) authentication and SHOULD accept Elliptic Curve Digital Signature Algorithm (ECDSA) authentication. (Section 7.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7.1</td>
@@ -761,7 +765,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-4">RFC6810-7.1-4</code></td><td colspan="3"><span class="rfc-subject">Client routers SHOULD verify the public key of the cache to avoid MITM attacks (Section 7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-4">RFC6810-7.1-4</code></td><td colspan="3"><span class="rfc-subject">Client routers SHOULD verify the public key of the cache to avoid monkey-in-the-middle attacks. (Section 7.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7.1</td>
@@ -770,7 +774,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-9">RFC6810-7.2-9</code></td><td colspan="3"><span class="rfc-subject">TLS cache SHOULD reject connections if no iPAddress identities match (Section 7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-9">RFC6810-7.2-9</code></td><td colspan="3"><span class="rfc-subject">when authenticating the router&#39;s certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities and SHOULD reject the connection if none of the iPAddress identities match the connection. (Section 7.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7.2</td>
@@ -788,7 +792,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-6">RFC6810-7-6</code></td><td colspan="3"><span class="rfc-subject">Operators SHOULD use procedural means (e.g., ACLs) to reduce exposure to authentication issues when using unprotected TCP (Section 7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-6">RFC6810-7-6</code></td><td colspan="3"><span class="rfc-subject">Operators SHOULD use procedural means, e.g., access control lists (ACLs), to reduce the exposure to authentication issues. (Section 7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7</td>
@@ -797,7 +801,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.3-3">RFC6810-7.3-3</code></td><td colspan="3"><span class="rfc-subject">Cache servers SHOULD support RFC 4808 for TCP MD5 key rollover (Section 7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.3-3">RFC6810-7.3-3</code></td><td colspan="3"><span class="rfc-subject">Key rollover with TCP MD5 is problematic. Cache servers SHOULD support [RFC4808]. (Section 7.3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7.3</td>
@@ -806,7 +810,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-5">RFC6810-8-5</code></td><td colspan="3"><span class="rfc-subject">The client SHOULD attempt to maintain at least one set of data regardless of cache changes (Section 8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-5">RFC6810-8-5</code></td><td colspan="3"><span class="rfc-subject">The client SHOULD attempt to maintain at least one set of data, regardless of whether it has chosen a different cache or established a new connection to the previous cache. (Section 8)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8</td>
@@ -824,7 +828,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-11-3">RFC6810-11-3</code></td><td colspan="3"><span class="rfc-subject">Protocols that provide integrity and authenticity SHOULD be used for cache-router transport (Section 11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-11-3">RFC6810-11-3</code></td><td colspan="3"><span class="rfc-subject">Protocols that provide integrity and authenticity SHOULD be used (Section 11)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>11</td>
@@ -833,7 +837,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-10-1">RFC6810-10-1</code></td><td colspan="3"><span class="rfc-subject">Fatal errors SHOULD cause the session to be dropped (Section 10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-10-1">RFC6810-10-1</code></td><td colspan="3"><span class="rfc-subject">Errors that are considered fatal SHOULD cause the session to be dropped. (Section 10)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>10</td>
@@ -842,7 +846,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.1-2">RFC6810-6.1-2</code></td><td colspan="3"><span class="rfc-subject">Router MAY start with Serial Query if it has unexpired data from a previous session (Section 6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.1-2">RFC6810-6.1-2</code></td><td colspan="3"><span class="rfc-subject">Alternatively, if the router has significant unexpired data from a broken session with the same cache, it MAY start with a Serial Query containing the Session ID from the previous session to ensure the Serial Numbers are commensurate. (Section 6.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>6.1</td>
@@ -851,7 +855,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-6">RFC6810-5.10-6</code></td><td colspan="3"><span class="rfc-subject">Truncated Erroneous PDU MAY be included for oversized PDUs (Section 5.10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-6">RFC6810-5.10-6</code></td><td colspan="3"><span class="rfc-subject">If the error is associated with a PDU of excessive length, i.e., too long to be any legal PDU other than another Error Report, or a possibly corrupt length, the Erroneous PDU field MAY be truncated. (Section 5.10)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.10</td>
@@ -860,7 +864,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5-2">RFC6810-5-2</code></td><td colspan="3"><span class="rfc-subject">Fields with unspecified content MAY be ignored on receipt (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5-2">RFC6810-5-2</code></td><td colspan="3"><span class="rfc-subject">Fields with unspecified content MUST be zero on transmission and MAY be ignored on receipt. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5</td>
@@ -869,7 +873,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-7">RFC6810-7-7</code></td><td colspan="3"><span class="rfc-subject">Routers MAY use SSHv2, TCP MD5, IPsec, or TLS transport (Section 7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-7">RFC6810-7-7</code></td><td colspan="3"><span class="rfc-subject">Caches and routers MAY use SSHv2 transport [RFC4252] using a the normal SSH port. For an example, see Section 7.1. Caches and routers MAY use TCP MD5 transport [RFC2385] using the rpki-rtr port. Note that TCP MD5 has been obsoleted by TCP-AO [RFC5925]. Caches and routers MAY use IPsec transport [RFC4301] using the rpki- rtr port. Caches and routers MAY use TLS transport [RFC5246] using a port, rpki-rtr-tls (324); see Section 12. (Section 7)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>7</td>
@@ -878,7 +882,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-5">RFC6810-7.1-5</code></td><td colspan="3"><span class="rfc-subject">SSH host authentication MAY be supported (Section 7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-5">RFC6810-7.1-5</code></td><td colspan="3"><span class="rfc-subject">host authentication MAY be supported (Section 7.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>7.1</td>
@@ -887,7 +891,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-6">RFC6810-7.1-6</code></td><td colspan="3"><span class="rfc-subject">SSH implementations MAY support password authentication (Section 7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-6">RFC6810-7.1-6</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY support password authentication. (Section 7.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>7.1</td>
@@ -896,7 +900,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-6">RFC6810-8-6</code></td><td colspan="3"><span class="rfc-subject">A client MAY drop the data from a particular cache when it is fully in sync with other caches (Section 8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-6">RFC6810-8-6</code></td><td colspan="3"><span class="rfc-subject">A client MAY drop the data from a particular cache when it is fully in sync with one or more other caches. (Section 8)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>8</td>
@@ -905,7 +909,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-3-2">RFC6810-3-2</code></td><td colspan="3"><span class="rfc-subject">There MAY be mechanisms for the router to assure authenticity of the cache (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-3-2">RFC6810-3-2</code></td><td colspan="3"><span class="rfc-subject">There MAY be mechanisms for the router to assure itself of the authenticity of the cache and to authenticate itself to the cache. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3</td>
@@ -935,7 +939,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: cache-side emission obligation -- ze reads End of Data for its serial only (internal/component/bgp/plugins/rpki/rtr_session.go:291) and emits neither Cache Response nor End of Data PDUs whose Session IDs it would have to match</td>
 </tr>
-<tr><td><a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a> If the Erroneous PDU field is empty, Length of Encapsulated PDU MUST be zero (Section 5.10)</td>
+<tr><td><a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a> If the error is generic (e.g., &#34;Internal Error&#34;) and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (Section 5.10)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Error Report sender obligation -- ze only reads received Error Reports (internal/component/bgp/plugins/rpki/rtr_session.go:363) and has no Error Report writer, so it never encodes Length of Encapsulated PDU</td>
 </tr>
@@ -951,11 +955,11 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Error Report sender obligation -- ze emits no Error Report PDU (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it never sets Length of Error Text</td>
 </tr>
-<tr><td><a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a> Incoming data associated with new serial MUST NOT be sent until the fetch is complete (Section 2, Serial Number definition)</td>
+<tr><td><a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a> As a cache is receiving, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete. (§2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: cache-side transmission obligation on serial-associated data -- ze is the consumer; it buffers a delta in pendingVRPs and applies it atomically only at End of Data (internal/component/bgp/plugins/rpki/rtr_session.go:307), and sends no serial-tagged data</td>
 </tr>
-<tr><td><a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a> If Session ID mismatch, MUST completely drop the session and flush all data learned from that cache (Section 5.1)</td>
+<tr><td><a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a> If, at any time, either the router or the cache finds the value of the session identifier is not the same as the other&#39;s, they MUST completely drop the session and the router MUST flush all data learned from that cache. (Section 5.1)</td>
 <td>{gap}, no test</td>
 <td>ze does not detect a Session ID change -- handlePDU adopts the Cache Response Session ID unconditionally (internal/component/bgp/plugins/rpki/rtr_session.go:233, s.sessionID = hdr.SessionID) with no comparison to the prior value and no cache flush</td>
 </tr>
@@ -983,11 +987,11 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>{gap}, no test</td>
 <td>ze implements no protected RTR transport -- connectAndSync dials only unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and the plugin has no SSH, TLS, TCP-MD5, or TCP-AO client, so no more protected protocol is available to select</td>
 </tr>
-<tr><td><a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a> Cache servers supporting SSH MUST accept RSA and DSA authentication (Section 7.1)</td>
+<tr><td><a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a> Cache servers supporting SSH transport MUST accept RSA and Digital Signature Algorithm (DSA) authentication (Section 7.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: cache-server SSH obligation -- ze runs no RTR SSH server and no SSH client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it performs no SSH authentication</td>
 </tr>
-<tr><td><a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a> SSH user authentication MUST be supported (Section 7.1)</td>
+<tr><td><a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a> User authentication MUST be supported (Section 7.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: SSH-transport obligation -- ze implements no SSH RTR transport (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so SSH user authentication has no code path</td>
 </tr>
@@ -999,11 +1003,11 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze implements no TLS RTR client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so the client-certificate requirement has no code path</td>
 </tr>
-<tr><td><a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a> TLS certificates MUST include subjectAltName extension with iPAddress identities (Section 7.2)</td>
+<tr><td><a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a> Certificates used to authenticate client routers in this protocol MUST include a subjectAltName extension [RFC5280] containing one or more iPAddress identities (Section 7.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze implements no TLS RTR transport (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it issues and validates no rpki-rtr TLS certificates</td>
 </tr>
-<tr><td><a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a> Cache MUST check IP address of TLS connection against iPAddress identities (Section 7.2)</td>
+<tr><td><a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a> when authenticating the router&#39;s certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities (Section 7.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: cache-side TLS obligation -- ze runs no RTR TLS server (it is a client that dials out, internal/component/bgp/plugins/rpki/rtr_session.go:125), so it checks no connecting IP against iPAddress identities</td>
 </tr>
@@ -1019,7 +1023,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: cache-server-certificate obligation under TLS -- ze runs no RTR TLS server and issues no server certificate (it is a plain-TCP client, internal/component/bgp/plugins/rpki/rtr_session.go:127)</td>
 </tr>
-<tr><td><a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a> rpki-rtr TLS implementations MUST NOT use CN-ID identifiers for authentication (Section 7.2)</td>
+<tr><td><a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a> rpki-rtr implementations that use TLS MUST NOT use CN-ID identifiers; a CN field may be present in the server certificate&#39;s subject name, but MUST NOT be used for authentication within the rules described in [RFC6125]. (Section 7.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it uses no certificate identifiers, CN-ID or otherwise</td>
 </tr>
@@ -1031,7 +1035,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: TCP-MD5 transport obligation -- ze implements no TCP-MD5 for RTR (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it holds no MD5 keys</td>
 </tr>
-<tr><td><a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a> TCP MD5 implementations MUST support hexadecimal sequences of at least 32 characters (Section 7.3)</td>
+<tr><td><a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a> Implementations MUST also support hexadecimal sequences of at least 32 characters, i.e., 128 bits. (Section 7.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: TCP-MD5 transport obligation -- ze implements no TCP-MD5 for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it parses no MD5 key material</td>
 </tr>
@@ -1083,8 +1087,8 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 </table>
 </div>
 <h3><a href="#rfc6810-5.1-1"><code>RFC6810-5.1-1</code></a></h3>
-<p>Max Length MUST NOT be less than Prefix Length (Section 5.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Max Length: An 8-bit unsigned integer denoting the longest prefix allowed by the prefix. This MUST NOT be less than the Prefix Length element. (Section 5.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a Prefix PDU whose Max Length is below its Prefix Length. TestParseIPv4PrefixMaxLenLessThanPrefixLen (prefix 24, max 16, otherwise valid) fails unless parseIPv4Prefix errors with &#34;invalid&#34;; the check sits in parsePrefixPDU, which the IPv6 parser shares. Positive: max 24 over prefix 8 yields a VRP with MaxLength 24.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1104,7 +1108,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 </div>
 <h3><a href="#rfc6810-5.1-3"><code>RFC6810-5.1-3</code></a></h3>
 <p>The value of such a field MUST be ignored on receipt. (Section 5.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The row covers every zero/reserved field of every PDU. TestRFC6810ReservedPrefixOctetsIgnored proves it for the IPv4 Prefix PDU only: an all-ones header zero field, reserved flag bits and zero octet still authorize the route, and clearing the announce bit withdraws it (so only reserved bits are ignored). No unit sends a nonzero reserved field in the other PDUs a router receives (Serial Notify, Cache Response, End of Data, Cache Reset, IPv6 Prefix), so a receiver that rejects those stays green. Same judgement as RFC8210-5-1.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1135,7 +1139,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-5.8-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a></h3>
-<p>If the Erroneous PDU field is empty, Length of Encapsulated PDU MUST be zero (Section 5.10)</p>
+<p>If the error is generic (e.g., &#34;Internal Error&#34;) and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (Section 5.10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-5.10-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-5.10-2"><code>RFC6810-5.10-2</code></a></h3>
@@ -1151,11 +1155,11 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-5.10-4, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a></h3>
-<p>Incoming data associated with new serial MUST NOT be sent until the fetch is complete (Section 2, Serial Number definition)</p>
+<p>As a cache is receiving, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a></h3>
-<p>If Session ID mismatch, MUST completely drop the session and flush all data learned from that cache (Section 5.1)</p>
+<p>If, at any time, either the router or the cache finds the value of the session identifier is not the same as the other&#39;s, they MUST completely drop the session and the router MUST flush all data learned from that cache. (Section 5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-5.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-4-1"><code>RFC6810-4-1</code></a></h3>
@@ -1164,7 +1168,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p>No test carries RFC6810-4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-6.1-1"><code>RFC6810-6.1-1</code></a></h3>
 <p>To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour. (Section 6.1, Section 6.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. {single-polarity: positive} carried on the row. TestRFC6810DefaultPollCadenceIsHourly asserts only that pollDelay(true) and pollDelay(false) return at most one hour on a fresh session. It does not drive Run, so a loop that ignored pollDelay and never re-queried would stay green, and nothing asserts that a v0 End of Data (which carries no timing parameters) leaves those intervals within the hour.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1183,7 +1187,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p>No test carries RFC6810-6.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-6.3-1"><code>RFC6810-6.3-1</code></a></h3>
 <p>If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache. (Section 6.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: after a Cache Reset with no more-preferred cache, not issuing a Reset Query or not taking a whole new load. TestCacheResetTriggersResetQuery calls handlePDU directly and asserts only that s.serial becomes 0 and the sync ends; no tagged unit observes the Reset Query on the wire or the old set replaced by a full load. The negative (Serial Notify keeps the serial) holds. Same judgement as RFC8210-8.3-1.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1203,7 +1207,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 </div>
 <h3><a href="#rfc6810-6.4-1"><code>RFC6810-6.4-1</code></a></h3>
 <p>If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache. (Section 6.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: stopping, or sending anything but a Reset Query, after No Data Available with no other cache. TestRFC6810NoDataAvailableRepeatsResetQuery runs one live cache that answers two queries with Error Report code 2 and asserts three consecutive received queries are pduResetQuery, each within 4s (t.Fatal on silence, assert.Equal on a Serial Query). Negative: once the cache supplies a load the route validates and the next query is pduSerialQuery, so the reset mode ends at the usable load.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1231,7 +1235,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p>No test carries RFC6810-4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7-1"><code>RFC6810-7-1</code></a></h3>
 <p>Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12. (Section 7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. {single-polarity: positive} carried on the row. TestParseRPKIConfigDefaults asserts only that a parsed cache-server with no port defaults to 323; no tagged unit drives an unprotected TCP RTR session from config to show ze implements the transport on that port. Same judgement as RFC8210-9-1.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1253,11 +1257,11 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-7-3, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a></h3>
-<p>Cache servers supporting SSH MUST accept RSA and DSA authentication (Section 7.1)</p>
+<p>Cache servers supporting SSH transport MUST accept RSA and Digital Signature Algorithm (DSA) authentication (Section 7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-7.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a></h3>
-<p>SSH user authentication MUST be supported (Section 7.1)</p>
+<p>User authentication MUST be supported (Section 7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-7.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-8-1"><code>RFC6810-8-1</code></a></h3>
@@ -1289,11 +1293,11 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-7.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a></h3>
-<p>TLS certificates MUST include subjectAltName extension with iPAddress identities (Section 7.2)</p>
+<p>Certificates used to authenticate client routers in this protocol MUST include a subjectAltName extension [RFC5280] containing one or more iPAddress identities (Section 7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-7.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a></h3>
-<p>Cache MUST check IP address of TLS connection against iPAddress identities (Section 7.2)</p>
+<p>when authenticating the router&#39;s certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities (Section 7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-7.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7.2-4"><code>RFC6810-7.2-4</code></a></h3>
@@ -1309,7 +1313,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-7.2-6, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a></h3>
-<p>rpki-rtr TLS implementations MUST NOT use CN-ID identifiers for authentication (Section 7.2)</p>
+<p>rpki-rtr implementations that use TLS MUST NOT use CN-ID identifiers; a CN field may be present in the server certificate&#39;s subject name, but MUST NOT be used for authentication within the rules described in [RFC6125]. (Section 7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-7.2-7, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7.2-8"><code>RFC6810-7.2-8</code></a></h3>
@@ -1321,7 +1325,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-7.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a></h3>
-<p>TCP MD5 implementations MUST support hexadecimal sequences of at least 32 characters (Section 7.3)</p>
+<p>Implementations MUST also support hexadecimal sequences of at least 32 characters, i.e., 128 bits. (Section 7.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-7.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7.4-1"><code>RFC6810-7.4-1</code></a></h3>
@@ -1643,7 +1647,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>RFC8210-5-1</td>
 <td>RFC 8210 Section 5 keeps the sentence and names the field, that reserved fields marked zero in the PDU diagrams MUST be zero on transmission</td>
 </tr>
-<tr><td><a href="#rfc6810-5.1-1"><code>RFC6810-5.1-1</code></a> Max Length MUST NOT be less than Prefix Length (Section 5.1)</td>
+<tr><td><a href="#rfc6810-5.1-1"><code>RFC6810-5.1-1</code></a> Max Length: An 8-bit unsigned integer denoting the longest prefix allowed by the prefix. This MUST NOT be less than the Prefix Length element. (Section 5.1)</td>
 <td>restated</td>
 <td>RFC8210-5.1-2</td>
 <td>RFC 8210 Section 5.1 keeps the rule for the IPv4 and IPv6 Prefix PDUs, that the Max Length must not be less than the Prefix Length</td>
@@ -1668,7 +1672,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>RFC8210-5.8-1</td>
 <td>RFC 8210 Section 5.8 keeps the Session ID rule and adds the Protocol Version to it, because version negotiation is new in version 1</td>
 </tr>
-<tr><td><a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a> If the Erroneous PDU field is empty, Length of Encapsulated PDU MUST be zero (Section 5.10)</td>
+<tr><td><a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a> If the error is generic (e.g., &#34;Internal Error&#34;) and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (Section 5.10)</td>
 <td>restated</td>
 <td>RFC8210-5.11-2</td>
 <td>the Error Report PDU moved from Section 5.10 to Section 5.11 when the Router Key PDU took 5.10, and the rule is kept, that a generic error leaves the Erroneous PDU field empty and the Length of Encapsulated PDU zero</td>
@@ -1688,12 +1692,12 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>RFC8210-5.11-4</td>
 <td>the Error Report PDU moved to Section 5.11 and keeps the rule that the Length of Error Text is zero when no diagnostic text is present</td>
 </tr>
-<tr><td><a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a> Incoming data associated with new serial MUST NOT be sent until the fetch is complete (Section 2, Serial Number definition)</td>
+<tr><td><a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a> As a cache is receiving, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete. (§2)</td>
 <td>unextracted</td>
 <td>§2</td>
 <td>RFC 8210 Section 2 keeps the Serial Number glossary entry word for word, that while a cache is receiving updates, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete. rfc/short/rfc8210.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a> If Session ID mismatch, MUST completely drop the session and flush all data learned from that cache (Section 5.1)</td>
+<tr><td><a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a> If, at any time, either the router or the cache finds the value of the session identifier is not the same as the other&#39;s, they MUST completely drop the session and the router MUST flush all data learned from that cache. (Section 5.1)</td>
 <td>restated</td>
 <td>RFC8210-5.1-4</td>
 <td>RFC 8210 Section 5.1 keeps the flush and splits the sentence in two, stating the immediate termination with an Error Report PDU of code 0 separately at RFC8210-5.1-3</td>
@@ -1748,12 +1752,12 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>RFC8210-9-3</td>
 <td>Section 9 keeps the obligation to use one of the more protected protocols when it is available to the operator</td>
 </tr>
-<tr><td><a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a> Cache servers supporting SSH MUST accept RSA and DSA authentication (Section 7.1)</td>
+<tr><td><a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a> Cache servers supporting SSH transport MUST accept RSA and Digital Signature Algorithm (DSA) authentication (Section 7.1)</td>
 <td>restated</td>
 <td>RFC8210-9.1-1</td>
 <td>RFC 8210 Section 9.1 keeps the obligation for RSA and REMOVES DSA. Where RFC 6810 required a cache server supporting SSH to accept RSA and DSA authentication, RFC 8210 requires RSA alone, and its only other keyword in that sentence is the SHOULD for ECDSA at RFC8210-9.1-3 which RFC 6810 also carried</td>
 </tr>
-<tr><td><a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a> SSH user authentication MUST be supported (Section 7.1)</td>
+<tr><td><a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a> User authentication MUST be supported (Section 7.1)</td>
 <td>restated</td>
 <td>RFC8210-9.1-2</td>
 <td>Section 9.1 keeps the obligation to support SSH user authentication</td>
@@ -1773,12 +1777,12 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>RFC8210-9.2-1</td>
 <td>the TLS transport moved to Section 9.2, which keeps the obligation on a client router to present client-side certificates</td>
 </tr>
-<tr><td><a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a> TLS certificates MUST include subjectAltName extension with iPAddress identities (Section 7.2)</td>
+<tr><td><a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a> Certificates used to authenticate client routers in this protocol MUST include a subjectAltName extension [RFC5280] containing one or more iPAddress identities (Section 7.2)</td>
 <td>restated</td>
 <td>RFC8210-9.2-2</td>
 <td>Section 9.2 keeps the obligation that a client router certificate include a subjectAltName extension carrying one or more iPAddress identities</td>
 </tr>
-<tr><td><a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a> Cache MUST check IP address of TLS connection against iPAddress identities (Section 7.2)</td>
+<tr><td><a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a> when authenticating the router&#39;s certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities (Section 7.2)</td>
 <td>restated</td>
 <td>RFC8210-9.2-3</td>
 <td>Section 9.2 keeps the obligation on the cache to check the IP address of the TLS connection against those iPAddress identities</td>
@@ -1798,7 +1802,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>RFC8210-9.2-6</td>
 <td>Section 9.2 keeps the obligation that the DNS-ID identifier type be present in rpki-rtr server certificates</td>
 </tr>
-<tr><td><a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a> rpki-rtr TLS implementations MUST NOT use CN-ID identifiers for authentication (Section 7.2)</td>
+<tr><td><a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a> rpki-rtr implementations that use TLS MUST NOT use CN-ID identifiers; a CN field may be present in the server certificate&#39;s subject name, but MUST NOT be used for authentication within the rules described in [RFC6125]. (Section 7.2)</td>
 <td>restated</td>
 <td>RFC8210-9.2-5</td>
 <td>Section 9.2 keeps the prohibition on CN-ID identifiers, and states its second half, that a CN field present in the subject name is not used for authentication, at RFC8210-9.2-10</td>
@@ -1813,7 +1817,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>RFC8210-9.3-1</td>
 <td>the TCP MD5 transport moved to Section 9.3, which keeps the key length of at least 80 printable ASCII bytes</td>
 </tr>
-<tr><td><a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a> TCP MD5 implementations MUST support hexadecimal sequences of at least 32 characters (Section 7.3)</td>
+<tr><td><a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a> Implementations MUST also support hexadecimal sequences of at least 32 characters, i.e., 128 bits. (Section 7.3)</td>
 <td>restated</td>
 <td>RFC8210-9.3-2</td>
 <td>Section 9.3 keeps the obligation to support hexadecimal sequences of at least 32 characters, that is 128 bits</td>
@@ -1838,12 +1842,12 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>RFC8210-9.4-3</td>
 <td>Section 9.4 keeps the obligation to support the cryptographic algorithms and associated parameters described in RFC 5926</td>
 </tr>
-<tr><td><a href="#rfc6810-6.2-2"><code>RFC6810-6.2-2</code></a> Cache SHOULD send a Notify PDU when its serial changes (Section 6.2)</td>
+<tr><td><a href="#rfc6810-6.2-2"><code>RFC6810-6.2-2</code></a> The cache server SHOULD send a notify PDU with its current Serial Number when the cache&#39;s serial changes (Section 6.2)</td>
 <td>restated</td>
 <td>RFC8210-8.2-2</td>
 <td>Section 8.2 keeps the SHOULD to send a Notify PDU carrying the current Serial Number when the cache&#39;s serial changes</td>
 </tr>
-<tr><td><a href="#rfc6810-5.6-2"><code>RFC6810-5.6-2</code></a> Router receiving a duplicate announcement SHOULD raise Duplicate Announcement Received error (Section 5.6)</td>
+<tr><td><a href="#rfc6810-5.6-2"><code>RFC6810-5.6-2</code></a> Should the router client receive an IPvX PDU with a {Prefix, Len, Max-Len, ASN} identical to one it already has active, it SHOULD raise a Duplicate Announcement Received error. (Section 5.6)</td>
 <td>restated</td>
 <td>RFC8210-5.6-2</td>
 <td>RFC 8210 Section 5.6 keeps the SHOULD to raise a Duplicate Announcement Received error, and Section 5.10 extends it to the new Router Key PDU</td>
@@ -1853,52 +1857,52 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>RFC8210-9-5</td>
 <td>Section 9 keeps the SHOULD for TCP-AO alone and demotes the rest of the list to MAY, at RFC8210-9-6, adding TLS to it. RFC 6810 wrote one SHOULD over TCP-AO, SSHv2, TCP MD5 and IPsec</td>
 </tr>
-<tr><td><a href="#rfc6810-7-5"><code>RFC6810-7-5</code></a> Both caches and routers SHOULD enable transport keep-alives (Section 7)</td>
+<tr><td><a href="#rfc6810-7-5"><code>RFC6810-7-5</code></a> To reduce exposure to dropped but non-terminated sessions, both caches and routers SHOULD enable keep-alives when available in the chosen transport protocol. (Section 7)</td>
 <td>restated</td>
 <td>RFC8210-9-4</td>
 <td>Section 9 keeps the SHOULD to enable keep-alives when they are available in the chosen transport protocol</td>
 </tr>
-<tr><td><a href="#rfc6810-6.3-2"><code>RFC6810-6.3-2</code></a> Router SHOULD attempt more preferred caches on Cache Reset (Section 6.3)</td>
+<tr><td><a href="#rfc6810-6.3-2"><code>RFC6810-6.3-2</code></a> Regardless of how this state arose, the cache replies with a Cache Reset to tell the router that it cannot honor the request. When a router receives this, the router SHOULD attempt to connect to any more preferred caches in its cache list. (Section 6.3)</td>
 <td>restated</td>
 <td>RFC8210-8.3-2</td>
 <td>Section 8.3 keeps the SHOULD to attempt a more-preferred cache on a Cache Reset</td>
 </tr>
-<tr><td><a href="#rfc6810-6.4-2"><code>RFC6810-6.4-2</code></a> Router SHOULD attempt other caches on No Data Available (Section 6.4)</td>
+<tr><td><a href="#rfc6810-6.4-2"><code>RFC6810-6.4-2</code></a> When a router receives this kind of error, the router SHOULD attempt to connect to any other caches in its cache list, in preference order. (Section 6.4)</td>
 <td>restated</td>
 <td>RFC8210-8.4-2</td>
 <td>Section 8.4 keeps the SHOULD to attempt other caches in preference order on No Data Available</td>
 </tr>
-<tr><td><a href="#rfc6810-8-3"><code>RFC6810-8-3</code></a> Client SHOULD retain data from previous cache during switchover (Section 8)</td>
+<tr><td><a href="#rfc6810-8-3"><code>RFC6810-8-3</code></a> If a client loses connectivity to a cache it is using, or otherwise decides to switch to a new cache, it SHOULD retain the data from the previous cache until it has a full set of data from one or more other caches. (Section 8)</td>
 <td>restated</td>
 <td>RFC8210-10-4</td>
 <td>Section 10 keeps the SHOULD to retain the previous cache&#39;s data until a full set of data is held from one or more other caches</td>
 </tr>
-<tr><td><a href="#rfc6810-8-4"><code>RFC6810-8-4</code></a> Client SHOULD delete data from unreachable cache after 2x polling period (Section 8)</td>
+<tr><td><a href="#rfc6810-8-4"><code>RFC6810-8-4</code></a> A client SHOULD delete the data from a cache when it has been unable to refresh from that cache for a configurable timer value. The default for that value is twice the polling period for that cache. (Section 8)</td>
 <td>restated</td>
 <td>RFC8210-6-2</td>
 <td>RFC 8210 replaces the locally configured timer, whose default was twice the polling period, with the Expire Interval the cache sends in the End Of Data PDU, and RAISES the rule from a SHOULD to delete to a MUST NOT retain. Section 10 now defers to Section 6 for what to do when the client cannot refresh from a cache</td>
 </tr>
-<tr><td><a href="#rfc6810-11-1"><code>RFC6810-11-1</code></a> Cache SHOULD be topologically close to router (Section 11)</td>
+<tr><td><a href="#rfc6810-11-1"><code>RFC6810-11-1</code></a> It also SHOULD be topologically close so that a minimum of validated routing data are needed to bootstrap a router&#39;s access to a cache. (Section 11)</td>
 <td>unextracted</td>
 <td>§13</td>
 <td>the Security Considerations moved from Section 11 to Section 13, which keeps both SHOULDs word for word, that the cache really SHOULD be as close as possible in the sense of controlled and protected transport, and SHOULD be topologically close. rfc/short/rfc8210.md declares no row for either</td>
 </tr>
-<tr><td><a href="#rfc6810-5.10-5"><code>RFC6810-5.10-5</code></a> If erroneous Error Report PDU received, session SHOULD be dropped (Section 5.10)</td>
+<tr><td><a href="#rfc6810-5.10-5"><code>RFC6810-5.10-5</code></a> If an erroneous Error Report PDU is received, the session SHOULD be dropped. (Section 5.10)</td>
 <td>restated</td>
 <td>RFC8210-5.11-5</td>
 <td>the Error Report PDU moved to Section 5.11 and keeps the SHOULD to drop the session on an erroneous Error Report PDU</td>
 </tr>
-<tr><td><a href="#rfc6810-7.1-3"><code>RFC6810-7.1-3</code></a> Cache servers supporting SSH SHOULD accept ECDSA authentication (Section 7.1)</td>
+<tr><td><a href="#rfc6810-7.1-3"><code>RFC6810-7.1-3</code></a> Cache servers supporting SSH transport MUST accept RSA and Digital Signature Algorithm (DSA) authentication and SHOULD accept Elliptic Curve Digital Signature Algorithm (ECDSA) authentication. (Section 7.1)</td>
 <td>restated</td>
 <td>RFC8210-9.1-3</td>
 <td>Section 9.1 keeps the SHOULD to accept ECDSA authentication</td>
 </tr>
-<tr><td><a href="#rfc6810-7.1-4"><code>RFC6810-7.1-4</code></a> Client routers SHOULD verify the public key of the cache to avoid MITM attacks (Section 7.1)</td>
+<tr><td><a href="#rfc6810-7.1-4"><code>RFC6810-7.1-4</code></a> Client routers SHOULD verify the public key of the cache to avoid monkey-in-the-middle attacks. (Section 7.1)</td>
 <td>restated</td>
 <td>RFC8210-9.1-4</td>
 <td>Section 9.1 keeps the SHOULD for the client router to verify the public key of the cache against a monkey-in-the-middle attack</td>
 </tr>
-<tr><td><a href="#rfc6810-7.2-9"><code>RFC6810-7.2-9</code></a> TLS cache SHOULD reject connections if no iPAddress identities match (Section 7.2)</td>
+<tr><td><a href="#rfc6810-7.2-9"><code>RFC6810-7.2-9</code></a> when authenticating the router&#39;s certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities and SHOULD reject the connection if none of the iPAddress identities match the connection. (Section 7.2)</td>
 <td>unextracted</td>
 <td>§9.2</td>
 <td>RFC 8210 Section 9.2 keeps the clause word for word, that the cache SHOULD reject the connection if none of the iPAddress identities match the connection. rfc/short/rfc8210.md declares a row for the MUST check that precedes it, RFC8210-9.2-3, and none for this SHOULD</td>
@@ -1908,17 +1912,17 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>RFC8210-9.2-7</td>
 <td>Section 9.2 keeps the SHOULD NOT on the wildcard character in a DNS name in an rpki-rtr server certificate</td>
 </tr>
-<tr><td><a href="#rfc6810-7-6"><code>RFC6810-7-6</code></a> Operators SHOULD use procedural means (e.g., ACLs) to reduce exposure to authentication issues when using unprotected TCP (Section 7)</td>
+<tr><td><a href="#rfc6810-7-6"><code>RFC6810-7-6</code></a> Operators SHOULD use procedural means, e.g., access control lists (ACLs), to reduce the exposure to authentication issues. (Section 7)</td>
 <td>unextracted</td>
 <td>§9</td>
 <td>RFC 8210 Section 9 keeps the sentence word for word, that operators SHOULD use procedural means, for example access control lists, to reduce the exposure to authentication issues. rfc/short/rfc8210.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc6810-7.3-3"><code>RFC6810-7.3-3</code></a> Cache servers SHOULD support RFC 4808 for TCP MD5 key rollover (Section 7.3)</td>
+<tr><td><a href="#rfc6810-7.3-3"><code>RFC6810-7.3-3</code></a> Key rollover with TCP MD5 is problematic. Cache servers SHOULD support [RFC4808]. (Section 7.3)</td>
 <td>restated</td>
 <td>RFC8210-9.3-3</td>
 <td>Section 9.3 keeps the SHOULD for a cache server to support RFC 4808, because key rollover with TCP MD5 stays problematic</td>
 </tr>
-<tr><td><a href="#rfc6810-8-5"><code>RFC6810-8-5</code></a> The client SHOULD attempt to maintain at least one set of data regardless of cache changes (Section 8)</td>
+<tr><td><a href="#rfc6810-8-5"><code>RFC6810-8-5</code></a> The client SHOULD attempt to maintain at least one set of data, regardless of whether it has chosen a different cache or established a new connection to the previous cache. (Section 8)</td>
 <td>restated</td>
 <td>RFC8210-10-3</td>
 <td>Section 10 keeps the SHOULD to maintain at least one set of data regardless of a cache change or a new connection</td>
@@ -1928,52 +1932,52 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>RFC8210-11-1</td>
 <td>the Security Considerations moved to Section 13, which keeps the sentence word for word, that the identity of the cache server SHOULD be verified and authenticated by the router client and vice versa before any data are exchanged. The rfc/short/rfc8210.md row cites §11, which is that summary&#39;s own error and not a change in the document</td>
 </tr>
-<tr><td><a href="#rfc6810-11-3"><code>RFC6810-11-3</code></a> Protocols that provide integrity and authenticity SHOULD be used for cache-router transport (Section 11)</td>
+<tr><td><a href="#rfc6810-11-3"><code>RFC6810-11-3</code></a> Protocols that provide integrity and authenticity SHOULD be used (Section 11)</td>
 <td>unextracted</td>
 <td>§13</td>
 <td>the Security Considerations moved to Section 13, which keeps the sentence word for word, that protocols which provide integrity and authenticity SHOULD be used, and that if they cannot be, the router and cache MUST be on the same trusted controlled network. rfc/short/rfc8210.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc6810-10-1"><code>RFC6810-10-1</code></a> Fatal errors SHOULD cause the session to be dropped (Section 10)</td>
+<tr><td><a href="#rfc6810-10-1"><code>RFC6810-10-1</code></a> Errors that are considered fatal SHOULD cause the session to be dropped. (Section 10)</td>
 <td>restated</td>
 <td>RFC8210-12-1</td>
 <td>the error codes moved from Section 10 to Section 12, and RFC 8210 RAISES the rule, from errors considered fatal SHOULD cause the session to be dropped to MUST cause the session to be dropped</td>
 </tr>
-<tr><td><a href="#rfc6810-6.1-2"><code>RFC6810-6.1-2</code></a> Router MAY start with Serial Query if it has unexpired data from a previous session (Section 6.1)</td>
+<tr><td><a href="#rfc6810-6.1-2"><code>RFC6810-6.1-2</code></a> Alternatively, if the router has significant unexpired data from a broken session with the same cache, it MAY start with a Serial Query containing the Session ID from the previous session to ensure the Serial Numbers are commensurate. (Section 6.1)</td>
 <td>restated</td>
 <td>RFC8210-8.1-2</td>
 <td>RFC 8210 Section 8.1 turns the pair of permissions into one obligation, that on a new transport connection the router MUST send either a Reset Query or a Serial Query, and keeps the unexpired-data condition as indicative prose, adding that the router MUST fall back to a Reset Query in all other cases</td>
 </tr>
-<tr><td><a href="#rfc6810-5.10-6"><code>RFC6810-5.10-6</code></a> Truncated Erroneous PDU MAY be included for oversized PDUs (Section 5.10)</td>
+<tr><td><a href="#rfc6810-5.10-6"><code>RFC6810-5.10-6</code></a> If the error is associated with a PDU of excessive length, i.e., too long to be any legal PDU other than another Error Report, or a possibly corrupt length, the Erroneous PDU field MAY be truncated. (Section 5.10)</td>
 <td>restated</td>
 <td>RFC8210-5.11-6</td>
 <td>the Error Report PDU moved to Section 5.11 and keeps the permission to truncate the Erroneous PDU field for an excessively long PDU</td>
 </tr>
-<tr><td><a href="#rfc6810-5-2"><code>RFC6810-5-2</code></a> Fields with unspecified content MAY be ignored on receipt (Section 5)</td>
+<tr><td><a href="#rfc6810-5-2"><code>RFC6810-5-2</code></a> Fields with unspecified content MUST be zero on transmission and MAY be ignored on receipt. (Section 5)</td>
 <td>restated</td>
 <td>RFC8210-5-1</td>
 <td>RFC 8210 Section 5 states both halves in one sentence and RAISES this one, from MAY be ignored on receipt to MUST be ignored on receipt</td>
 </tr>
-<tr><td><a href="#rfc6810-7-7"><code>RFC6810-7-7</code></a> Routers MAY use SSHv2, TCP MD5, IPsec, or TLS transport (Section 7)</td>
+<tr><td><a href="#rfc6810-7-7"><code>RFC6810-7-7</code></a> Caches and routers MAY use SSHv2 transport [RFC4252] using a the normal SSH port. For an example, see Section 7.1. Caches and routers MAY use TCP MD5 transport [RFC2385] using the rpki-rtr port. Note that TCP MD5 has been obsoleted by TCP-AO [RFC5925]. Caches and routers MAY use IPsec transport [RFC4301] using the rpki- rtr port. Caches and routers MAY use TLS transport [RFC5246] using a port, rpki-rtr-tls (324); see Section 12. (Section 7)</td>
 <td>restated</td>
 <td>RFC8210-9-6</td>
 <td>Section 9 keeps the permission and adds TLS on port rpki-rtr-tls 324 to the list</td>
 </tr>
-<tr><td><a href="#rfc6810-7.1-5"><code>RFC6810-7.1-5</code></a> SSH host authentication MAY be supported (Section 7.1)</td>
+<tr><td><a href="#rfc6810-7.1-5"><code>RFC6810-7.1-5</code></a> host authentication MAY be supported (Section 7.1)</td>
 <td>unextracted</td>
 <td>§9.1</td>
 <td>RFC 8210 Section 9.1 keeps the sentence word for word, that host authentication MAY be supported. rfc/short/rfc8210.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc6810-7.1-6"><code>RFC6810-7.1-6</code></a> SSH implementations MAY support password authentication (Section 7.1)</td>
+<tr><td><a href="#rfc6810-7.1-6"><code>RFC6810-7.1-6</code></a> Implementations MAY support password authentication. (Section 7.1)</td>
 <td>unextracted</td>
 <td>§9.1</td>
 <td>RFC 8210 Section 9.1 keeps the sentence word for word, that implementations MAY support password authentication. rfc/short/rfc8210.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc6810-8-6"><code>RFC6810-8-6</code></a> A client MAY drop the data from a particular cache when it is fully in sync with other caches (Section 8)</td>
+<tr><td><a href="#rfc6810-8-6"><code>RFC6810-8-6</code></a> A client MAY drop the data from a particular cache when it is fully in sync with one or more other caches. (Section 8)</td>
 <td>unextracted</td>
 <td>§10</td>
 <td>RFC 8210 Section 10 keeps the sentence word for word, that a client MAY drop the data from a particular cache when it is fully in sync with one or more other caches. rfc/short/rfc8210.md declares no row for it</td>
 </tr>
-<tr><td><a href="#rfc6810-3-2"><code>RFC6810-3-2</code></a> There MAY be mechanisms for the router to assure authenticity of the cache (Section 3)</td>
+<tr><td><a href="#rfc6810-3-2"><code>RFC6810-3-2</code></a> There MAY be mechanisms for the router to assure itself of the authenticity of the cache and to authenticate itself to the cache. (Section 3)</td>
 <td>unextracted</td>
 <td>§3</td>
 <td>RFC 8210 Section 3 keeps the sentence word for word, that there MAY be mechanisms for the router to assure itself of the authenticity of the cache and to authenticate itself to the cache. rfc/short/rfc8210.md declares no row for it</td>
@@ -2011,7 +2015,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

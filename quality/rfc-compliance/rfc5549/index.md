@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 5 | of 6 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
 The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -56,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 6 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 17 |
 | Tagged units | 17 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 5 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc5549.md` |
 | Requirement shard | `rfc/requirements/rfc5549.md` |
@@ -107,10 +116,10 @@ Main public claim uses RFC 8950.
 | `RFC5549-4-3` | o The Capability Code field MUST be set to 5 (which indicates the Extended Next Hop Encoding capability). (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestCapabilityCodeConstants`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L17). **positive:** `unit/verify` [`TestExtendedNextHopCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L544). **positive:** `unit/verify` [`TestExtendedNextHopRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L577). **negative:** no negative test. **{single-polarity}:** the Extended Next Hop Encoding capability code is the fixed constant CodeExtendedNextHop = 5 (internal/core/bgp/capability/capability.go:70); Code() returns it (capability.go:640) and WriteTo emits it (capability.go:646). The code has no alternate-value code path, so there is no wrong-code case to reject as a negative |
 | `RFC5549-3-1` | The BGP speaker receiving the advertisement MUST use the Length of Next Hop Address field to determine which network-layer protocol the next hop address belongs to (§3) | MUST | 3 | **positive:** `unit/verify` [`TestParseMPReachNLRI_ExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L342). **positive:** `unit/verify` [`TestParseMPReachNLRI_ExtendedNextHop_DualStack`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L446). **positive:** `unit/verify` [`TestParseMPReachNLRI_ExtendedNextHop_VPN`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L400). **negative:** `unit/verify` [`TestParseMPReachNLRI_InvalidNextHopLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L493) |
 | `RFC5549-5-1` | When a next hop address needs to be passed along unchanged (e.g., as a Route Reflector (RR) would do), its encoding MUST NOT be changed. (§5) | MUST NOT | 5 - Operations | **positive:** `unit/verify` [`TestReactorForwardRRPreservesExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L237). **negative:** no negative test. **{single-polarity}:** on the reflection path ze rewrites the next-hop only under an explicit next-hop-self/explicit override (nhMode != nhModeNone); the default nhModeNone leaves the next-hop untouched (internal/component/bgp/reactor/peer_forward_facts.go:226) and the MP re-encode changes an attribute only when the NLRI framing differs between encoding contexts (internal/component/bgp/reactor/forward_body.go:217), so a reflected next-hop is carried verbatim and there is no ze code path that rewrites an unchanged-passthrough next-hop to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRPreservesExtendedNextHop |
-| `RFC5549-4-4` | MUST NOT send IPv6 Next Hop for IPv4 NLRI to peers that have not advertised Extended Next Hop Encoding capability (§4, Compatibility) | MUST NOT | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1154). **negative:** `unit/verify` [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1185). **negative:** `unit/verify` [`TestCanUseNextHopFor_NilSendCtx`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1206) |
-| `RFC5549-5-2` | By default, if a BGP session is running over IPvx, the next hop address SHOULD be specified as an IPvx address (§5) | SHOULD | 5 - Operations | **positive:** no positive test. **negative:** no negative test |
-| `RFC5549-4-5` | The Extended Next Hop Encoding capability MAY be dynamically updated through the Dynamic Capability capability (§4) | MAY | 4 - Use of BGP Capability Advertisement | **positive:** no positive test. **negative:** no negative test |
-| `RFC5549-5-3` | The default next-hop-address-family behavior may be overridden by policy (§5) | MAY | 5 - Operations | **positive:** no positive test. **negative:** no negative test |
+| `RFC5549-4-4` | A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1154). **negative:** `unit/verify` [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1185). **negative:** `unit/verify` [`TestCanUseNextHopFor_NilSendCtx`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1206) |
+| `RFC5549-5-2` | By default, if a particular BGP session is running over IPvx (where IPvx is IPv4 or IPv6), and if the BGP speaker sending an update is putting its own address in as the next hop, then the next hop address SHOULD be specified as an IPvx address, using the encoding rules specified in the AFI/SAFI definition of the NLRI being updated. (§5) | SHOULD | 5 - Operations | **positive:** no positive test. **negative:** no negative test |
+| `RFC5549-4-5` | The Extended Next Hop Encoding capability MAY be dynamically updated through the use of the Dynamic Capability capability and associated mechanisms defined in [DYN-CAP]. (§4) | MAY | 4 - Use of BGP Capability Advertisement | **positive:** no positive test. **negative:** no negative test |
+| `RFC5549-5-3` | This default behavior may be overridden by policy. (§5) | MAY | 5 - Operations | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -124,7 +133,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair. Forbidden: sending an IPv6 next hop for IPv4 NLRI to a peer that did not advertise the tuple; red on it: require.False in TestCanUseNextHopFor_CrossFamilyNoCap and the absent-tuple assert in TestNegotiateExtendedNextHopMismatch. Unproven clauses: VPN-IPv4 NLRI (no unit drives SAFI 128), and the per-pair clause (no unit shows a tuple negotiated for IPv4/unicast does not license VPN-IPv4 or the reverse). The units test the canUseNextHopFor helper, not the UPDATE build path.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -137,7 +146,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A BGP speaker that wishes to advertise to a BGP peer an IPv6 Next Hop for IPv4 NLRI or for VPN-IPv4 NLRI as per this specification MUST use the Capability Advertisement procedures defined in [RFC5492] with the Extended Next Hop Encoding Capability to establish whether its peer supports this for the NLRI AFI/SAFI pair(s) of interest. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: MUST use RFC 5492 Capability Advertisement with the Extended Next Hop Encoding capability to establish whether the peer supports this for the NLRI AFI/SAFI pair(s). The 4-2-tagged units (TestExtendedNextHopCapability, TestExtendedNextHopRoundTrip) prove only the capability TLV encodes and parses. The clause 'to establish whether its peer supports this' (support decided from the peer's advertised capability) has no 4-2-tagged assertion; the negotiation units that would prove it carry only 4-1 and RFC8950 tags.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -148,7 +157,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 o The Capability Code field MUST be set to 5 (which indicates the Extended Next Hop Encoding capability). (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Capability Code other than 5 for Extended Next Hop Encoding. Red on it: TestCapabilityCodeConstants asserts uint8(CodeExtendedNextHop)==5, and TestExtendedNextHopCapability requires a raw code-0x05 TLV to parse as *ExtendedNextHop (require.True on the type assertion). Single-polarity marker on the row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -173,7 +182,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 When a next hop address needs to be passed along unchanged (e.g., as a Route Reflector (RR) would do), its encoding MUST NOT be changed. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a route reflector changing the encoding of a next hop it passes along unchanged. Red on it: require.Equal(mpReach, attrs[14]) and the next-hop byte compare in TestReactorForwardRRPreservesExtendedNextHop, which reflects a 16-byte IPv6 next hop for IPv4 NLRI through the reactor forward path. Single-polarity marker on the row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -181,9 +190,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5549-4-4`](#rfc5549-4-4)
 
-MUST NOT send IPv6 Next Hop for IPv4 NLRI to peers that have not advertised Extended Next Hop Encoding capability (§4, Compatibility)
+A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Same sentence as RFC5549-4-1 (MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair). Red on the IPv4/unicast case: require.False in TestCanUseNextHopFor_CrossFamilyNoCap and TestCanUseNextHopFor_NilSendCtx. Unproven: VPN-IPv4 NLRI and the per-pair clause, and only the canUseNextHopFor helper is driven. The tag prose still calls the row 'the MUST NOT', which the quoted sentence no longer says.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -243,7 +252,7 @@ RFC 5549 is obsoleted by RFC 8950.
 | [`RFC5549-4-3`](#rfc5549-4-3) o The Capability Code field MUST be set to 5 (which indicates the Extended Next Hop Encoding capability). (§4) | restated | RFC8950-4-3 | RFC 8950 Section 4 keeps Capability Code 5, and its Section 7 records that IANA moved the registration of that code point to RFC 8950 |
 | [`RFC5549-3-1`](#rfc5549-3-1) The BGP speaker receiving the advertisement MUST use the Length of Next Hop Address field to determine which network-layer protocol the next hop address belongs to (§3) | restated | RFC8950-3-1 | RFC 8950 Section 3 keeps the Length of Next Hop Address field as the field that tells a receiver which network-layer protocol the next-hop address belongs to |
 | [`RFC5549-5-1`](#rfc5549-5-1) When a next hop address needs to be passed along unchanged (e.g., as a Route Reflector (RR) would do), its encoding MUST NOT be changed. (§5) | restated | RFC8950-5-1 | RFC 8950 Section 5 keeps the sentence unchanged, that an encoding passed along unchanged MUST NOT be changed |
-| [`RFC5549-4-4`](#rfc5549-4-4) MUST NOT send IPv6 Next Hop for IPv4 NLRI to peers that have not advertised Extended Next Hop Encoding capability (§4, Compatibility) | restated | RFC8950-4-1 | this is the negative spelling of the Section 4 sentence RFC5549-4-1 states positively, and RFC 8950 states it once, positively, as RFC8950-4-1. RFC 5549 has no section named Compatibility, so the cite on this line names a section the document does not contain |
-| [`RFC5549-5-2`](#rfc5549-5-2) By default, if a BGP session is running over IPvx, the next hop address SHOULD be specified as an IPvx address (§5) | restated | RFC8950-5-2 | RFC 8950 Section 5 keeps the default that a speaker putting its own address in as the next hop over an IPvx session SHOULD use an IPvx address |
-| [`RFC5549-4-5`](#rfc5549-4-5) The Extended Next Hop Encoding capability MAY be dynamically updated through the Dynamic Capability capability (§4) | dropped | not stated | RFC 8950 states no dynamic-capability permission. RFC 5549 Section 4 ends with a MAY to update the Extended Next Hop Encoding capability through the Dynamic Capability capability of the expired draft-ietf-idr-dynamic-cap, and RFC 8950 Section 4 ends instead with the paragraph that the capability does not influence whether an AFI/SAFI is allowed. The permission is gone, so no successor obligation exists to point at |
-| [`RFC5549-5-3`](#rfc5549-5-3) The default next-hop-address-family behavior may be overridden by policy (§5) | restated | RFC8950-5-3 | RFC 8950 Section 5 keeps the sentence that the default next-hop address family behavior may be overridden by policy |
+| [`RFC5549-4-4`](#rfc5549-4-4) A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4) | restated | RFC8950-4-1 | this is the negative spelling of the Section 4 sentence RFC5549-4-1 states positively, and RFC 8950 states it once, positively, as RFC8950-4-1. RFC 5549 has no section named Compatibility, so the cite on this line names a section the document does not contain |
+| [`RFC5549-5-2`](#rfc5549-5-2) By default, if a particular BGP session is running over IPvx (where IPvx is IPv4 or IPv6), and if the BGP speaker sending an update is putting its own address in as the next hop, then the next hop address SHOULD be specified as an IPvx address, using the encoding rules specified in the AFI/SAFI definition of the NLRI being updated. (§5) | restated | RFC8950-5-2 | RFC 8950 Section 5 keeps the default that a speaker putting its own address in as the next hop over an IPvx session SHOULD use an IPvx address |
+| [`RFC5549-4-5`](#rfc5549-4-5) The Extended Next Hop Encoding capability MAY be dynamically updated through the use of the Dynamic Capability capability and associated mechanisms defined in [DYN-CAP]. (§4) | dropped | not stated | RFC 8950 states no dynamic-capability permission. RFC 5549 Section 4 ends with a MAY to update the Extended Next Hop Encoding capability through the Dynamic Capability capability of the expired draft-ietf-idr-dynamic-cap, and RFC 8950 Section 4 ends instead with the paragraph that the capability does not influence whether an AFI/SAFI is allowed. The permission is gone, so no successor obligation exists to point at |
+| [`RFC5549-5-3`](#rfc5549-5-3) This default behavior may be overridden by policy. (§5) | restated | RFC8950-5-3 | RFC 8950 Section 5 keeps the sentence that the default next-hop address family behavior may be overridden by policy |

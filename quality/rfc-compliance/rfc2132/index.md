@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 2.9% | 1 of 34 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 8 | of 34 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 34 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 34 |
 | Not applicable, so out of scope | 25 |
 | Declared gaps | 1 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 8 |
 | Tagged units | 8 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 8 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc2132.md` |
 | Requirement shard | `rfc/requirements/rfc2132.md` |
@@ -119,64 +121,64 @@ One MUST gap, tracked in [`rfc/short/rfc2132.md`](https://github.com/ze-software
 | `RFC2132-3.11-1` | The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§3.11) | MUST | 3.11 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the LPR Server option (code 9), so this sender length constraint binds no ze code path |
 | `RFC2132-3.12-1` | The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§3.12) | MUST | 3.12 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Impress Server option (code 10), so this sender length constraint binds no ze code path |
 | `RFC2132-3.13-1` | The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§3.13) | MUST | 3.13 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Resource Location Server option (code 11), so this sender length constraint binds no ze code path |
-| `RFC2132-8.2-1` | NIS servers option length MUST be a multiple of 4 (§8.2) | MUST | 8.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NIS Servers option (code 41), so this sender length constraint binds no ze code path |
-| `RFC2132-8.3-1` | NTP servers option length MUST be a multiple of 4 (§8.3) | MUST | 8.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NTP Servers option (code 42), so this sender length constraint binds no ze code path |
+| `RFC2132-8.2-1` | Its minimum length is 4, and the length MUST be a multiple of 4. (§8.2) | MUST | 8.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NIS Servers option (code 41), so this sender length constraint binds no ze code path |
+| `RFC2132-8.3-1` | Its minimum length is 4, and the length MUST be a multiple of 4. (§8.3) | MUST | 8.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NTP Servers option (code 42), so this sender length constraint binds no ze code path |
 | `RFC2132-8.9-1` | The minimum length of this option is 4 octets, and the length MUST be a multiple of 4. (§8.9) | MUST | 8.9 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the X Window Font Server option (code 48), so this sender length constraint binds no ze code path |
 | `RFC2132-8.10-1` | The minimum length of this option is 4, and the length MUST be a multiple of 4. (§8.10) | MUST | 8.10 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the X Window Display Manager option (code 49), so this sender length constraint binds no ze code path |
-| `RFC2132-8.12-1` | NIS+ Servers option length MUST be a multiple of 4 (§8.12) | MUST | 8.12 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NIS+ Servers option (code 65), so this sender length constraint binds no ze code path |
+| `RFC2132-8.12-1` | Its minimum length is 4, and the length MUST be a multiple of 4. (§8.12) | MUST | 8.12 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NIS+ Servers option (code 65), so this sender length constraint binds no ze code path |
 | `RFC2132-8.13-1` | Its minimum length is 0 (indicating no home agents are available) and the length MUST be a multiple of 4. (§8.13) | MUST | 8.13 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Mobile IP Home Agent option (code 68), so this sender length constraint binds no ze code path |
 | `RFC2132-8.14-1` | The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.14) | MUST | 8.14 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the SMTP Server option (code 69), so this sender length constraint binds no ze code path |
-| `RFC2132-8.15-1` | POP3 server option length MUST always be a multiple of 4 (§8.15) | MUST | 8.15 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the POP3 Server option (code 70), so this sender length constraint binds no ze code path |
+| `RFC2132-8.15-1` | The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.15) | MUST | 8.15 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the POP3 Server option (code 70), so this sender length constraint binds no ze code path |
 | `RFC2132-8.16-1` | The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.16) | MUST | 8.16 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NNTP Server option (code 71), so this sender length constraint binds no ze code path |
 | `RFC2132-8.17-1` | The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.17) | MUST | 8.17 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the WWW Server option (code 72), so this sender length constraint binds no ze code path |
 | `RFC2132-8.18-1` | The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.18) | MUST | 8.18 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Finger Server option (code 73), so this sender length constraint binds no ze code path |
 | `RFC2132-8.19-1` | The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.19) | MUST | 8.19 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the IRC Server option (code 74), so this sender length constraint binds no ze code path |
 | `RFC2132-8.20-1` | The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.20) | MUST | 8.20 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the StreetTalk Server option (code 75), so this sender length constraint binds no ze code path |
 | `RFC2132-8.21-1` | The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.21) | MUST | 8.21 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the STDA Server option (code 76), so this sender length constraint binds no ze code path |
-| `RFC2132-4.7-1` | Path MTU plateau table option length MUST be a multiple of 2 (§4.7) | MUST | 4.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Path MTU Plateau Table option (code 25), so this sender length constraint binds no ze code path |
+| `RFC2132-4.7-1` | Its minimum length is 2, and the length MUST be a multiple of 2. (§4.7) | MUST | 4.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Path MTU Plateau Table option (code 25), so this sender length constraint binds no ze code path |
 | `RFC2132-4.3-1` | The minimum length of this option is 8, and the length MUST be a multiple of 8. (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Policy Filter option (code 21), so this sender length constraint binds no ze code path |
 | `RFC2132-5.8-1` | The minimum length of this option is 8, and the length MUST be a multiple of 8. (§5.8) | MUST | 5.8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Static Route option (code 33), so this sender length constraint binds no ze code path |
 | `RFC2132-2-1` | Any options defined subsequent to this document MUST contain a length octet even if the length is fixed or zero. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestEveryEmittedOptionHasLengthOctet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1413). **negative:** no negative test. **{single-polarity}:** every option ze emits goes through safeAppendOption, which always writes a length octet (internal/plugins/dhcpserver/handler.go:361-363); only the exempt Pad/End markers are written without one, so ze emits no length-octet-less option to test negatively |
-| `RFC2132-2-2` | Receiver MUST be prepared to delete trailing nulls from ASCII options (§2) | MUST | 2 | **positive:** `unit/verify` [`TestASCIIOptionParsingTolerantOfTrailingNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1452). **negative:** no negative test. **{single-polarity}:** ze reads ASCII-carrying options 60 and 77 only by fixed-prefix match (isPXEClient internal/plugins/dhcpserver/handler.go:493, isIPXE handler.go:498), so a trailing NUL never corrupts interpretation; no ze receive path rejects or mishandles ASCII option data because of a trailing NUL, so there is no negative case |
+| `RFC2132-2-2` | the receiver of such options MUST be prepared to delete trailing nulls if they exist. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestASCIIOptionParsingTolerantOfTrailingNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1452). **negative:** no negative test. **{single-polarity}:** ze reads ASCII-carrying options 60 and 77 only by fixed-prefix match (isPXEClient internal/plugins/dhcpserver/handler.go:493, isIPXE handler.go:498), so a trailing NUL never corrupts interpretation; no ze receive path rejects or mishandles ASCII option data because of a trailing NUL, so there is no negative case |
 | `RFC2132-2-3` | The receiver MUST NOT require that a trailing null be included in the data. (§2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestASCIIOptionParsingTolerantOfTrailingNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1444). **negative:** no negative test. **{single-polarity}:** ze's ASCII-option receiver prefix-matches options 60 and 77 (isPXEClient internal/plugins/dhcpserver/handler.go:493, isIPXE handler.go:498) and so never requires a trailing NUL; option data without one is accepted, and there is no ze path that demands a trailing NUL to test negatively |
 | `RFC2132-8.4-1` | Servers not equipped to interpret the vendor-specific information sent by a client MUST ignore it (although it may be reported). (§8.4) | MUST | 8.4 | **positive:** `unit/verify` [`TestIgnoresClientVendorSpecificOption43`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1501). **negative:** no negative test. **{single-polarity}:** ze never reads a received option 43 -- vendor-specific information appears only in ze's Tx path (handler.go:325) and the option-parse loop skips any code it does not request (parseMsgType/parseOptionBytes advance past unrequested options, internal/plugins/dhcpserver/handler.go:367-403), so ze ignores client vendor-specific info and no code path interprets or rejects it |
 | `RFC2132-9.13-1` | Servers not equipped to interpret the class-specific information sent by a client MUST ignore it (although it may be reported). (§9.13) | MUST | 9.13 | **positive:** `unit/verify` [`TestIgnoresUnknownVendorClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1548). **negative:** no negative test. **{single-polarity}:** ze inspects option 60 only for the "PXEClient:" prefix (isPXEClient internal/plugins/dhcpserver/handler.go:493-496); any other vendor class yields false and no class-specific handling, so an unrecognized class is ignored and no code path rejects a packet on class content to test negatively |
-| `RFC2132-9.8-1` | Server MUST try to insert requested options in the order requested by the client (§9.8) | MUST | 9.8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze emits a fixed option set in a fixed order (buildReply internal/plugins/dhcpserver/handler.go:245-285) and never reads the client Parameter Request List (option 55 is defined at handler.go:52 but parsed nowhere in production), so it does not try to insert requested options in the client's requested order |
+| `RFC2132-9.8-1` | The DHCP server is not required to return the options in the requested order, but MUST try to insert the requested options in the order requested by the client. (§9.8) | MUST | 9.8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze emits a fixed option set in a fixed order (buildReply internal/plugins/dhcpserver/handler.go:245-285) and never reads the client Parameter Request List (option 55 is defined at handler.go:52 but parsed nowhere in production), so it does not try to insert requested options in the client's requested order |
 | `RFC2132-9.14-1` | For correct identification of clients, each client's client- identifier MUST be unique among the client-identifiers used on the subnet to which the client is attached. (§9.14) | MUST | 9.14 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the uniqueness obligation binds the client's choice of client-identifier (option 61); ze is a server that keys leases and pool allocations by hardware address/chaddr (extractMAC internal/plugins/dhcpserver/handler.go:456, pool.allocate pool.go:64, leaseTable byMAC lease.go:23) and never reads or generates option 61, so it neither produces client-identifiers nor can enforce cross-client uniqueness |
 | `RFC2132-2-4` | Options containing NVT ASCII data SHOULD NOT include a trailing NULL (§2) | SHOULD NOT | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2132-3.5-2` | Routers SHOULD be listed in order of preference (§3.5) | SHOULD | 3.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-3.6-2` | Time servers SHOULD be listed in order of preference (§3.6) | SHOULD | 3.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-3.7-2` | Name servers SHOULD be listed in order of preference (§3.7) | SHOULD | 3.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-3.8-2` | Domain name servers SHOULD be listed in order of preference (§3.8) | SHOULD | 3.8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-3.9-2` | Log servers SHOULD be listed in order of preference (§3.9) | SHOULD | 3.9 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-3.10-2` | Cookie servers SHOULD be listed in order of preference (§3.10) | SHOULD | 3.10 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-3.11-2` | LPR servers SHOULD be listed in order of preference (§3.11) | SHOULD | 3.11 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-3.12-2` | Impress servers SHOULD be listed in order of preference (§3.12) | SHOULD | 3.12 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-3.13-2` | Resource location servers SHOULD be listed in order of preference (§3.13) | SHOULD | 3.13 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.2-2` | NIS servers SHOULD be listed in order of preference (§8.2) | SHOULD | 8.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.3-2` | NTP servers SHOULD be listed in order of preference (§8.3) | SHOULD | 8.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.4-2` | Clients not receiving desired vendor-specific information SHOULD make an attempt to operate without it (§8.4) | SHOULD | 8.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.9-2` | X Window Font servers SHOULD be listed in order of preference (§8.9) | SHOULD | 8.9 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.10-2` | X Window Display Manager addresses SHOULD be listed in order of preference (§8.10) | SHOULD | 8.10 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.12-2` | NIS+ servers SHOULD be listed in order of preference (§8.12) | SHOULD | 8.12 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.13-2` | Mobile IP home agents SHOULD be listed in order of preference (§8.13) | SHOULD | 8.13 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.14-2` | SMTP servers SHOULD be listed in order of preference (§8.14) | SHOULD | 8.14 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.15-2` | POP3 servers SHOULD be listed in order of preference (§8.15) | SHOULD | 8.15 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.16-2` | NNTP servers SHOULD be listed in order of preference (§8.16) | SHOULD | 8.16 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.17-2` | WWW servers SHOULD be listed in order of preference (§8.17) | SHOULD | 8.17 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.18-2` | Finger servers SHOULD be listed in order of preference (§8.18) | SHOULD | 8.18 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.19-2` | IRC servers SHOULD be listed in order of preference (§8.19) | SHOULD | 8.19 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.20-2` | StreetTalk servers SHOULD be listed in order of preference (§8.20) | SHOULD | 8.20 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.21-2` | STDA servers SHOULD be listed in order of preference (§8.21) | SHOULD | 8.21 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-9.13-2` | Servers responding to vendor class identifier SHOULD only use option 43 to return vendor-specific information (§9.13) | SHOULD | 9.13 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-9.14-2` | Client identifiers SHOULD be treated as opaque objects by DHCP servers (§9.14) | SHOULD | 9.14 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-9.14-3` | Client identifier type field SHOULD be one of the ARP hardware types from STD 2 (§9.14) | SHOULD | 9.14 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.4-3` | Vendor SHOULD encode multiple items in vendor-specific information using encapsulated vendor-specific options (§8.4) | SHOULD | 8.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.4-4` | Encapsulated vendor-specific extensions SHOULD NOT contain a magic cookie field (§8.4) | SHOULD NOT | 8.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.4-5` | Encapsulated vendor-specific option codes SHOULD conform to the tag-length-value syntax (§8.4) | SHOULD | 8.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-9.8-2` | Client MAY list options in order of preference in Parameter Request List (§9.8) | MAY | 9.8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-9.14-4` | Client identifier MAY consist of type-value pairs similar to htype/chaddr (§9.14) | MAY | 9.14 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2132-8.4-6` | Vendor-specific option codes other than 0 or 255 MAY be redefined within the encapsulated field (§8.4) | MAY | 8.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-3.6-2` | Servers SHOULD be listed in order of preference. (§3.6) | SHOULD | 3.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-3.7-2` | Servers SHOULD be listed in order of preference. (§3.7) | SHOULD | 3.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-3.8-2` | Servers SHOULD be listed in order of preference. (§3.8) | SHOULD | 3.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-3.9-2` | Servers SHOULD be listed in order of preference. (§3.9) | SHOULD | 3.9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-3.10-2` | Servers SHOULD be listed in order of preference. (§3.10) | SHOULD | 3.10 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-3.11-2` | Servers SHOULD be listed in order of preference. (§3.11) | SHOULD | 3.11 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-3.12-2` | Servers SHOULD be listed in order of preference. (§3.12) | SHOULD | 3.12 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-3.13-2` | Servers SHOULD be listed in order of preference. (§3.13) | SHOULD | 3.13 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.2-2` | Servers SHOULD be listed in order of preference. (§8.2) | SHOULD | 8.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.3-2` | Servers SHOULD be listed in order of preference. (§8.3) | SHOULD | 8.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.4-2` | Clients which do not receive desired vendor-specific information SHOULD make an attempt to operate without it, although they may do so (and announce they are doing so) in a degraded mode. (§8.4) | SHOULD | 8.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.9-2` | Servers SHOULD be listed in order of preference. (§8.9) | SHOULD | 8.9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.10-2` | Addresses SHOULD be listed in order of preference. (§8.10) | SHOULD | 8.10 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.12-2` | Servers SHOULD be listed in order of preference. (§8.12) | SHOULD | 8.12 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.13-2` | Agents SHOULD be listed in order of preference. (§8.13) | SHOULD | 8.13 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.14-2` | Servers SHOULD be listed in order of preference. (§8.14) | SHOULD | 8.14 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.15-2` | Servers SHOULD be listed in order of preference. (§8.15) | SHOULD | 8.15 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.16-2` | Servers SHOULD be listed in order of preference. (§8.16) | SHOULD | 8.16 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.17-2` | Servers SHOULD be listed in order of preference. (§8.17) | SHOULD | 8.17 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.18-2` | Servers SHOULD be listed in order of preference. (§8.18) | SHOULD | 8.18 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.19-2` | Servers SHOULD be listed in order of preference. (§8.19) | SHOULD | 8.19 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.20-2` | Servers SHOULD be listed in order of preference. (§8.20) | SHOULD | 8.20 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.21-2` | Servers SHOULD be listed in order of preference. (§8.21) | SHOULD | 8.21 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-9.13-2` | Servers that respond SHOULD only use option 43 to return the vendor-specific information to the client. (§9.13) | SHOULD | 9.13 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-9.14-2` | Identifiers SHOULD be treated as opaque objects by DHCP servers. (§9.14) | SHOULD | 9.14 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-9.14-3` | In this case the type field SHOULD be one of the ARP hardware types defined in STD2 [22]. (§9.14) | SHOULD | 9.14 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.4-3` | If a vendor potentially encodes more than one item of information in this option, then the vendor SHOULD encode the option using "Encapsulated vendor-specific options" as described below (§8.4) | SHOULD | 8.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.4-4` | There SHOULD NOT be a "magic cookie" field in the encapsulated vendor-specific extensions field. (§8.4) | SHOULD NOT | 8.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.4-5` | Codes other than 0 or 255 MAY be redefined by the vendor within the encapsulated vendor-specific extensions field, but SHOULD conform to the tag-length-value syntax defined in section 2. (§8.4) | SHOULD | 8.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-9.8-2` | The client MAY list the options in order of preference. (§9.8) | MAY | 9.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-9.14-4` | The client identifier MAY consist of type-value pairs similar to the 'htype'/'chaddr' fields defined in [3]. (§9.14) | MAY | 9.14 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2132-8.4-6` | Codes other than 0 or 255 MAY be redefined by the vendor within the encapsulated vendor-specific extensions field (§8.4) | MAY | 8.4 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -189,24 +191,24 @@ One MUST gap, tracked in [`rfc/short/rfc2132.md`](https://github.com/ze-software
 | [`RFC2132-3.11-1`](#rfc2132-3.11-1) The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§3.11) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the LPR Server option (code 9), so this sender length constraint binds no ze code path |
 | [`RFC2132-3.12-1`](#rfc2132-3.12-1) The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§3.12) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Impress Server option (code 10), so this sender length constraint binds no ze code path |
 | [`RFC2132-3.13-1`](#rfc2132-3.13-1) The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§3.13) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Resource Location Server option (code 11), so this sender length constraint binds no ze code path |
-| [`RFC2132-8.2-1`](#rfc2132-8.2-1) NIS servers option length MUST be a multiple of 4 (§8.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NIS Servers option (code 41), so this sender length constraint binds no ze code path |
-| [`RFC2132-8.3-1`](#rfc2132-8.3-1) NTP servers option length MUST be a multiple of 4 (§8.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NTP Servers option (code 42), so this sender length constraint binds no ze code path |
+| [`RFC2132-8.2-1`](#rfc2132-8.2-1) Its minimum length is 4, and the length MUST be a multiple of 4. (§8.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NIS Servers option (code 41), so this sender length constraint binds no ze code path |
+| [`RFC2132-8.3-1`](#rfc2132-8.3-1) Its minimum length is 4, and the length MUST be a multiple of 4. (§8.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NTP Servers option (code 42), so this sender length constraint binds no ze code path |
 | [`RFC2132-8.9-1`](#rfc2132-8.9-1) The minimum length of this option is 4 octets, and the length MUST be a multiple of 4. (§8.9) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the X Window Font Server option (code 48), so this sender length constraint binds no ze code path |
 | [`RFC2132-8.10-1`](#rfc2132-8.10-1) The minimum length of this option is 4, and the length MUST be a multiple of 4. (§8.10) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the X Window Display Manager option (code 49), so this sender length constraint binds no ze code path |
-| [`RFC2132-8.12-1`](#rfc2132-8.12-1) NIS+ Servers option length MUST be a multiple of 4 (§8.12) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NIS+ Servers option (code 65), so this sender length constraint binds no ze code path |
+| [`RFC2132-8.12-1`](#rfc2132-8.12-1) Its minimum length is 4, and the length MUST be a multiple of 4. (§8.12) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NIS+ Servers option (code 65), so this sender length constraint binds no ze code path |
 | [`RFC2132-8.13-1`](#rfc2132-8.13-1) Its minimum length is 0 (indicating no home agents are available) and the length MUST be a multiple of 4. (§8.13) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Mobile IP Home Agent option (code 68), so this sender length constraint binds no ze code path |
 | [`RFC2132-8.14-1`](#rfc2132-8.14-1) The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.14) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the SMTP Server option (code 69), so this sender length constraint binds no ze code path |
-| [`RFC2132-8.15-1`](#rfc2132-8.15-1) POP3 server option length MUST always be a multiple of 4 (§8.15) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the POP3 Server option (code 70), so this sender length constraint binds no ze code path |
+| [`RFC2132-8.15-1`](#rfc2132-8.15-1) The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.15) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the POP3 Server option (code 70), so this sender length constraint binds no ze code path |
 | [`RFC2132-8.16-1`](#rfc2132-8.16-1) The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.16) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NNTP Server option (code 71), so this sender length constraint binds no ze code path |
 | [`RFC2132-8.17-1`](#rfc2132-8.17-1) The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.17) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the WWW Server option (code 72), so this sender length constraint binds no ze code path |
 | [`RFC2132-8.18-1`](#rfc2132-8.18-1) The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.18) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Finger Server option (code 73), so this sender length constraint binds no ze code path |
 | [`RFC2132-8.19-1`](#rfc2132-8.19-1) The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.19) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the IRC Server option (code 74), so this sender length constraint binds no ze code path |
 | [`RFC2132-8.20-1`](#rfc2132-8.20-1) The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.20) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the StreetTalk Server option (code 75), so this sender length constraint binds no ze code path |
 | [`RFC2132-8.21-1`](#rfc2132-8.21-1) The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.21) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the STDA Server option (code 76), so this sender length constraint binds no ze code path |
-| [`RFC2132-4.7-1`](#rfc2132-4.7-1) Path MTU plateau table option length MUST be a multiple of 2 (§4.7) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Path MTU Plateau Table option (code 25), so this sender length constraint binds no ze code path |
+| [`RFC2132-4.7-1`](#rfc2132-4.7-1) Its minimum length is 2, and the length MUST be a multiple of 2. (§4.7) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Path MTU Plateau Table option (code 25), so this sender length constraint binds no ze code path |
 | [`RFC2132-4.3-1`](#rfc2132-4.3-1) The minimum length of this option is 8, and the length MUST be a multiple of 8. (§4.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Policy Filter option (code 21), so this sender length constraint binds no ze code path |
 | [`RFC2132-5.8-1`](#rfc2132-5.8-1) The minimum length of this option is 8, and the length MUST be a multiple of 8. (§5.8) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Static Route option (code 33), so this sender length constraint binds no ze code path |
-| [`RFC2132-9.8-1`](#rfc2132-9.8-1) Server MUST try to insert requested options in the order requested by the client (§9.8) | {gap}, no test | ze emits a fixed option set in a fixed order (buildReply internal/plugins/dhcpserver/handler.go:245-285) and never reads the client Parameter Request List (option 55 is defined at handler.go:52 but parsed nowhere in production), so it does not try to insert requested options in the client's requested order |
+| [`RFC2132-9.8-1`](#rfc2132-9.8-1) The DHCP server is not required to return the options in the requested order, but MUST try to insert the requested options in the order requested by the client. (§9.8) | {gap}, no test | ze emits a fixed option set in a fixed order (buildReply internal/plugins/dhcpserver/handler.go:245-285) and never reads the client Parameter Request List (option 55 is defined at handler.go:52 but parsed nowhere in production), so it does not try to insert requested options in the client's requested order |
 | [`RFC2132-9.14-1`](#rfc2132-9.14-1) For correct identification of clients, each client's client- identifier MUST be unique among the client-identifiers used on the subnet to which the client is attached. (§9.14) | no test | no test carries this requirement id; annotated {not-applicable}: the uniqueness obligation binds the client's choice of client-identifier (option 61); ze is a server that keys leases and pool allocations by hardware address/chaddr (extractMAC internal/plugins/dhcpserver/handler.go:456, pool.allocate pool.go:64, leaseTable byMAC lease.go:23) and never reads or generates option 61, so it neither produces client-identifiers nor can enforce cross-client uniqueness |
 
 ## Proof state
@@ -217,7 +219,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 If both the subnet mask and the router option are specified in a DHCP reply, the subnet mask option MUST be first. (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestOptionSubnetMaskBeforeRouter asserts option 1's first byte offset precedes option 3's in a real OFFER from handle(); a reordering of buildReply fails it. single-polarity annotated (no path emits them reversed)
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -227,7 +229,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The minimum length for the router option is 4 octets, and the length MUST always be a multiple of 4. (§3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestEmittedIPListOptionLengthsMultipleOfFour asserts the emitted router option length is a non-zero multiple of 4 and exactly 4 for the single configured router; a truncated encoding fails it. single-polarity annotated
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -253,7 +255,7 @@ No test carries RFC2132-3.7-1, so no unit is bound to it.
 
 The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§3.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestEmittedIPListOptionLengthsMultipleOfFour asserts the emitted DNS option length is a non-zero multiple of 4 and exactly 8 for two configured servers. single-polarity annotated
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -301,7 +303,7 @@ No test carries RFC2132-3.13-1, so no unit is bound to it.
 
 ### [`RFC2132-8.2-1`](#rfc2132-8.2-1)
 
-NIS servers option length MUST be a multiple of 4 (§8.2)
+Its minimum length is 4, and the length MUST be a multiple of 4. (§8.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -309,7 +311,7 @@ No test carries RFC2132-8.2-1, so no unit is bound to it.
 
 ### [`RFC2132-8.3-1`](#rfc2132-8.3-1)
 
-NTP servers option length MUST be a multiple of 4 (§8.3)
+Its minimum length is 4, and the length MUST be a multiple of 4. (§8.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -333,7 +335,7 @@ No test carries RFC2132-8.10-1, so no unit is bound to it.
 
 ### [`RFC2132-8.12-1`](#rfc2132-8.12-1)
 
-NIS+ Servers option length MUST be a multiple of 4 (§8.12)
+Its minimum length is 4, and the length MUST be a multiple of 4. (§8.12)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -357,7 +359,7 @@ No test carries RFC2132-8.14-1, so no unit is bound to it.
 
 ### [`RFC2132-8.15-1`](#rfc2132-8.15-1)
 
-POP3 server option length MUST always be a multiple of 4 (§8.15)
+The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4. (§8.15)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -413,7 +415,7 @@ No test carries RFC2132-8.21-1, so no unit is bound to it.
 
 ### [`RFC2132-4.7-1`](#rfc2132-4.7-1)
 
-Path MTU plateau table option length MUST be a multiple of 2 (§4.7)
+Its minimum length is 2, and the length MUST be a multiple of 2. (§4.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -439,7 +441,7 @@ No test carries RFC2132-5.8-1, so no unit is bound to it.
 
 Any options defined subsequent to this document MUST contain a length octet even if the length is fixed or zero. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The sentence binds options defined subsequent to RFC 2132 (an obligation on later option authors, like RFC 7606 section 8). TestEveryEmittedOptionHasLengthOctet walks the reply by length octet over codes 53/54/1/3/6/15/51/58/59, all defined in RFC 2132 itself; buildReply/appendPXEOptions (internal/plugins/dhcpserver/handler.go) emit no later-defined option. The test proves the general section 2 TLV format, which is not this row's obligation; the row reads not-applicable and the tag has no row stating what it proves
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -447,9 +449,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2132-2-2`](#rfc2132-2-2)
 
-Receiver MUST be prepared to delete trailing nulls from ASCII options (§2)
+the receiver of such options MUST be prepared to delete trailing nulls if they exist. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestASCIIOptionParsingTolerantOfTrailingNull feeds option 60 and 77 values with a trailing NUL to isPXEClient/isIPXE (the only ze receivers of ASCII option data) and asserts they are still recognized; an exact-equality matcher without NUL deletion fails it
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -459,7 +461,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The receiver MUST NOT require that a trailing null be included in the data. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestASCIIOptionParsingTolerantOfTrailingNull asserts option 60 and 77 values without a trailing NUL are recognized by isPXEClient/isIPXE; a receiver requiring the NUL fails it
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -469,7 +471,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Servers not equipped to interpret the vendor-specific information sent by a client MUST ignore it (although it may be reported). (§8.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestIgnoresClientVendorSpecificOption43 asserts the OFFER for a DISCOVER carrying client option 43 is byte-identical to the OFFER without it, through handle(); any action on or rejection of option 43 fails it
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -479,7 +481,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Servers not equipped to interpret the class-specific information sent by a client MUST ignore it (although it may be reported). (§9.13)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestIgnoresUnknownVendorClass (PXE enabled) asserts an unrecognized vendor class 'MSFT 5.0' yields an OFFER byte-identical to one without option 60 and no option 66/67; class-driven handling fails it
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -487,7 +489,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2132-9.8-1`](#rfc2132-9.8-1)
 
-Server MUST try to insert requested options in the order requested by the client (§9.8)
+The DHCP server is not required to return the options in the requested order, but MUST try to insert the requested options in the order requested by the client. (§9.8)
 
 Audit verdict: not audited: no reader has judged these tests
 

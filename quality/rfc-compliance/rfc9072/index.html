@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9072 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9072: Extended Optional Parameters Length for BGP OPEN Message. 9 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 9072: Extended Optional Parameters Length for BGP OPEN Message. 9 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9072 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9072: Extended Optional Parameters Length for BGP OPEN Message. 9 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 9072: Extended Optional Parameters Length for BGP OPEN Message. 9 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9072 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9072: Extended Optional Parameters Length for BGP OPEN Message. 9 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 9072: Extended Optional Parameters Length for BGP OPEN Message. 9 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>44.4%</strong><b>4 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 9 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>4</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>7</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -319,7 +323,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L195" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenUnpackExtendedParams</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-2-3">RFC9072-2-3</code></td><td colspan="3"><span class="rfc-subject">Non-Ext OP Len MUST NOT be set to 0 when using extended format (S2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-2-3">RFC9072-2-3</code></td><td colspan="3"><span class="rfc-subject">The Non-Extended Optional Parameters Length field (Non-Ext OP Len.) SHOULD be set to 255 on transmission and, in any event, MUST NOT be set to 0 (S2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2</td>
@@ -337,7 +341,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> writeToExtended sets the Non-Ext OP Type to the constant 0xFF (open.go:131), so no code path emits any other value and there is no negative case</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-2-5">RFC9072-2-5</code></td><td colspan="3"><span class="rfc-subject">Non-Ext OP Len MUST be ignored on receipt once extended format is determined (S2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-2-5">RFC9072-2-5</code></td><td colspan="3"><span class="rfc-subject">The Non-Extended Optional Parameters Length field (Non-Ext OP Len.) SHOULD be set to 255 on transmission and, in any event, MUST NOT be set to 0; it MUST be ignored on receipt once the use of the extended format is determined positively by inspection of the Non-Extended Optional Parameters Type (Non-Ext OP Type) field. (S2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -355,7 +359,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s OPEN decoder (internal/component/bgp/message/open.go:190) inspects the octet following Non-Ext OP Len only when Non-Ext OP Len equals 255, so for any other non-zero Non-Ext OP Len it never uses the following octet to determine the encoding and always decodes the classic form</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-3-1">RFC9072-3-1</code></td><td colspan="3"><span class="rfc-subject">If first type code is 255 (even when Non-Ext OP Len != 255), extended encoding MUST be used for decoding (S3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-3-1">RFC9072-3-1</code></td><td colspan="3"><span class="rfc-subject">It is not considered a fatal error to receive an OPEN message whose (non-extended) Optional Parameters Length value is not 255 and whose first Optional Parameter type code is 255 -- in this case, the encoding of this specification MUST be used for decoding the message. (S3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -373,7 +377,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s OPEN encoder emits only optional-parameter type 2 (Capabilities) via buildOptionalParams (internal/component/bgp/reactor/session_negotiate.go:193) and uses 255 solely as the extended-length indicator; no code path emits any other classic opt-param type, so there is no negative case</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-3-3">RFC9072-3-3</code></td><td colspan="3"><span class="rfc-subject">Type code 255 in non-indicator position MUST be treated as unrecognized Optional Parameter per RFC 4271 S6.2 (S3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-3-3">RFC9072-3-3</code></td><td colspan="3"><span class="rfc-subject">Although the Optional Parameter type code 255 is used in this specification as the indication that the extended encoding is in use, it is not a bona fide Optional Parameter type code in the usual sense and MUST NOT be used other than as described above. If encountered other than as the Non-Ext OP Type, it MUST be treated as an unrecognized Optional Parameter and handled according to [RFC4271], Section 6.2. (S3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -382,7 +386,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze silently ignores an unrecognized BGP OPEN optional-parameter type; ParseFromOptionalParams (internal/core/bgp/capability/capability.go:867-874) skips any parameter whose type is not 2 instead of emitting the RFC 4271 Section 6.2 OPEN Message Error (Unsupported Optional Parameter) NOTIFICATION</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-2-7">RFC9072-2-7</code></td><td colspan="3"><span class="rfc-subject">When Optional Parameters length does not exceed 255, standard RFC 4271 encoding SHOULD be used (S2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-2-7">RFC9072-2-7</code></td><td colspan="3"><span class="rfc-subject">In the event that the length of the Optional Parameters in the BGP OPEN message does not exceed 255, the encodings of the base BGP specification [RFC4271] SHOULD be used without alteration. (S2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2</td>
@@ -391,7 +395,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-2-8">RFC9072-2-8</code></td><td colspan="3"><span class="rfc-subject">Non-Ext OP Len SHOULD be set to 255 on transmission (S2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-2-8">RFC9072-2-8</code></td><td colspan="3"><span class="rfc-subject">The Non-Extended Optional Parameters Length field (Non-Ext OP Len.) SHOULD be set to 255 on transmission (S2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2</td>
@@ -400,7 +404,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-2-9">RFC9072-2-9</code></td><td colspan="3"><span class="rfc-subject">Configuration MAY override to force extended format in all cases (S2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9072-2-9">RFC9072-2-9</code></td><td colspan="3"><span class="rfc-subject">Configuration MAY override this to force the extended format to be used in all cases (S2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2</td>
@@ -418,7 +422,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc9072-2-5"><code>RFC9072-2-5</code></a> Non-Ext OP Len MUST be ignored on receipt once extended format is determined (S2)</td>
+<tr><td><a href="#rfc9072-2-5"><code>RFC9072-2-5</code></a> The Non-Extended Optional Parameters Length field (Non-Ext OP Len.) SHOULD be set to 255 on transmission and, in any event, MUST NOT be set to 0; it MUST be ignored on receipt once the use of the extended format is determined positively by inspection of the Non-Extended Optional Parameters Type (Non-Ext OP Type) field. (S2)</td>
 <td>{gap}, no test</td>
 <td>ze&#39;s OPEN decoder (internal/component/bgp/message/open.go:190) requires the Non-Ext OP Len octet to equal 255 to select the extended form, so it does not ignore that octet once the extended format would be determined; the octet stays load-bearing and a conformant sender using a non-255 Non-Ext OP Len is mis-parsed as a classic OPEN</td>
 </tr>
@@ -426,11 +430,11 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>{gap}, no test</td>
 <td>ze&#39;s OPEN decoder (internal/component/bgp/message/open.go:190) inspects the octet following Non-Ext OP Len only when Non-Ext OP Len equals 255, so for any other non-zero Non-Ext OP Len it never uses the following octet to determine the encoding and always decodes the classic form</td>
 </tr>
-<tr><td><a href="#rfc9072-3-1"><code>RFC9072-3-1</code></a> If first type code is 255 (even when Non-Ext OP Len != 255), extended encoding MUST be used for decoding (S3)</td>
+<tr><td><a href="#rfc9072-3-1"><code>RFC9072-3-1</code></a> It is not considered a fatal error to receive an OPEN message whose (non-extended) Optional Parameters Length value is not 255 and whose first Optional Parameter type code is 255 -- in this case, the encoding of this specification MUST be used for decoding the message. (S3)</td>
 <td>{gap}, no test</td>
 <td>ze&#39;s OPEN decoder (internal/component/bgp/message/open.go:190) selects the extended form only when Non-Ext OP Len equals 255, not whenever the first type code is 255; the open.go:186-189 comment and the TestOpenUnpackExtendedParams standard-format-first-param-byte-0xFF case cement this, so a first type code of 255 with Non-Ext OP Len != 255 is decoded as a classic OPEN instead of extended</td>
 </tr>
-<tr><td><a href="#rfc9072-3-3"><code>RFC9072-3-3</code></a> Type code 255 in non-indicator position MUST be treated as unrecognized Optional Parameter per RFC 4271 S6.2 (S3)</td>
+<tr><td><a href="#rfc9072-3-3"><code>RFC9072-3-3</code></a> Although the Optional Parameter type code 255 is used in this specification as the indication that the extended encoding is in use, it is not a bona fide Optional Parameter type code in the usual sense and MUST NOT be used other than as described above. If encountered other than as the Non-Ext OP Type, it MUST be treated as an unrecognized Optional Parameter and handled according to [RFC4271], Section 6.2. (S3)</td>
 <td>{gap}, no test</td>
 <td>ze silently ignores an unrecognized BGP OPEN optional-parameter type; ParseFromOptionalParams (internal/core/bgp/capability/capability.go:867-874) skips any parameter whose type is not 2 instead of emitting the RFC 4271 Section 6.2 OPEN Message Error (Unsupported Optional Parameter) NOTIFICATION</td>
 </tr>
@@ -442,7 +446,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc9072-2-1"><code>RFC9072-2-1</code></a></h3>
 <p>However, if the length of the Optional Parameters in the BGP OPEN message does exceed 255, the OPEN message MUST be encoded according to the procedure below. (S2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The envelope is asserted: TestOpenPackExtendedParams fails unless 300 octets of OptionalParams produce Non-Ext OP Len 0xFF, Non-Ext OP Type 0xFF and a 2-octet length of 300. But &#39;the procedure below&#39; also gives every parameter a two-octet Parameter Length, and both units hand the encoder caller-built OptionalParams (TestOpenPackExtendedParams passes 300 unframed bytes with ExtendedParams unset; the negative sets ExtendedParams and 2-octet framing by hand and asserts the round trip). No tagged unit drives ze&#39;s OPEN builder with more than 255 octets of capabilities and asserts the parameters come out in the extended framing, which is the interop defect the negative&#39;s own comment names.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -462,7 +466,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 </div>
 <h3><a href="#rfc9072-2-2"><code>RFC9072-2-2</code></a></h3>
 <p>(In any case, an implementation MUST accept an OPEN message that uses the encoding of this specification even if the length of the Optional Parameters is 255 or less.) (S2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestOpenUnpackExtendedParams accepts the extended-form cases with Extended Opt. Parm. Length 0 and 6 (no error, 0 and 6 parameter octets) and decodes a standard OPEN classically. The table declares wantExtended for the extended cases but the loop never asserts it, so an UnpackOpen that returned the 6 octets with ExtendedParams false, leaving the capability parser to misread the 2-octet Parameter Length, stays green. Acceptance of the OPEN is proven only as far as UnpackOpen returning no error.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -481,8 +485,8 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 </table>
 </div>
 <h3><a href="#rfc9072-2-3"><code>RFC9072-2-3</code></a></h3>
-<p>Non-Ext OP Len MUST NOT be set to 0 when using extended format (S2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The Non-Extended Optional Parameters Length field (Non-Ext OP Len.) SHOULD be set to 255 on transmission and, in any event, MUST NOT be set to 0 (S2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. {single-polarity: positive} carried on the row. Forbidden: a Non-Ext OP Len of 0 on an extended-format OPEN. TestOpenPackExtendedParams packs 300 octets of parameters and fails unless body[9]==0xFF, which covers both the SHOULD (255) and the MUST NOT (0).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -497,7 +501,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 </div>
 <h3><a href="#rfc9072-2-4"><code>RFC9072-2-4</code></a></h3>
 <p>The subsequent one-octet field (which would be the first Optional Parameter Type field in the non-extended format and is called &#34;Non- Ext OP Type&#34; in the figure above) MUST be set to 255 on transmission. (S2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. {single-polarity: positive} carried on the row: writeToExtended writes the constant. Forbidden: a Non-Ext OP Type other than 255 on an extended OPEN. TestOpenPackExtendedParams fails unless body[10] == 0xFF for a 300-octet parameter set.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -511,7 +515,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 </table>
 </div>
 <h3><a href="#rfc9072-2-5"><code>RFC9072-2-5</code></a></h3>
-<p>Non-Ext OP Len MUST be ignored on receipt once extended format is determined (S2)</p>
+<p>The Non-Extended Optional Parameters Length field (Non-Ext OP Len.) SHOULD be set to 255 on transmission and, in any event, MUST NOT be set to 0; it MUST be ignored on receipt once the use of the extended format is determined positively by inspection of the Non-Extended Optional Parameters Type (Non-Ext OP Type) field. (S2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9072-2-5, so no unit is bound to it.</p>
 <h3><a href="#rfc9072-2-6"><code>RFC9072-2-6</code></a></h3>
@@ -519,12 +523,12 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9072-2-6, so no unit is bound to it.</p>
 <h3><a href="#rfc9072-3-1"><code>RFC9072-3-1</code></a></h3>
-<p>If first type code is 255 (even when Non-Ext OP Len != 255), extended encoding MUST be used for decoding (S3)</p>
+<p>It is not considered a fatal error to receive an OPEN message whose (non-extended) Optional Parameters Length value is not 255 and whose first Optional Parameter type code is 255 -- in this case, the encoding of this specification MUST be used for decoding the message. (S3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9072-3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9072-3-2"><code>RFC9072-3-2</code></a></h3>
 <p>Although the Optional Parameter type code 255 is used in this specification as the indication that the extended encoding is in use, it is not a bona fide Optional Parameter type code in the usual sense and MUST NOT be used other than as described above. (S3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. {single-polarity: positive} carried on the row. The only assertion is body[10] == 0xFF, the permitted use of 255. The forbidden behaviour is emitting 255 as an optional-parameter type elsewhere; the unit hands the encoder opaque OptionalParams (bytes i % 256, which contain 255) and asserts nothing about parameter types, and the builder the annotation relies on to emit only type 2 is not driven by any tagged unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -538,7 +542,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 </table>
 </div>
 <h3><a href="#rfc9072-3-3"><code>RFC9072-3-3</code></a></h3>
-<p>Type code 255 in non-indicator position MUST be treated as unrecognized Optional Parameter per RFC 4271 S6.2 (S3)</p>
+<p>Although the Optional Parameter type code 255 is used in this specification as the indication that the extended encoding is in use, it is not a bona fide Optional Parameter type code in the usual sense and MUST NOT be used other than as described above. If encountered other than as the Non-Ext OP Type, it MUST be treated as an unrecognized Optional Parameter and handled according to [RFC4271], Section 6.2. (S3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9072-3-3, so no unit is bound to it.</p>
 </section>
@@ -694,7 +698,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

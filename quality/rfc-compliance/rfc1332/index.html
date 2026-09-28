@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 1332 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 1332: The PPP Internet Protocol Control Protocol (IPCP). 7 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 1332: The PPP Internet Protocol Control Protocol (IPCP). 7 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 1332 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 1332: The PPP Internet Protocol Control Protocol (IPCP). 7 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 1332: The PPP Internet Protocol Control Protocol (IPCP). 7 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 1332 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 1332: The PPP Internet Protocol Control Protocol (IPCP). 7 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 1332: The PPP Internet Protocol Control Protocol (IPCP). 7 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -134,6 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>14.3%</strong><b>1 of 7 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 7 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -183,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -214,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>1</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -227,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>10</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>4</td>
@@ -297,7 +301,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-2-1">RFC1332-2-1</code></td><td colspan="3"><span class="rfc-subject">Exactly one IPCP packet encapsulated per PPP frame with Protocol field 0x8021 (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-2-1">RFC1332-2-1</code></td><td colspan="3"><span class="rfc-subject">Exactly one IPCP packet is encapsulated in the Information field of PPP Data Link Layer frames where the Protocol field indicates type hex 8021 (IP Control Protocol). (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -306,7 +310,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/frame_test.go#L188" title="internal/component/l2tp/ppp/frame_test.go" target="_blank" rel="noopener"><code>TestIPCPFrameRejectsNonSinglePacket</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-2-2">RFC1332-2-2</code></td><td colspan="3"><span class="rfc-subject">Only Codes 1-7 accepted; other codes treated as unrecognized and result in Code-Reject (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-2-2">RFC1332-2-2</code></td><td colspan="3"><span class="rfc-subject">Only Codes 1 through 7 (Configure-Request, Configure-Ack, Configure-Nak, Configure-Reject, Terminate-Request, Terminate-Ack and Code-Reject) are used. Other Codes should be treated as unrecognized and should result in Code-Rejects. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -315,7 +319,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s shared codeToEvent (internal/component/l2tp/ppp/session_run.go:688-709) maps PPP control codes 8-11 to LCP echo/protocol-reject events rather than RUC, so ze does not Code-Reject codes 8-11 received on IPCP; only codes 12 and above are Code-Rejected</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-2.1-1">RFC1332-2.1-1</code></td><td colspan="3"><span class="rfc-subject">IPCP reach Opened state before any IP packets may be communicated (Section 2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-2.1-1">RFC1332-2.1-1</code></td><td colspan="3"><span class="rfc-subject">Before any IP packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the IP Control Protocol must reach the Opened state. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -324,7 +328,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L171" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPCPNoAddressBeforeOpened</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-2.1-3">RFC1332-2.1-3</code></td><td colspan="3"><span class="rfc-subject">An IP datagram larger than the maximum length of the PPP Information field must be fragmented as necessary (Section 2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-2.1-3">RFC1332-2.1-3</code></td><td colspan="3"><span class="rfc-subject">The maximum length of an IP packet transmitted over a PPP link is the same as the maximum length of the Information field of a PPP data link layer frame. Larger IP datagrams must be fragmented as necessary. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -333,7 +337,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/mtu_rfc1332_test.go#L19" title="internal/component/l2tp/ppp/mtu_rfc1332_test.go" target="_blank" rel="noopener"><code>TestIPMTUInstalledFromNegotiatedMRU</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3-1">RFC1332-3-1</code></td><td colspan="3"><span class="rfc-subject">Configuration options follow the format defined in RFC 1661 (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3-1">RFC1332-3-1</code></td><td colspan="3"><span class="rfc-subject">IPCP uses the same Configuration Option format defined for LCP [1], with a separate set of Options. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -342,7 +346,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ipcp_test.go#L71" title="internal/component/l2tp/ppp/ipcp_test.go" target="_blank" rel="noopener"><code>TestIPCPParseRejects</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3.3-2">RFC1332-3.3-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The value of the IP-address given must be acceptable as the remote IP-address, or indicate a request that the peer provide the information&#34; when the IP-Address option is appended to a Configure-Nak (Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3.3-2">RFC1332-3.3-2</code></td><td colspan="3"><span class="rfc-subject">The value of the IP-address given must be acceptable as the remote IP-address, or indicate a request that the peer provide the information. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3</td>
@@ -351,7 +355,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L310" title="internal/component/l2tp/ppp/auth_phase_rfc1334_test.go" target="_blank" rel="noopener"><code>TestIPCPNakNeverCarriesAnUnacceptableAddress</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3.1-1">RFC1332-3.1-1</code></td><td colspan="3"><span class="rfc-subject">The IP-Addresses option SHOULD NOT be sent in a Configure-Request if a Configure-Request has been received which includes either an IP-Addresses or IP-Address option (Section 3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3.1-1">RFC1332-3.1-1</code></td><td colspan="3"><span class="rfc-subject">This option SHOULD NOT be sent in a Configure-Request if a Configure-Request has been received which includes either an IP- Addresses or IP-Address option. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>3.1</td>
@@ -360,7 +364,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-4.1-1">RFC1332-4.1-1</code></td><td colspan="3"><span class="rfc-subject">Comp-Slot-Id=1 must not be enabled on links without link-level error-indication mechanism (Section 4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-4.1-1">RFC1332-4.1-1</code></td><td colspan="3"><span class="rfc-subject">The slot identifier must not be compressed if there is no ability for the PPP link level to indicate an error in reception to the decompression module. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.1</td>
@@ -369,7 +373,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze does not negotiate the IP-Compression-Protocol (Type 2) Van Jacobson option; isKnownIPCPOption (internal/component/l2tp/ppp/ipcp.go:53-55) recognizes only options 3/129/131 and Configure-Rejects a peer Type-2 option; Comp-Slot-Id is never set</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-2-3">RFC1332-2-3</code></td><td colspan="3"><span class="rfc-subject">Be prepared to wait for Authentication and Link Quality Determination to finish before timing out waiting for Configure-Ack (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-2-3">RFC1332-2-3</code></td><td colspan="3"><span class="rfc-subject">An implementation should be prepared to wait for Authentication and Link Quality Determination to finish before timing out waiting for a Configure-Ack or other response. (§2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2</td>
@@ -378,7 +382,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-2.1-2">RFC1332-2.1-2</code></td><td colspan="3"><span class="rfc-subject">IP datagrams should use mechanisms (TCP MSS, PMTUD) to avoid fragmentation (Section 2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-2.1-2">RFC1332-2.1-2</code></td><td colspan="3"><span class="rfc-subject">If a system wishes to avoid fragmentation and reassembly, it should use the TCP Maximum Segment Size option [4], and MTU discovery [5]. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1</td>
@@ -396,7 +400,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3.1-2">RFC1332-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Send IP-Addresses option if previously received Configure-Reject for IP-Address or Configure-Nak with IP-Addresses (Section 3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3.1-2">RFC1332-3.1-2</code></td><td colspan="3"><span class="rfc-subject">This option MAY be sent if a Configure-Reject is received for the IP-Address option, or a Configure-Nak is received with an IP-Addresses option as an appended option. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1</td>
@@ -405,7 +409,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3.1-3">RFC1332-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Support for IP-Addresses option may be removed (Section 3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3.1-3">RFC1332-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Support for this option MAY be removed after the IPCP protocol status advances to Internet Draft Standard. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1</td>
@@ -423,11 +427,11 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc1332-2-2"><code>RFC1332-2-2</code></a> Only Codes 1-7 accepted; other codes treated as unrecognized and result in Code-Reject (Section 2)</td>
+<tr><td><a href="#rfc1332-2-2"><code>RFC1332-2-2</code></a> Only Codes 1 through 7 (Configure-Request, Configure-Ack, Configure-Nak, Configure-Reject, Terminate-Request, Terminate-Ack and Code-Reject) are used. Other Codes should be treated as unrecognized and should result in Code-Rejects. (§2)</td>
 <td>{gap}, no test</td>
 <td>ze&#39;s shared codeToEvent (internal/component/l2tp/ppp/session_run.go:688-709) maps PPP control codes 8-11 to LCP echo/protocol-reject events rather than RUC, so ze does not Code-Reject codes 8-11 received on IPCP; only codes 12 and above are Code-Rejected</td>
 </tr>
-<tr><td><a href="#rfc1332-4.1-1"><code>RFC1332-4.1-1</code></a> Comp-Slot-Id=1 must not be enabled on links without link-level error-indication mechanism (Section 4.1)</td>
+<tr><td><a href="#rfc1332-4.1-1"><code>RFC1332-4.1-1</code></a> The slot identifier must not be compressed if there is no ability for the PPP link level to indicate an error in reception to the decompression module. (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze does not negotiate the IP-Compression-Protocol (Type 2) Van Jacobson option; isKnownIPCPOption (internal/component/l2tp/ppp/ipcp.go:53-55) recognizes only options 3/129/131 and Configure-Rejects a peer Type-2 option; Comp-Slot-Id is never set</td>
 </tr>
@@ -438,8 +442,8 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc1332-2-1"><code>RFC1332-2-1</code></a></h3>
-<p>Exactly one IPCP packet encapsulated per PPP frame with Protocol field 0x8021 (Section 2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Exactly one IPCP packet is encapsulated in the Information field of PPP Data Link Layer frames where the Protocol field indicates type hex 8021 (IP Control Protocol). (§2)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Clauses: an IPCP packet travels under Protocol 0x8021, and exactly one packet fills the Information field. The Protocol clause is enforced: TestIPCPFrameCarriesExactlyOnePacket fails unless the frame octets are 80 21 and ParseFrame returns ProtoIPCP. The &#39;exactly one&#39; clause is not: the positive checks LCP Length == len(Information) on a frame the test itself assembles with one WriteLCPPacket call, so no Ze send path is driven and no sender that packed two packets into one frame could turn it red; the negative TestIPCPFrameRejectsNonSinglePacket rejects a Length below the header or past the Information field, which is RFC 1661 length validation, and no case offers a frame holding two IPCP packets.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -458,12 +462,12 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 </table>
 </div>
 <h3><a href="#rfc1332-2-2"><code>RFC1332-2-2</code></a></h3>
-<p>Only Codes 1-7 accepted; other codes treated as unrecognized and result in Code-Reject (Section 2)</p>
+<p>Only Codes 1 through 7 (Configure-Request, Configure-Ack, Configure-Nak, Configure-Reject, Terminate-Request, Terminate-Ack and Code-Reject) are used. Other Codes should be treated as unrecognized and should result in Code-Rejects. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC1332-2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc1332-2.1-1"><code>RFC1332-2.1-1</code></a></h3>
-<p>IPCP reach Opened state before any IP packets may be communicated (Section 2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Before any IP packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the IP Control Protocol must reach the Opened state. (§2.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: IP communicated before IPCP Opened, or before PPP reaches the Network-Layer Protocol phase. TestIPCPNoAddressBeforeOpened asserts no AddAddressP2P and no EventSessionIPAssigned at Configure-Request-sent and at AckRcvd, and TestIPResponseConfiguresInterface asserts both once Opened: the IPCP-Opened clause is enforced. No tagged unit holds IP (or IPCP) while PPP is still short of the Network-Layer Protocol phase (authentication incomplete), so that clause has no assertion that goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -482,8 +486,8 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 </table>
 </div>
 <h3><a href="#rfc1332-2.1-3"><code>RFC1332-2.1-3</code></a></h3>
-<p>An IP datagram larger than the maximum length of the PPP Information field must be fragmented as necessary (Section 2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The maximum length of an IP packet transmitted over a PPP link is the same as the maximum length of the Information field of a PPP data link layer frame. Larger IP datagrams must be fragmented as necessary. (§2.1)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Clauses: (1) the largest IP packet sent equals the peer&#39;s Information-field maximum; (2) larger datagrams must be fragmented. (1): TestIPMTUInstalledFromNegotiatedMRU fails unless exactly one MTU of 1400 is installed on ppp7 for a negotiated MRU of 1400. Both tags sit on that one assertion, so there is one test, not a pair. (2) has no assertion: fragmentation is left to the Linux IP stack and no unit sends a datagram above the MTU and observes it fragmented, so a pppN that refused or truncated large datagrams stays green.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -502,8 +506,8 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 </table>
 </div>
 <h3><a href="#rfc1332-3-1"><code>RFC1332-3-1</code></a></h3>
-<p>Configuration options follow the format defined in RFC 1661 (Section 3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>IPCP uses the same Configuration Option format defined for LCP [1], with a separate set of Options. (§3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: IPCP options that do not use the RFC 1661 Type/Length/Data format, in either direction. Receive side: TestIPCPParseOptions decodes a well-formed list (type 3 as IP-Address, not an LCP meaning) and TestIPCPParseRejects asserts errOptionTooShort/errOptionLengthMismatch/errIPCPBadOptionLen, red on a parser that accepts malformed TLVs. Send side: no tagged unit asserts that WriteIPCPOptions emits the TLV format (TestIPCPRoundtrip does, untagged).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -522,8 +526,8 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 </table>
 </div>
 <h3><a href="#rfc1332-3.3-2"><code>RFC1332-3.3-2</code></a></h3>
-<p>&#34;The value of the IP-address given must be acceptable as the remote IP-address, or indicate a request that the peer provide the information&#34; when the IP-Address option is appended to a Configure-Nak (Section 3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The value of the IP-address given must be acceptable as the remote IP-address, or indicate a request that the peer provide the information. (§3.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Configure-Nak IP-Address that is not acceptable as the remote address. TestIPCPNakCarriesTheAssignedRemoteAddress asserts the Nak carries the assigned 10.0.0.2 for a request of 10.9.9.9 and for a request with no address, red if another value is given. TestIPCPNakNeverCarriesAnUnacceptableAddress asserts the requested address is not echoed and that with nothing assigned the option is omitted rather than written invalid. The &#39;or indicate a request&#39; branch is a permitted alternative Ze does not use.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -542,7 +546,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
 </table>
 </div>
 <h3><a href="#rfc1332-4.1-1"><code>RFC1332-4.1-1</code></a></h3>
-<p>Comp-Slot-Id=1 must not be enabled on links without link-level error-indication mechanism (Section 4.1)</p>
+<p>The slot identifier must not be compressed if there is no ability for the PPP link level to indicate an error in reception to the decompression module. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC1332-4.1-1, so no unit is bound to it.</p>
 </section>
@@ -724,7 +728,7 @@ One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: t
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

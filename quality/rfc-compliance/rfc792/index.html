@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 792 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 792: Internet Control Message Protocol. 10 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 792: Internet Control Message Protocol. 10 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 792 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 792: Internet Control Message Protocol. 10 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 792: Internet Control Message Protocol. 10 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 792 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 792: Internet Control Message Protocol. 10 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 792: Internet Control Message Protocol. 10 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>8</strong><b>of 10 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>18</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -288,7 +296,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-1">RFC792-Echo-1</code></td><td colspan="3"><span class="rfc-subject">An ICMP echo request carries Type 8 and an echo reply carries Type 0 (§Echo)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-1">RFC792-Echo-1</code></td><td colspan="3"><span class="rfc-subject">Type 8 for echo message; 0 for echo reply message. (§Echo)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>Echo</td>
@@ -297,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the diagnostic request callers choose Type 8 and Linux icmp_echo assigns Type 0 to an Echo Reply; this is a transmitted-field requirement</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-2">RFC792-Echo-2</code></td><td colspan="3"><span class="rfc-subject">An echo request carries Code 0 (§Echo)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-2">RFC792-Echo-2</code></td><td colspan="3"><span class="rfc-subject">Type 8 for echo message; 0 for echo reply message. Code 0 (§Echo)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>Echo</td>
@@ -306,7 +314,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze emits Code 0 and never varies it, so there is no non-zero-code echo it produces to assert against</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-3">RFC792-Echo-3</code></td><td colspan="3"><span class="rfc-subject">The Checksum is the 16-bit one&#39;s complement of the one&#39;s-complement sum of the ICMP message starting with the ICMP Type field (§Echo)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-3">RFC792-Echo-3</code></td><td colspan="3"><span class="rfc-subject">The checksum is the 16-bit ones&#39;s complement of the one&#39;s complement sum of the ICMP message starting with the ICMP Type. (§Echo)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>Echo</td>
@@ -315,7 +323,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L218" title="internal/core/probe/icmp_test.go" target="_blank" rel="noopener"><code>TestRFC792ChecksumRejectsCorruption</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-4">RFC792-Echo-4</code></td><td colspan="3"><span class="rfc-subject">If the total length is odd, the data is padded with one octet of zeros for computing the checksum (§Echo)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-4">RFC792-Echo-4</code></td><td colspan="3"><span class="rfc-subject">If the total length is odd, the received data is padded with one octet of zeros for computing the checksum. (§Echo)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>Echo</td>
@@ -324,7 +332,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the zero pad is an internal step of a correct computation and ze rejects nothing on this basis, so only the positive direction is assertable</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-5">RFC792-Echo-5</code></td><td colspan="3"><span class="rfc-subject">The data received in the echo request is returned unchanged in the echo reply (§Echo)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-5">RFC792-Echo-5</code></td><td colspan="3"><span class="rfc-subject">The data received in the echo message must be returned in the echo reply message. (§Echo)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>Echo</td>
@@ -333,7 +341,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L393" title="internal/plugins/vrrp/gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-6">RFC792-Echo-6</code></td><td colspan="3"><span class="rfc-subject">To form an echo reply the source and destination addresses are reversed, the Type is changed to 0, and the checksum is recomputed (§Echo)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-6">RFC792-Echo-6</code></td><td colspan="3"><span class="rfc-subject">To form an echo reply message, the source and destination addresses are simply reversed, the type code changed to 0, and the checksum recomputed. (§Echo)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>Echo</td>
@@ -353,7 +361,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Linux builds every ICMP error the gateway emits and ze writes no octet of it, so no input to ze yields an error with a nonzero unused field; the positive tags already contrast the zero unused octets with the nonzero assigned fields (pointer, next-hop MTU, RFC 4884 length)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-unreachable-1">RFC792-Unreachable-1</code></td><td colspan="3"><span class="rfc-subject">When a datagram must be fragmented to be forwarded by a gateway yet the Don&#39;t Fragment flag is on, the gateway must discard the datagram (§Unreachable)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-unreachable-1">RFC792-Unreachable-1</code></td><td colspan="3"><span class="rfc-subject">Another case is when a datagram must be fragmented to be forwarded by a gateway yet the Don&#39;t Fragment flag is on. In this case the gateway must discard the datagram and may return a destination unreachable message. (§Unreachable)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>Unreachable</td>
@@ -362,7 +370,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L319" title="internal/plugins/vrrp/gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-timeexceeded-1">RFC792-TimeExceeded-1</code></td><td colspan="3"><span class="rfc-subject">If the gateway processing a datagram finds the time to live field is zero it must discard the datagram (§TimeExceeded)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-timeexceeded-1">RFC792-TimeExceeded-1</code></td><td colspan="3"><span class="rfc-subject">If the gateway processing a datagram finds the time to live field is zero it must discard the datagram. (§TimeExceeded)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>TimeExceeded</td>
@@ -380,7 +388,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L367" title="internal/plugins/vrrp/gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-7">RFC792-Echo-7</code></td><td colspan="3"><span class="rfc-subject">The checksum field is set to zero while the checksum is being computed (§Echo)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-7">RFC792-Echo-7</code></td><td colspan="3"><span class="rfc-subject">For computing the checksum , the checksum field should be zero. (§Echo)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>Echo</td>
@@ -389,7 +397,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-8">RFC792-Echo-8</code></td><td colspan="3"><span class="rfc-subject">The Identifier may be zero, and the echo sender may use it to match replies to requests (§Echo)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-8">RFC792-Echo-8</code></td><td colspan="3"><span class="rfc-subject">If code = 0, an identifier to aid in matching echos and replies, may be zero. (§Echo)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>Echo</td>
@@ -398,7 +406,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-9">RFC792-Echo-9</code></td><td colspan="3"><span class="rfc-subject">The Sequence Number may be zero, and the echo sender may use it to match replies to requests (§Echo)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-9">RFC792-Echo-9</code></td><td colspan="3"><span class="rfc-subject">If code = 0, a sequence number to aid in matching echos and replies, may be zero. (§Echo)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>Echo</td>
@@ -407,7 +415,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-10">RFC792-Echo-10</code></td><td colspan="3"><span class="rfc-subject">A Code 0 (echo reply) may be received from a gateway or a host (§Echo)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-10">RFC792-Echo-10</code></td><td colspan="3"><span class="rfc-subject">Code 0 may be received from a gateway or a host. (§Echo)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>Echo</td>
@@ -426,8 +434,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc792-echo-1"><code>RFC792-Echo-1</code></a></h3>
-<p>An ICMP echo request carries Type 8 and an echo reply carries Type 0 (§Echo)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Type 8 for echo message; 0 for echo reply message. (§Echo)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: Type 8 for echo message; 0 for echo reply. TestRFC792EchoRequestType passes the literal 8 to BuildICMPEcho and asserts byte 0 is 8, so it proves the builder copies its argument, not that ze&#39;s callers (icmpEcho constant in ping, traceroute) send 8. The reply clause (Type 0) has no Echo-1-tagged assertion; the marker says Linux builds replies, and TestGatewayICMPEchoReply checks it only under Echo-6.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -441,8 +449,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc792-echo-2"><code>RFC792-Echo-2</code></a></h3>
-<p>An echo request carries Code 0 (§Echo)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Type 8 for echo message; 0 for echo reply message. Code 0 (§Echo)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Span ends &#39;Code 0&#39;: the code is 0 for echo and echo reply. TestRFC792EchoRequestCode asserts byte 1 of a built request is 0, which goes red if the builder wrote a non-zero code. The reply&#39;s Code 0 is not asserted by any Echo-2-tagged unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -456,8 +464,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc792-echo-3"><code>RFC792-Echo-3</code></a></h3>
-<p>The Checksum is the 16-bit one&#39;s complement of the one&#39;s-complement sum of the ICMP message starting with the ICMP Type field (§Echo)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The checksum is the 16-bit ones&#39;s complement of the one&#39;s complement sum of the ICMP message starting with the ICMP Type. (§Echo)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: checksum is the one&#39;s complement of the one&#39;s complement sum from the Type field. Positive TestRFC792ChecksumValid goes red on a wrong ze checksum (checksumOnesFold != 0xffff). The negative TestRFC792ChecksumRejectsCorruption corrupts a built packet and checks that the TEST helper notices, which exercises no ze code, and the row has no single-polarity marker, so the polarity pair is incomplete.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -476,8 +484,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc792-echo-4"><code>RFC792-Echo-4</code></a></h3>
-<p>If the total length is odd, the data is padded with one octet of zeros for computing the checksum (§Echo)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the total length is odd, the received data is padded with one octet of zeros for computing the checksum. (§Echo)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: computing the checksum of an odd-length message without one trailing zero pad octet. Red on it: TestRFC792ChecksumOddLength builds an 11-octet echo and asserts checksumOnesFold == 0xffff, which fails if icmpChecksum dropped the last octet or padded it into the low byte. The receive side is Linux; ze verifies no received ICMP checksum. Single-polarity marker on the row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -491,8 +499,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc792-echo-5"><code>RFC792-Echo-5</code></a></h3>
-<p>The data received in the echo request is returned unchanged in the echo reply (§Echo)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>The data received in the echo message must be returned in the echo reply message. (§Echo)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. First verdict 2026-09-27 (QF-2). Forbidden: an echo reply whose data differs from the request&#39;s. TestGatewayICMPEchoReply asserts bytes.Equal(answer[4:], icmp[4:]) on an odd-length request, which goes red on changed data. The negative tag rides the same unit and asserts a corrupt-checksum request is not reflected, the checksum rule (RFC792-Echo-6&#39;s negative), a neighbouring rule. Weak: one polarity proves the row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -511,8 +519,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc792-echo-6"><code>RFC792-Echo-6</code></a></h3>
-<p>To form an echo reply the source and destination addresses are reversed, the Type is changed to 0, and the checksum is recomputed (§Echo)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>To form an echo reply message, the source and destination addresses are simply reversed, the type code changed to 0, and the checksum recomputed. (§Echo)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: to form a reply, reverse the addresses, change the type to 0, recompute the checksum. The positive in TestGatewayICMPEchoReply asserts all three (address compare, answer[0]==0, gatewayChecksum(answer)==0). The negative (a corrupt-checksum request draws no reply) proves a neighbouring rule, discarding a bad request, not a malformed reply, and the row has no single-polarity marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -556,8 +564,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc792-unreachable-1"><code>RFC792-Unreachable-1</code></a></h3>
-<p>When a datagram must be fragmented to be forwarded by a gateway yet the Don&#39;t Fragment flag is on, the gateway must discard the datagram (§Unreachable)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Another case is when a datagram must be fragmented to be forwarded by a gateway yet the Don&#39;t Fragment flag is on. In this case the gateway must discard the datagram and may return a destination unreachable message. (§Unreachable)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a gateway forwarding a datagram that needs fragmentation while DF is set. Red on it: gatewayForwarded(t, captured, out, bad, false) in TestGatewayICMPDFDiscard fails if the 900-octet DF datagram appears on the 576-MTU link; the &#39;may return&#39; clause is checked by gatewayICMP(..., 3, 4). Negative: the DF datagram at MTU and the DF-clear oversize datagram are required to forward (the rule&#39;s own boundary).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -576,8 +584,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc792-timeexceeded-1"><code>RFC792-TimeExceeded-1</code></a></h3>
-<p>If the gateway processing a datagram finds the time to live field is zero it must discard the datagram (§TimeExceeded)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the gateway processing a datagram finds the time to live field is zero it must discard the datagram. (§TimeExceeded)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-27 (QF-2). Forbidden: forwarding a datagram whose TTL is zero. TestGatewayICMPTTLDiscard asserts gatewayForwarded(..., zero, false) and (..., one, false), red if either leaves the routed exit; the control asserts TTL two is forwarded unchanged, a distinct assertion. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -625,7 +633,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-09-27</td>
 </tr>
 <tr><td>Register</td>
 <td>prose</td>
@@ -724,7 +732,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

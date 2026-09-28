@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 75.0% | 9 of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 25.0% | 3 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 22 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 72.7% | 8 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 27.3% | 3 of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 0.0% | 0 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,13 +22,21 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 12 | of 14 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 12 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 12 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 11 | of 13 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 11 | of 11 gated MUSTs judged | 8 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+
+The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -44,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -52,15 +60,16 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Supported |
 | Enrolment | Enrolled |
-| Requirements | 14 |
-| Gated MUST-level | 12 |
+| Requirements | 13 |
+| Gated MUST-level | 11 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 23 |
-| Tagged units | 22 |
-| Recorded audit verdicts | 0 |
+| Test tags | 20 |
+| Tagged units | 20 |
+| Recorded audit verdicts | 11 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc2759.md` |
 | Requirement shard | `rfc/requirements/rfc2759.md` |
@@ -86,15 +95,15 @@ No MUST gap remains gated in [`rfc/short/rfc2759.md`](https://github.com/ze-soft
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 9 | one part of the gated population |
+| Positive and negative tests | 8 | one part of the gated population |
 | Annotated instead of tested | 3 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **12** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (9):** [`RFC2759-x-1`](#rfc2759-x-1), [`RFC2759-x-2`](#rfc2759-x-2), [`RFC2759-x-3`](#rfc2759-x-3), [`RFC2759-x-4`](#rfc2759-x-4), [`RFC2759-x-6`](#rfc2759-x-6), [`RFC2759-x-7`](#rfc2759-x-7), [`RFC2759-x-10`](#rfc2759-x-10), [`RFC2759-x-11`](#rfc2759-x-11), [`RFC2759-x-12`](#rfc2759-x-12)
+**Positive and negative tests (8):** [`RFC2759-x-1`](#rfc2759-x-1), [`RFC2759-x-2`](#rfc2759-x-2), [`RFC2759-x-3`](#rfc2759-x-3), [`RFC2759-x-4`](#rfc2759-x-4), [`RFC2759-x-6`](#rfc2759-x-6), [`RFC2759-x-7`](#rfc2759-x-7), [`RFC2759-x-10`](#rfc2759-x-10), [`RFC2759-x-12`](#rfc2759-x-12)
 
 **Annotated instead of tested (3):** [`RFC2759-x-5`](#rfc2759-x-5), [`RFC2759-x-8`](#rfc2759-x-8), [`RFC2759-x-9`](#rfc2759-x-9)
 
@@ -102,20 +111,19 @@ No MUST gap remains gated in [`rfc/short/rfc2759.md`](https://github.com/ze-soft
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2759-x-1` | Response Reserved octets (8 octets) MUST be zero (Wire Format, Validation) | MUST | x | **positive:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L43). **negative:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L65) |
-| `RFC2759-x-2` | Response Flags octet MUST be zero (Wire Format, Validation) | MUST | x | **positive:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L45). **negative:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L80) |
-| `RFC2759-x-3` | Response Value-Size MUST be 49; any other value MUST be rejected as malformed (Wire Format, Validation) | MUST | x | **positive:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L47). **negative:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L95) |
-| `RFC2759-x-4` | ChallengeHash UserName input MUST exclude any `DOMAIN\\` prefix (Crypto Operations) | MUST | x | **positive:** `unit/verify` [`TestChallengeHashExcludesDomainPrefix`](https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L164). **negative:** `unit/verify` [`TestChallengeHashExcludesDomainPrefix`](https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L175) |
-| `RFC2759-x-5` | `S=` hex digits MUST be uppercase A-F (Wire Format, Pitfalls) | MUST | x | **positive:** `unit/verify` [`TestMSCHAPv2SuccessUppercaseHex`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L114). **negative:** no negative test. **{single-polarity}:** the authenticator only emits S= and forces uppercase via strings.ToUpper, and no code path can emit lowercase, so only the positive assertion is reachable (internal/core/eap/eap_mschapv2.go:148) |
-| `RFC2759-x-6` | Failure packet MUST contain `C=` field with fresh 16-octet challenge as 32 uppercase hex digits (Wire Format) | MUST | x | **positive:** `unit/verify` [`TestRFC2759FailureCarriesFreshChallenge`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L197). **negative:** `unit/verify` [`TestRFC2759PeerRefusesFailureWithoutConformantChallenge`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L277) |
-| `RFC2759-x-7` | Peer MUST disconnect if Authenticator Response (`S=` value) does not match expected value (Validation, Mutual Authentication) | MUST | x | **positive:** `unit/verify` [`TestRFC2759PeerAcceptsCorrectAuthenticatorResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_authenticator_response_test.go#L93). **negative:** `unit/verify` [`TestRFC2759PeerEndsSessionOnBadAuthenticatorResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_authenticator_response_test.go#L122) |
-| `RFC2759-x-8` | Authenticator Challenge MUST be 16 octets of cryptographic random (Wire Format, Validation) | MUST | x | **positive:** `unit/verify` [`TestMSCHAPv2AuthChallengeRandom16`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L146). **negative:** no negative test. **{single-polarity}:** the authenticator fills a [16]byte from crypto/rand, so length and source are assertable but randomness quality has no falsifying negative test (internal/core/eap/eap_mschapv2.go:49) |
-| `RFC2759-x-9` | Peer-Challenge MUST be 16 octets of cryptographic random (Wire Format) | MUST | x | **positive:** `unit/verify` [`TestMSCHAPv2PeerChallengeRandom16`](https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L330). **positive:** `unit/verify` [`TestRFC2759PeerChallengeComesFromCryptoRand`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_peer_challenge_test.go#L37). **negative:** no negative test. **{single-polarity}:** the peer fills a [16]byte from crypto/rand, assertable for length and source but not falsifiable for randomness quality (internal/core/eap/peer.go:195) |
-| `RFC2759-x-10` | NT password hash MUST use UTF-16LE encoding of the password, not UTF-8 (Crypto Operations, Pitfalls) | MUST | x | **positive:** `unit/verify` [`TestNtPasswordHash`](https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L29). **negative:** `unit/verify` [`TestNtPasswordHash`](https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L37) |
-| `RFC2759-x-11` | Non-zero Reserved or Flags octets in Response MUST be rejected (Validation) | MUST | x | **positive:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L49). **negative:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L67) |
-| `RFC2759-x-12` | NT-Response mismatch MUST result in Failure with E=691 and session termination (Validation) | MUST | x | **positive:** `unit/verify` [`TestRFC2759AuthenticatorRefusesWithErrorCode691`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L104). **negative:** `unit/verify` [`TestRFC2759AuthenticatorAcceptsMatchingNTResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L171) |
-| `RFC2759-x-13` | Failure packet version field (`V=`) SHOULD be 3 for MS-CHAPv2 (Wire Format) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC2759-x-14` | Authenticator SHOULD limit retry count to mitigate brute-force attacks (Security Considerations) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC2759-x-1` | 8 octets: Reserved, must be zero (§4) | MUST | 4 - Response Packet | **positive:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L43). **negative:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L63) |
+| `RFC2759-x-2` | The Flag field is reserved for future use and MUST be zero. (§4) | MUST | 4 - Response Packet | **positive:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L45). **negative:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L76) |
+| `RFC2759-x-3` | However, the Value field is sub-formatted differently as follows: 16 octets: Peer-Challenge 8 octets: Reserved, must be zero 24 octets: NT-Response 1 octet : Flags (§4) | MUST | 4 - Response Packet | **positive:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L47). **negative:** `unit/verify` [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L89) |
+| `RFC2759-x-4` | When computing the NT-Response field contents, only the user name is used, without any associated Windows NT domain name. This is true regardless of whether a Windows NT domain name is present in the Name field (see below). (§4) | MUST | 4 - Response Packet | **positive:** `unit/verify` [`TestChallengeHashExcludesDomainPrefix`](https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L164). **negative:** `unit/verify` [`TestChallengeHashExcludesDomainPrefix`](https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L175) |
+| `RFC2759-x-5` | The hexadecimal digits A-F (if present) MUST be uppercase. (§5) | MUST | 5 - Success Packet | **positive:** `unit/verify` [`TestMSCHAPv2SuccessUppercaseHex`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L108). **negative:** no negative test. **{single-polarity}:** the authenticator only emits S= and forces uppercase via strings.ToUpper, and no code path can emit lowercase, so only the positive assertion is reachable (internal/core/eap/eap_mschapv2.go:148) |
+| `RFC2759-x-6` | The "cccccccccccccccccccccccccccccccc" is the ASCII representation of a hexadecimal challenge value. This field MUST be exactly 32 octets long and MUST be present. (§6) | MUST | 6 - Failure Packet | **positive:** `unit/verify` [`TestRFC2759FailureCarriesFreshChallenge`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L197). **negative:** `unit/verify` [`TestRFC2759PeerRefusesFailureWithoutConformantChallenge`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L277) |
+| `RFC2759-x-7` | If the authenticator response is either missing or incorrect, the peer MUST end the session. (§5) | MUST | 5 - Success Packet | **positive:** `unit/verify` [`TestRFC2759PeerAcceptsCorrectAuthenticatorResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_authenticator_response_test.go#L93). **negative:** `unit/verify` [`TestRFC2759PeerEndsSessionOnBadAuthenticatorResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_authenticator_response_test.go#L122) |
+| `RFC2759-x-8` | MS-CHAP-V2 authenticators send an 16-octet challenge Value field. Peers need not duplicate Microsoft's algorithm for selecting the 16- octet value, but the standard guidelines on randomness [1,2,7] SHOULD be observed. (§3) | MUST | 3 - Challenge Packet | **positive:** `unit/verify` [`TestMSCHAPv2AuthChallengeRandom16`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L140). **negative:** no negative test. **{single-polarity}:** the authenticator fills a [16]byte from crypto/rand, so length and source are assertable but randomness quality has no falsifying negative test (internal/core/eap/eap_mschapv2.go:49) |
+| `RFC2759-x-9` | The Peer-Challenge field is a 16-octet random number. As the name implies, it is generated by the peer and is used in the calculation of the NT-Response field, below. Peers need not duplicate Microsoft's algorithm for selecting the 16-octet value, but the standard guidelines on randomness [1,2,7] SHOULD be observed. (§4) | MUST | 4 - Response Packet | **positive:** `unit/verify` [`TestMSCHAPv2PeerChallengeRandom16`](https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L330). **positive:** `unit/verify` [`TestRFC2759PeerChallengeComesFromCryptoRand`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_peer_challenge_test.go#L37). **negative:** no negative test. **{single-polarity}:** the peer fills a [16]byte from crypto/rand, assertable for length and source but not falsifiable for randomness quality (internal/core/eap/peer.go:195) |
+| `RFC2759-x-10` | 0-to-256-unicode-char Password: 63 00 6C 00 69 00 65 00 6E 00 74 00 50 00 61 00 73 00 73 00 (§9.2) | MUST | 9.2 - Hash Example | **positive:** `unit/verify` [`TestNtPasswordHash`](https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L29). **negative:** `unit/verify` [`TestNtPasswordHash`](https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L37) |
+| `RFC2759-x-12` | Peer Response/Challenge -> <- Failure (E=691 R=0) (Authenticator disconnects) (§9.1.3) | MUST | 9.1.3 - Failed authentication with no retry allowed | **positive:** `unit/verify` [`TestRFC2759AuthenticatorRefusesWithErrorCode691`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L104). **negative:** `unit/verify` [`TestRFC2759AuthenticatorAcceptsMatchingNTResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L171) |
+| `RFC2759-x-13` | The "vvvvvvvvvv" is the ASCII representation of a decimal version code (need not be 10 digits) indicating the password changing protocol version supported on the server. For MS-CHAP-V2, this value SHOULD always be 3. (§6) | SHOULD | 6 - Failure Packet | **positive:** no positive test. **negative:** no negative test |
+| `RFC2759-x-14` | As an implementation detail, the authenticator SHOULD limit the number of password retries allowed to make brute-force password guessing attacks more difficult. (§10) | SHOULD | 10 - Security Considerations | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -127,42 +135,42 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC2759-x-1`](#rfc2759-x-1)
 
-Response Reserved octets (8 octets) MUST be zero (Wire Format, Validation)
+8 octets: Reserved, must be zero (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The unit proves only the authenticator rejecting a Response whose FIRST Reserved octet is 1 (bad[21]=0x01, res.Err==nil fails); octets 22-28 are never set, so a check of td[21] alone stays green, and the obligation on the sender (Ze peer building the Response, peer.go) has no assertion at all. Positive only asserts a valid Response is accepted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L65) | unit/verify | unproven |
+| negative | [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L63) | unit/verify | unproven |
 | positive | [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L43) | unit/verify | unproven |
 
 ### [`RFC2759-x-2`](#rfc2759-x-2)
 
-Response Flags octet MUST be zero (Wire Format, Validation)
+The Flag field is reserved for future use and MUST be zero. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The forbidden behaviour is a Response whose Flags octet is non-zero. The unit asserts the authenticator REJECTS such a Response (bad[53]=0x01, res.Err==nil fails), a receive-side check the sentence does not state; no assertion goes red if Ze peer emits a non-zero Flags octet (peer.go MS-CHAPv2 Response builder).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L80) | unit/verify | unproven |
+| negative | [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L76) | unit/verify | unproven |
 | positive | [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L45) | unit/verify | unproven |
 
 ### [`RFC2759-x-3`](#rfc2759-x-3)
 
-Response Value-Size MUST be 49; any other value MUST be rejected as malformed (Wire Format, Validation)
+However, the Value field is sub-formatted differently as follows: 16 octets: Peer-Challenge 8 octets: Reserved, must be zero 24 octets: NT-Response 1 octet : Flags (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The quote is the 49-octet sub-format (16 Peer-Challenge, 8 Reserved, 24 NT-Response, 1 Flags). The unit asserts only Value-Size: 49 accepted, 50 rejected (res.Err==nil fails). Field offsets are exercised only implicitly through the test helper that builds the valid Response, and the layout Ze peer emits is not asserted in this unit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L95) | unit/verify | unproven |
+| negative | [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L89) | unit/verify | unproven |
 | positive | [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L47) | unit/verify | unproven |
 
 ### [`RFC2759-x-4`](#rfc2759-x-4)
 
-ChallengeHash UserName input MUST exclude any `DOMAIN\` prefix (Crypto Operations)
+When computing the NT-Response field contents, only the user name is used, without any associated Windows NT domain name. This is true regardless of whether a Windows NT domain name is present in the Name field (see below). (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The unit asserts stripDomain("DOMAIN\\User")=="User" and that challengeHash/verifyNTResponse over the unstripped name differ. It calls stripDomain directly: removing the stripDomain call from handleResponse (eap_mschapv2.go:167) or from the peer (peer.go:273) leaves every assertion green, so the NT-Response computation on the real path is not proven to use the bare user name.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -171,19 +179,19 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2759-x-5`](#rfc2759-x-5)
 
-`S=` hex digits MUST be uppercase A-F (Wire Format, Pitfalls)
+The hexadecimal digits A-F (if present) MUST be uppercase. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. {single-polarity: positive} carried on the row. Forbidden behaviour: lowercase a-f in the S= authenticator response. TestMSCHAPv2SuccessUppercaseHex forces hex letters (0xab bytes, guarded by ContainsAny "ABCDEF" so it is not vacuous) and fails on strings.ContainsAny(sHex,"abcdef") and on sHex!=ToUpper(sHex); dropping strings.ToUpper in sendSuccess turns it red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestMSCHAPv2SuccessUppercaseHex`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L114) | unit/verify | unproven |
+| positive | [`TestMSCHAPv2SuccessUppercaseHex`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L108) | unit/verify | unproven |
 
 ### [`RFC2759-x-6`](#rfc2759-x-6)
 
-Failure packet MUST contain `C=` field with fresh 16-octet challenge as 32 uppercase hex digits (Wire Format)
+The "cccccccccccccccccccccccccccccccc" is the ASCII representation of a hexadecimal challenge value. This field MUST be exactly 32 octets long and MUST be present. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Clauses: present, exactly 32 octets, ASCII hex. Sender: TestRFC2759FailureCarriesFreshChallenge fails if Ze Failure has no C= (failureField !ok), len!=32, or a non-hex digit. Receiver negative: TestRFC2759PeerRefusesFailureWithoutConformantChallenge feeds absent, short (30), long (34), non-hex and empty C= and requires errors.Is(errFailureChallenge), no ack, no success; the conformant control is read as a refusal, so the cases discriminate.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -192,9 +200,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2759-x-7`](#rfc2759-x-7)
 
-Peer MUST disconnect if Authenticator Response (`S=` value) does not match expected value (Validation, Mutual Authentication)
+If the authenticator response is either missing or incorrect, the peer MUST end the session. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the peer continuing after a missing or incorrect authenticator response. Negative walks wrong S= (one digit flipped, same length and charset), absent Message, no S= prefix, short and non-hex S=; each fails on res.Err==nil or an acknowledgement, and the session end is asserted (later EAP-Success Discarded, not Done, not Succeeded). Positive: the correct S= is acknowledged with OpCode Success.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -203,19 +211,19 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2759-x-8`](#rfc2759-x-8)
 
-Authenticator Challenge MUST be 16 octets of cryptographic random (Wire Format, Validation)
+MS-CHAP-V2 authenticators send an 16-octet challenge Value field. Peers need not duplicate Microsoft's algorithm for selecting the 16- octet value, but the standard guidelines on randomness [1,2,7] SHOULD be observed. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: 16-octet Value; the SHOULD on standard randomness guidelines. TestMSCHAPv2AuthChallengeRandom16 fails if the Challenge Value-Size (TypeData[4]) is not 16, the challenge is all-zero, or two sessions draw the same value. No assertion pins the source: rand.Read in mschapv2Method.Start could be replaced by a math/rand or time-seeded generator and every assertion stays green, so the randomness clause the {single-polarity} marker claims assertable is not asserted (the peer side, RFC2759-x-9, substitutes crypto/rand.Reader; this unit does not).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestMSCHAPv2AuthChallengeRandom16`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L146) | unit/verify | unproven |
+| positive | [`TestMSCHAPv2AuthChallengeRandom16`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L140) | unit/verify | unproven |
 
 ### [`RFC2759-x-9`](#rfc2759-x-9)
 
-Peer-Challenge MUST be 16 octets of cryptographic random (Wire Format)
+The Peer-Challenge field is a 16-octet random number. As the name implies, it is generated by the peer and is used in the calculation of the NT-Response field, below. Peers need not duplicate Microsoft's algorithm for selecting the 16-octet value, but the standard guidelines on randomness [1,2,7] SHOULD be observed. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: the Peer-Challenge is a 16-octet random number; it is generated by the peer and used in the calculation of the NT-Response; the standard randomness guidelines SHOULD be observed. Asserted: the peer draws its 16 octets from crypto/rand.Reader (reader substituted, peerChallenge != marker fails), puts them at Response offset 5 (td[5:21] != marker fails), and two sessions differ. The used-in-the-NT-Response clause has no assertion in either tagged unit: a peer computing NT-Response without its Peer-Challenge stays green. Re-judged after the blind reader's enforced: the quoted span carries that clause, and no tagged assertion reaches it.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -224,31 +232,20 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2759-x-10`](#rfc2759-x-10)
 
-NT password hash MUST use UTF-16LE encoding of the password, not UTF-8 (Crypto Operations, Pitfalls)
+0-to-256-unicode-char Password: 63 00 6C 00 69 00 65 00 6E 00 74 00 50 00 61 00 73 00 73 00 (§9.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The row is the Section 9.2 vector: a 0-to-256-unicode-char password, clientPass as UTF-16LE (63 00 6C 00 ...). The unit asserts a different known answer (ntPasswordHash("Password")), which does go red on a UTF-8 encoder, but the 9.2 bytes are never asserted, the 256-character bound has no assertion, and the negative computes md4Sum over raw bytes against a constant, so it exercises no Ze producer.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestNtPasswordHash`](https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L37) | unit/verify | unproven |
 | positive | [`TestNtPasswordHash`](https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L29) | unit/verify | unproven |
 
-### [`RFC2759-x-11`](#rfc2759-x-11)
-
-Non-zero Reserved or Flags octets in Response MUST be rejected (Validation)
-
-Audit verdict: not audited: no reader has judged these tests
-
-| Polarity | Test | Kind and tier | Proof state |
-|---|---|---|---|
-| negative | [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L67) | unit/verify | unproven |
-| positive | [`TestMSCHAPv2ResponseFieldValidation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L49) | unit/verify | unproven |
-
 ### [`RFC2759-x-12`](#rfc2759-x-12)
 
-NT-Response mismatch MUST result in Failure with E=691 and session termination (Validation)
+Peer Response/Challenge -> <- Failure (E=691 R=0) (Authenticator disconnects) (§9.1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The quote is the 9.1.3 flow: Failure (E=691 R=0), then the authenticator disconnects. Asserted: OpCode Failure, E= is 691, no success, no MSK, EAP-Failure follows the ack and nothing after it; the negative shows a verified NT-Response draws Success and no E=691. The R=0 field is never read (failureField "R=" absent), so a Failure advertising R=1 stays green.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -305,14 +302,7 @@ Audit verdict: not audited: no reader has judged these tests
 | `9.1.5` | Failed hack attack with 3 attempts allowed | 0 | walked | Failed hack attack with 3 attempts allowed. A flow diagram illustrating the retry limit that section 10 states as an advisory. Non-normative. |
 | `9.1.6` | Successful authentication with password change | 0 | walked | Successful authentication with password change. A flow diagram for the exchange section 7 defines. Non-normative. |
 | `9.1.7` | Successful authentication with retry and password change | 0 | walked | Successful authentication with retry and password change. A flow diagram. Non-normative. |
-| `9.2` | Hash Example | 0 | walked | Hash Example. The known-answer vectors for user name 'User' and password 'clientPass', from the UTF-16LE password bytes through to 'S=407A5589115FD0D6209F510FE9C04566932CDA56'. No obligation; these are the vectors the RFC2759-x-10 and RFC2759-x-4 tests drive (internal/core/eap/mschapv2_test.go). Its column-0 lines are what the section splitter reads as the seven numeric pseudo-sections below. |
-| `55` | not stated | 0 | walked | Not a section of RFC 2759. The section splitter reads a column-0 line beginning with digits as a heading, and section 9.2 prints its vectors at column 0. This id comes from '55 73 65 72', the UserName vector. No text and no obligation. |
-| `63` | not stated | 0 | walked | Not a section of RFC 2759: the splitter artifact of '63 00 6C 00 69 00 65 00 6E 00 74 00 50 00 61 00 73 00 73 00', the UTF-16LE Password vector in section 9.2. No text and no obligation. |
-| `21` | not stated | 0 | walked | Not a section of RFC 2759: the splitter artifact of '21 40 23 24 25 5E 26 2A 28 29 5F 2B 3A 33 7C 7E', the PeerChallenge vector in section 9.2. No text and no obligation. |
-| `44` | not stated | 0 | walked | Not a section of RFC 2759: the splitter artifact of '44 EB BA 8D 53 12 B8 D6 11 47 44 11 F5 69 89 AE', the PasswordHash vector in section 9.2. No text and no obligation. |
-| `24` | not stated | 0 | walked | Not a section of RFC 2759: the splitter artifact of the label line '24 octet NT-Response:' in section 9.2. No text and no obligation. |
-| `82` | not stated | 0 | walked | Not a section of RFC 2759: the splitter artifact of '82 30 9E CD 8D 70 8B 5E A0 8F AA 39 81 CD 83 54 42 33 11 4A 3D 85 D6 DF', the NT-Response vector in section 9.2. No text and no obligation. |
-| `41` | not stated | 0 | walked | Not a section of RFC 2759: the splitter artifact of '41 C0 0C 58 4B D2 D9 1C 40 17 A2 A1 2F A5 9F 3F', the PasswordHashHash vector in section 9.2. No text and no obligation. |
+| `9.2` | Hash Example | 0 | walked | Hash Example. The known-answer vectors for user name 'User' and password 'clientPass', from the UTF-16LE password bytes through to 'S=407A5589115FD0D6209F510FE9C04566932CDA56'. No obligation; these are the vectors the RFC2759-x-10 and RFC2759-x-4 tests drive (internal/core/eap/mschapv2_test.go). |
 | `9.3` | Example of DES Key Generation | 0 | walked | Example of DES Key Generation. Shows the two parity-corrected DES keys derived from the password 'MyPw', and notes that many DES engines strip the parity bits rather than check them. A worked example of section 8.6, with no obligation of its own. |
 | `10` | Security Considerations | 0 | walked | Security Considerations. One sentence, an advisory: 'As an implementation detail, the authenticator SHOULD limit the number of password retries allowed to make brute-force password guessing attacks more difficult.' RFC2759-x-14 renders it. The scan reads no site because the sentence is SHOULD-level. |
 | `11` | References | 0 | skipped (references) | References. Twelve citations, including RFC 2119 at [3]. No obligation of this document. |

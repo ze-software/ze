@@ -14,16 +14,16 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 471 CLI commands, 38 config sections, 91 plugin registrations, 50 direct Go dependencies, 41 weekly change entries.
-- Test evidence counts: 32,200+ unit tests, 88 fuzz targets, 2,000+ end-to-end transcript steps, 152 interop scenarios across 9 target implementations.
+- Current generated counts: 52 shipped or experimental feature cards, 471 CLI commands, 38 config sections, 91 plugin registrations, 50 direct Go dependencies, 42 weekly change entries.
+- Test evidence counts: 32,500+ unit tests, 88 fuzz targets, 2,100+ end-to-end transcript steps, 152 interop scenarios across 9 target implementations.
 - Release inventory preview pending owner classification: [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-09-26.
+- Generated date: 2026-09-28.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 32,200+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 32,500+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 88 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
@@ -1088,7 +1088,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ### Progress and history
 - [Project overview](https://ze-software.net/project/index.md): Progress, history, talks, and contribution paths (web: https://ze-software.net/project/)
 - [Roadmap](https://ze-software.net/project/roadmap/index.md): Release work items and nice-to-haves, an inventory preview (web: https://ze-software.net/project/roadmap/)
-- [Changes](https://ze-software.net/project/changes/index.md): 41 weekly updates, newest first (web: https://ze-software.net/project/changes/)
+- [Changes](https://ze-software.net/project/changes/index.md): 42 weekly updates, newest first (web: https://ze-software.net/project/changes/)
 - [Milestones](https://ze-software.net/project/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/project/milestones/)
 - [Activity](https://ze-software.net/project/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/project/activity/)
 - [Project history](https://ze-software.net/project/history/index.md): How ExaBGP's programmable model grew into Ze (web: https://ze-software.net/project/history/)

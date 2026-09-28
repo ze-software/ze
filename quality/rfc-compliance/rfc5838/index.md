@@ -34,6 +34,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 50.0% | 8 of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 6 | of 16 gated MUSTs judged | 4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 7 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -51,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -63,11 +64,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 16 |
 | Not applicable, so out of scope | 2 |
 | Declared gaps | 8 |
+| Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 10 |
 | Tagged units | 10 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 6 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc5838.md` |
 | Requirement shard | `rfc/requirements/rfc5838.md` |
@@ -111,48 +113,48 @@ Eight MUST gaps annotated in [`rfc/short/rfc5838.md`](https://github.com/ze-soft
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5838-2.2-1` | A router supporting AFs "MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs" (§2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the AF-bit is set in Hello and DD Options only; LSA origination never sets it -- encoder_v6.go:33 applies SetAF to the Hello/DD path only, and origination_v6.go:254 with origination_v6_link.go:51 build Router/Network/Link-LSA Options via neutralToV6Options, which omits OptAF |
-| `RFC5838-2.3-1` | Prefixes that don't conform to an instance's AF "MUST NOT be used in the route computation for that instance" (§2.3) | MUST NOT | 2.3 | **positive:** `unit/verify` [`TestIPv4OverV3BuildRoutes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L283). **negative:** `unit/verify` [`TestV6PrefixToNetipAFWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L256) |
-| `RFC5838-2.4-1` | A router participating in an AF (AF-bit set) "MUST discard Hello packets having the AF-bit clear in the Options field" (§2.4) | MUST | 2.4 | **positive:** `unit/verify` [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L156). **negative:** `unit/verify` [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L155) |
-| `RFC5838-2.4-2` | For the Base IPv6 unicast AF the AF-bit check "MUST NOT be done (for backward compatibility)" (§2.4) | MUST NOT | 2.4 | **positive:** `unit/verify` [`TestAFBitIgnoredDefaultAF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L181). **negative:** no negative test. **{single-polarity}:** the default IPv6-unicast AF has no reject path -- afBitAccepted at multiaf.go:181 returns true immediately for e.af.isDefault, so a base-AF Hello is never dropped for a missing AF-bit and there is no negative behavior to exercise |
-| `RFC5838-2.5-1` | After placing the link's IPv4 address in the first 32 bits of the Link-LSA "link local address" field, "The remaining bits MUST be set to zero" (§2.5) | MUST | 2.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** v6OriginateLinkLSA at origination_v6_link.go:42-48 always encodes an IPv6 link-local address in the Link-LSA link-local field and returns false without one, so an IPv4-AF Link-LSA never carries the interface IPv4 address in the leading 32 bits |
-| `RFC5838-2.6-1` | For IPv4 unicast and IPv4 multicast AFs "the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address" (§2.6) | MUST | 2.6 | **positive:** `unit/verify` [`TestV6ForwardingAddrAFWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L336). **negative:** `unit/verify` [`TestV6ForwardingAddrAFWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L337) |
-| `RFC5838-2.6-2` | After placing the IPv4 Forwarding Address in the first 32 bits of the Forwarding Address field, "The remaining bits MUST be set to zero" (§2.6) | MUST | 2.6 | **positive:** `unit/verify` [`TestV6ForwardingAddrAFWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L338). **negative:** no negative test. **{single-polarity}:** forwardingAddressForAF at origination_v6_nssa.go:29-31 zero-initialises the 16-byte field and writes only the leading 4 IPv4 octets, so the remaining bits are structurally zero and no non-zero-trailing path exists to reject |
-| `RFC5838-2.7-1` | For non-IPv6 AFs "both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered" (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze tracks a single per-interface MTU -- neighbor/dd.go:170 sends cfg.InterfaceMTU and neighbor/dd.go:45 checks it -- with no separate address-family MTU versus IPv6 MTU, so the two are not considered independently |
+| `RFC5838-2.2-1` | When an OSPFv3 router is supporting AFs as described in this specification, it MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs. (§2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the AF-bit is set in Hello and DD Options only; LSA origination never sets it -- encoder_v6.go:33 applies SetAF to the Hello/DD path only, and origination_v6.go:254 with origination_v6_link.go:51 build Router/Network/Link-LSA Options via neutralToV6Options, which omits OptAF |
+| `RFC5838-2.3-1` | Prefixes that don't conform to the AF of an OSPFv3 instance MUST NOT be used in the route computation for that instance. (§2.3) | MUST NOT | 2.3 | **positive:** `unit/verify` [`TestIPv4OverV3BuildRoutes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L283). **negative:** `unit/verify` [`TestV6PrefixToNetipAFWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L256) |
+| `RFC5838-2.4-1` | When an OSPFv3 router participates in an AF (sets the AF-bit in the Options field), it MUST discard Hello packets having the AF- bit clear in the Options field. (§2.4) | MUST | 2.4 | **positive:** `unit/verify` [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L156). **negative:** `unit/verify` [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L155) |
+| `RFC5838-2.4-2` | The only exception is the Base IPv6 unicast AF, where this check MUST NOT be done (for backward compatibility). (§2.4) | MUST NOT | 2.4 | **positive:** `unit/verify` [`TestAFBitIgnoredDefaultAF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L181). **negative:** no negative test. **{single-polarity}:** the default IPv6-unicast AF has no reject path -- afBitAccepted at multiaf.go:181 returns true immediately for e.af.isDefault, so a base-AF Hello is never dropped for a missing AF-bit and there is no negative behavior to exercise |
+| `RFC5838-2.5-1` | the link's IPv4 address will be advertised in the "link local address" field of the IPv4 instance's Link-LSA. This address is placed in the first 32 bits of the "link local address" field and is used for IPv4 next-hop calculations. The remaining bits MUST be set to zero. (§2.5) | MUST | 2.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** v6OriginateLinkLSA at origination_v6_link.go:42-48 always encodes an IPv6 link-local address in the Link-LSA link-local field and returns false without one, so an IPv4-AF Link-LSA never carries the interface IPv4 address in the leading 32 bits |
+| `RFC5838-2.6-1` | For IPv4 unicast and IPv4 multicast AFs, the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address. (§2.6) | MUST | 2.6 | **positive:** `unit/verify` [`TestV6ForwardingAddrAFWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L336). **negative:** `unit/verify` [`TestV6ForwardingAddrAFWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L337) |
+| `RFC5838-2.6-2` | the IPv4 Forwarding Address is advertised by placing it in the first 32 bits of the Forwarding Address field in AS-external-LSAs and NSSA-LSAs. The remaining bits MUST be set to zero. (§2.6) | MUST | 2.6 | **positive:** `unit/verify` [`TestV6ForwardingAddrAFWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L338). **negative:** no negative test. **{single-polarity}:** forwardingAddressForAF at origination_v6_nssa.go:29-31 zero-initialises the 16-byte field and writes only the leading 4 IPv4 octets, so the remaining bits are structurally zero and no non-zero-trailing path exists to reject |
+| `RFC5838-2.7-1` | For address families other than IPv6, both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered. (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze tracks a single per-interface MTU -- neighbor/dd.go:170 sends cfg.InterfaceMTU and neighbor/dd.go:45 checks it -- with no separate address-family MTU versus IPv6 MTU, so the two are not considered independently |
 | `RFC5838-2.7-2` | The MTU in the Database Description packet MUST always contain the MTU corresponding to the advertised address family. (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the Database Description always carries the single cfg.InterfaceMTU at neighbor/dd.go:170 with no per-address-family MTU, so for a non-IPv6 AF whose MTU differs the DD does not carry the AF-specific MTU |
-| `RFC5838-2.7-3` | For an IPv4-address-family instance "the IPv4 MTU for the interface MUST be specified in the interface MTU field" (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no IPv4-address-family interface MTU; the DD MTU is the one configured interface MTU at neighbor/dd.go:170, never an IPv4-specific value |
+| `RFC5838-2.7-3` | For example, if the instance corresponds to an IPv4 address family, the IPv4 MTU for the interface MUST be specified in the interface MTU field. (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no IPv4-address-family interface MTU; the DD MTU is the one configured interface MTU at neighbor/dd.go:170, never an IPv4-specific value |
 | `RFC5838-2.7-4` | The value used for OSPFv3 maximum packet size determination MUST also be compatible for an adjacency to be established. (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the adjacency MTU-compatibility gate at neighbor/dd.go:45 compares the single interface MTU only; ze does not derive an IPv6-MTU-based maximum packet size distinct from the AF MTU per RFC 5838 §2.7 |
 | `RFC5838-2.7-8` | If the IPv6 and IPv4 MTUs differ, the M6-bit MUST be set for non-IPv6 address families. (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no M6-bit -- a grep for m6 across internal/plugins/ospf returns nothing -- so the DD encoder at encoder_v6.go:90 never sets it for a non-IPv6 AF |
-| `RFC5838-2.7-11` | If the M6-bit is set in a received DD packet for a non-IPv6 AF, "the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface's IPv6 MTU" (§2.7) | MUST NOT | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze neither sets nor reads the M6-bit and performs only the single-MTU check at neighbor/dd.go:45, so the M6-conditioned suppression of an IPv6-MTU comparison is unimplemented |
-| `RFC5838-2.8-1` | For a virtual link "there MUST be a global IPv6 address associated with the virtual link so that OSPFv3 control packets are forwarded correctly by the intermediate hops" (§2.8) | MUST | 2.8 | **positive:** `unit/verify` [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L518). **negative:** `unit/verify` [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L554) |
-| `RFC5838-4-1` | When multiple OSPFv3 instances use the same interface "they all MUST use the same Security Association (SA)" (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze runs OSPFv3 IPsec on the default IPv6-unicast AF only -- validateConfigAF at config.go:907-909 rejects an ipsec block on any non-IPv6 family -- so multiple AF instances never share an interface SA and the requirement's precondition never arises |
-| `RFC5838-5-3` | Before assignments in the 128-255 range "there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned" (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the IANA registration process, not an implementation; ze has no code path that assigns AF Instance IDs and it rejects Instance IDs above 127 for AF use at multiaf.go:71 and via ErrInstanceIDRange in config.go |
-| `RFC5838-2.5-2` | "An implementation SHOULD resolve layer 3 to layer 2 mappings via the Address Resolution Protocol (ARP) or Neighbor Discovery (ND) for a DIA even if the IPv4 address is not on the same subnet as the router's interface IP address" (§2.5) | SHOULD | 2.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5838-2.7-5` | "If the M6-bit is clear, the specified MTU SHOULD also be checked against the IPv6 MTU" (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5838-2.7-6` | When the M6-bit is clear, "the Database Description packet SHOULD be rejected if the MTU is larger than the receiving interface's IPv6 MTU" (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5838-2.7-7` | "An OSPFv3 router SHOULD NOT set the M6-bit if its IPv6 MTU and address family specific MTU are the same" (§2.7) | SHOULD NOT | 2.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5838-2.7-9` | When the IPv6 MTU TLV is present, it carries the IPv6 MTU "that SHOULD be compared with the local IPv6 MTU" (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5838-2.7-10` | When the IPv6 MTU TLV is absent, "the minimum IPv6 MTU of 1280 octets SHOULD be used for the comparison" (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5838-2.7-12` | "The Interface MTU SHOULD be set to 0 in Database Description packets sent over virtual links" (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5838-2.7-14` | For IPv6 MTU TLV instances subsequent to the first, "the LLS inconsistency SHOULD be logged" (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5838-5-2` | When the Instance ID field is used for address families "the assignments herein SHOULD be honored" (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5838-2.7-13` | "Only one instance of the IPv6 MTU TLV MAY appear in the LLS block" (§2.7) | MAY | 2.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5838-5-1` | "the Instance ID field MAY be used for applications other than the support of multiple address families" (§5) | MAY | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5838-2.7-11` | If the M6-bit is set in a received Database Description packet for a non-IPv6 address family, the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface's IPv6 MTU. (§2.7) | MUST NOT | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze neither sets nor reads the M6-bit and performs only the single-MTU check at neighbor/dd.go:45, so the M6-conditioned suppression of an IPv6-MTU comparison is unimplemented |
+| `RFC5838-2.8-1` | there MUST be a global IPv6 address associated with the virtual link so that OSPFv3 control packets are forwarded correctly by the intermediate hops between virtual link endpoints. (§2.8) | MUST | 2.8 | **positive:** `unit/verify` [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L518). **negative:** `unit/verify` [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L554) |
+| `RFC5838-4-1` | When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID). (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze runs OSPFv3 IPsec on the default IPv6-unicast AF only -- validateConfigAF at config.go:907-909 rejects an ipsec block on any non-IPv6 family -- so multiple AF instances never share an interface SA and the requirement's precondition never arises |
+| `RFC5838-5-3` | Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the IANA registration process, not an implementation; ze has no code path that assigns AF Instance IDs and it rejects Instance IDs above 127 for AF use at multiaf.go:71 and via ErrInstanceIDRange in config.go |
+| `RFC5838-2.5-2` | An implementation SHOULD resolve layer 3 to layer 2 mappings via the Address Resolution Protocol (ARP) [ARP] or Neighbor Discovery (ND) [ND] for a DIA even if the IPv4 address is not on the same subnet as the router's interface IP address. (§2.5) | SHOULD | 2.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5838-2.7-5` | If the M6-bit is clear, the specified MTU SHOULD also be checked against the IPv6 MTU (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5838-2.7-6` | If the M6-bit is clear, the specified MTU SHOULD also be checked against the IPv6 MTU, and the Database Description packet SHOULD be rejected if the MTU is larger than the receiving interface's IPv6 MTU. (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5838-2.7-7` | An OSPFv3 router SHOULD NOT set the M6-bit if its IPv6 MTU and address family specific MTU are the same. (§2.7) | SHOULD NOT | 2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5838-2.7-9` | If this TLV is present, it carries the IPv6 MTU that SHOULD be compared with the local IPv6 MTU. (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5838-2.7-10` | If this TLV is absent, the minimum IPv6 MTU of 1280 octets SHOULD be used for the comparison (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5838-2.7-12` | The Interface MTU SHOULD be set to 0 in Database Description packets sent over virtual links. (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5838-2.7-14` | Instances subsequent to the first are not processed, and the LLS inconsistency SHOULD be logged. (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5838-5-2` | However, if it is being used for address families as described in this specification, the assignments herein SHOULD be honored. (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5838-2.7-13` | Only one instance of the IPv6 MTU TLV MAY appear in the LLS block. (§2.7) | MAY | 2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5838-5-1` | Note that the Instance ID field MAY be used for applications other than the support of multiple address families. (§5) | MAY | 5 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5838-2.2-1`](#rfc5838-2.2-1) A router supporting AFs "MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs" (§2.2) | {gap}, no test | the AF-bit is set in Hello and DD Options only; LSA origination never sets it -- encoder_v6.go:33 applies SetAF to the Hello/DD path only, and origination_v6.go:254 with origination_v6_link.go:51 build Router/Network/Link-LSA Options via neutralToV6Options, which omits OptAF |
-| [`RFC5838-2.5-1`](#rfc5838-2.5-1) After placing the link's IPv4 address in the first 32 bits of the Link-LSA "link local address" field, "The remaining bits MUST be set to zero" (§2.5) | {gap}, no test | v6OriginateLinkLSA at origination_v6_link.go:42-48 always encodes an IPv6 link-local address in the Link-LSA link-local field and returns false without one, so an IPv4-AF Link-LSA never carries the interface IPv4 address in the leading 32 bits |
-| [`RFC5838-2.7-1`](#rfc5838-2.7-1) For non-IPv6 AFs "both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered" (§2.7) | {gap}, no test | ze tracks a single per-interface MTU -- neighbor/dd.go:170 sends cfg.InterfaceMTU and neighbor/dd.go:45 checks it -- with no separate address-family MTU versus IPv6 MTU, so the two are not considered independently |
+| [`RFC5838-2.2-1`](#rfc5838-2.2-1) When an OSPFv3 router is supporting AFs as described in this specification, it MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs. (§2.2) | {gap}, no test | the AF-bit is set in Hello and DD Options only; LSA origination never sets it -- encoder_v6.go:33 applies SetAF to the Hello/DD path only, and origination_v6.go:254 with origination_v6_link.go:51 build Router/Network/Link-LSA Options via neutralToV6Options, which omits OptAF |
+| [`RFC5838-2.5-1`](#rfc5838-2.5-1) the link's IPv4 address will be advertised in the "link local address" field of the IPv4 instance's Link-LSA. This address is placed in the first 32 bits of the "link local address" field and is used for IPv4 next-hop calculations. The remaining bits MUST be set to zero. (§2.5) | {gap}, no test | v6OriginateLinkLSA at origination_v6_link.go:42-48 always encodes an IPv6 link-local address in the Link-LSA link-local field and returns false without one, so an IPv4-AF Link-LSA never carries the interface IPv4 address in the leading 32 bits |
+| [`RFC5838-2.7-1`](#rfc5838-2.7-1) For address families other than IPv6, both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered. (§2.7) | {gap}, no test | ze tracks a single per-interface MTU -- neighbor/dd.go:170 sends cfg.InterfaceMTU and neighbor/dd.go:45 checks it -- with no separate address-family MTU versus IPv6 MTU, so the two are not considered independently |
 | [`RFC5838-2.7-2`](#rfc5838-2.7-2) The MTU in the Database Description packet MUST always contain the MTU corresponding to the advertised address family. (§2.7) | {gap}, no test | the Database Description always carries the single cfg.InterfaceMTU at neighbor/dd.go:170 with no per-address-family MTU, so for a non-IPv6 AF whose MTU differs the DD does not carry the AF-specific MTU |
-| [`RFC5838-2.7-3`](#rfc5838-2.7-3) For an IPv4-address-family instance "the IPv4 MTU for the interface MUST be specified in the interface MTU field" (§2.7) | {gap}, no test | ze has no IPv4-address-family interface MTU; the DD MTU is the one configured interface MTU at neighbor/dd.go:170, never an IPv4-specific value |
+| [`RFC5838-2.7-3`](#rfc5838-2.7-3) For example, if the instance corresponds to an IPv4 address family, the IPv4 MTU for the interface MUST be specified in the interface MTU field. (§2.7) | {gap}, no test | ze has no IPv4-address-family interface MTU; the DD MTU is the one configured interface MTU at neighbor/dd.go:170, never an IPv4-specific value |
 | [`RFC5838-2.7-4`](#rfc5838-2.7-4) The value used for OSPFv3 maximum packet size determination MUST also be compatible for an adjacency to be established. (§2.7) | {gap}, no test | the adjacency MTU-compatibility gate at neighbor/dd.go:45 compares the single interface MTU only; ze does not derive an IPv6-MTU-based maximum packet size distinct from the AF MTU per RFC 5838 §2.7 |
 | [`RFC5838-2.7-8`](#rfc5838-2.7-8) If the IPv6 and IPv4 MTUs differ, the M6-bit MUST be set for non-IPv6 address families. (§2.7) | {gap}, no test | ze implements no M6-bit -- a grep for m6 across internal/plugins/ospf returns nothing -- so the DD encoder at encoder_v6.go:90 never sets it for a non-IPv6 AF |
-| [`RFC5838-2.7-11`](#rfc5838-2.7-11) If the M6-bit is set in a received DD packet for a non-IPv6 AF, "the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface's IPv6 MTU" (§2.7) | {gap}, no test | ze neither sets nor reads the M6-bit and performs only the single-MTU check at neighbor/dd.go:45, so the M6-conditioned suppression of an IPv6-MTU comparison is unimplemented |
-| [`RFC5838-4-1`](#rfc5838-4-1) When multiple OSPFv3 instances use the same interface "they all MUST use the same Security Association (SA)" (§4) | no test | no test carries this requirement id; annotated {not-applicable}: ze runs OSPFv3 IPsec on the default IPv6-unicast AF only -- validateConfigAF at config.go:907-909 rejects an ipsec block on any non-IPv6 family -- so multiple AF instances never share an interface SA and the requirement's precondition never arises |
-| [`RFC5838-5-3`](#rfc5838-5-3) Before assignments in the 128-255 range "there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned" (§5) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the IANA registration process, not an implementation; ze has no code path that assigns AF Instance IDs and it rejects Instance IDs above 127 for AF use at multiaf.go:71 and via ErrInstanceIDRange in config.go |
+| [`RFC5838-2.7-11`](#rfc5838-2.7-11) If the M6-bit is set in a received Database Description packet for a non-IPv6 address family, the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface's IPv6 MTU. (§2.7) | {gap}, no test | ze neither sets nor reads the M6-bit and performs only the single-MTU check at neighbor/dd.go:45, so the M6-conditioned suppression of an IPv6-MTU comparison is unimplemented |
+| [`RFC5838-4-1`](#rfc5838-4-1) When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID). (§4) | no test | no test carries this requirement id; annotated {not-applicable}: ze runs OSPFv3 IPsec on the default IPv6-unicast AF only -- validateConfigAF at config.go:907-909 rejects an ipsec block on any non-IPv6 family -- so multiple AF instances never share an interface SA and the requirement's precondition never arises |
+| [`RFC5838-5-3`](#rfc5838-5-3) Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the IANA registration process, not an implementation; ze has no code path that assigns AF Instance IDs and it rejects Instance IDs above 127 for AF use at multiaf.go:71 and via ErrInstanceIDRange in config.go |
 
 ## Proof state
 
@@ -160,7 +162,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC5838-2.2-1`](#rfc5838-2.2-1)
 
-A router supporting AFs "MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs" (§2.2)
+When an OSPFv3 router is supporting AFs as described in this specification, it MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs. (§2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -168,9 +170,9 @@ No test carries RFC5838-2.2-1, so no unit is bound to it.
 
 ### [`RFC5838-2.3-1`](#rfc5838-2.3-1)
 
-Prefixes that don't conform to an instance's AF "MUST NOT be used in the route computation for that instance" (§2.3)
+Prefixes that don't conform to the AF of an OSPFv3 instance MUST NOT be used in the route computation for that instance. (§2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a prefix not conforming to the instance AF (e.g. length > 32 under IPv4) used in the route computation. The negative in TestV6PrefixToNetipAFWidth asserts only the converter v6PrefixToNetip returns ok=false for a 64-bit prefix under an IPv4 AF; no tagged unit feeds a non-conforming prefix through v6BuildRoutes and asserts it yields no route, so a route builder that ignored the ok flag keeps both units green. The positive (TestIPv4OverV3BuildRoutes) does go through v6BuildRoutes.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -179,9 +181,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5838-2.4-1`](#rfc5838-2.4-1)
 
-A router participating in an AF (AF-bit set) "MUST discard Hello packets having the AF-bit clear in the Options field" (§2.4)
+When an OSPFv3 router participates in an AF (sets the AF-bit in the Options field), it MUST discard Hello packets having the AF- bit clear in the Options field. (§2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour (a): a non-default-AF instance accepting a Hello with the AF-bit clear. (b) TestAFBitGatesFullNonDefault dispatches that Hello on an IPv4-unicast instance and asserts neighborSnapshot() is empty (a processed Hello would create an Init neighbor), then the same Hello with SetAF() yields one neighbor, isolating the AF-bit as the only difference.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -190,9 +192,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5838-2.4-2`](#rfc5838-2.4-2)
 
-For the Base IPv6 unicast AF the AF-bit check "MUST NOT be done (for backward compatibility)" (§2.4)
+The only exception is the Base IPv6 unicast AF, where this check MUST NOT be done (for backward compatibility). (§2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour (a): the base IPv6-unicast AF discarding a Hello whose AF-bit is clear. (b) TestAFBitIgnoredDefaultAF dispatches an AF-bit-less Hello to the default IPv6-unicast engine and asserts neighborSnapshot() has one row, so an applied AF-bit check goes red. Single-polarity marker holds (the base AF has no reject path).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -200,7 +202,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5838-2.5-1`](#rfc5838-2.5-1)
 
-After placing the link's IPv4 address in the first 32 bits of the Link-LSA "link local address" field, "The remaining bits MUST be set to zero" (§2.5)
+the link's IPv4 address will be advertised in the "link local address" field of the IPv4 instance's Link-LSA. This address is placed in the first 32 bits of the "link local address" field and is used for IPv4 next-hop calculations. The remaining bits MUST be set to zero. (§2.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -208,9 +210,9 @@ No test carries RFC5838-2.5-1, so no unit is bound to it.
 
 ### [`RFC5838-2.6-1`](#rfc5838-2.6-1)
 
-For IPv4 unicast and IPv4 multicast AFs "the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address" (§2.6)
+For IPv4 unicast and IPv4 multicast AFs, the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address. (§2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The MUST binds the originator: the Forwarding Address in AS-external and NSSA LSAs of an IPv4 AF must encode an IPv4 address. TestV6ForwardingAddrAFWidth tests v6ForwardingAddr, the RECEIVE-side renderer, and never encodes an LSA; the producer forwardingAddressForAF (origination_v6_nssa.go) is untested by these tags. The IPv4 multicast AF is not covered either.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -219,9 +221,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5838-2.6-2`](#rfc5838-2.6-2)
 
-After placing the IPv4 Forwarding Address in the first 32 bits of the Forwarding Address field, "The remaining bits MUST be set to zero" (§2.6)
+the IPv4 Forwarding Address is advertised by placing it in the first 32 bits of the Forwarding Address field in AS-external-LSAs and NSSA-LSAs. The remaining bits MUST be set to zero. (§2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The MUST is that the originator sets the bits after the leading 32 to zero. The tagged unit asserts the receiver renders 192.0.2.7 even when trailing octets are 0xff, i.e. it proves receive-side tolerance of non-zero bits, a neighbouring property; the producer forwardingAddressForAF (origination_v6_nssa.go) is never exercised.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -229,7 +231,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5838-2.7-1`](#rfc5838-2.7-1)
 
-For non-IPv6 AFs "both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered" (§2.7)
+For address families other than IPv6, both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered. (§2.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -245,7 +247,7 @@ No test carries RFC5838-2.7-2, so no unit is bound to it.
 
 ### [`RFC5838-2.7-3`](#rfc5838-2.7-3)
 
-For an IPv4-address-family instance "the IPv4 MTU for the interface MUST be specified in the interface MTU field" (§2.7)
+For example, if the instance corresponds to an IPv4 address family, the IPv4 MTU for the interface MUST be specified in the interface MTU field. (§2.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -269,7 +271,7 @@ No test carries RFC5838-2.7-8, so no unit is bound to it.
 
 ### [`RFC5838-2.7-11`](#rfc5838-2.7-11)
 
-If the M6-bit is set in a received DD packet for a non-IPv6 AF, "the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface's IPv6 MTU" (§2.7)
+If the M6-bit is set in a received Database Description packet for a non-IPv6 address family, the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface's IPv6 MTU. (§2.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -277,9 +279,9 @@ No test carries RFC5838-2.7-11, so no unit is bound to it.
 
 ### [`RFC5838-2.8-1`](#rfc5838-2.8-1)
 
-For a virtual link "there MUST be a global IPv6 address associated with the virtual link so that OSPFv3 control packets are forwarded correctly by the intermediate hops" (§2.8)
+there MUST be a global IPv6 address associated with the virtual link so that OSPFv3 control packets are forwarded correctly by the intermediate hops between virtual link endpoints. (§2.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a virtual link formed without a global IPv6 address. The negative TestV6VirtualEndpointRequiresGlobalAddress covers only the neighbor side (neighbor advertises only fe80::2, resolution fails). No tagged unit removes THIS router's global address and asserts resolution fails, so v6ResolveVirtualEndpointLocked falling back to a link-local local source keeps both units green (the positive asserts src only when a global exists).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -288,7 +290,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5838-4-1`](#rfc5838-4-1)
 
-When multiple OSPFv3 instances use the same interface "they all MUST use the same Security Association (SA)" (§4)
+When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID). (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -296,7 +298,7 @@ No test carries RFC5838-4-1, so no unit is bound to it.
 
 ### [`RFC5838-5-3`](#rfc5838-5-3)
 
-Before assignments in the 128-255 range "there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned" (§5)
+Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2003 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2003: IP Encapsulation within IP. 13 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 2003: IP Encapsulation within IP. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2003 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2003: IP Encapsulation within IP. 13 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 2003: IP Encapsulation within IP. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2003 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2003: IP Encapsulation within IP. 13 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 2003: IP Encapsulation within IP. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -210,6 +210,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -287,7 +290,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.1-1">RFC2003-3.1-1</code></td><td colspan="3"><span class="rfc-subject">If the Don&#39;t Fragment bit is set in the inner IP header, it MUST be set in the outer IP header (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.1-1">RFC2003-3.1-1</code></td><td colspan="3"><span class="rfc-subject">if the &#34;Don&#39;t Fragment&#34; bit is set in the inner IP header, it MUST be set in the outer IP header (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -314,7 +317,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this decapsulation obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.2-1">RFC2003-3.2-1</code></td><td colspan="3"><span class="rfc-subject">If IP Source Address of the datagram matches the router&#39;s own IP address, the router MUST NOT tunnel the datagram (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.2-1">RFC2003-3.2-1</code></td><td colspan="3"><span class="rfc-subject">If the IP Source Address of the datagram matches the router&#39;s own IP address on any of its network interfaces, the router MUST NOT tunnel the datagram (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2</td>
@@ -323,7 +326,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this tunnel loop-prevention check has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.2-2">RFC2003-3.2-2</code></td><td colspan="3"><span class="rfc-subject">If IP Source Address of the datagram matches the tunnel destination address, the router MUST NOT tunnel the datagram (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.2-2">RFC2003-3.2-2</code></td><td colspan="3"><span class="rfc-subject">If the IP Source Address of the datagram matches the IP address of the tunnel destination (the tunnel exit point is typically chosen by the router based on the Destination Address in the datagram&#39;s IP header), the router MUST NOT tunnel the datagram (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2</td>
@@ -341,7 +344,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-2">RFC2003-4.1-2</code></td><td colspan="3"><span class="rfc-subject">If returning Destination Unreachable for Network Unreachable and destination is not on the same network, the Code field MUST be set to 0 (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-2">RFC2003-4.1-2</code></td><td colspan="3"><span class="rfc-subject">If the original destination in the unencapsulated datagram is on the same network as the encapsulator, the newly generated Destination Unreachable message sent by the encapsulator MAY have Code 1 (Host Unreachable), since presumably the datagram arrived at the correct network and the encapsulator is trying to create the appearance that the original destination is local to that network even if it is not. Otherwise, if the encapsulator returns a Destination Unreachable message, the Code field MUST be set to 0 (Network Unreachable). (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -386,7 +389,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.5-1">RFC2003-4.5-1</code></td><td colspan="3"><span class="rfc-subject">If ICMP Parameter Problem points to a field inserted by the encapsulator, the message MUST NOT be relayed to the original sender (§4.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.5-1">RFC2003-4.5-1</code></td><td colspan="3"><span class="rfc-subject">if the problem occurs with an IP option inserted by the encapsulator, then the encapsulator MUST NOT relay the ICMP message to the original sender. (§4.5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.5</td>
@@ -404,7 +407,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this path-MTU soft-state obligation is set by the PMtuDisc flag ze programs (tunnel_linux.go:210-214) but maintained by the kernel/VPP dataplane, not by ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.1-4">RFC2003-3.1-4</code></td><td colspan="3"><span class="rfc-subject">If the resulting inner TTL is 0 after decrement, an ICMP Time Exceeded message SHOULD be returned to the sender (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.1-4">RFC2003-3.1-4</code></td><td colspan="3"><span class="rfc-subject">If the resulting TTL in the inner IP header is 0, the datagram is discarded and an ICMP Time Exceeded message SHOULD be returned to the sender. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.1</td>
@@ -413,7 +416,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.2-3">RFC2003-3.2-3</code></td><td colspan="3"><span class="rfc-subject">Datagram with source address matching the router&#39;s own address SHOULD be discarded (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.2-3">RFC2003-3.2-3</code></td><td colspan="3"><span class="rfc-subject">If the IP Source Address of the datagram matches the router&#39;s own IP address on any of its network interfaces, the router MUST NOT tunnel the datagram; instead, the datagram SHOULD be discarded. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2</td>
@@ -422,7 +425,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.2-4">RFC2003-3.2-4</code></td><td colspan="3"><span class="rfc-subject">Datagram with source address matching the tunnel destination SHOULD be discarded (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.2-4">RFC2003-3.2-4</code></td><td colspan="3"><span class="rfc-subject">If the IP Source Address of the datagram matches the IP address of the tunnel destination (the tunnel exit point is typically chosen by the router based on the Destination Address in the datagram&#39;s IP header), the router MUST NOT tunnel the datagram; instead, the datagram SHOULD be discarded. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>3.2</td>
@@ -431,7 +434,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-5">RFC2003-4.1-5</code></td><td colspan="3"><span class="rfc-subject">ICMP Destination Unreachable (Network Unreachable, Code 0) SHOULD be returned to the original sender (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-5">RFC2003-4.1-5</code></td><td colspan="3"><span class="rfc-subject">Network Unreachable (Code 0) An ICMP Destination Unreachable message SHOULD be returned to the original sender. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -449,7 +452,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-7">RFC2003-4.1-7</code></td><td colspan="3"><span class="rfc-subject">When the encapsulator receives ICMP Protocol Unreachable, it SHOULD send Destination Unreachable with Code 0 or 1 to the original sender (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-7">RFC2003-4.1-7</code></td><td colspan="3"><span class="rfc-subject">When the encapsulator receives an ICMP Protocol Unreachable message, it SHOULD send a Destination Unreachable message with Code 0 or 1 (see the discussion for Code 0) to the sender of the original unencapsulated datagram. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -458,7 +461,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-8">RFC2003-4.1-8</code></td><td colspan="3"><span class="rfc-subject">ICMP Source Route Failed SHOULD be handled by the encapsulator itself (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-8">RFC2003-4.1-8</code></td><td colspan="3"><span class="rfc-subject">Source Route Failed (Code 5) This Code SHOULD be handled by the encapsulator itself. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.1</td>
@@ -467,7 +470,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.2-1">RFC2003-4.2-1</code></td><td colspan="3"><span class="rfc-subject">The encapsulator SHOULD NOT relay ICMP Source Quench messages to the original sender (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.2-1">RFC2003-4.2-1</code></td><td colspan="3"><span class="rfc-subject">The encapsulator SHOULD NOT relay ICMP Source Quench messages to the sender of the original unencapsulated datagram (§4.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>4.2</td>
@@ -476,7 +479,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.2-2">RFC2003-4.2-2</code></td><td colspan="3"><span class="rfc-subject">The encapsulator SHOULD activate congestion control mechanisms for Source Quench (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.2-2">RFC2003-4.2-2</code></td><td colspan="3"><span class="rfc-subject">The encapsulator SHOULD NOT relay ICMP Source Quench messages to the sender of the original unencapsulated datagram, but instead SHOULD activate whatever congestion control mechanisms it implements to help alleviate the congestion detected within the tunnel. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2</td>
@@ -485,7 +488,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5-1">RFC2003-5-1</code></td><td colspan="3"><span class="rfc-subject">The encapsulator SHOULD maintain soft state about each tunnel: MTU, TTL, reachability (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5-1">RFC2003-5-1</code></td><td colspan="3"><span class="rfc-subject">The encapsulator SHOULD maintain at least the following soft state information about each tunnel: - MTU of the tunnel (Section 5.1) - TTL (path length) of the tunnel - Reachability of the end of the tunnel (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -494,7 +497,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.1-2">RFC2003-5.1-2</code></td><td colspan="3"><span class="rfc-subject">The encapsulator SHOULD normally do Path MTU Discovery, setting DF in the outer header (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.1-2">RFC2003-5.1-2</code></td><td colspan="3"><span class="rfc-subject">the encapsulator SHOULD normally do Path MTU Discovery, requiring it to send all datagrams into the tunnel with the &#34;Don&#39;t Fragment&#34; bit set in the outer IP header. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.1</td>
@@ -503,7 +506,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.1-3">RFC2003-5.1-3</code></td><td colspan="3"><span class="rfc-subject">The MTU conveyed to the original sender SHOULD be the tunnel MTU minus the encapsulating IP header size (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.1-3">RFC2003-5.1-3</code></td><td colspan="3"><span class="rfc-subject">the MTU that is conveyed to the original sender by the encapsulator SHOULD be the MTU of the tunnel minus the size of the encapsulating IP header. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.1</td>
@@ -512,7 +515,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.2-1">RFC2003-5.2-1</code></td><td colspan="3"><span class="rfc-subject">The encapsulator SHOULD reflect congestion conditions in soft state for the tunnel (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.2-1">RFC2003-5.2-1</code></td><td colspan="3"><span class="rfc-subject">The encapsulator SHOULD reflect conditions of congestion in its &#34;soft state&#34; for the tunnel (§5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.2</td>
@@ -521,7 +524,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.2-2">RFC2003-5.2-2</code></td><td colspan="3"><span class="rfc-subject">The encapsulator SHOULD use appropriate means for controlling congestion when forwarding into the tunnel (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.2-2">RFC2003-5.2-2</code></td><td colspan="3"><span class="rfc-subject">when subsequently forwarding datagrams into the tunnel, the encapsulator SHOULD use appropriate means for controlling congestion (§5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5.2</td>
@@ -530,7 +533,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.2-3">RFC2003-5.2-3</code></td><td colspan="3"><span class="rfc-subject">The encapsulator SHOULD NOT send ICMP Source Quench messages to the original sender (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.2-3">RFC2003-5.2-3</code></td><td colspan="3"><span class="rfc-subject">the encapsulator SHOULD NOT send ICMP Source Quench messages to the original sender of the unencapsulated datagram. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>5.2</td>
@@ -539,7 +542,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-6.2-1">RFC2003-6.2-1</code></td><td colspan="3"><span class="rfc-subject">Host implementations receiving encapsulated datagrams SHOULD admit only those from authenticated, trusted sources or matching other security criteria (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-6.2-1">RFC2003-6.2-1</code></td><td colspan="3"><span class="rfc-subject">Host implementations that are capable of receiving encapsulated IP datagrams SHOULD admit only those datagrams fitting into one or more of the following categories: - The protocol is harmless: source address-based authentication is not needed. - The encapsulating (outer) datagram comes from an authentically identified, trusted source. The authenticity of the source could be established by relying on physical security in addition to border router configuration, but is more likely to come from use of the IP Authentication header [1]. - The encapuslated (inner) datagram includes an IP Authentication header. - The encapsulated (inner) datagram is addressed to a network interface belonging to the decapsulator, or to a node with which the decapsulator has entered into a special relationship for delivering such encapsulated datagrams. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.2</td>
@@ -548,7 +551,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.1-5">RFC2003-3.1-5</code></td><td colspan="3"><span class="rfc-subject">If the Don&#39;t Fragment bit is not set in the inner header, it MAY be set in the outer header (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.1-5">RFC2003-3.1-5</code></td><td colspan="3"><span class="rfc-subject">if the &#34;Don&#39;t Fragment&#34; bit is not set in the inner IP header, it MAY be set in the outer IP header, as described in Section 5.1. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1</td>
@@ -557,7 +560,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3-1">RFC2003-3-1</code></td><td colspan="3"><span class="rfc-subject">The security options of the inner IP header MAY affect the choice of security options for the outer header (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3-1">RFC2003-3-1</code></td><td colspan="3"><span class="rfc-subject">the security options of the inner IP header MAY affect the choice of security options for the encapsulating (outer) IP header. (§3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3</td>
@@ -566,7 +569,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.1-6">RFC2003-3.1-6</code></td><td colspan="3"><span class="rfc-subject">New options specific to the tunnel path MAY be added to the outer header (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.1-6">RFC2003-3.1-6</code></td><td colspan="3"><span class="rfc-subject">new options specific to the tunnel path MAY be added. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>3.1</td>
@@ -575,7 +578,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4-1">RFC2003-4-1</code></td><td colspan="3"><span class="rfc-subject">The encapsulator MAY relay ICMP messages from within the tunnel to the original sender when enough information is available (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4-1">RFC2003-4-1</code></td><td colspan="3"><span class="rfc-subject">When the received message contains enough information, the encapsulator MAY use the incoming message to create a similar ICMP message, to be sent to the originator of the original unencapsulated IP datagram (the original sender). (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4</td>
@@ -584,7 +587,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.3-2">RFC2003-4.3-2</code></td><td colspan="3"><span class="rfc-subject">The encapsulator MAY handle ICMP Redirect messages itself (§4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.3-2">RFC2003-4.3-2</code></td><td colspan="3"><span class="rfc-subject">The encapsulator MAY handle the ICMP Redirect messages itself. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.3</td>
@@ -593,7 +596,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.5-2">RFC2003-4.5-2</code></td><td colspan="3"><span class="rfc-subject">The encapsulator MAY relay ICMP Parameter Problem to the original sender if it points to a field from the inner datagram (§4.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.5-2">RFC2003-4.5-2</code></td><td colspan="3"><span class="rfc-subject">If the Parameter Problem message points to a field copied from the original unencapsulated datagram, the encapsulator MAY relay the ICMP message to the sender of the original unencapsulated datagram (§4.5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.5</td>
@@ -602,7 +605,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.1-4">RFC2003-5.1-4</code></td><td colspan="3"><span class="rfc-subject">The encapsulator MAY keep a copy of the sent datagram to allow fragmentation and resend on Datagram Too Big (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.1-4">RFC2003-5.1-4</code></td><td colspan="3"><span class="rfc-subject">The encapsulator MAY keep a copy of the sent datagram whenever it tries increasing the tunnel MTU, in order to allow it to fragment and resend the datagram if it gets a Datagram Too Big response. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.1</td>
@@ -611,7 +614,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.1-5">RFC2003-5.1-5</code></td><td colspan="3"><span class="rfc-subject">The encapsulator MAY be configured for certain types of datagrams not to set the &#34;Don&#39;t Fragment&#34; bit when the original sender of the unencapsulated datagram has not set it (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.1-5">RFC2003-5.1-5</code></td><td colspan="3"><span class="rfc-subject">the encapsulator MAY be configured for certain types of datagrams not to set the &#34;Don&#39;t Fragment&#34; bit when the original sender of the unencapsulated datagram has not set the &#34;Don&#39;t Fragment&#34; bit. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.1</td>
@@ -629,7 +632,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc2003-3.1-1"><code>RFC2003-3.1-1</code></a> If the Don&#39;t Fragment bit is set in the inner IP header, it MUST be set in the outer IP header (§3.1)</td>
+<tr><td><a href="#rfc2003-3.1-1"><code>RFC2003-3.1-1</code></a> if the &#34;Don&#39;t Fragment&#34; bit is set in the inner IP header, it MUST be set in the outer IP header (§3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this outer-header/encapsulation obligation has no ze code path</td>
 </tr>
@@ -641,11 +644,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this decapsulation obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2003-3.2-1"><code>RFC2003-3.2-1</code></a> If IP Source Address of the datagram matches the router&#39;s own IP address, the router MUST NOT tunnel the datagram (§3.2)</td>
+<tr><td><a href="#rfc2003-3.2-1"><code>RFC2003-3.2-1</code></a> If the IP Source Address of the datagram matches the router&#39;s own IP address on any of its network interfaces, the router MUST NOT tunnel the datagram (§3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this tunnel loop-prevention check has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2003-3.2-2"><code>RFC2003-3.2-2</code></a> If IP Source Address of the datagram matches the tunnel destination address, the router MUST NOT tunnel the datagram (§3.2)</td>
+<tr><td><a href="#rfc2003-3.2-2"><code>RFC2003-3.2-2</code></a> If the IP Source Address of the datagram matches the IP address of the tunnel destination (the tunnel exit point is typically chosen by the router based on the Destination Address in the datagram&#39;s IP header), the router MUST NOT tunnel the datagram (§3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this tunnel loop-prevention check has no ze code path</td>
 </tr>
@@ -653,7 +656,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2003-4.1-2"><code>RFC2003-4.1-2</code></a> If returning Destination Unreachable for Network Unreachable and destination is not on the same network, the Code field MUST be set to 0 (§4.1)</td>
+<tr><td><a href="#rfc2003-4.1-2"><code>RFC2003-4.1-2</code></a> If the original destination in the unencapsulated datagram is on the same network as the encapsulator, the newly generated Destination Unreachable message sent by the encapsulator MAY have Code 1 (Host Unreachable), since presumably the datagram arrived at the correct network and the encapsulator is trying to create the appearance that the original destination is local to that network even if it is not. Otherwise, if the encapsulator returns a Destination Unreachable message, the Code field MUST be set to 0 (Network Unreachable). (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
 </tr>
@@ -673,7 +676,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2003-4.5-1"><code>RFC2003-4.5-1</code></a> If ICMP Parameter Problem points to a field inserted by the encapsulator, the message MUST NOT be relayed to the original sender (§4.5)</td>
+<tr><td><a href="#rfc2003-4.5-1"><code>RFC2003-4.5-1</code></a> if the problem occurs with an IP option inserted by the encapsulator, then the encapsulator MUST NOT relay the ICMP message to the original sender. (§4.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
 </tr>
@@ -688,7 +691,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2003-3.1-1"><code>RFC2003-3.1-1</code></a></h3>
-<p>If the Don&#39;t Fragment bit is set in the inner IP header, it MUST be set in the outer IP header (§3.1)</p>
+<p>if the &#34;Don&#39;t Fragment&#34; bit is set in the inner IP header, it MUST be set in the outer IP header (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-3.1-2"><code>RFC2003-3.1-2</code></a></h3>
@@ -700,11 +703,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-3.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-3.2-1"><code>RFC2003-3.2-1</code></a></h3>
-<p>If IP Source Address of the datagram matches the router&#39;s own IP address, the router MUST NOT tunnel the datagram (§3.2)</p>
+<p>If the IP Source Address of the datagram matches the router&#39;s own IP address on any of its network interfaces, the router MUST NOT tunnel the datagram (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-3.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-3.2-2"><code>RFC2003-3.2-2</code></a></h3>
-<p>If IP Source Address of the datagram matches the tunnel destination address, the router MUST NOT tunnel the datagram (§3.2)</p>
+<p>If the IP Source Address of the datagram matches the IP address of the tunnel destination (the tunnel exit point is typically chosen by the router based on the Destination Address in the datagram&#39;s IP header), the router MUST NOT tunnel the datagram (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-3.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-4.1-1"><code>RFC2003-4.1-1</code></a></h3>
@@ -712,7 +715,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-4.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-4.1-2"><code>RFC2003-4.1-2</code></a></h3>
-<p>If returning Destination Unreachable for Network Unreachable and destination is not on the same network, the Code field MUST be set to 0 (§4.1)</p>
+<p>If the original destination in the unencapsulated datagram is on the same network as the encapsulator, the newly generated Destination Unreachable message sent by the encapsulator MAY have Code 1 (Host Unreachable), since presumably the datagram arrived at the correct network and the encapsulator is trying to create the appearance that the original destination is local to that network even if it is not. Otherwise, if the encapsulator returns a Destination Unreachable message, the Code field MUST be set to 0 (Network Unreachable). (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-4.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-4.1-3"><code>RFC2003-4.1-3</code></a></h3>
@@ -732,7 +735,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-4.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-4.5-1"><code>RFC2003-4.5-1</code></a></h3>
-<p>If ICMP Parameter Problem points to a field inserted by the encapsulator, the message MUST NOT be relayed to the original sender (§4.5)</p>
+<p>if the problem occurs with an IP option inserted by the encapsulator, then the encapsulator MUST NOT relay the ICMP message to the original sender. (§4.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-4.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-5.1-1"><code>RFC2003-5.1-1</code></a></h3>
@@ -941,7 +944,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

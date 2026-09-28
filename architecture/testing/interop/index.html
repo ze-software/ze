@@ -928,7 +928,10 @@ VRF/Table Name TLV and reason code 6 on the Peer Down; <code>bmp-locrib-receiver
 turns the direction around, so FRR's <code>bmpd</code> drives Ze's BMP receiver and
 <code>show bmp peers</code> must report the third party's Loc-RIB peer and its address
 family), PATHS-LIMIT,
-max-prefix cease, GTSM (<code>bgp-gtsm-frr</code> for the session, and <code>gtsm-related-icmp-ttl</code>
+max-prefix cease, a reload of the global router-id (<code>bgp-reload-global-router-id</code>
+starts Ze with 10.255.0.1, reloads it to 10.255.0.2, and requires BIRD, a static
+peer, and FRR, which Ze adds after the reload with <code>create bgp peer</code>, each to
+report 10.255.0.2 as Ze's BGP Identifier), GTSM (<code>bgp-gtsm-frr</code> for the session, and <code>gtsm-related-icmp-ttl</code>
 for RFC 5082 Section 3's related ICMP messages: FRR's kernel reads the hop limit of an
 ICMPv6 error ze's kernel generates about the session, and its TCPMinTTLDrop counter is
 what goes red when ze's host-route metric is absent), AS112, the RFC 7454 Section 9 transit leak
@@ -941,7 +944,12 @@ bytes for one path), the RFC 6793 mixed-width relay
 (<code>as-path-mixed-width-relay-frr</code> gives ze a route from a two-octet injector whose AS_PATH carries
 AS_TRANS and whose AS4_PATH carries the real four-octet AS number, and requires FRR to report that
 AS number and never 23456; <code>as-path-prepend-two-octet-peer</code> turns the direction around, so ze's own
-non-mappable AS is prepended toward an FRR that refused the four-octet AS capability), and full
+non-mappable AS is prepended toward an FRR that refused the four-octet AS capability), the
+Software Version capability (<code>frr-software-version</code> holds two sessions to one FRR: peer <code>legacy</code>
+sends the length-prefixed form over IPv4 and must reach Established with FRR showing ze's version,
+while peer <code>draft</code> sends the draft's bare form over IPv6 and must be refused, with ze recording
+FRR's NOTIFICATION OPEN Message Error/Unspecific, because FRR 10.3.1 reads the first octet as a
+length), and full
 IS-IS (auth, convergence, dual-stack, LAN DIS,
 P2P, redistribution) and OSPFv2/OSPFv3 (auth, BFD, TE, LFA/TI-LFA, graceful restart,
 segment routing, opaque LSAs, stub/NSSA, virtual links, and more) interop families.</p>
@@ -1473,7 +1481,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

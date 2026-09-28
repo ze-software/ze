@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5549 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5549: Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop. 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5549: Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop. 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5549 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5549: Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop. 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5549: Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop. 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5549 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5549: Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop. 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5549: Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop. 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,6 +131,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 6 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
 <p>The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
@@ -179,7 +184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,6 +215,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
 </tr>
@@ -223,7 +231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>17</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -344,9 +352,9 @@ Main public claim uses RFC 8950.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> on the reflection path ze rewrites the next-hop only under an explicit next-hop-self/explicit override (nhMode != nhModeNone); the default nhModeNone leaves the next-hop untouched (internal/component/bgp/reactor/peer_forward_facts.go:226) and the MP re-encode changes an attribute only when the NLRI framing differs between encoding contexts (internal/component/bgp/reactor/forward_body.go:217), so a reflected next-hop is carried verbatim and there is no ze code path that rewrites an unchanged-passthrough next-hop to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRPreservesExtendedNextHop</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-4-4">RFC5549-4-4</code></td><td colspan="3"><span class="rfc-subject">MUST NOT send IPv6 Next Hop for IPv4 NLRI to peers that have not advertised Extended Next Hop Encoding capability (§4, Compatibility)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-4-4">RFC5549-4-4</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)</span></td></tr>
 <tr><td></td>
-<td>MUST NOT</td>
+<td>MUST</td>
 <td>4 - Use of BGP Capability Advertisement</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5549-4-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1154" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></span></div>
@@ -354,7 +362,7 @@ Main public claim uses RFC 8950.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1206" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_NilSendCtx</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-5-2">RFC5549-5-2</code></td><td colspan="3"><span class="rfc-subject">By default, if a BGP session is running over IPvx, the next hop address SHOULD be specified as an IPvx address (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-5-2">RFC5549-5-2</code></td><td colspan="3"><span class="rfc-subject">By default, if a particular BGP session is running over IPvx (where IPvx is IPv4 or IPv6), and if the BGP speaker sending an update is putting its own address in as the next hop, then the next hop address SHOULD be specified as an IPvx address, using the encoding rules specified in the AFI/SAFI definition of the NLRI being updated. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5 - Operations</td>
@@ -363,7 +371,7 @@ Main public claim uses RFC 8950.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-4-5">RFC5549-4-5</code></td><td colspan="3"><span class="rfc-subject">The Extended Next Hop Encoding capability MAY be dynamically updated through the Dynamic Capability capability (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-4-5">RFC5549-4-5</code></td><td colspan="3"><span class="rfc-subject">The Extended Next Hop Encoding capability MAY be dynamically updated through the use of the Dynamic Capability capability and associated mechanisms defined in [DYN-CAP]. (§4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4 - Use of BGP Capability Advertisement</td>
@@ -372,7 +380,7 @@ Main public claim uses RFC 8950.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-5-3">RFC5549-5-3</code></td><td colspan="3"><span class="rfc-subject">The default next-hop-address-family behavior may be overridden by policy (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-5-3">RFC5549-5-3</code></td><td colspan="3"><span class="rfc-subject">This default behavior may be overridden by policy. (§5)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5 - Operations</td>
@@ -392,7 +400,7 @@ Main public claim uses RFC 8950.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5549-4-1"><code>RFC5549-4-1</code></a></h3>
 <p>A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair. Forbidden: sending an IPv6 next hop for IPv4 NLRI to a peer that did not advertise the tuple; red on it: require.False in TestCanUseNextHopFor_CrossFamilyNoCap and the absent-tuple assert in TestNegotiateExtendedNextHopMismatch. Unproven clauses: VPN-IPv4 NLRI (no unit drives SAFI 128), and the per-pair clause (no unit shows a tuple negotiated for IPv4/unicast does not license VPN-IPv4 or the reverse). The units test the canUseNextHopFor helper, not the UPDATE build path.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -422,7 +430,7 @@ Main public claim uses RFC 8950.
 </div>
 <h3><a href="#rfc5549-4-2"><code>RFC5549-4-2</code></a></h3>
 <p>A BGP speaker that wishes to advertise to a BGP peer an IPv6 Next Hop for IPv4 NLRI or for VPN-IPv4 NLRI as per this specification MUST use the Capability Advertisement procedures defined in [RFC5492] with the Extended Next Hop Encoding Capability to establish whether its peer supports this for the NLRI AFI/SAFI pair(s) of interest. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: MUST use RFC 5492 Capability Advertisement with the Extended Next Hop Encoding capability to establish whether the peer supports this for the NLRI AFI/SAFI pair(s). The 4-2-tagged units (TestExtendedNextHopCapability, TestExtendedNextHopRoundTrip) prove only the capability TLV encodes and parses. The clause &#39;to establish whether its peer supports this&#39; (support decided from the peer&#39;s advertised capability) has no 4-2-tagged assertion; the negotiation units that would prove it carry only 4-1 and RFC8950 tags.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -442,7 +450,7 @@ Main public claim uses RFC 8950.
 </div>
 <h3><a href="#rfc5549-4-3"><code>RFC5549-4-3</code></a></h3>
 <p>o The Capability Code field MUST be set to 5 (which indicates the Extended Next Hop Encoding capability). (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Capability Code other than 5 for Extended Next Hop Encoding. Red on it: TestCapabilityCodeConstants asserts uint8(CodeExtendedNextHop)==5, and TestExtendedNextHopCapability requires a raw code-0x05 TLV to parse as *ExtendedNextHop (require.True on the type assertion). Single-polarity marker on the row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -497,7 +505,7 @@ Main public claim uses RFC 8950.
 </div>
 <h3><a href="#rfc5549-5-1"><code>RFC5549-5-1</code></a></h3>
 <p>When a next hop address needs to be passed along unchanged (e.g., as a Route Reflector (RR) would do), its encoding MUST NOT be changed. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a route reflector changing the encoding of a next hop it passes along unchanged. Red on it: require.Equal(mpReach, attrs[14]) and the next-hop byte compare in TestReactorForwardRRPreservesExtendedNextHop, which reflects a 16-byte IPv6 next hop for IPv4 NLRI through the reactor forward path. Single-polarity marker on the row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -511,8 +519,8 @@ Main public claim uses RFC 8950.
 </table>
 </div>
 <h3><a href="#rfc5549-4-4"><code>RFC5549-4-4</code></a></h3>
-<p>MUST NOT send IPv6 Next Hop for IPv4 NLRI to peers that have not advertised Extended Next Hop Encoding capability (§4, Compatibility)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Same sentence as RFC5549-4-1 (MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair). Red on the IPv4/unicast case: require.False in TestCanUseNextHopFor_CrossFamilyNoCap and TestCanUseNextHopFor_NilSendCtx. Unproven: VPN-IPv4 NLRI and the per-pair clause, and only the canUseNextHopFor helper is driven. The tag prose still calls the row &#39;the MUST NOT&#39;, which the quoted sentence no longer says.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -717,22 +725,22 @@ Main public claim uses RFC 8950.
 <td>RFC8950-5-1</td>
 <td>RFC 8950 Section 5 keeps the sentence unchanged, that an encoding passed along unchanged MUST NOT be changed</td>
 </tr>
-<tr><td><a href="#rfc5549-4-4"><code>RFC5549-4-4</code></a> MUST NOT send IPv6 Next Hop for IPv4 NLRI to peers that have not advertised Extended Next Hop Encoding capability (§4, Compatibility)</td>
+<tr><td><a href="#rfc5549-4-4"><code>RFC5549-4-4</code></a> A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)</td>
 <td>restated</td>
 <td>RFC8950-4-1</td>
 <td>this is the negative spelling of the Section 4 sentence RFC5549-4-1 states positively, and RFC 8950 states it once, positively, as RFC8950-4-1. RFC 5549 has no section named Compatibility, so the cite on this line names a section the document does not contain</td>
 </tr>
-<tr><td><a href="#rfc5549-5-2"><code>RFC5549-5-2</code></a> By default, if a BGP session is running over IPvx, the next hop address SHOULD be specified as an IPvx address (§5)</td>
+<tr><td><a href="#rfc5549-5-2"><code>RFC5549-5-2</code></a> By default, if a particular BGP session is running over IPvx (where IPvx is IPv4 or IPv6), and if the BGP speaker sending an update is putting its own address in as the next hop, then the next hop address SHOULD be specified as an IPvx address, using the encoding rules specified in the AFI/SAFI definition of the NLRI being updated. (§5)</td>
 <td>restated</td>
 <td>RFC8950-5-2</td>
 <td>RFC 8950 Section 5 keeps the default that a speaker putting its own address in as the next hop over an IPvx session SHOULD use an IPvx address</td>
 </tr>
-<tr><td><a href="#rfc5549-4-5"><code>RFC5549-4-5</code></a> The Extended Next Hop Encoding capability MAY be dynamically updated through the Dynamic Capability capability (§4)</td>
+<tr><td><a href="#rfc5549-4-5"><code>RFC5549-4-5</code></a> The Extended Next Hop Encoding capability MAY be dynamically updated through the use of the Dynamic Capability capability and associated mechanisms defined in [DYN-CAP]. (§4)</td>
 <td>dropped</td>
 <td>not stated</td>
 <td>RFC 8950 states no dynamic-capability permission. RFC 5549 Section 4 ends with a MAY to update the Extended Next Hop Encoding capability through the Dynamic Capability capability of the expired draft-ietf-idr-dynamic-cap, and RFC 8950 Section 4 ends instead with the paragraph that the capability does not influence whether an AFI/SAFI is allowed. The permission is gone, so no successor obligation exists to point at</td>
 </tr>
-<tr><td><a href="#rfc5549-5-3"><code>RFC5549-5-3</code></a> The default next-hop-address-family behavior may be overridden by policy (§5)</td>
+<tr><td><a href="#rfc5549-5-3"><code>RFC5549-5-3</code></a> This default behavior may be overridden by policy. (§5)</td>
 <td>restated</td>
 <td>RFC8950-5-3</td>
 <td>RFC 8950 Section 5 keeps the sentence that the default next-hop address family behavior may be overridden by policy</td>
@@ -770,7 +778,7 @@ Main public claim uses RFC 8950.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
                 </div>
             </div>
         </footer>

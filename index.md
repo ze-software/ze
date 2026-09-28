@@ -23,9 +23,9 @@ Ze generates command, configuration and support reference data from the code and
 
  Recently shipped
 
-### [Week of 2026-09-14](https://ze-software.net/project/changes/2026-09-14/)
+### [Week of 2026-09-21](https://ze-software.net/project/changes/2026-09-21/)
 
-Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the…
+Ze can back up and restore its configuration store, including on a running router. BGP gained AIGP and…
 
  RFC compliance progress
 
@@ -37,19 +37,19 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**32,200+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**32,500+ unit tests**
 
 - Wire encoding, parsing
 - Config, FSM, plugins
 - gomu mutates code to check assertions
 
- Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**150 RFCs supported**
+ Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**151 RFCs supported**
 
-- 3,898 MUSTs to test
-- 2,489 checked with a test
+- 3,896 MUSTs to test
+- 2,488 checked with a test
 - 63.9% done
 
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**2,000+ end to end tests**
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**2,100+ end to end tests**
 
 - Peering, sessions, updates
 - Editor, commits, reloads
@@ -225,6 +225,16 @@ Weekly updates come from git history and Discord's `ze-news`. They stay specific
 
  01
 
+Week of 2026-09-21
+
+### [Ze can back up and restore its configuration store, including on a running router. BGP gained AIGP and BGP-LS export, and every RFC Ze implements has now been read end to end. The release queue closed the week at 191 required work items and 219 nice-to-have, against 157 and 183 at the start. 74 items joined and 4 left. Almost everything that joined is a defect or a missing behavior found by reading the RFCs end to end. Three of the four that left are the backup and restore work below. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/](https://ze-software.net/project/changes/2026-09-21/)
+
+ Storage Config BGP IPsec
+
+**Update**
+
+ 02
+
 Week of 2026-09-14
 
 ### [Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the week's fixes are worth a maintenance window: Graceful Restart told every peer that Ze preserved nothing, and RPKI reported origin validation as active with no cache server reachable. The release queue closed the week at 157 required work items and 183 nice-to-have, against 141 and 181 at the start. Four items left it when the path MTU work finished, and most of what joined is checking work. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/](https://ze-software.net/project/changes/2026-09-14/)
@@ -233,23 +243,13 @@ Week of 2026-09-14
 
 **Update**
 
- 02
+ 03
 
 Week of 2026-09-07
 
 ### [Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The biggest fix was in BGP. Ze was rewriting AS numbers out of routes it relayed.](https://ze-software.net/project/changes/2026-09-07/)
 
- BGP Interfaces Security PPPoE
-
-**Update**
-
- 03
-
-Week of 2026-08-31
-
-### [Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.](https://ze-software.net/project/changes/2026-08-31/)
-
- BGP ExaBGP Migration Security RADIUS - [See all updates](https://ze-software.net/project/changes/)
+ BGP Interfaces Security PPPoE - [See all updates](https://ze-software.net/project/changes/)
 `Try safely`
 
 ## Try Ze before the first release.
