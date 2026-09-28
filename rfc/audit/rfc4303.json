@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-28",
   "requirements": {
     "RFC4303-1-1": {
       "note": "Two clauses. Configurable via management interfaces: forbidden behaviour is refusing an integrity-only ESP configuration; TestIPsecESPRequiresIntegrity (ospf/config_ipsec_test.go) fails via t.Fatalf when validateConfig rejects esp null-cipher + sha256, so that clause is proven. Offered as a service selection option, e.g. negotiable in SA management protocols: no tagged assertion, and Ze's IKEv2 ESP vocabulary has no ENCR_NULL (ike/ipsec/types.go EncryptionAlgo), so integrity-only ESP is not negotiable. The negative tag (null cipher with no integrity refused) proves the neighbouring RFC4303-3.2-1 rule, not a violation of this one.",
@@ -28,19 +28,27 @@
       "verdict": "weak"
     },
     "RFC4303-2.1-1": {
-      "note": "Forbidden behaviour: SPI 0 on the wire. OSPF: TestIPsecSPIBoundary tests spi 255 (refused) and 256 (accepted) but never spi 0; removing the whole guard reddens it, a guard that admitted 0 alone would not. IKE: TestGenerateESPSPI checks 100 random draws for spi == 0; with the spi != 0 loop in generateESPSPI (engine/child.go:211) removed the chance of a red run is about 100/2^32, so the assertion cannot fail on the break (question 2). The outbound SPI Ze sends on the wire is the peer's; the refusals of a peer SPI 0 (child.go:287, responder.go:924, rekey.go:321, :495) have no tagged assertion.",
+      "note": "Progress, still weak. OSPF: TestIPsecSPIZeroRefused refuses spi 0 itself with ErrIPsecSPIReserved and accepts 4294967295, and a manual SA sends its configured SPI, so that producer is enforced. IKE: TestGenerateESPSPISkipsTheReservedZero scripts crypto/rand to draw 0 three times and proves generateESPSPI discards them, but that is the inbound SPI the PEER puts on the wire. The SPI Ze itself sends on the wire is the peer's SAi2/SAr2 or rekey SPI; the refusals of a peer SPI 0 (responder.go ChildOutboundSPI == 0, rekey.go outSPI == 0 and peerSPI == 0) have no tagged assertion, so removing any of them reddens nothing. The initiator path does not refuse at all (child.go draws a random SPI in place of a peer 0; journal silent-fall-through, 2026-09-28).",
       "requirement_sha": "c418a1e1b70a05e8",
       "tests": {
         "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "3c8069f4319f7f90",
         "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "3c8069f4319f7f90",
+        "internal/component/ike/engine/rfc4303_spi_test.go::TestGenerateESPSPISkipsTheReservedZero": "61f8a26d3d189263",
+        "internal/component/ike/engine/rfc4303_spi_test.go::TestGenerateESPSPISkipsTheReservedZero#2": "61f8a26d3d189263",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary": "24a99999625a9144",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary#2": "24a99999625a9144"
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary#2": "24a99999625a9144",
+        "internal/plugins/ospf/rfc4303_spi_test.go::TestIPsecSPIZeroRefused": "121ed1737048ba4f",
+        "internal/plugins/ospf/rfc4303_spi_test.go::TestIPsecSPIZeroRefused#2": "121ed1737048ba4f"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "44bf9768b4b90de3",
         "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "44bf9768b4b90de3",
+        "internal/component/ike/engine/rfc4303_spi_test.go::TestGenerateESPSPISkipsTheReservedZero": "8782ef639afd57fa",
+        "internal/component/ike/engine/rfc4303_spi_test.go::TestGenerateESPSPISkipsTheReservedZero#2": "8782ef639afd57fa",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary": "fe3325ed4944eb49",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary#2": "fe3325ed4944eb49"
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary#2": "fe3325ed4944eb49",
+        "internal/plugins/ospf/rfc4303_spi_test.go::TestIPsecSPIZeroRefused": "d9ed244e6511f8a0",
+        "internal/plugins/ospf/rfc4303_spi_test.go::TestIPsecSPIZeroRefused#2": "d9ed244e6511f8a0"
       },
       "verdict": "weak"
     },

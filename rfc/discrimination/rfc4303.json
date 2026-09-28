@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc4303",
+  "records": [
+    {
+      "rid": "RFC4303-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4303_spi_test.go::TestGenerateESPSPISkipsTheReservedZero",
+      "unit-sha": "dd9388ddaf0823ad",
+      "claim-sha": "8a0eccab1effdebd",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::generateESPSPI",
+      "producer-sha": "bb8e37124734be7e",
+      "break": "body of generateESPSPI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4303-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4303_spi_test.go::TestGenerateESPSPISkipsTheReservedZero",
+      "unit-sha": "dd9388ddaf0823ad",
+      "claim-sha": "903953315ed77e15",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/child.go::generateESPSPI",
+      "producer-sha": "bb8e37124734be7e",
+      "break": "line 218: \"spi != 0\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC4303-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4303_spi_test.go::TestIPsecSPIZeroRefused",
+      "unit-sha": "a5ee183c4427972e",
+      "claim-sha": "6f17634c9be911f7",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
+      "producer-sha": "30c3ee956902c48e",
+      "break": "body of validateIPsecInterface replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4303-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc4303_spi_test.go::TestIPsecSPIZeroRefused",
+      "unit-sha": "a5ee183c4427972e",
+      "claim-sha": "a85519af331b3561",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
+      "producer-sha": "30c3ee956902c48e",
+      "break": "line 117: \"\u003c\" -\u003e \"\u003e\""
+    }
+  ]
+}

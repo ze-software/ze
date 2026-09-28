@@ -93,7 +93,6 @@ func TestISISChecksumFixedVector(t *testing.T) {
 // RFC requirement: RFC905-x-4 negative -- flipping any octet leaves a running sum non-zero so VerifyChecksum rejects the region (VerifyChecksum, checksum.go:114-121).
 // RFC requirement: RFC905-x-1 negative -- the two mod-255 running sums reject every single-octet corruption; a single sum or mod-256 would miss classes of it (checksum.go:117-118).
 // RFC requirement: RFC905-x-2 negative -- proves the generation pipeline is discriminating, not constant: corrupting any covered octet is rejected (checksum.go:67-76).
-// RFC requirement: RFC905-x-3 negative -- guards against a blanket-accept pass-2 result: no corrupted region verifies to zero (checksum.go:98-105).
 func TestISISChecksumDetectsCorruption(t *testing.T) {
 	rng := rand.New(rand.NewSource(99))
 	data := make([]byte, 64)

@@ -1,0 +1,104 @@
+{
+  "rfc": "rfc905",
+  "records": [
+    {
+      "rid": "RFC905-x-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumMatchesClosedForm",
+      "unit-sha": "460c3ccae117095e",
+      "claim-sha": "12ab98355fa43fd5",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/checksum.go::Checksum",
+      "producer-sha": "b7682d9d907452de",
+      "break": "body of Checksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC905-x-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumRefusesMisplacedXY",
+      "unit-sha": "95e2f2b4fbeb5180",
+      "claim-sha": "1983a6113232d57e",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/checksum.go::Checksum",
+      "producer-sha": "b7682d9d907452de",
+      "break": "body of Checksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC905-x-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherGenerateMatchesClosedForm",
+      "unit-sha": "8e30591b353cd43f",
+      "claim-sha": "83d8d494a2ffbecf",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/types/checksum.go::fletcherGenerate",
+      "producer-sha": "61d0fd03faf3593a",
+      "break": "body of fletcherGenerate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC905-x-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherGenerateRefusesMisplacedXY",
+      "unit-sha": "89dad1f22d430066",
+      "claim-sha": "44b7e0255ae6ff14",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/types/checksum.go::fletcherGenerate",
+      "producer-sha": "61d0fd03faf3593a",
+      "break": "body of fletcherGenerate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC905-x-4",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption",
+      "unit-sha": "f87d88590da85c79",
+      "claim-sha": "0c28dcf2af1cab95",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/checksum.go::VerifyChecksum",
+      "producer-sha": "aaa4df5f75302408",
+      "break": "body of VerifyChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC905-x-4",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero",
+      "unit-sha": "0f0ab83903c99568",
+      "claim-sha": "e8d0b3614e9da845",
+      "route": "mutant",
+      "producer": "internal/plugins/isis/packet/checksum.go::VerifyChecksum",
+      "producer-sha": "aaa4df5f75302408",
+      "break": "line 118: \"\u0026\u0026\" -\u003e \"||\""
+    },
+    {
+      "rid": "RFC905-x-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero",
+      "unit-sha": "0f0ab83903c99568",
+      "claim-sha": "9b48cd8891ac9523",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/checksum.go::VerifyChecksum",
+      "producer-sha": "aaa4df5f75302408",
+      "break": "body of VerifyChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC905-x-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherVerifyRequiresBothSumsZero",
+      "unit-sha": "e49db7592ce2b537",
+      "claim-sha": "9432c7fd48bd1df1",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/types/checksum.go::fletcherVerify",
+      "producer-sha": "72639b4a89246628",
+      "break": "body of fletcherVerify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC905-x-4",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherVerifyRequiresBothSumsZero",
+      "unit-sha": "e49db7592ce2b537",
+      "claim-sha": "76dc9fd02c51f898",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/types/checksum.go::fletcherVerify",
+      "producer-sha": "72639b4a89246628",
+      "break": "line 67: \"\u0026\u0026\" -\u003e \"||\""
+    }
+  ]
+}

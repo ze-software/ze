@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc1071",
+  "records": [
+    {
+      "rid": "RFC1071-1-4",
+      "polarity": "positive",
+      "unit": "internal/core/probe/rfc1071_even_test.go::TestRFC1071ChecksumEvenLength",
+      "unit-sha": "8645028ae40c6429",
+      "claim-sha": "8bed25253915d90f",
+      "route": "revert",
+      "producer": "internal/core/probe/icmp.go::icmpChecksum",
+      "producer-sha": "6012fbb6e5eb2290",
+      "break": "body of icmpChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1071-1-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestInternetChecksumEvenLength",
+      "unit-sha": "99b439393ddd93ab",
+      "claim-sha": "9b80b047fb812ba9",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/types/checksum.go::internetSum",
+      "producer-sha": "1cfcf3960212f698",
+      "break": "body of internetSum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

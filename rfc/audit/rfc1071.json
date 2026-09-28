@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-28",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC1071-1-1": {
@@ -36,17 +36,21 @@
       "verdict": "weak"
     },
     "RFC1071-1-4": {
-      "note": "Sentence gives the even-count form [1] and the odd-count form [Z,0] [2]. The odd clause is proven: exact vector 0x97cb in TestInternetChecksumOddLength and the 0xffff fold of an 11-octet echo in TestRFC792ChecksumOddLength both go red on a dropped or low-byte pad. No 1-4-tagged unit asserts the even-count form. The row's old 'do not transmit the pad' is not in RFC 1071 (it is RFC 793 Section 3.1).",
+      "note": "Both forms of the RFC 1071 Section 1 sentence are now pinned by exact vectors on both producers. Even count [1]: TestRFC1071ChecksumEvenLength (icmpChecksum) and TestInternetChecksumEvenLength (internetChecksum) answer 0x9753 for [12 34 56 78] and 0xfc96 for [12 34 56 78 9a bc]; a little-endian word, a padded even tail or a missing end-around carry (the 6-octet sum 0x10368) each goes red. Odd count [2] [Z,0]: TestInternetChecksumOddLength pins 0x97cb and TestRFC792ChecksumOddLength folds an 11-octet echo to 0xffff. The {single-polarity: positive} holds: the row defines the sum a generator forms and has no reject path.",
       "requirement_sha": "fa54a374c7e8117d",
       "tests": {
         "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "c5fd4a2554d99d53",
-        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumOddLength": "8df584d7f7f93f43"
+        "internal/core/probe/rfc1071_even_test.go::TestRFC1071ChecksumEvenLength": "ec544312848e5e35",
+        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumOddLength": "8df584d7f7f93f43",
+        "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestInternetChecksumEvenLength": "cc5064006e5e0814"
       },
       "units": {
         "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "530a366561c98c54",
-        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumOddLength": "76936fc787931729"
+        "internal/core/probe/rfc1071_even_test.go::TestRFC1071ChecksumEvenLength": "787463f43e3b836c",
+        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumOddLength": "76936fc787931729",
+        "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestInternetChecksumEvenLength": "bee86801b550ac3d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1071-1-5": {
       "note": "Sentence: to check a checksum, sum over the same octets including the checksum field and succeed on all ones. Both tagged units (TestRFC792ChecksumValid, TestRFC792ChecksumRejectsCorruption) perform the check with the test helper checksumOnesFold, not with ze code. They prove ze's GENERATED checksum is valid (the generate rule, RFC1071-1-1/RFC792-Echo-3), and that the helper detects corruption. No ze verify function (ospf VerifyPacketChecksum, vrrp verifyChecksumSum) is driven under this tag.",

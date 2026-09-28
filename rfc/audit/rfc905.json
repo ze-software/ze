@@ -1,68 +1,82 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-28",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC905-x-1": {
-      "note": "B.2 fixes addition modulo 255 (or one's complement with 255 read as 0). A mod-256 generator goes red only in TestISISChecksumFixedVector (isis/packet), which pins high,low = 0x0b,0xed. TestISISChecksumModulus round-trips Checksum through VerifyChecksum, and both share fletcherModulus, so a consistent mod-256 change still verifies. The negative unit TestISISChecksumDetectsCorruption flips single octets, and a mod-256 verifier detects those too, so it does not go red on the forbidden arithmetic. Clause b (255 read as 0) has no assertion that would catch a verifier treating 255 and 0 as distinct.",
+      "note": "Unchanged on re-read after TestISISChecksumDetectsCorruption lost its x-3 tag. B.2 fixes addition modulo 255, or one's complement with 255 read as 0. Only TestISISChecksumFixedVector (0x0b,0xed) goes red on a mod-256 generator; TestISISChecksumModulus round-trips Checksum through VerifyChecksum, which share fletcherModulus, so a consistent mod-256 change still verifies. The negative TestISISChecksumDetectsCorruption flips single octets, which a mod-256 verifier also detects. Clause b (255 read as 0) has no assertion that catches a verifier treating 255 and 0 as distinct.",
       "requirement_sha": "5cd66c1aa17d7578",
       "tests": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "094cc928a13a2d84",
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "094cc928a13a2d84",
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumModulus": "094cc928a13a2d84"
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "6d0bfb72f4cde235",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "6d0bfb72f4cde235",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumModulus": "6d0bfb72f4cde235"
       },
       "units": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "5454a75133acd518",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "81a5f90f6c84c9ab",
         "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "d0e0e6ba7b0d1347",
         "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumModulus": "754effd059dc54e3"
       },
       "verdict": "weak"
     },
     "RFC905-x-2": {
-      "note": "The quote is B.3.3, the running sums C0 += octet, C1 += C0. The positive TestISISChecksumVectors goes red on a wrong generator accumulation, because VerifyChecksum runs its own loop and the round trip fails. The negative TestISISChecksumDetectsCorruption asserts only VerifyChecksum's rejection of corrupted regions, the same assertion as the RFC905-x-4 negative. It feeds no input that violates B.3.3, so it is the x-4 proof wearing a second hat. B.3.1 (zero the field) and B.3.2 (initialise) are split out of the row.",
+      "note": "Unchanged on re-read after TestISISChecksumDetectsCorruption lost its x-3 tag. The quote is B.3.3: C0 += octet, then C1 += C0. The positive TestISISChecksumVectors goes red on a wrong generator accumulation through the round trip. The negative TestISISChecksumDetectsCorruption asserts only that VerifyChecksum rejects corrupted regions, the RFC905-x-4 assertion wearing a second hat; it feeds no input that violates B.3.3 (for example the C1 += octet order or a skipped octet), so no negative isolates this rule.",
       "requirement_sha": "db20cac67c77c27b",
       "tests": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "094cc928a13a2d84",
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "094cc928a13a2d84"
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "6d0bfb72f4cde235",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "6d0bfb72f4cde235"
       },
       "units": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "5454a75133acd518",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "81a5f90f6c84c9ab",
         "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "7416218e47d3c785"
       },
       "verdict": "weak"
     },
     "RFC905-x-3": {
-      "note": "B.3.4: X = -C1 + (L-n)C0, Y = C1 - (L-n+1)C0. The positive TestISISChecksumFixedVector pins exact X,Y (0x0b,0xed), TestFletcherRFC905Vectors (ospf/types) pins 0x15ff, and the round trips go red on a wrong formula. The negative TestISISChecksumDetectsCorruption asserts only that VerifyChecksum rejects corrupted regions. It exercises verification, not a violating X,Y, so no negative isolates this rule. B.3.5 (placement at n, n+1) is split out of the row.",
+      "note": "B.3.4 X = -C1 + (L-n).C0, Y = C1 - (L-n+1).C0. Positive: TestISISChecksumMatchesClosedForm (Checksum) and TestFletcherGenerateMatchesClosedForm (fletcherGenerate) compare the producer at every field offset 0..L-2 of a 24-octet region against an independent B.3.3/B.3.4 re-derivation written in the RFC's own L-n notation, so any formula change at any n goes red without a verifier in the loop; TestISISChecksumFixedVector and TestFletcherRFC905Vectors pin fixed values. Negative: TestISISChecksumRefusesMisplacedXY and TestFletcherGenerateRefusesMisplacedXY put a pair that is not the formula's value at n,n+1 (Y,X swapped, or X,Y one octet early, guarded against X == Y) and the verifier refuses it, while the formula's pair at n,n+1 is accepted. B.1 defines X and Y as the octets at n and n+1, so a wrong value there violates this formula; the B.3.5 placement obligation remains split out of the row.",
       "requirement_sha": "cd8ac8ccdcfa8946",
       "tests": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "094cc928a13a2d84",
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "094cc928a13a2d84",
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "094cc928a13a2d84",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "6d0bfb72f4cde235",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "6d0bfb72f4cde235",
+        "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumMatchesClosedForm": "d26e0552240a6091",
+        "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumRefusesMisplacedXY": "d26e0552240a6091",
         "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksum": "8ac8573c092c7f1a",
-        "internal/plugins/ospf/types/checksum_test.go::TestFletcherRFC905Vectors": "8df584d7f7f93f43"
+        "internal/plugins/ospf/types/checksum_test.go::TestFletcherRFC905Vectors": "8df584d7f7f93f43",
+        "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherGenerateMatchesClosedForm": "cc5064006e5e0814",
+        "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherGenerateRefusesMisplacedXY": "cc5064006e5e0814"
       },
       "units": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "5454a75133acd518",
         "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "d0e0e6ba7b0d1347",
         "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "7416218e47d3c785",
+        "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumMatchesClosedForm": "95f458f3abe370cc",
+        "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumRefusesMisplacedXY": "681a3768cefedbee",
         "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksum": "5771613ca67997af",
-        "internal/plugins/ospf/types/checksum_test.go::TestFletcherRFC905Vectors": "d58c3ac8f36eac05"
+        "internal/plugins/ospf/types/checksum_test.go::TestFletcherRFC905Vectors": "d58c3ac8f36eac05",
+        "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherGenerateMatchesClosedForm": "2d8be6829b051954",
+        "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherGenerateRefusesMisplacedXY": "9d55e2cf568ded55"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC905-x-4": {
-      "note": "B.4.3: the formulas fail when either or both of C0 and C1 are non-zero. The negatives flip one octet (TestISISChecksumDetectsCorruption, TestOSPFLSAChecksumExcludesAge), and a flip changes C0. A verifier that tested only C0 == 0 therefore passes every tagged unit, and no unit feeds a region where C0 is zero and C1 is not, for example two swapped octets. The 'or C1' clause is unproven.",
+      "note": "B.4.3: the check fails when either or both of C0 and C1 is non-zero. TestISISVerifyRequiresBothSumsZero (VerifyChecksum) and TestFletcherVerifyRequiresBothSumsZero (fletcherVerify) now feed a region with C0 zero and C1 non-zero (octets 2 and 3 swapped, asserted unequal) and one with C1 zero and C0 non-zero (+1 then -2 on the last two octets), and both are refused; the unmodified generated region is accepted. A verifier reading only C0, or only C1, or requiring both non-zero goes red (mutant records && -> ||). The both-non-zero case stays covered by the single-octet flips of TestISISChecksumDetectsCorruption and TestOSPFLSAChecksumExcludesAge.",
       "requirement_sha": "d5a155d22fc3d6ea",
       "tests": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "094cc928a13a2d84",
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "094cc928a13a2d84",
-        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge": "8ac8573c092c7f1a"
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "6d0bfb72f4cde235",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "6d0bfb72f4cde235",
+        "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero": "d26e0552240a6091",
+        "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero#2": "d26e0552240a6091",
+        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge": "8ac8573c092c7f1a",
+        "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherVerifyRequiresBothSumsZero": "cc5064006e5e0814",
+        "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherVerifyRequiresBothSumsZero#2": "cc5064006e5e0814"
       },
       "units": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "5454a75133acd518",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "81a5f90f6c84c9ab",
         "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "7416218e47d3c785",
-        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge": "3d7fb4e4da4a50f4"
+        "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero": "0dd01c11065989bf",
+        "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero#2": "0dd01c11065989bf",
+        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge": "3d7fb4e4da4a50f4",
+        "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherVerifyRequiresBothSumsZero": "82afa8e283f0ad9c",
+        "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherVerifyRequiresBothSumsZero#2": "82afa8e283f0ad9c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc905"
