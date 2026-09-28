@@ -24,6 +24,16 @@ plugin.
 **The backend is chosen by `Load("xfrm")` at engine startup, not by
 auto-detection.** Linux against VPP is a deployment decision.
 
+**The outbound SPI of a Child SA is always the peer's number, never Ze's.**
+It comes from SAr2, SAi2, or the SA payload of a CREATE_CHILD_SA. RFC 4303
+Section 2.1 reserves SPI 0, so each of those four parsers refuses a peer SPI of
+0, and `createFirstChildSA` refuses an SA that holds no peer SPI. An earlier
+version drew a random SPI in its place, which keyed an outbound SA the peer
+never allocated.
+
+<!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse -->
+<!-- source: internal/component/ike/engine/rekey.go -- applyChildRekeyResponse, respondChildRekey -->
+
 **One 1-second ticker drives dead peer detection and lifetimes, not a timer per
 SA.** Detection intervals start at 10 seconds, so losing up to one second of
 precision costs nothing and removes a goroutine per SA.

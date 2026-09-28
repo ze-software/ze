@@ -141,7 +141,7 @@ func (ps *PeerSession) sendDeleteESP(sa *SA, tr *transport.UDPTransport, spi uin
 // Section 1.3.1's "the initiator MUST delete the SA" after a declined transport-mode
 // request is a policy decision, not a protocol violation by the peer.
 //
-// This one is best-effort, and it is the only Delete that is. The two callers sit in
+// This one is best-effort, and it is the only Delete that is. Its callers sit in
 // handleAuthResponse (fsm.go), which abandons the SA on the same return. No owner loop
 // ever runs on that SA, so nothing is left to send a deferred Delete or repeat this one.
 func sendIKESATeardown(sa *SA, tr *transport.UDPTransport, notifyType uint16, log *slog.Logger) {
@@ -159,10 +159,10 @@ func sendIKESATeardown(sa *SA, tr *transport.UDPTransport, notifyType uint16, lo
 	// Message ID that no earlier request on this SA has spent.
 	//
 	// IT ADVANCES BEFORE IT BUILDS, which is the opposite of every established-path sender
-	// above. Both callers sit in handleAuthResponse (fsm.go), where NextMsgID still holds
+	// above. Its callers sit in handleAuthResponse (fsm.go), where NextMsgID still holds
 	// the id of the IKE_AUTH REQUEST the response answers: handleSAInitResponse set it to
 	// 1, and the only advance past it runs at the end of handleAuthResponse, on the
-	// success path, AFTER both teardown arms. Building at NextMsgID therefore re-sent id 1.
+	// success path, AFTER every teardown arm. Building at NextMsgID therefore re-sent id 1.
 	// Ze's own responder cached its IKE_AUTH response under that id
 	// (finishResponderEstablish -> cacheResponse), so classifyInbound (msgid.go) read the
 	// teardown as inboundRetransmit and REPLAYED the cached IKE_AUTH response. The Delete

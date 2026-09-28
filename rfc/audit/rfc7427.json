@@ -1,11 +1,12 @@
 {
   "audited": "2026-09-27",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7427-3-4": {
       "note": "The sentence conditions method 14 on the notify having been sent AND received by each peer. Received half: TestRFC7427DigitalSignatureNeedsTheNotify asserts computeX509Auth returns errNoSignatureHashAlgos with sa.RemoteHashAlgos nil and method 14 once a list arrived; red on a producer that emits 14 without a received notify. Sent half: no tagged assertion goes red if ze stops sending its own SIGNATURE_HASH_ALGORITHMS notify in IKE_SA_INIT (buildSignatureHashAlgosNotify) while still emitting method 14; the tests rest on the comment that ze always sends it. TestAuthX509UsesMethod14 is positive only.",
       "requirement_sha": "fd86df0dc23d2f24",
       "tests": {
-        "internal/component/ike/engine/auth_test.go::TestAuthX509UsesMethod14": "1512edeef19e0be4",
+        "internal/component/ike/engine/auth_test.go::TestAuthX509UsesMethod14": "3d29b411bdc2a3b7",
         "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify": "4090466f71eff50f",
         "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify#2": "4090466f71eff50f"
       },

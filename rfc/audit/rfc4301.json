@@ -1,11 +1,12 @@
 {
   "audited": "2026-09-27",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4301-4.1-1": {
       "note": "IKE Child SA install asserts Mode==tunnel on both SAs and the OSPFv3 installer asserts Mode==transport on every SA, so both modes are proven; single-polarity annotated",
       "requirement_sha": "db38daf7ff5cee61",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c8069f4319f7f90",
+        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32",
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "6030e8816e85665f"
       },
       "units": {
@@ -18,7 +19,7 @@
       "note": "TestChildSAInstallsInDataplane asserts every installed policy is tunnel mode; single-polarity annotated",
       "requirement_sha": "c83d3cb5958ed0e8",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c8069f4319f7f90"
+        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d"
@@ -29,7 +30,7 @@
       "note": "every IKE peer SA is asserted modeTunnel; OSPFv3 transport SAs fall under the security-gateway-acting-as-host exception; single-polarity annotated",
       "requirement_sha": "95378853d65e42a9",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c8069f4319f7f90"
+        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d"
@@ -40,7 +41,7 @@
       "note": "inbound and outbound SA of one IKE pair both asserted modeTunnel, so the pair is same-mode; single-polarity annotated",
       "requirement_sha": "0b810163c97a99f9",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c8069f4319f7f90"
+        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d"
@@ -103,7 +104,7 @@
       "note": "Child SA install asserts two PROTECT policies reach the SPD; single-polarity annotated",
       "requirement_sha": "b61c14781b5c08a0",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c8069f4319f7f90"
+        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d"
@@ -183,7 +184,7 @@
       "note": "Clause: for EACH Section 4.4.1.1 selector, the inbound SAD entry is populated with the negotiated values. TestChildSAInboundPolicyUsesNegotiatedTS and TestNarrowedSelectorsReachTheInstalledPolicy assert the inbound SPD policy's Src/Dst equal the narrowed TSr/TSi: that is the SPD entry, not the SAD entry (the XFRM state's selector is never read), and the Next Layer protocol and port selectors are not asserted at all, so a SAD entry carrying unnegotiated protocol or ports stays green.",
       "requirement_sha": "e3911738ce979efb",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "3c8069f4319f7f90",
+        "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "3c602227a7107a32",
         "internal/component/ike/engine/ts_narrow_test.go::TestNarrowedSelectorsReachTheInstalledPolicy": "7ec56b7d86f07a26"
       },
       "units": {
@@ -282,7 +283,7 @@
       "note": "automated half: createFirstChildSA installs IKE-keyed SAs; manual half: OSPFv3 installs static SPI+key SAs; single-polarity annotated",
       "requirement_sha": "7ace33c19c76dd42",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c8069f4319f7f90",
+        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32",
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp": "6030e8816e85665f"
       },
       "units": {

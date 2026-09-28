@@ -68,11 +68,17 @@ func (m *mockDP) ListSAs(_ uint32) ([]dataplane.SAInfo, error)          { return
 func (m *mockDP) ListPolicies() ([]dataplane.PolicyInfo, error)         { return nil, nil }
 func (m *mockDP) Close() error                                          { return nil }
 
+// testPeerESPSPI is the ESP SPI the fixture peer allocated, as SAr2 or SAi2 records it.
+// createFirstChildSA refuses an SA that holds no peer SPI, because the outbound SPI is
+// the peer's number and RFC 4303 Section 2.1 reserves 0.
+const testPeerESPSPI = 0x0000c0de
+
 func testSA() *SA {
 	return &SA{
-		PeerName:    "test-peer",
-		LocalNonce:  make([]byte, 32),
-		RemoteNonce: make([]byte, 32),
+		PeerName:         "test-peer",
+		ChildOutboundSPI: testPeerESPSPI,
+		LocalNonce:       make([]byte, 32),
+		RemoteNonce:      make([]byte, 32),
 		Proposal: crypto.IKEProposal{
 			PRF: crypto.PRFTransform{ID: crypto.PRF_HMAC_SHA2_256, KeyLength: 32, OutputLength: 32},
 		},

@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-27",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -369,7 +370,7 @@
       "note": "TestChildSANATTEncapPorts asserts ESP UDP encap on 4500 when NAT is detected; the quote says ALL subsequent traffic moves to 4500, and no tagged unit asserts IKE traffic floats to 4500",
       "requirement_sha": "91d409bd36d2f443",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "3c8069f4319f7f90",
+        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "3c602227a7107a32",
         "internal/component/ike/engine/rfc7296_test.go::TestChildSANoNATNoEncap": "bf1e8ec52b6ed4c2"
       },
       "units": {

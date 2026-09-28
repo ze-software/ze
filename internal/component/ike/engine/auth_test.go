@@ -32,6 +32,7 @@ func testSAWithKeys(t *testing.T) *SA {
 		sa.RemoteNonce[i] = byte(i)
 	}
 	sa.ResponderSPI = [8]byte{9, 8, 7, 6, 5, 4, 3, 2}
+	sa.ChildOutboundSPI = testPeerESPSPI // the peer's SAr2 SPI (child_test.go)
 	sa.InitiatorSAInitMsg = make([]byte, 28)
 	sa.ResponderSAInitMsg = make([]byte, 28)
 
@@ -241,6 +242,7 @@ func testSAWithGCMKeys(t *testing.T) *SA {
 		sa.RemoteNonce[i] = byte(i)
 	}
 	sa.ResponderSPI = [8]byte{9, 8, 7, 6, 5, 4, 3, 2}
+	sa.ChildOutboundSPI = testPeerESPSPI // the peer's SAr2 SPI (child_test.go)
 	sa.InitiatorSAInitMsg = make([]byte, 28)
 	sa.ResponderSAInitMsg = make([]byte, 28)
 

@@ -3,6 +3,94 @@
   "records": [
     {
       "rid": "RFC4303-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestRefusesPeerSPIZero",
+      "unit-sha": "7877645e80501ad3",
+      "claim-sha": "b069f21d92cf23e6",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
+      "producer-sha": "525b13e63f3a18f5",
+      "break": "line 495: \"|| peerSPI == 0\" -\u003e \"|| false\""
+    },
+    {
+      "rid": "RFC4303-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestUsesPeerSPI",
+      "unit-sha": "6b9ea2711cad155a",
+      "claim-sha": "a3f9b45600b981ee",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
+      "producer-sha": "525b13e63f3a18f5",
+      "break": "line 484: \"peerSPI = s\" -\u003e \"peerSPI = s ^ 1\""
+    },
+    {
+      "rid": "RFC4303-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseRefusesPeerSPIZero",
+      "unit-sha": "7044e2075a200ed0",
+      "claim-sha": "9a54b1fbc2417f73",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
+      "producer-sha": "17b29c072d9fb626",
+      "break": "line 321: \"|| outSPI == 0\" -\u003e \"|| false\""
+    },
+    {
+      "rid": "RFC4303-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseUsesPeerSPI",
+      "unit-sha": "6bfd65ce064c2b10",
+      "claim-sha": "2919b1d152f354ac",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
+      "producer-sha": "17b29c072d9fb626",
+      "break": "line 311: \"outSPI = s\" -\u003e \"outSPI = s ^ 1\""
+    },
+    {
+      "rid": "RFC4303-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestInitiatorRefusesPeerSPIZero",
+      "unit-sha": "45abbe102b61fb1c",
+      "claim-sha": "b2da05e2ded98da2",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
+      "producer-sha": "990d294cb809b683",
+      "break": "line 941: \"outSPI == 0\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC4303-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestInitiatorUsesPeerSPI",
+      "unit-sha": "3c115073531f8955",
+      "claim-sha": "008a80505d784375",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
+      "producer-sha": "990d294cb809b683",
+      "break": "line 947: \"= outSPI\" -\u003e \"= outSPI ^ 1\""
+    },
+    {
+      "rid": "RFC4303-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderRefusesPeerSPIZero",
+      "unit-sha": "0c359027b7128b41",
+      "claim-sha": "7a6088cd8651085e",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/responder.go::buildAuthResponse",
+      "producer-sha": "fe7c7a1c3633183f",
+      "break": "line 922: \"= outSPI\" -\u003e \"= outSPI ^ 1\""
+    },
+    {
+      "rid": "RFC4303-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderUsesPeerSPI",
+      "unit-sha": "0b594c1dd02c1cec",
+      "claim-sha": "03476d8290b177db",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/responder.go::buildAuthResponse",
+      "producer-sha": "fe7c7a1c3633183f",
+      "break": "line 922: \"= outSPI\" -\u003e \"= outSPI ^ 1\""
+    },
+    {
+      "rid": "RFC4303-2.1-1",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc4303_spi_test.go::TestGenerateESPSPISkipsTheReservedZero",
       "unit-sha": "dd9388ddaf0823ad",

@@ -274,7 +274,7 @@ func createFirstChildSA(
 		return nil, fmt.Errorf("child-sa: key derivation: %w", err)
 	}
 
-	var inSPI, outSPI uint32
+	var inSPI uint32
 	if sa.ChildInboundSPI == 0 {
 		inSPI, err = generateESPSPI()
 		if err != nil {
@@ -284,15 +284,16 @@ func createFirstChildSA(
 	} else {
 		inSPI = sa.ChildInboundSPI
 	}
+	// The outbound SPI is the PEER's number, from SAr2 or SAi2, and never ze's. RFC 4303
+	// Section 2.1 reserves 0, so no peer SPI reaches this field as 0: handleAuthResponse
+	// (fsm.go) and buildAuthResponse (responder.go) refuse it. A 0 here therefore means
+	// no peer SPI was recorded, and the Child SA is refused rather than keyed on a
+	// number the peer never allocated.
 	if sa.ChildOutboundSPI == 0 {
-		outSPI, err = generateESPSPI()
-		if err != nil {
-			keys.Clear()
-			return nil, fmt.Errorf("child-sa: generate outbound SPI: %w", err)
-		}
-	} else {
-		outSPI = sa.ChildOutboundSPI
+		keys.Clear()
+		return nil, errors.New("child-sa: no peer ESP SPI recorded")
 	}
+	outSPI := sa.ChildOutboundSPI
 
 	srcIP := net.ParseIP(localAddr)
 	dstIP := net.ParseIP(remoteAddr)

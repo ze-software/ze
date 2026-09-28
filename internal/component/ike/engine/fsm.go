@@ -5,7 +5,6 @@ package engine
 
 import (
 	"crypto/x509"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
@@ -841,11 +840,6 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 			eapPayload = p
 		case *wire.PayloadSA:
 			childOffer = p
-			for _, prop := range p.Proposals {
-				if prop.ProtocolID == wire.ProtocolESP && prop.SPISize == 4 && len(prop.SPI) >= 4 {
-					sa.ChildOutboundSPI = binary.BigEndian.Uint32(prop.SPI[:4])
-				}
-			}
 		case *wire.PayloadTS:
 			switch p.TSPayloadType {
 			case wire.PayloadTypeTSi:
@@ -931,6 +925,26 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		// Child SA, the CREATE_CHILD_SA offer of each later rekey, and the
 		// accepted-offer check of its response.
 		sa.ESPGroup.Proposals = []ipsec.ESPProposal{offer.ESPConfig}
+
+		// RFC 4303 Section 2.1: "The SPI value of zero (0) is reserved for local,
+		// implementation-specific use and MUST NOT be sent on the wire."
+		// SAr2's SPI is the one every ESP packet ze sends on this Child SA carries,
+		// so a 0 there is refused. Replacing it with a number of ze's own would key
+		// an outbound SA the peer never allocated.
+		outSPI, err := espSPIFromSA(childOffer)
+		if err != nil {
+			log.Warn("ike: IKE_AUTH SAr2 refused", "peer", sa.PeerName, "error", err)
+			sendIKESATeardown(sa, tr, wire.NotifyInvalidSyntax, log)
+			sa.State = StateDead
+			return
+		}
+		if outSPI == 0 {
+			log.Warn("ike: IKE_AUTH SAr2 refused: ESP SPI 0 is reserved", "peer", sa.PeerName)
+			sendIKESATeardown(sa, tr, wire.NotifyInvalidSyntax, log)
+			sa.State = StateDead
+			return
+		}
+		sa.ChildOutboundSPI = outSPI
 	}
 	if childOffer != nil {
 		sa.acceptMobikeOffer(innerPayloads)
