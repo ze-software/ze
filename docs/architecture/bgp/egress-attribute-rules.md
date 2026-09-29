@@ -24,6 +24,13 @@ Section 5.1.5 prohibits the attribute. A policy that puts LOCAL_PREF on an
 external peer's wire is asking for a thing the RFC refuses, so the prohibition
 is not a policy the operator may override.
 
+Section 5.1.5 also states the other side: LOCAL_PREF "SHALL be included in all
+UPDATE messages that a given BGP speaker sends to other internal peers". A route
+learned from an external peer arrives with no LOCAL_PREF, so the forward rails
+add LOCAL_PREF 100 toward an internal peer, the same value the announce rail
+writes (`planBatchAttrs`). A received value is kept, and so is a value that an
+egress filter set. `applyFactsLocalPref` records both operations.
+
 Section 5.1.4 prohibits relaying somebody else's metric. A metric ze sets
 toward a peer is what MULTI_EXIT_DISC is for, and an operator who steers
 inbound traffic by advertising different metrics to two providers is using the

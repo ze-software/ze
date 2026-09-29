@@ -45,6 +45,10 @@ bgp {
             asn { local 1; remote 1; }
             router-id 1.2.3.4
             family { ipv4/mpls-vpn { prefix { maximum 10000; } } }
+            # RFC 9252 Section 5.1 encodes an IPv4 VPN service behind an IPv6
+            # next hop per RFC 8950, whose Section 4 sends it only to a peer
+            # that advertised Extended Next Hop for the pair. Both peers do.
+            capability { nexthop ipv4/mpls-vpn { nhafi ipv6; } }
         }
         behavior { group-updates disable; }
         filter { export [ community-match:SERVICE-20 ]; }
@@ -59,6 +63,7 @@ bgp {
             asn { local 1; remote 1; }
             router-id 1.2.3.4
             family { ipv4/mpls-vpn { prefix { maximum 10000; } } }
+            capability { nexthop ipv4/mpls-vpn { nhafi ipv6; } }
         }
         behavior { group-updates disable; }
         attach process srv6-export { send [ update ]; }

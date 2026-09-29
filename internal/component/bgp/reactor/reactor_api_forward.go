@@ -887,6 +887,34 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			peerBaseWire = srcWithdrawOnly
 		}
 
+		// RFC 8950 Section 4: "A BGP speaker MUST only advertise the IPv4 or
+		// VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker has
+		// first ascertained via the BGP Capability Advertisement that the BGP peer
+		// supports the Extended Next Hop Encoding capability for the relevant
+		// AFI/SAFI pair." egressNextHopLacksExtendedNextHop (forward_next_hop.go)
+		// asks it over the same resolved address as the two gates above, so a
+		// received next hop passed along unchanged and an explicit one are refused
+		// alike. The announcement is withheld and the withdrawal half still goes,
+		// for the reason every gate above gives.
+		if peerBaseWire != sourceWire {
+			baseNextHop = payloadNextHop(peerBaseWire.Payload())
+		}
+		if egressNextHopLacksExtendedNextHop(peer, &mods, baseNextHop) {
+			if !withdrawOnlyDerived {
+				withdrawOnlyDerived = true
+				srcWithdrawOnly = wireu.WithdrawalsOnly(sourceWire)
+			}
+			fwdLogger().Warn("withholding route: its IPv6 next hop for IPv4 NLRI needs the Extended Next Hop capability this peer did not negotiate",
+				"peer", facts.addrStr, "family", baseNextHop.mpFamily,
+				"rfc", "RFC 8950 Section 4",
+				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
+			if srcWithdrawOnly == nil {
+				suppressedCount++
+				continue
+			}
+			peerBaseWire = srcWithdrawOnly
+		}
+
 		// RFC 4271 Section 5.1.5: LOCAL_PREF never crosses to an external peer.
 		// Recorded AFTER the egress step pass, so the Suppress is the last
 		// operation on code 5 and wins (filterapi.LastSetOrSuppress).

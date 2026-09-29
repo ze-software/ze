@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 
@@ -55,7 +56,15 @@ func rrForward(t *testing.T, payload []byte, srcIsClient, dstIsClient bool, srcR
 	if len(srcRouterID) > 0 {
 		remoteRouterID = srcRouterID[0]
 	}
-	ctx := bgpctx.EncodingContextForASN4(true)
+	// Both peers negotiated <1/1, IPv6>: RFC 8950 Section 4 withholds a reflected
+	// IPv6 next hop for IPv4 NLRI from a peer lacking the pair
+	// (egressNextHopLacksExtendedNextHop), and reflection is what is tested here.
+	ctx := bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{
+		ASN4: true,
+		ExtendedNextHop: map[capability.Family]capability.AFI{
+			{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}: capability.AFIIPv6,
+		},
+	}, bgpctx.DirectionSend)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 	wu := wireu.NewWireUpdate(payload, ctxID)
 	wu.SetMessageID(200)

@@ -46,6 +46,30 @@
       "break": "body of EncodePrefixSIDSRv6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9252-3.2.1-5",
+      "polarity": "positive",
+      "unit": "test/plugin/srv6-service-export-control.ci",
+      "unit-sha": "1b54e0c4fea3a09f",
+      "claim-sha": "bae823d10ca98c80",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/filter_community_match/match.go::evaluateCommunities",
+      "producer-sha": "9f9a1da907acb137",
+      "break": "body of evaluateCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=2:contains=20010DB8002000000000000000000000"
+    },
+    {
+      "rid": "RFC9252-3.2.1-5",
+      "polarity": "negative",
+      "unit": "test/plugin/srv6-service-export-control.ci",
+      "unit-sha": "1b54e0c4fea3a09f",
+      "claim-sha": "9c1f7823d3af3ee4",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer.go::ExportFilters",
+      "producer-sha": "357f2532c7105bed",
+      "break": "body of ExportFilters replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=2:contains=20010DB8001000000000000000000000"
+    },
+    {
       "rid": "RFC9252-7-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins",

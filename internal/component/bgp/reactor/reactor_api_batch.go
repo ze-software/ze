@@ -378,14 +378,21 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 		if !queued {
 			target.session = peer.currentSession()
 		}
+		// A queued route keeps its policy and is resolved against the session
+		// that drains it (resolveQueuedNextHop): only that session's negotiated
+		// capabilities can license an explicit IPv6 next hop for IPv4 NLRI.
 		var nextHop netip.Addr
-		if !queued || !batch.NextHop.IsSelf() {
+		switch {
+		case !queued:
 			var nhErr error
 			nextHop, nhErr = peer.resolveNextHop(target.session, batch.NextHop, batch.Family)
 			if nhErr != nil && batch.Family.NeedsNextHop() {
 				routesLogger().Debug("next-hop resolution failed", "peer", peer.Settings().Address, "error", nhErr)
+				lastErr = nhErr
 				continue
 			}
+		case !batch.NextHop.IsSelf():
+			nextHop = batch.NextHop.Addr
 		}
 
 		if queued {
@@ -510,6 +517,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 		switch {
 		case errors.Is(lastErr, errAnnounceTooLarge),
 			errors.Is(lastErr, errAnnounceNextHopUnencodable),
+			errors.Is(lastErr, ErrNextHopIncompatible),
 			errors.Is(lastErr, errWithdrawTooLarge),
 			errors.Is(lastErr, errStaleReadvertiseWithheld),
 			errors.Is(lastErr, message.ErrEVPNOrigination):
@@ -1105,9 +1113,11 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 
 	base := a.planBatchAttrs(plan, batch, facts)
 
-	if batch.Family != family.IPv4Unicast {
+	inline := inlineIPv4Unicast(batch.Family, facts.nextHop)
+	if !inline {
 		// RFC 4760 Section 3: every other family carries its next-hop and NLRI inside
-		// MP_REACH_NLRI. A relayed/replayed block may already carry one; the
+		// MP_REACH_NLRI, and so does IPv4 unicast with an IPv6 next hop
+		// (inlineIPv4Unicast). A relayed/replayed block may already carry one; the
 		// contribution replaces it.
 		//
 		// The same validity question the IPv4 NEXT_HOP branch answers in
@@ -1163,10 +1173,27 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 	}
 
 	update := &message.Update{PathAttributes: attrBuf[:n]}
-	if batch.Family == family.IPv4Unicast {
+	if inline {
 		update.NLRI = nlriBytes
 	}
 	return update, nil
+}
+
+// inlineIPv4Unicast reports whether an announce carries its NLRI in the UPDATE's
+// own NLRI field with a NEXT_HOP attribute (RFC 4271 Section 4.3), rather than
+// inside MP_REACH_NLRI. Only IPv4 unicast with a next hop that is not IPv6 does.
+//
+// RFC 8950 Section 3: "this document allows advertising the MP_REACH_NLRI
+// attribute [RFC4760] with this content: AFI = 1, SAFI = 1, 2, or 4, Length of
+// Next Hop Address = 16 or 32, Next Hop Address = IPv6 address of a next hop".
+// The NEXT_HOP attribute holds an IPv4 address only (RFC 4271 Section 5.1.3), so
+// an IPv6 next hop for IPv4 unicast has no other encoding. Peer.resolveNextHop
+// has already refused that next hop toward a peer lacking the <1/1, IPv6>
+// Extended Next Hop pair (RFC 8950 Section 4), so only the licensed case gets
+// here. buildBatchAnnounceUpdate and planBatchAttrs both ask this function, so
+// the NLRI field and the NEXT_HOP attribute cannot disagree about the encoding.
+func inlineIPv4Unicast(fam family.Family, nextHop netip.Addr) bool {
+	return fam == family.IPv4Unicast && !nextHop.Is6()
 }
 
 // planBatchAttrs plans every path attribute a batch carries EXCEPT the one that
@@ -1292,15 +1319,25 @@ func (a *reactorAPIAdapter) planBatchAttrs(plan *announceAttrs, batch bgptypes.N
 	}
 
 	switch {
+	case batch.Family == family.IPv4Unicast && !inlineIPv4Unicast(batch.Family, facts.nextHop):
+		// RFC 8950 Section 3: the IPv6 next hop travels in MP_REACH_NLRI, which
+		// buildBatchAnnounceUpdate contributes. RFC 4760 Section 3: "An UPDATE
+		// message that carries no NLRI, other than the one encoded in the
+		// MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP attribute." A
+		// relayed/replayed base can carry one, so it is dropped.
+		if _, _, _, found := attribute.AttrFind(base, attribute.AttrNextHop); found {
+			plan.drop(uint8(attribute.AttrNextHop))
+		}
 	case batch.Family == family.IPv4Unicast:
 		// Write exactly one NEXT_HOP, the authoritative resolved address. The base may
 		// already carry one -- a relayed/replayed route stores the full received block,
 		// NEXT_HOP included -- and a contribution REPLACES it rather than adding a
 		// second, which FRR and others treat as a withdraw (RFC 7606 Section 3(g)).
 		//
-		// Guard on validity and fail closed. resolveNextHop (peer.go) does NOT validate
-		// an explicit next-hop -- it deliberately returns whatever Addr was configured,
-		// invalid included (see TestResolveNextHop_ExplicitInvalid) -- and an invalid
+		// Guard on validity and fail closed. resolveNextHop (peer.go) checks only an
+		// explicit next-hop's family against the negotiated Extended Next Hop pairs --
+		// it deliberately returns an invalid Addr as configured
+		// (see TestResolveNextHop_ExplicitInvalid) -- and an invalid
 		// Addr encodes as a zero-LENGTH NEXT_HOP value (attribute/simple.go). If
 		// the next hop is invalid, leave the base's own NEXT_HOP alone rather than replace a
 		// good address with a malformed one.

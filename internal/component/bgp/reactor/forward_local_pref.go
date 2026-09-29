@@ -71,8 +71,14 @@ func modsTouchLocalPref(mods *filterapi.ModAccumulator) bool {
 	return false
 }
 
+// localPrefDefault is the LOCAL_PREF value 100 the forward rails add toward an
+// internal peer when the route carries none. The slice is read by the rebuild
+// and never written.
+var localPrefDefault = [4]byte{0, 0, 0, 100}
+
 // applyFactsLocalPref enforces RFC 4271 Section 5.1.5 on the forward rails: an
-// UPDATE relayed to an EXTERNAL peer carries no LOCAL_PREF.
+// UPDATE relayed to an INTERNAL peer carries LOCAL_PREF, and one relayed to an
+// EXTERNAL peer carries none.
 //
 // RFC 4271 Section 5.1.5: "A BGP speaker MUST NOT include this attribute in
 // UPDATE messages it sends to external peers, except in the case of BGP
@@ -97,6 +103,15 @@ func modsTouchLocalPref(mods *filterapi.ModAccumulator) bool {
 // path, which is the cost the route-server fast path exists to avoid.
 func applyFactsLocalPref(f *peerForwardFacts, baseHasLocalPref bool, mods *filterapi.ModAccumulator) {
 	if localPrefAllowedTo(!f.isEBGP) {
+		// RFC 4271 Section 5.1.5: "LOCAL_PREF is a well-known attribute that
+		// SHALL be included in all UPDATE messages that a given BGP speaker
+		// sends to other internal peers." A route learned from an external peer
+		// arrives without one, so it is added with the value every originating
+		// rail writes (planBatchAttrs, reactor_api_batch.go). A received value,
+		// or one an egress filter set, is kept.
+		if !baseHasLocalPref && !modsTouchLocalPref(mods) {
+			mods.Op(uint8(attribute.AttrLocalPref), filterapi.AttrModSet, localPrefDefault[:])
+		}
 		return
 	}
 	if !baseHasLocalPref && !modsTouchLocalPref(mods) {

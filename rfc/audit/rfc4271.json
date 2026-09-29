@@ -235,14 +235,18 @@
       "verdict": "weak"
     },
     "RFC4271-5.1.2-2": {
-      "note": "Tagged units cover only locally originated announce rails (WriteAnnounceUpdate empty path, API explicit path kept byte-identical). The route this sentence mostly concerns, one learned from a peer and relayed or reflected to an internal peer on the forward rail, has no assertion that its AS_PATH is left unmodified. The eBGP prepend negative proves RFC4271-5.1.2-3, a neighbouring rule.",
+      "note": "Positive now covers the forward rail: TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer relays an eBGP-learned route on forwardUpdateCore and asserts two internal destinations receive AS_PATH [65001] byte for byte, which an eBGP prepend applied to an internal peer would turn red (records on forwardUpdateSection). Still missing: (a) no negative violates THIS rule. The as-override destination cannot tempt a modification: applyASOverride replaces the peer AS with the local AS, and for an internal peer both are 65000, so the substitution is an identity and removing the facts.isEBGP guard leaves the path unchanged; the external prepend control proves RFC4271-5.1.2-3, a neighbouring rule. A negative needs an input that would modify an internal peer's AS_PATH (for example an egress AS_PATH prepend or a local-as setting toward an internal peer). (b) the route-server rail (reactorForwardRS) toward an internal peer is not asserted.",
       "requirement_sha": "0cfcf537b0aafcec",
       "tests": {
+        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "ffc03f8e67362cde",
+        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "ffc03f8e67362cde",
         "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "71e9a5e9a3b36017",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "71e9a5e9a3b36017"
       },
       "units": {
+        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "3bda13eecdff18dc",
+        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "3bda13eecdff18dc",
         "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "f40bdaebab6d5328",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "ca93d29a312a1f89",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "4aa30092bdda3e75"
@@ -388,21 +392,25 @@
       "verdict": "weak"
     },
     "RFC4271-5.1.5-1": {
-      "note": "tagged units cover the originated announce rails (WriteAnnounceUpdate default 100, batch and queued API rails) toward iBGP. The sentence says ALL UPDATEs to internal peers: no unit relays a route that arrived without LOCAL_PREF (eBGP-learned, 5.1.5-3 discards it) to an internal peer, and applyFactsLocalPref (forward_local_pref.go) only strips, never adds, so the forward rail may omit it. Unverified whether another step adds it",
+      "note": "SHALL include LOCAL_PREF in all UPDATEs to internal peers. Originated rails: WriteAnnounceUpdate, batch and queued API units (existing). Forward rails, the gap the earlier verdict named, now proven: TestRFC4271ForwardAddsLocalPrefTowardInternalPeer relays an eBGP-learned route with no LOCAL_PREF on the general rail and the route-server rail and asserts the internal destination is sent exactly 00000064 while the external destination in the same fan-out is sent none, so a blanket add or a blanket strip each go red. Producer applyFactsLocalPref adds 100 only when the base carries none and no egress mod set one. Observed-red records on applyFactsLocalPref both polarities, and on buildRIBRouteUpdate. The negative's external half overlaps RFC4271-5.1.5-2; it is kept because it is what shows the add follows the internal classification.",
       "requirement_sha": "0c6d672c9f901595",
       "tests": {
         "internal/component/bgp/reactor/forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "33e3a14230a4a91e",
+        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer": "ffc03f8e67362cde",
+        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer#2": "ffc03f8e67362cde",
         "internal/component/bgp/reactor/reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "2d7682e54217a5e1",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "71e9a5e9a3b36017",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "71e9a5e9a3b36017"
       },
       "units": {
         "internal/component/bgp/reactor/forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "73e599b61c252e0c",
+        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer": "569d309f461689b4",
+        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer#2": "569d309f461689b4",
         "internal/component/bgp/reactor/reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "49ee700ba438d96c",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "783191eb4bc341cf",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "fd56263f2c833ec2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-5.1.5-2": {
       "note": "announce (WriteAnnounceUpdate), API batch and queued rails, forward rail and local-pref-strip-ebgp.ci assert no attribute 5 toward an external peer, including over a filter Set; ze has no confederation surface, so the exception is unreachable",
@@ -573,6 +581,19 @@
       },
       "verdict": "enforced"
     },
+    "RFC4271-6.3-15": {
+      "note": "Revised by RFC 7606 Section 3(g): a duplicate MP_REACH_NLRI or MP_UNREACH_NLRI draws NOTIFICATION Malformed Attribute List; any other duplicate is discarded after the first. TestRFC4271UpdateMalformedAttributeList asserts duplicate MP_REACH_NLRI -> session reset with NOTIFICATION 3/1 read off the socket, and duplicate COMMUNITY -> no NOTIFICATION, exactly one COMMUNITY left. Observed-red records on ValidateUpdateRFC7606AddPath. Missing: the MP_UNREACH_NLRI clause has no tagged assertion. The producer condition is mpReachCount > 1 || mpUnreachCount > 1, and dropping the second operand leaves this unit green. Untagged units session_dupmp_unreach_wire_test.go and session_validation_dupmp_unreach_test.go assert it; tagging one of them would close the clause.",
+      "requirement_sha": "3539db1d6a53507b",
+      "tests": {
+        "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList": "94d61a2a18724b8b",
+        "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList#2": "94d61a2a18724b8b"
+      },
+      "units": {
+        "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList": "9a1a00bcefb97b8d",
+        "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList#2": "9a1a00bcefb97b8d"
+      },
+      "verdict": "weak"
+    },
     "RFC4271-6.3-16": {
       "note": "impossible prefix length and truncated NLRI (and truncated withdrawn) reset with NOTIFICATION 3/10 read off the socket after a good UPDATE was accepted on the same session; a valid prefix is announced",
       "requirement_sha": "358a61c3b3f2f598",
@@ -628,21 +649,25 @@
       "verdict": "enforced"
     },
     "RFC4271-6.3-6": {
-      "note": "Revised by RFC 7606 to per-attribute outcomes. Tagged units now cover a conflicting length for ORIGIN (withdraw, 7.1), NEXT_HOP (withdraw, 7.3), MED (withdraw), ATOMIC_AGGREGATE and AGGREGATOR (attribute discard with the prefix kept, 7.6/7.7), each against its expected length kept byte for byte, with observed-red records. Still missing: LOCAL_PREF, the one remaining RFC 4271 attribute with a length fixed by its type code (4 octets), has no length case; RFC 7606 7.5 treat-as-withdraw on iBGP is unasserted (both units run eBGP sessions), so a broken validateLocalPrefAttr stays green.",
+      "note": "Revised by RFC 7606 to per-attribute outcomes. Every attribute whose length its type code fixes now has a length case against its expected length: ORIGIN (withdraw, 7.1), NEXT_HOP (withdraw, 7.3) and MED in TestSessionRFC4271RevisedAttributeErrors, ATOMIC_AGGREGATE and AGGREGATOR (attribute discard, prefix kept, 7.6/7.7) in TestRFC4271RecognizedAttributeErrorsBeyondTheFirst, and LOCAL_PREF in TestRFC4271LocalPrefLengthFromInternalPeer: an iBGP session over the real receive path, length 3 yields exactly the withdrawal of the prefix with the session still Established (7.5), length 4 before and after keeps the prefix with LOCAL_PREF byte-identical. The LOCAL_PREF buffer is otherwise valid, so only the length rule can fire. Observed-red records on validateLocalPrefAttr, validateAggregatorAttr and validateNextHopAttr, both polarities.",
       "requirement_sha": "1e5216d329f6dc3e",
       "tests": {
+        "internal/component/bgp/reactor/reactor_a_rfc4271_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer": "f2b979b76233652e",
+        "internal/component/bgp/reactor/reactor_a_rfc4271_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer#2": "f2b979b76233652e",
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "aa6f044edd716924",
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "aa6f044edd716924",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "585a4bdf82c3828c",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "585a4bdf82c3828c"
       },
       "units": {
+        "internal/component/bgp/reactor/reactor_a_rfc4271_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer": "3e727a80b7b28f0b",
+        "internal/component/bgp/reactor/reactor_a_rfc4271_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer#2": "3e727a80b7b28f0b",
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "3fbb82b3c24c3e42",
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "3fbb82b3c24c3e42",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-6.3-7": {
       "note": "RFC 7606 Section 3(d) (Updates: 4271) replaces the subcode and Data clauses with treat-as-withdraw, so the forbidden behaviour is a reset or a silent keep. TestSessionRFC4271RevisedAttributeErrors: missing ORIGIN, missing AS_PATH and missing NEXT_HOP each require.Equal the payload to a withdrawal of 203.0.113.0/24 (red on a keep or a drop), and the good UPDATE after it on the same session is received (red on a reset). Negative: all three present, NLRI announced. TestRFC4271MandatoryAttributesAcrossUpdateForms pins the MP_REACH/legacy NEXT_HOP split.",

@@ -1474,8 +1474,18 @@ func (p *Peer) resolveNextHop(session *Session, nh bgptypes.RouteNextHop, fam fa
 	var addr netip.Addr
 	switch nh.Policy {
 	case bgptypes.NextHopExplicit:
-		// Explicit addresses are validated by the wire builder.
+		// An invalid explicit address is left to the wire builder, which refuses
+		// it (errAnnounceNextHopUnencodable). No builder knows the negotiated
+		// Extended Next Hop pairs, so the family check is made here.
 		addr = nh.Addr
+		// RFC 8950 Section 4: "A BGP speaker MUST only advertise the IPv4 or
+		// VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker
+		// has first ascertained via the BGP Capability Advertisement that the BGP
+		// peer supports the Extended Next Hop Encoding capability for the
+		// relevant AFI/SAFI pair."
+		if fam.AFI == family.AFIIPv4 && addr.Is6() && !p.canUseNextHopFor(addr, fam) {
+			return netip.Addr{}, ErrNextHopIncompatible
+		}
 	case bgptypes.NextHopSelf:
 		if session == nil {
 			return netip.Addr{}, ErrNextHopSelfNoLocal

@@ -168,9 +168,9 @@ func (p *Peer) sendInitialRoutes() {
 			fam := op.Route.NLRI().Family()
 			session := p.session
 			nextHop := op.Route.NextHop()
-			if op.NextHopSelf && fam.NeedsNextHop() {
+			if fam.NeedsNextHop() {
 				var err error
-				nextHop, err = p.resolveNextHop(session, bgptypes.NewNextHopSelf(), fam)
+				nextHop, err = p.resolveNextHop(session, queuedNextHopPolicy(op), fam)
 				if err != nil {
 					routesLogger().Warn("queued next-hop resolution failed", "peer", addr, "error", err)
 					processed++
@@ -461,9 +461,9 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 			fam := op.Route.NLRI().Family()
 			session := p.session
 			nextHop := op.Route.NextHop()
-			if op.NextHopSelf && fam.NeedsNextHop() {
+			if fam.NeedsNextHop() {
 				var err error
-				nextHop, err = p.resolveNextHop(session, bgptypes.NewNextHopSelf(), fam)
+				nextHop, err = p.resolveNextHop(session, queuedNextHopPolicy(op), fam)
 				if err != nil {
 					routesLogger().Warn("queued next-hop resolution failed", "peer", addr, "error", err)
 					finalProcessed++
@@ -917,4 +917,16 @@ func sendEORFamilies(send bool, negotiated []family.Family) []family.Family {
 		return nil
 	}
 	return negotiated
+}
+
+// queuedNextHopPolicy returns the next-hop policy a queued announcement was
+// queued with, so the drain resolves it against the session that sends it. Self
+// names that session's endpoint. An explicit address is checked against the
+// capabilities that session negotiated, which did not exist when the route was
+// queued (Peer.resolveNextHop, RFC 8950 Section 4).
+func queuedNextHopPolicy(op peerOp) bgptypes.RouteNextHop {
+	if op.NextHopSelf {
+		return bgptypes.NewNextHopSelf()
+	}
+	return bgptypes.NewNextHopExplicit(op.Route.NextHop())
 }

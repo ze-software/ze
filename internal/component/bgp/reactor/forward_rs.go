@@ -490,6 +490,28 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			destBaseWire = srcWithdrawOnly
 		}
 
+		// RFC 8950 Section 4: an IPv6 next hop for IPv4 NLRI goes only to a peer
+		// that negotiated the Extended Next Hop pair. The general rail
+		// (reactor_api_forward.go) carries the quote and the reasoning; the two
+		// rails MUST answer this the same way.
+		if destBaseWire != update.WireUpdate {
+			baseNextHop = payloadNextHop(destBaseWire.Payload())
+		}
+		if egressNextHopLacksExtendedNextHop(peer, &mods, baseNextHop) {
+			if !withdrawOnlyDerived {
+				withdrawOnlyDerived = true
+				srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+			}
+			fwdLogger().Warn("withholding route: its IPv6 next hop for IPv4 NLRI needs the Extended Next Hop capability this peer did not negotiate",
+				"peer", facts.addrStr, "family", baseNextHop.mpFamily, "src", sourcePeerAddr,
+				"rfc", "RFC 8950 Section 4",
+				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
+			if srcWithdrawOnly == nil {
+				continue
+			}
+			destBaseWire = srcWithdrawOnly
+		}
+
 		// RFC 4271 Section 5.1.5: LOCAL_PREF never crosses to an external peer.
 		// Recorded AFTER the egress filter pass above so the Suppress is the last
 		// operation on code 5 and wins (filterapi.LastSetOrSuppress). This rail

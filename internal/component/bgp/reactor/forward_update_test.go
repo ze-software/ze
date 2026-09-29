@@ -368,7 +368,10 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	// Build a minimal UPDATE payload: WithdrawnLen=0, AttrLen=4 (ORIGIN=IGP), one NLRI prefix.
-	origAttrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
+	// ORIGIN = IGP, LOCAL_PREF = 100. The destinations are internal, and RFC 4271
+	// Section 5.1.5 owes them LOCAL_PREF: a route carrying one is not changed
+	// by the forward rail's own obligation, so only the test's mods apply.
+	origAttrs := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x05, 0x04, 0, 0, 0, 100}
 	payload := make([]byte, 2+2+len(origAttrs)+len(fwdTestNLRI))
 	// withdrawnLen = 0 (first 2 bytes already zero)
 	binary.BigEndian.PutUint16(payload[2:4], uint16(len(origAttrs)))
@@ -444,7 +447,7 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 		fwdPool:            testPool,
 		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
 		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
-		attrModHandlers:    map[uint8]filterapi.AttrModHandler{250: markerHandler},
+		attrModHandlers:    fwdTestHandlersWith(250, markerHandler),
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -779,7 +782,10 @@ func cacheReflectableUpdate(t *testing.T, cache *RecentUpdateCache, id uint64) {
 	t.Helper()
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
-	origAttrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
+	// ORIGIN = IGP, LOCAL_PREF = 100. The destinations are internal, and RFC 4271
+	// Section 5.1.5 owes them LOCAL_PREF: a route carrying one is not changed
+	// by the forward rail's own obligation, so only the test's mods apply.
+	origAttrs := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x05, 0x04, 0, 0, 0, 100}
 	payload := make([]byte, 2+2+len(origAttrs)+len(fwdTestNLRI))
 	binary.BigEndian.PutUint16(payload[2:4], uint16(len(origAttrs)))
 	copy(payload[4:], origAttrs)
@@ -1089,7 +1095,10 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
-	origAttrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
+	// ORIGIN = IGP, LOCAL_PREF = 100. The destinations are internal, and RFC 4271
+	// Section 5.1.5 owes them LOCAL_PREF: a route carrying one is not changed
+	// by the forward rail's own obligation, so only the test's mods apply.
+	origAttrs := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x05, 0x04, 0, 0, 0, 100}
 	payload := make([]byte, 2+2+len(origAttrs)+len(fwdTestNLRI))
 	binary.BigEndian.PutUint16(payload[2:4], uint16(len(origAttrs)))
 	copy(payload[4:], origAttrs)
@@ -1171,7 +1180,7 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 		fwdPool:            testPool,
 		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
 		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
-		attrModHandlers:    map[uint8]filterapi.AttrModHandler{250: markerHandler},
+		attrModHandlers:    fwdTestHandlersWith(250, markerHandler),
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -1710,7 +1719,10 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
-	origAttrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
+	// ORIGIN = IGP, LOCAL_PREF = 100. The destinations are internal, and RFC 4271
+	// Section 5.1.5 owes them LOCAL_PREF: a route carrying one is not changed
+	// by the forward rail's own obligation, so only the test's mods apply.
+	origAttrs := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x05, 0x04, 0, 0, 0, 100}
 	payload := make([]byte, 2+2+len(origAttrs)+len(fwdTestNLRI))
 	binary.BigEndian.PutUint16(payload[2:4], uint16(len(origAttrs)))
 	copy(payload[4:], origAttrs)
@@ -1794,7 +1806,7 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 		fwdPool:            testPool,
 		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
 		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
-		attrModHandlers:    map[uint8]filterapi.AttrModHandler{250: markerHandler},
+		attrModHandlers:    fwdTestHandlersWith(250, markerHandler),
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -1835,4 +1847,14 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 	assert.Equal(t, len(origAttrs), int(binary.BigEndian.Uint16(bodyC[2:4])),
 		"an unmodified destination must carry the source attribute section unchanged")
 	assert.Equal(t, payload, bodyC, "an unmodified destination must receive the source payload byte for byte")
+}
+
+// fwdTestHandlersWith is the production handler set plus one test handler. The
+// forward rails record operations of their own (LOCAL_PREF toward an internal
+// peer, RFC 4271 Section 5.1.5), and a map holding only the test's handler
+// suppresses the route for want of theirs.
+func fwdTestHandlersWith(code uint8, handler filterapi.AttrModHandler) map[uint8]filterapi.AttrModHandler {
+	handlers := attrModHandlersWithDefaults()
+	handlers[code] = handler
+	return handlers
 }

@@ -183,6 +183,30 @@ Multiple entries concatenated.
 
 <!-- source: internal/core/bgp/capability/capability.go -- ExtendedNextHop struct, ExtendedNextHopFamily -->
 
+An IPv6 next hop for IPv4 NLRI (unicast, VPN-IPv4, or any other AFI 1 family)
+is sent only when the peer negotiated the entry for that exact AFI/SAFI pair
+(RFC 8950 Section 4). The check applies to `next-hop self` and to an explicit
+next hop alike, on every announce rail. A route that fails it is not sent to
+that peer, and the announce returns `ErrNextHopIncompatible` when no peer took
+it. A queued announcement is checked against the session that drains the queue,
+because only that session holds the negotiated pairs.
+
+A licensed IPv4 unicast announce with an IPv6 next hop is sent as MP_REACH_NLRI
+for AFI 1 / SAFI 1, with no NEXT_HOP attribute and an empty NLRI field
+(RFC 8950 Section 3). An IPv4 next hop keeps the inline NLRI and NEXT_HOP.
+
+The forward rails (general and route server) apply the same check to a received
+route. The next hop checked is the one about to be written: the received one
+when it passes along unchanged, or the one a next-hop mode or a filter sets.
+When a destination lacks the pair, the announcement is withheld from it and the
+withdrawals in the same UPDATE are still sent. A warning names the peer and the
+family.
+
+<!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, canUseNextHopFor -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- queuedNextHopPolicy -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- inlineIPv4Unicast -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopLacksExtendedNextHop -->
+
 ---
 
 ## 4. Extended Message (Code 6)

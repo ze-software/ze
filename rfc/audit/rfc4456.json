@@ -7,6 +7,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -16,8 +17,8 @@
       "requirement_sha": "03b367adb6790836",
       "tests": {
         "internal/component/bgp/reactor/forward_build_withdraw_shape_test.go::TestForwardReflectionLeavesAWithdrawalUntouched": "4f14963c3fba371f",
-        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "d0bd8fec5ea5f7c7",
-        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "d0bd8fec5ea5f7c7",
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "b6fdc78829b3f890",
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "b6fdc78829b3f890",
         "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "ddfd9cd846675271",
         "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "ddfd9cd846675271"
       },
@@ -34,8 +35,8 @@
       "note": "positive asserts the list is created as exactly [1.2.3.2] when absent; negative asserts exact bytes [1.2.3.2, 5.5.5.5], prepend before the existing entry, so both sentences of the quote are proven",
       "requirement_sha": "d017c078f2e893f8",
       "tests": {
-        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "d0bd8fec5ea5f7c7",
-        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "d0bd8fec5ea5f7c7",
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "b6fdc78829b3f890",
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "b6fdc78829b3f890",
         "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "ddfd9cd846675271",
         "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "ddfd9cd846675271"
       },
@@ -51,8 +52,8 @@
       "note": "negative asserts an existing ORIGINATOR_ID 9.9.9.9 survives reflection unchanged, which is the SHOULD NOT itself; positive shows creation when none exists",
       "requirement_sha": "e6fd52e4ce447c82",
       "tests": {
-        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "d0bd8fec5ea5f7c7",
-        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "d0bd8fec5ea5f7c7"
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "b6fdc78829b3f890",
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "b6fdc78829b3f890"
       },
       "units": {
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "12fecf3624468e58",
@@ -64,8 +65,8 @@
       "note": "Sentence: ORIGINATOR_ID carries the BGP Identifier of the originator. TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier separates the source address (10.0.0.1) from its BGP Identifier (10.11.12.13): the created ORIGINATOR_ID equals 10.11.12.13 exactly and is neither the address nor the reflector's id 1.2.3.2; an existing 9.9.9.9 is kept and not replaced by the neighbor's Identifier. The address/Identifier confusion the earlier verdict named would now go red. Observed-red records on reactorForwardRS both polarities. Old negative tag prose on TestReactorForwardRRInjects still describes 8-1.",
       "requirement_sha": "20caf92dbc2d820c",
       "tests": {
-        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "d0bd8fec5ea5f7c7",
-        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "d0bd8fec5ea5f7c7",
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "b6fdc78829b3f890",
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "b6fdc78829b3f890",
         "internal/component/bgp/reactor/rfc4456_originator_id_test.go::TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier": "7b6c6e55d0b2bfe7",
         "internal/component/bgp/reactor/rfc4456_originator_id_test.go::TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier#2": "7b6c6e55d0b2bfe7"
       },
@@ -98,7 +99,7 @@
       "note": "TestReactorForwardRRInjects pins AS_PATH, NEXT_HOP, MED and LOCAL_PREF byte-identical after reflection, so any modification fails it; single-polarity annotated",
       "requirement_sha": "b3766d6eba594726",
       "tests": {
-        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "d0bd8fec5ea5f7c7"
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "b6fdc78829b3f890"
       },
       "units": {
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "12fecf3624468e58"
@@ -109,8 +110,8 @@
       "note": "asserts nil output for non-client to non-client and non-nil for non-client to client; tag polarity labels are inverted against the new quote, whose conforming case is reflection to a client",
       "requirement_sha": "0e13e5e02720589c",
       "tests": {
-        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRNonClientRule": "d0bd8fec5ea5f7c7",
-        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRNonClientRule#2": "d0bd8fec5ea5f7c7"
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRNonClientRule": "b6fdc78829b3f890",
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRNonClientRule#2": "b6fdc78829b3f890"
       },
       "units": {
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRNonClientRule": "bb026e67a52a9e8b",

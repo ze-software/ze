@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC9252-3.1-1": {
       "note": "(a) forbidden: the sender emits a non-zero Service TLV RESERVED octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[3]==0 on EncodePrefixSIDSRv6 output, with a non-zero behavior code so the zero is not a zero-filled buffer. Single-polarity marker present (no reject path on encode).",
@@ -98,15 +98,15 @@
       "verdict": "enforced"
     },
     "RFC9252-3.2.1-5": {
-      "note": "(a) forbidden: no way to withhold an SRv6 service route from one neighbour while sending another service to it, or while sending the same service to another neighbour. (b) test/plugin/srv6-service-export-control.ci: filtered-peer has reject=pattern for the RT10 SID and expects the RT20 SID (per service); control-peer expects both SIDs (per neighbour). Losing either control turns an expect or reject red.",
+      "note": "(a) forbidden: no way to withhold an SRv6 service route from one neighbour while sending another service to it, or while sending the same service to another neighbour. (b) test/plugin/srv6-service-export-control.ci: filtered-peer has reject=pattern for the RT10 SID and expects the RT20 SID (per service); control-peer expects both SIDs (per neighbour). Losing either control turns an expect or reject red. Re-read after the 2026-09-29 change: both peers now advertise Extended Next Hop for ipv4/mpls-vpn, because RFC 9252 Section 5.1 encodes IPv4 VPN over SRv6 per RFC 8950 and RFC 8950 Section 4 now withholds the IPv6 next hop from a peer without the pair; no expect or reject line changed. Observed-red records: positive on evaluateCommunities (the export filter fails closed, RT20 never reaches filtered-peer), negative on Peer.ExportFilters (a panic, so it proves reach only; the per-neighbour discrimination of the negative is by reading: a filter applied to every peer withholds RT10 from control-peer and its seq=2 expect goes red).",
       "requirement_sha": "7a9827b5f9a77575",
       "tests": {
-        "test/plugin/srv6-service-export-control.ci": "957a3e0dce547da6",
-        "test/plugin/srv6-service-export-control.ci#2": "957a3e0dce547da6"
+        "test/plugin/srv6-service-export-control.ci": "d1639e337407606f",
+        "test/plugin/srv6-service-export-control.ci#2": "d1639e337407606f"
       },
       "units": {
-        "test/plugin/srv6-service-export-control.ci": "957a3e0dce547da6",
-        "test/plugin/srv6-service-export-control.ci#2": "957a3e0dce547da6"
+        "test/plugin/srv6-service-export-control.ci": "d1639e337407606f",
+        "test/plugin/srv6-service-export-control.ci#2": "d1639e337407606f"
       },
       "verdict": "enforced"
     },

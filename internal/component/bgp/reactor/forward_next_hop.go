@@ -7,11 +7,13 @@
 package reactor
 
 import (
+	"encoding/binary"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // nextHopValue names every NEXT_HOP address one UPDATE offers a destination.
@@ -28,6 +30,11 @@ type nextHopValue struct {
 	legacy netip.Addr // NEXT_HOP attribute, code 3
 	mp     netip.Addr // MP_REACH_NLRI global next hop, code 14
 	mpLL   netip.Addr // MP_REACH_NLRI link-local next hop, RFC 2545 Section 3
+
+	// mpFamily is the AFI/SAFI of the MP_REACH_NLRI that carries mp: the pair
+	// RFC 8950 Section 4 licenses an IPv6 next hop for. Zero when the UPDATE
+	// carries no MP_REACH_NLRI. A next-hop rewrite never changes it.
+	mpFamily family.Family
 }
 
 // has reports whether any address this UPDATE offers is addr.
@@ -96,6 +103,7 @@ func payloadNextHop(payload []byte) nextHopValue {
 	if _, _, value, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI); found {
 		// AFI(2) + SAFI(1) + next-hop length(1) + next hop.
 		if len(value) >= 4 {
+			out.mpFamily = family.Family{AFI: family.AFI(binary.BigEndian.Uint16(value)), SAFI: family.SAFI(value[2])}
 			nhLen := int(value[3])
 			if 4+nhLen <= len(value) {
 				out.mp, out.mpLL = nextHopAddr(value[4 : 4+nhLen])
@@ -254,4 +262,37 @@ func egressNextHopIsLinkLocalOnly(mods *filterapi.ModAccumulator, base nextHopVa
 		return nh.linkLocalOnly()
 	}
 	return base.linkLocalOnly()
+}
+
+// egressNextHopLacksExtendedNextHop answers, for ONE destination, whether the
+// MP_REACH_NLRI it is about to be sent carries IPv4 NLRI with an IPv6 next hop
+// that the destination never licensed.
+//
+// RFC 8950 Section 4: "A BGP speaker MUST only advertise the IPv4 or VPN-IPv4
+// NLRI with an IPv6 next hop to a BGP peer if the BGP speaker has first
+// ascertained via the BGP Capability Advertisement that the BGP peer supports
+// the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair."
+//
+// The address is resolved the way egressNextHopIsPeerOwn resolves it: an
+// MP_REACH_NLRI next hop recorded in mods (a configured next-hop mode or a
+// filter rewrite) replaces the payload's, so the question is asked about the
+// bytes the rebuild will emit. A received IPv6 next hop passed along unchanged
+// and an explicit IPv6 next hop are refused alike. The pair is judged by
+// Peer.canUseNextHopFor against the destination's own send context, the same
+// producer the announce rails ask (Peer.resolveNextHop), so the rails cannot
+// disagree about which pair licenses what.
+//
+// nextHopAddr unmaps an IPv4-mapped address, so such an address is not IPv6 here.
+func egressNextHopLacksExtendedNextHop(dest *Peer, mods *filterapi.ModAccumulator, base nextHopValue) bool {
+	if base.mpFamily.AFI != family.AFIIPv4 {
+		return false
+	}
+	nextHop := base.mp
+	if rewritten, set := modsNextHop(mods); set && rewritten.mp.IsValid() {
+		nextHop = rewritten.mp
+	}
+	if !nextHop.Is6() {
+		return false
+	}
+	return !dest.canUseNextHopFor(nextHop, base.mpFamily)
 }
