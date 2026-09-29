@@ -26,20 +26,23 @@ func mupCapabilities(fams ...Family) []capability.Capability {
 // TestMUPSessionNegotiatesBothAFIs pins that one session carries BGP-MUP for both
 // AFIs when both speakers advertise both MUP families.
 //
-// VALIDATES: draft-ietf-bess-mup-safi Section 3.3, ipv4/mup (AFI 1, SAFI 85) and
-// ipv6/mup (AFI 2, SAFI 85) are both negotiated on one session, and each announced
-// Type 1 ST route is sent under one of the negotiated families.
+// VALIDATES: RFC 4760 Section 8, the Multiprotocol capabilities of the two OPEN
+// messages decide which families the session can use: ipv4/mup (AFI 1, SAFI 85)
+// and ipv6/mup (AFI 2, SAFI 85) are both negotiated on one session when both
+// speakers advertise both, and each announced Type 1 ST route is sent under one
+// of the negotiated families.
 // PREVENTS: a MUP session that can exchange only one of the two AFIs.
 func TestMUPSessionNegotiatesBothAFIs(t *testing.T) {
 	both := mupCapabilities(IPv4MUP, IPv6MUP)
 
-	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.3-1 positive -- when both speakers advertise the Multiprotocol capability for AFI 1 and AFI 2 with SAFI 85, the one session negotiates both ipv4/mup and ipv6/mup
+	// RFC requirement: RFC4760-8-2 positive -- capability.Negotiate reads the Multiprotocol capabilities both speakers advertised to decide the families usable with the peer: when both advertise AFI 1 and AFI 2 with SAFI 85, the session can use both ipv4/mup and ipv6/mup
 	neg := capability.Negotiate(both, both, capability.PeerIdentity{})
 	require.NotNil(t, neg)
 	assert.True(t, neg.SupportsFamily(family.Family{AFI: family.AFIIPv4, SAFI: SAFIMUP}), "ipv4/mup negotiated")
 	assert.True(t, neg.SupportsFamily(family.Family{AFI: family.AFIIPv6, SAFI: SAFIMUP}), "ipv6/mup negotiated")
 
-	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.3.7-2 positive -- on that session, a Type 1 ST route of each AFI is announced in MP_REACH_NLRI with the route's AFI and SAFI 85, which is a family the session negotiated
+	// A Type 1 ST route of each AFI goes out in MP_REACH_NLRI under a family the
+	// session negotiated.
 	for _, tc := range []struct{ fam, cmd string }{
 		{"ipv4/mup", "mup-t1st 192.168.0.2/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1 next-hop 10.0.0.2"},
 		{"ipv6/mup", "mup-t1st 2001:db8:1:1::2/128 rd 100:100 teid 12345 qfi 9 endpoint 2001::1 next-hop 2001::2"},
@@ -63,7 +66,7 @@ func TestMUPSessionMissingAFIIsNotNegotiated(t *testing.T) {
 	ipv4 := family.Family{AFI: family.AFIIPv4, SAFI: SAFIMUP}
 	ipv6 := family.Family{AFI: family.AFIIPv6, SAFI: SAFIMUP}
 
-	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.3-1 negative -- a session whose peer advertises only AFI 1 with SAFI 85 does not negotiate ipv6/mup, and one whose peer advertises no MUP family negotiates neither, so a session exchanges MUP NLRI for both AFIs only when both are advertised
+	// RFC requirement: RFC4760-8-2 negative -- a family the peer did not advertise in its Multiprotocol capability is not usable with that peer: a peer advertising only AFI 1 with SAFI 85 leaves ipv6/mup un-negotiated, and a peer advertising no MUP family leaves both un-negotiated
 	oneAFI := capability.Negotiate(both, mupCapabilities(IPv4MUP), capability.PeerIdentity{})
 	require.NotNil(t, oneAFI)
 	assert.True(t, oneAFI.SupportsFamily(ipv4))

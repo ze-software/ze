@@ -209,39 +209,6 @@
       "producer": "internal/component/bgp/plugins/nlri/mup/mup.go::DecodeNLRIHex",
       "producer-sha": "223b9c5f9e79e538",
       "break": "body of DecodeNLRIHex replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.3-1",
-      "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated",
-      "unit-sha": "7492b234ffea46e7",
-      "claim-sha": "4891b57411dbf1d6",
-      "route": "revert",
-      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "435cb0c5ff9c51ce",
-      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.3-1",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs",
-      "unit-sha": "b879eac75c50dbb7",
-      "claim-sha": "1be5fb2cd8884192",
-      "route": "revert",
-      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "435cb0c5ff9c51ce",
-      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.3.7-2",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs",
-      "unit-sha": "b879eac75c50dbb7",
-      "claim-sha": "cd108e79efd0bfbc",
-      "route": "revert",
-      "producer": "internal/component/bgp/plugins/nlri/mup/encode.go::EncodeRoute",
-      "producer-sha": "e42c832aa4d834b8",
-      "break": "body of EncodeRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

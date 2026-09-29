@@ -81,7 +81,6 @@ func mpReachAFISAFI(t *testing.T, update []byte) (uint16, uint8) {
 func TestRFCMUPFamiliesCoverBothAFIs(t *testing.T) {
 	t.Parallel()
 
-	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.3-1 positive -- BGP-MUP is offered under both AFI 1 and AFI 2 with SAFI 85, so one session can exchange MUP NLRI for either AFI (Section 3.3)
 	if IPv4MUP.AFI != AFIIPv4 || IPv4MUP.SAFI != SAFIMUP {
 		t.Errorf("ipv4/mup = AFI %d SAFI %d, want AFI %d SAFI %d", IPv4MUP.AFI, IPv4MUP.SAFI, AFIIPv4, SAFIMUP)
 	}
@@ -130,7 +129,6 @@ func TestRFCMUPFamiliesCoverBothAFIs(t *testing.T) {
 func TestRFCMUPRejectsNonMUPFamily(t *testing.T) {
 	t.Parallel()
 
-	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.3-1 negative -- the MUP codec rejects any family outside (AFI 1|2, SAFI 85), so BGP-MUP NLRI exchange is scoped to the two MUP families (Section 3.3)
 	for _, fam := range []string{"ipv4/unicast", "ipv6/unicast", "l2vpn/evpn", "ipv4/flow", "mup", ""} {
 		if _, err := DecodeNLRIHex(fam, "0100010c0000fde900000064180a0000", false); err == nil {
 			t.Errorf("DecodeNLRIHex(%q) accepted a non-MUP family", fam)
@@ -204,7 +202,6 @@ func TestRFCMUPAnnounceUsesRouteAFIWithMUPSAFI(t *testing.T) {
 		{"ipv6/mup", "mup-t1st 2001:db8:1:1::2/128 rd 100:100 teid 12345 qfi 9 endpoint 2001::1 next-hop 2001::2", 2},
 	}
 
-	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.3.7-2 positive -- an advertised Type 1 ST route is announced with the AFI of the route and the BGP-MUP SAFI 85 (Section 3.3.7)
 	for _, tc := range cases {
 		update, nlriBytes, err := EncodeRoute(tc.cmd, tc.family, 65000, true, true, false)
 		if err != nil {

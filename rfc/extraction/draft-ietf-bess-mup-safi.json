@@ -4,8 +4,9 @@
   "register": "rfc2119",
   "source-path": "rfc/drafts/draft-ietf-bess-mup-safi.txt",
   "source-sha": "cc8da36f0b20e05b",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-09-29",
   "reviewer": "claude",
+  "resign-reason": "Main-thread ruling R7 (2026-09-29): sites 3.3:1 and 3.3.7:2 address BGP speakers acting as a MUP PE and the MUP Controller, and Ze implements neither role, so both move from mapped to excluded as binds-another-role and rows DRAFT-IETF-BESS-MUP-SAFI-3.3-1 and 3.3.7-2 are retired (rfc/corrections/draft-ietf-bess-mup-safi.md). Every other site keeps its decision.",
   "sections": [
     {
       "id": "front",
@@ -424,8 +425,9 @@
     {
       "id": "3.3:1",
       "quote": "BGP speakers acting as a PE, and a MUP Controller MUST establish a BGP session to exchange BGP-MUP NLRIs for both, IPv4 and IPv6 AFIs.",
-      "disposition": "mapped",
-      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3-1"
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence addresses BGP speakers acting as a MUP PE and the MUP Controller (Section 3.3); ze fills neither role. The role has no producer in this tree: the nlri/mup plugin registers the ipv4/mup and ipv6/mup codecs and RecognizeNLRI, and no ze function originates, resolves or controls MUP state as a PE or a controller. Row DRAFT-IETF-BESS-MUP-SAFI-3.3-1 retired 2026-09-29 (rfc/corrections/draft-ietf-bess-mup-safi.md); its generic capability negotiation tags moved to RFC4760-8-2."
     },
     {
       "id": "3.3.1:1",
@@ -576,8 +578,9 @@
     {
       "id": "3.3.7:2",
       "quote": "The controller MUST announce this route using a AFI of the route and the SAFI of BGP-MUP to all other BGP speakers within the SRv6 domain.",
-      "disposition": "mapped",
-      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.7-2"
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence addresses the MUP Controller that originates the Type 1 ST route (Section 3.3.7); ze fills no MUP Controller role. The role has no producer in this tree: EncodeRoute encodes the route the operator's command names, and no ze function derives Type 1 ST routes from session state or selects the speakers of an SRv6 domain. Row DRAFT-IETF-BESS-MUP-SAFI-3.3.7-2 retired 2026-09-29 (rfc/corrections/draft-ietf-bess-mup-safi.md); its tags were dropped."
     },
     {
       "id": "3.3.8:1",

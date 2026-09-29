@@ -33,6 +33,28 @@
       "producer": "internal/core/bgp/attribute/mpnlri.go::nextHopOctets",
       "producer-sha": "cc659008bbcf0817",
       "break": "body of nextHopOctets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4760-8-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated",
+      "unit-sha": "7492b234ffea46e7",
+      "claim-sha": "26951f0854a74623",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "435cb0c5ff9c51ce",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4760-8-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs",
+      "unit-sha": "b879eac75c50dbb7",
+      "claim-sha": "b42c84e92898aee6",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "435cb0c5ff9c51ce",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

@@ -1,5 +1,8 @@
 {
   "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "DRAFT-IETF-BESS-MUP-SAFI-3.1-1": {
@@ -8,7 +11,7 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "946ae0f68bfc34f0",
         "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress": "946ae0f68bfc34f0",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "2c05a008b471eab3"
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "d62cf22d57a8031a"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "22f7eba5844edcf0",
@@ -92,23 +95,6 @@
       },
       "verdict": "enforced"
     },
-    "DRAFT-IETF-BESS-MUP-SAFI-3.3-1": {
-      "note": "TestMUPSessionNegotiatesBothAFIs proves capability.Negotiate yields ipv4/mup and ipv6/mup when BOTH sides advertise both; TestMUPSessionMissingAFIIsNotNegotiated proves RFC 4760 intersection when the peer omits one. Both assert generic multiprotocol negotiation fed hand-built capabilities, not that ze acting as PE or MUP Controller establishes a session for both AFIs: nothing ties ze's MUP configuration to offering both families, and the negative is a peer's omission, not ze violating this sentence. Ze runs no PE or controller function (Meta), so the obligation reduces to operator configuration. Missing: a test from ze's config/OPEN producer that a MUP-enabled session offers both AFIs (and refuses or flags one-AFI), or a role ruling moving the row to a {gap}. The older rfc_mup_safi_test tags check family constants and codec scope, which the sentence does not state",
-      "requirement_sha": "b64f2c5f469e4df2",
-      "tests": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPFamiliesCoverBothAFIs": "2c05a008b471eab3",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPRejectsNonMUPFamily": "2c05a008b471eab3",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated": "7bbb3a39e85757ed",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs": "7bbb3a39e85757ed"
-      },
-      "units": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPFamiliesCoverBothAFIs": "cd644f71943efb51",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPRejectsNonMUPFamily": "9fc78a1d7e8210eb",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated": "b1ad325f8c4ad04c",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs": "f7616911b0dda874"
-      },
-      "verdict": "weak"
-    },
     "DRAFT-IETF-BESS-MUP-SAFI-3.3.6-4": {
       "code": {
         "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI": "91465ffbb3b2646f"
@@ -124,19 +110,6 @@
       "note": "Read RecognizeNLRI (rfc7606.go) and its caller typedNLRIEdit: the ingress pass judges each MUP NLRI by architecture and route type, never consults the UPDATE's path attributes, and session_validation.go has no MUP or Prefix-SID presence rule, so a DSD route arriving without a Prefix-SID attribute is stored, not treated as withdraw. The {gap} annotation and Meta row disclose it",
       "requirement_sha": "d9443a00a9aea8b4",
       "verdict": "unimplemented"
-    },
-    "DRAFT-IETF-BESS-MUP-SAFI-3.3.7-2": {
-      "note": "Positives (TestMUPSessionNegotiatesBothAFIs second tag, rfc_mup_safi_test EncodeRoute tag) prove a T1ST goes out in MP_REACH_NLRI with the route's AFI and SAFI 85, and the new one that this family was negotiated; the {single-polarity: positive} argument holds for that AFI/SAFI clause (EncodeRoute has no other SAFI). The clause 'to all other BGP speakers within the SRv6 domain' is not asserted by any tag: no test drives an announcement to more than one peer, and ze runs no controller function. Missing: a reactor-level test that a locally originated T1ST reaches every established peer that negotiated the family",
-      "requirement_sha": "ad623a1fdd672d27",
-      "tests": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPAnnounceUsesRouteAFIWithMUPSAFI": "2c05a008b471eab3",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs": "7bbb3a39e85757ed"
-      },
-      "units": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPAnnounceUsesRouteAFIWithMUPSAFI": "94220b0eb85a5c0e",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs": "f7616911b0dda874"
-      },
-      "verdict": "weak"
     }
   },
   "rfc": "draft-ietf-bess-mup-safi"
