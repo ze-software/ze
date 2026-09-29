@@ -62,8 +62,6 @@ func TestISISTLVIPv4InterfaceAddr(t *testing.T) {
 // prefix (ceil(len/8)), and, only when S is set, the sub-TLV-length octet and
 // sub-TLVs. Also covers the 32-bit metric boundary and the prefix-length
 // boundaries 0 and 32 (R-5: ceil(len/8) at the edges).
-//
-// RFC requirement: RFC1195-5.2-4 positive -- every TLV 135 IP reachability entry carries its 4-octet metric through encode/decode (covering the 32-bit boundary value), so no reachability entry is advertised without a metric (RFC 1195 sec 5.2: each reachability entry MUST carry a default metric).
 func TestISISTLVIPv4RoundTrip(t *testing.T) {
 	cases := []struct {
 		name string

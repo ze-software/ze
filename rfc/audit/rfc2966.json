@@ -1,30 +1,33 @@
 {
   "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2966-2-1": {
-      "note": "Forbidden behaviour: an L1L2 router originating an L2-derived prefix in its L1 LSP with bit 8 of the default metric clear. TestISISLeakOriginationL1L2 asserts hasLeak(leak.IntoL1, l2Derived, true), i.e. the LeakedPrefix.UpDown flag from spf.LeakPrefixes, not the bit in the originated L1 LSP; an encoder that dropped UpDown when writing TLV 128/130 would leave it green. The negative (L1 prefix leaked up with the flag clear) is likewise struct-level. No tagged assertion decodes the L1 LSP.",
+      "note": "Unchanged on re-read: TestISISLeakOriginationL1L2 gained only the RFC5305-4.1-1 tag comments. Forbidden behaviour: an L1L2 router originating an L2-derived prefix in its L1 LSP with bit 8 of the default metric clear. TestISISLeakOriginationL1L2 asserts hasLeak(leak.IntoL1, l2Derived, true), i.e. the LeakedPrefix.UpDown flag from spf.LeakPrefixes, not the bit in the originated L1 LSP; an encoder that dropped UpDown when writing TLV 128/130 would leave it green. The negative (L1 prefix leaked up with the flag clear) is likewise struct-level. No tagged assertion decodes the L1 LSP.",
       "requirement_sha": "02c0456492e68635",
       "tests": {
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "761fef788d76cb9a",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "761fef788d76cb9a"
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "a790301b58d73b23",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "a790301b58d73b23"
       },
       "units": {
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "5707bf12ccf198fb",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "5707bf12ccf198fb"
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "d20f48a434482076",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "d20f48a434482076"
       },
       "verdict": "weak"
     },
     "RFC2966-2-2": {
-      "note": "Forbidden behaviour: re-advertising into L2 a prefix learned via L1 with the up/down bit set. TestISISLeakOriginationL1L2 assertion 3 (hasPrefix(leak.IntoL2, alreadyDown) -> t.Errorf) goes red if leakInto stops skipping p.UpDown; the negative keeps a clear-bit L1 prefix leaking up (assertion 1), so a blanket drop also goes red. Both polarities in the one unit.",
+      "note": "Unchanged on re-read: TestISISLeakOriginationL1L2 gained only the RFC5305-4.1-1 tag comments. Forbidden behaviour: re-advertising into L2 a prefix learned via L1 with the up/down bit set. TestISISLeakOriginationL1L2 assertion 3 (hasPrefix(leak.IntoL2, alreadyDown) -> t.Errorf) goes red if leakInto stops skipping p.UpDown; the negative keeps a clear-bit L1 prefix leaking up (assertion 1), so a blanket drop also goes red. Both polarities in the one unit.",
       "requirement_sha": "e8fe37441b8118e4",
       "tests": {
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "761fef788d76cb9a",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "761fef788d76cb9a"
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "a790301b58d73b23",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "a790301b58d73b23"
       },
       "units": {
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "5707bf12ccf198fb",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "5707bf12ccf198fb"
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "d20f48a434482076",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "d20f48a434482076"
       },
       "verdict": "enforced"
     },
@@ -32,8 +35,8 @@
       "note": "Forbidden behaviour: an L1L2 router advertising back into L2 an L2->L1 inter-area route it learned via L1. TestISISLeakFixpoint round 2 re-injects the leaked-down prefix as an L1 advertisement with UpDown set and fails on hasPrefix(r2.IntoL2, l2Derived); round 1 (negative) requires the same L2 prefix to leak down, so suppressing all leaking goes red too.",
       "requirement_sha": "7b34fbd8c3cd9509",
       "tests": {
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint": "761fef788d76cb9a",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint#2": "761fef788d76cb9a"
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint": "a790301b58d73b23",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint#2": "a790301b58d73b23"
       },
       "units": {
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint": "ddd75c5118817528",

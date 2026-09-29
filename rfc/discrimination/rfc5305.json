@@ -13,6 +13,28 @@
       "break": "line 227: \"e.Metric \u003e= types.MaxMetric\" -\u003e \"false\""
     },
     {
+      "rid": "RFC5305-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2",
+      "unit-sha": "677c9407203caac7",
+      "claim-sha": "aae5ef4bfcf20c83",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf/leak.go::leakInto",
+      "producer-sha": "b5a4da90d430ea3e",
+      "break": "body of leakInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-4.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2",
+      "unit-sha": "677c9407203caac7",
+      "claim-sha": "8f3516537285cd79",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf/leak.go::leakInto",
+      "producer-sha": "b5a4da90d430ea3e",
+      "break": "body of leakInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5305-4.1-2",
       "polarity": "negative",
       "unit": "internal/plugins/isis/redistribute/inject_rfc5305_test.go::TestRFC5305ConnectedInjectionClearsUpDown",

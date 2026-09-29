@@ -2,6 +2,39 @@
   "rfc": "rfc905",
   "records": [
     {
+      "rid": "RFC905-x-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905FaultySenderChecksumRefused",
+      "unit-sha": "8c508804ab3c5161",
+      "claim-sha": "44c09e17e5cebe32",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/checksum.go::VerifyChecksum",
+      "producer-sha": "aaa4df5f75302408",
+      "break": "body of VerifyChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC905-x-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905MinusZeroReadAsZero",
+      "unit-sha": "260c75cdbc10e18a",
+      "claim-sha": "737962bc9942b55f",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/checksum.go::VerifyChecksum",
+      "producer-sha": "aaa4df5f75302408",
+      "break": "body of VerifyChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC905-x-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905FaultySenderChecksumRefused",
+      "unit-sha": "8c508804ab3c5161",
+      "claim-sha": "fb59ff39c20f7bcd",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/checksum.go::VerifyChecksum",
+      "producer-sha": "aaa4df5f75302408",
+      "break": "body of VerifyChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC905-x-3",
       "polarity": "positive",
       "unit": "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumMatchesClosedForm",

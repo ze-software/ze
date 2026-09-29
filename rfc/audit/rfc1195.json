@@ -1,17 +1,22 @@
 {
   "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC1195-3.1-1": {
-      "note": "Clause 'ignored': DecodeTLVs returns no error on TLV 199/250, asserted. Clause 'forwarded LSPs passed on unchanged': TestISISUnknownTLVPassthrough only round-trips the codec (DecodeTLVs/writeTLVs); no tagged unit floods a received LSP carrying an unknown TLV and compares the bytes sent on another circuit, so a flooding path that rebuilt or stripped the LSP stays green. Tag prose still says 'sec 3.1' while the row cites 5.2.",
+      "note": "Clause 'ignored': packet TestISISUnknownTLVPassthrough decodes TLVs 199/250 with no error and re-encodes the region byte-for-byte (prose now cites sec 5.2, matching the row). Clause 'forwarded LSPs passed on unchanged': new lsdb TestRFC1195UnknownTLVsFloodedUnchanged stores an LSP carrying 131/199/250 via Flooder.ReceiveLSP and after FloodTick requires the LAN circuit to send bytes.Equal to the received raw PDU, each unknown TLV present, and nothing back on the arrival circuit; a flood that rebuilt or stripped the LSP goes red. Both recorded red (ReceiveLSP, DecodeTLVs). {single-polarity: positive} holds: there is no reject path for an unrecognized code.",
       "requirement_sha": "ee8583f8eb844dd5",
       "tests": {
-        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISUnknownTLVPassthrough": "dcfdc34e3789cee7"
+        "internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go::TestRFC1195UnknownTLVsFloodedUnchanged": "65bcb3c21f477724",
+        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISUnknownTLVPassthrough": "697c63f4c0fcb173"
       },
       "units": {
-        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISUnknownTLVPassthrough": "81530f252df30317"
+        "internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go::TestRFC1195UnknownTLVsFloodedUnchanged": "b6e38dda0215145b",
+        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISUnknownTLVPassthrough": "732e610eb2323a5e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1195-3.10-2": {
       "note": "Re-judged after a comment-only edit above TestRFC1195ExternalReachabilityWithInternalMetric (its RFC1195-7-4 tag moved away); the body is unchanged. A costly internal-metric L2 prefix (163) beats a cheap external-metric one in the installed Loc-RIB; an external TLV with an internal metric is not penalized (3, 2). Both fail if metric type is ignored.",
@@ -79,17 +84,21 @@
       "verdict": "enforced"
     },
     "RFC1195-3.9-1": {
-      "note": "The negative asserts only that VerifyPDU returns an error on a flipped digest bit. The obligation is that the entire packet is discarded; no tagged unit drives a bad-auth PDU through the receive path and asserts it changed no LSDB/adjacency state, so a caller that ignored the error stays green.",
+      "note": "New root TestRFC1195InvalidAuthLSPDiscardedAtReceive drives the real dispatcher with the engine's verify hook (setKeyStore, HMAC-SHA-256 area chain): the signed L1 LSP reaches the L1 LSP handler exactly once (positive), and the same LSP with one digest octet (offset 32, past the 2-octet Key ID) flipped never reaches it (negative), so the entire PDU is dropped before any LSDB, adjacency or SNP handler. Only the digest differs, so the buffer isolates the auth rule. A receive path that verified and ignored the result goes red; +/- recorded red on auth_wiring.go verifyFrame. Packet units (VerifyPDU error on a flipped bit, accept on valid) remain as the codec-level half.",
       "requirement_sha": "01cbc66d97701eb6",
       "tests": {
-        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthConstantTimeCompare": "588beac7fc863006",
-        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthSignVerifyHMACMD5": "588beac7fc863006"
+        "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive": "5a1b7e8882c21ead",
+        "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive#2": "5a1b7e8882c21ead",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthConstantTimeCompare": "6263fe382fc10923",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthSignVerifyHMACMD5": "6263fe382fc10923"
       },
       "units": {
+        "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive": "f8cbc414d75be51d",
+        "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive#2": "f8cbc414d75be51d",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthConstantTimeCompare": "4168f4c7c4816418",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthSignVerifyHMACMD5": "f60b0995ceccaafb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1195-4.1-1": {
       "note": "The positive proves ParseFrame accepts the normal OSI 802.3/LLC encapsulation. The negative asserts refusal of Ethernet II and SNAP frames, which the sentence does not require; it is a neighbouring strictness property, so there is no negative for this capability obligation (a {single-polarity} marker would fit).",
@@ -199,7 +208,7 @@
       "requirement_sha": "a975bea804aee1af",
       "tests": {
         "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "66ccab517853dff8",
-        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4InterfaceAddr": "9ba86ec0a3b2807a"
+        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4InterfaceAddr": "a9c7db27fc400dcf"
       },
       "units": {
         "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "8d1385b0faf90a94",
@@ -219,19 +228,17 @@
       "verdict": "enforced"
     },
     "RFC1195-5.2-4": {
-      "note": "The two new units prove the row: TestRFC1195OriginatedExternalEntriesCarryDefaultMetric decodes every originated TLV 130 entry and requires its configured default metric (7 and 33, internal and external metric type), and TestRFC1195ExternalEntryWithoutDefaultMetricRefused requires ErrLength for a TLV 130 entry missing its default metric octet and no route from its L2 LSP. Weak only because packet/tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip still carries an RFC1195-5.2-4 positive tag over TLV 135 (RFC 5305 extended reachability), which is not an RFC 1195 entry and asserts nothing about this row; removing that tag makes the row enforced.",
+      "note": "The TLV 135 tag on packet TestISISTLVIPv4RoundTrip (RFC 5305 extended reachability, not an RFC 1195 entry) is gone, which was the only reason for weak. Positive TestRFC1195OriginatedExternalEntriesCarryDefaultMetric decodes every TLV 130 entry the Originator emits and requires the configured default metric (7 internal type, 33 external type), so an originator that dropped or zeroed it goes red. Negative TestRFC1195ExternalEntryWithoutDefaultMetricRefused removes the default metric octet from a TLV 130 entry: requireNoDefaultMetricRefused requires ErrLength and the route falls back to the competing entry (winner 2, metric 160). Both recorded red.",
       "requirement_sha": "1aa511355973b83b",
       "tests": {
-        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "9ba86ec0a3b2807a",
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalEntryWithoutDefaultMetricRefused": "e6d3e6dc3c5c468c",
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195OriginatedExternalEntriesCarryDefaultMetric": "e6d3e6dc3c5c468c"
       },
       "units": {
-        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "bbb4b387e09e51ca",
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalEntryWithoutDefaultMetricRefused": "a8fc3327b50ab2ff",
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195OriginatedExternalEntriesCarryDefaultMetric": "6a2b80b266175829"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1195-5.3.4-1": {
       "note": "Positive: a leaked internal L2 entry is decoded with ExternalMetric false. Negative: a producer asking for ExternalMetric on an internal prefix still emits TLV 128 with bit 0x40 clear. Both would fail if the originator set I/E.",
@@ -260,8 +267,8 @@
       "verdict": "enforced"
     },
     "RFC1195-5.3.4-3": {
-      "note": "The row quotes the DEFAULT METRIC bit-8 rule. The tagged units encode and decode bit 7 (0x40) of the DELAY, EXPENSE and ERROR metrics, which is a different sentence of 5.3.4 ('Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception'). Nothing tagged asserts default-metric bit 8, which RFC 2966 section 2 reassigns to up/down.",
-      "requirement_sha": "01efcc8359fbdde6",
+      "note": "Row corrected (rfc/corrections/rfc1195.md) to the Section 5.3.4 bit-7 sentence of the DELAY/EXPENSE/ERROR octets, verbatim at rfc1195.txt line 2365; default-metric bit 8 is RFC 2966 sec 2's up/down bit (extraction site 5.3.4:3 excluded cross-document). Transmit: TestRFC1195NarrowMetricReservedTransmit encodes 0xff/0x6a/0xc7 and pins 0xbf/0x2a/0x87, so bit 7 (0x40) is cleared while S and the six-bit value survive; an encoder that passed bit 7 through goes red. Receive: TestRFC1195NarrowMetricReservedReceive sets 0x40 on all three octets and requires the decoded entry equal the clean one (63, 0x80, 7), so a decoder that kept bit 7 goes red. Recorded red on WriteTo and DecodeNarrowIPReachTLV.",
+      "requirement_sha": "a96b9cdd2f9bf0ac",
       "tests": {
         "internal/plugins/isis/packet/tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedReceive": "bdf5e0fa437efb48",
         "internal/plugins/isis/packet/tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedTransmit": "bdf5e0fa437efb48"
@@ -270,7 +277,8 @@
         "internal/plugins/isis/packet/tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedReceive": "27dab5844ab7d4d4",
         "internal/plugins/isis/packet/tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedTransmit": "1310acb87f70d516"
       },
-      "verdict": "wrong"
+      "upgrade_reason": "The earlier wrong verdict was about the row, not the units: it quoted the default-metric bit-8 sentence while the units prove the optional-metric bit-7 sentence. The row now quotes the bit-7 sentence, re-read against rfc/full/rfc1195.txt Section 5.3.4, and the unchanged units prove both clauses of it.",
+      "verdict": "enforced"
     },
     "RFC1195-7-1": {
       "note": "Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from \u00a78 to \u00a7B.1, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: SNP entries in any order but ascending LSPID with the LSP number least significant. TestRFC1195CSNPEntriesAscending asserts the exact order [20.0, 20.1, 30.0, 40.0] from reverse inserts; TestRFC1195PSNPEntriesAscendingAcrossLists asserts [request, ack-only, ack] where list order would be (30, 10, 20). Enforced.",

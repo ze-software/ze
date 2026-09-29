@@ -2,6 +2,28 @@
   "rfc": "rfc1195",
   "records": [
     {
+      "rid": "RFC1195-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go::TestRFC1195UnknownTLVsFloodedUnchanged",
+      "unit-sha": "d5ddc963aced7fb6",
+      "claim-sha": "0f3bf4822882f30e",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb/flooding.go::ReceiveLSP",
+      "producer-sha": "05a0c3aa11ab5bac",
+      "break": "body of ReceiveLSP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISUnknownTLVPassthrough",
+      "unit-sha": "e96096aee12d0c3a",
+      "claim-sha": "1e585dc02d38367f",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/tlv_opaque.go::DecodeTLVs",
+      "producer-sha": "28f97de83c0d82b9",
+      "break": "body of DecodeTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1195-3.10-1",
       "polarity": "negative",
       "unit": "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195NoRouteForUnreachedReachabilityEntry",
@@ -55,6 +77,28 @@
       "producer": "internal/plugins/isis/spf/leak.go::leakInto",
       "producer-sha": "b5a4da90d430ea3e",
       "break": "body of leakInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-3.9-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive",
+      "unit-sha": "c662113631ad0ff0",
+      "claim-sha": "bdd03edf4d1427b2",
+      "route": "revert",
+      "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
+      "producer-sha": "5b236d91fdfedb04",
+      "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-3.9-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive",
+      "unit-sha": "c662113631ad0ff0",
+      "claim-sha": "1d597f7fed320156",
+      "route": "revert",
+      "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
+      "producer-sha": "5b236d91fdfedb04",
+      "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1195-4.1-1",
@@ -132,6 +176,28 @@
       "producer": "internal/plugins/isis/lsdb/encode.go::narrowIPReachEntryBytes",
       "producer-sha": "5d4a7ae620aa3de2",
       "break": "body of narrowIPReachEntryBytes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-5.3.4-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/packet/tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedReceive",
+      "unit-sha": "5ac58c9b8c638f2b",
+      "claim-sha": "b991768b8a527e1d",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/tlv_narrow_ipv4.go::DecodeNarrowIPReachTLV",
+      "producer-sha": "adf6795d00099f68",
+      "break": "body of DecodeNarrowIPReachTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-5.3.4-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedTransmit",
+      "unit-sha": "b99cb9c1989c7095",
+      "claim-sha": "61bd5286db32c4fc",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/tlv_narrow_ipv4.go::WriteTo",
+      "producer-sha": "19c6dd2f19b28e6d",
+      "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1195-7-1",

@@ -634,10 +634,9 @@ func TestISISAuthConstantTimeCompare(t *testing.T) {
 //
 // RFC requirement: RFC5304-2-6 negative -- a PDU whose Authentication Value is
 // INCORRECT (signed with a different key) is discarded by VerifyPDU (RFC 5304 sec 2).
-// RFC requirement: RFC5310-4-2 negative -- a PDU signed with a key that is NOT among
-// the candidate (accept-set) keys is rejected, so the rollover accept-set only honors
-// currently valid keys and an unknown key does not verify (RFC 5310 sec 4;
-// HMAC-SHA-256 is one of the algorithms exercised).
+// RFC requirement: RFC5310-3.5-1 negative -- a PDU signed with a secret that is not
+// among the candidate keys fails the digest comparison and VerifyPDU refuses it, for
+// every PDU class under HMAC-MD5 and HMAC-SHA-256 (RFC 5310 sec 3.5).
 func TestISISAuthWrongKeyRejected(t *testing.T) {
 	algos := []AuthAlgorithm{AuthAlgoHMACMD5, AuthAlgoHMACSHA256}
 	for _, algo := range algos {
@@ -663,10 +662,6 @@ func TestISISAuthWrongKeyRejected(t *testing.T) {
 // RFC requirement: RFC5310-4-2 positive -- a PDU signed with EITHER of two accepted
 // keys (the overlap window) verifies, so more than one key is stored and used at the
 // same time (RFC 5310 sec 4).
-// RFC requirement: RFC5310-4-1 positive -- an HMAC-SHA-256 (CRYPTO_AUTH type 3) LSP
-// round-trips and verifies; the LSP digest is computed by the shared backend that
-// zeroes the Checksum and Remaining Lifetime before hashing (auth_sign.go:268-272),
-// so the RFC 5310 sec 4 exclusion holds on the type-3 LSP path.
 func TestISISAuthRotationOverlapAccepts(t *testing.T) {
 	oldKey := Key{Algorithm: AuthAlgoHMACSHA256, Secret: []byte("old"), KeyID: 1}
 	newKey := Key{Algorithm: AuthAlgoHMACSHA256, Secret: []byte("new"), KeyID: 2}
@@ -685,9 +680,9 @@ func TestISISAuthRotationOverlapAccepts(t *testing.T) {
 // VALIDATES: a generic-crypto PDU whose Key-ID matches no candidate is rejected
 // (RFC 5310 sec 3.5: the SA is identified by Key ID).
 //
-// RFC requirement: RFC5310-4-2 negative -- a CRYPTO_AUTH PDU whose Key-ID matches no
-// candidate in the accept-set is rejected, so during rollover only a currently valid
-// key's Key ID is honored (RFC 5310 sec 4 / sec 3.5: the SA is identified by Key ID).
+// RFC requirement: RFC5310-3.5-1 negative -- a CRYPTO_AUTH PDU whose Key ID matches no
+// candidate key cannot be compared with any calculated data, and VerifyPDU refuses it
+// (RFC 5310 sec 3.5).
 func TestISISAuthKeyIDMismatchRejected(t *testing.T) {
 	signed, _ := SignPDU(testCSNP(t), Key{Algorithm: AuthAlgoHMACSHA256, Secret: []byte("k"), KeyID: 1})
 	other := Key{Algorithm: AuthAlgoHMACSHA256, Secret: []byte("k"), KeyID: 99}

@@ -2,17 +2,17 @@
   "audited": "2026-09-29",
   "requirements": {
     "RFC5305-2-1": {
-      "note": "Forbidden behaviour: rejecting a TLV that carries unknown sub-TLVs, or not skipping them so the next entry misparses. TestISISTLV22RoundTrip (tlv_core_test.go) keeps entry0's three uninterpreted sub-TLVs opaque and then asserts entry1's metric equals types.MaxMetric, which goes red on a wrong skip; TestISISTLVIPv4RoundTrip (tlv_ipv4_test.go, with-subtlv) goes red if a type-1 sub-TLV is rejected (t.Fatalf on decode error). Negative TestISISTLV22Truncated proves an overrunning length is not skipped as absent.",
+      "note": "Unchanged on re-read: TestISISTLVIPv4RoundTrip lost only its RFC1195-5.2-4 comment tag. Forbidden behaviour: rejecting a TLV that carries unknown sub-TLVs, or not skipping them so the next entry misparses. TestISISTLV22RoundTrip (tlv_core_test.go) keeps entry0's three uninterpreted sub-TLVs opaque and then asserts entry1's metric equals types.MaxMetric, which goes red on a wrong skip; TestISISTLVIPv4RoundTrip (with-subtlv) goes red if a type-1 sub-TLV is rejected. Negative TestISISTLV22Truncated proves an overrunning length is not skipped as absent.",
       "requirement_sha": "6dd4a1f63b862e49",
       "tests": {
         "internal/plugins/isis/packet/tlv_core_test.go::TestISISTLV22RoundTrip": "1867a2588f51badf",
         "internal/plugins/isis/packet/tlv_core_test.go::TestISISTLV22Truncated": "1867a2588f51badf",
-        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "9ba86ec0a3b2807a"
+        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "a9c7db27fc400dcf"
       },
       "units": {
         "internal/plugins/isis/packet/tlv_core_test.go::TestISISTLV22RoundTrip": "3294d5bc08b0a06c",
         "internal/plugins/isis/packet/tlv_core_test.go::TestISISTLV22Truncated": "cbd038f203670f5d",
-        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "bbb4b387e09e51ca"
+        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "97dc42a0ccd5f9bf"
       },
       "verdict": "enforced"
     },
@@ -56,19 +56,23 @@
       "verdict": "weak"
     },
     "RFC5305-4.1-1": {
-      "note": "Row narrowed to the level-to-level text; the tags are unchanged. TestISISEngineLeakOrigination feeds applyLeak a hand-built LeakResult whose IntoL1 entry already carries UpDown=true, so it proves the originator copies the bit into TLV 135, not that the producer (spf/leak.go leakInto, setDownBit) sets it on a down advertisement; a leakInto that cleared the bit on L2->L1 stays green. The second clause, 'Prefixes that have the up/down bit set to 1 may only be advertised down the hierarchy', has no tagged assertion here (TestISISRedistConsumerConnected covers first injection, RFC5305-4.1-2). spf's TestISISLeakOriginationL1L2 drives leakInto for both clauses but is not tagged for this row.",
+      "note": "spf TestISISLeakOriginationL1L2 now carries the row and drives the producer leakInto via LeakPrefixes. Clause 1 (bit set to 1 on a higher-to-lower advertisement): l2Derived enters the L2 graph with UpDown false and assertion 2 requires hasLeak(IntoL1, l2Derived, true), so a leakInto that did not set the bit on L2->L1 goes red. Clause 2 (a prefix with the bit set only goes down): alreadyDown carried in L1 with UpDown true must be absent from IntoL2 (assertion 3), isolated because l1Only from the same node, same graph, does leak up. Both recorded red on spf/leak.go leakInto. The remaining sentences are rationale. lsdb_wiring and redistribute tags stay as the originator-side half.",
       "requirement_sha": "fcae79a8fa946731",
       "tests": {
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "90263ee52549afcf",
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "90263ee52549afcf",
-        "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected": "be1395cfe8a7bf96"
+        "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected": "be1395cfe8a7bf96",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "a790301b58d73b23",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "a790301b58d73b23"
       },
       "units": {
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "2d814af0901110d4",
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "2d814af0901110d4",
-        "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected": "75ae0e892f463ba6"
+        "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected": "75ae0e892f463ba6",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "d20f48a434482076",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "d20f48a434482076"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5305-4.1-3": {
       "no_code_path": "internal/plugins/isis/spf/leak.go LeakPrefixes builds IntoL1 only from the Level 2 result and IntoL2 only from the Level 1 result (leakInto with setDownBit true or false); no other producer re-advertises a prefix between areas at one level, so no same-level inter-area advertisement reaches TLV 135.",

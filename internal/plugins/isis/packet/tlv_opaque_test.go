@@ -13,7 +13,7 @@ import (
 // PREVENTS: dropping or mangling unknown TLVs on re-flood, which corrupts the
 // link-state database of every downstream router.
 //
-// RFC requirement: RFC1195-3.1-1 positive -- unrecognized TLV codes (199, 250) are retained as opaque spans and re-encoded byte-for-byte, so a forwarded LSP passes them on unchanged (RFC 1195 sec 3.1: unrecognized codes MUST be ignored and, in forwarded LSPs, passed on unchanged).
+// RFC requirement: RFC1195-3.1-1 positive -- unrecognized TLV codes (199, 250) decode without error as opaque spans and re-encode byte-for-byte (RFC 1195 sec 5.2).
 func TestISISUnknownTLVPassthrough(t *testing.T) {
 	// A region mixing a known TLV (1, area) with two unknown types (199, 250).
 	region := []byte{
@@ -51,16 +51,14 @@ func TestISISUnknownTLVPassthrough(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC3787-x-1 positive -- TLV 131 (Inter-Domain Routing
-// Protocol Information) and TLV 133 (old Authentication, replaced by TLV 10)
-// are IGNORED on receipt (RFC 3787 sec 3.1, 3.2): neither is a recognized codec
-// type constant, so both fall through the opaque-unknown path (retained for
-// verbatim re-flood, never interpreted). In particular TLV 133 is NOT treated
-// as authentication -- the auth path recognizes only TLV 10, so AuthTLVIndex
-// does not select the obsolete auth TLV.
-// RFC requirement: RFC3787-x-1 negative -- ignoring is specific to the obsolete
-// unrecognized types, not a blanket drop of everything in the region: a
-// recognized TLV 129 in the same PDU is still interpreted
+// The TLV 133 half (RFC 3787 sec 3.2) is asserted here too, but it is not the
+// RFC3787-x-1 row, which is sec 3.1 only.
+//
+// RFC requirement: RFC3787-x-1 positive -- a region carrying TLV 131 (Inter-Domain
+// Routing Protocol Information) decodes without error and TLV 131 is kept as an
+// opaque span, not interpreted (RFC 3787 sec 3.1).
+// RFC requirement: RFC3787-x-1 negative -- ignoring TLV 131 is not a blanket drop
+// of the region: a recognized TLV 129 in the same PDU is still interpreted
 // (DecodeProtocolsSupportedTLV yields its NLPIDs).
 func TestISISIgnoreObsoleteTLVs131And133(t *testing.T) {
 	region := []byte{

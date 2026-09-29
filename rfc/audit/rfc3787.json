@@ -1,18 +1,20 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC3787-x-1": {
-      "note": "Quote is now Section 3.1 only (TLV 131 MUST be ignored if received); the Section 3.2 TLV 133 obligation is reported split-needed and the tag prose still names both. Forbidden: acting on a received TLV 131 (rejecting the PDU, interpreting its value). TestISISIgnoreObsoleteTLVs131And133 drives only the codec: DecodeTLVs err == nil and 131 retained are the producer-sensitive assertions. No receive path (IIH or LSP handler) is driven with a TLV 131, so a handler that refused an adjacency or LSP carrying 131 stays green; the 'recognized' loop iterates a test-local literal list and cannot go red on any producer change.",
+      "note": "Receive path now driven: lsdb TestRFC1195UnknownTLVsFloodedUnchanged stores an LSP carrying TLV 131 via Flooder.ReceiveLSP (not refused) and floods it byte-identical with 131 present, so a receiver that refused, stripped or rewrote on 131 goes red. Packet TestISISIgnoreObsoleteTLVs131And133: DecodeTLVs returns no error and keeps 131 opaque (positive); the negative is the scope control, a recognized TLV 129 in the same region is still decoded to its NLPID, so a decoder that dropped the PDU content on meeting 131 goes red. Tag prose narrowed to 131 (sec 3.1). TLV 131 is an L2 LSP TLV, so no IIH input is owed. The 'recognized' constant loop cannot go red on any producer change and carries no weight here. Records: + ReceiveLSP, +/- DecodeTLVs.",
       "requirement_sha": "2b6eaf61256d1da6",
       "tests": {
-        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISIgnoreObsoleteTLVs131And133": "dcfdc34e3789cee7",
-        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISIgnoreObsoleteTLVs131And133#2": "dcfdc34e3789cee7"
+        "internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go::TestRFC1195UnknownTLVsFloodedUnchanged": "65bcb3c21f477724",
+        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISIgnoreObsoleteTLVs131And133": "697c63f4c0fcb173",
+        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISIgnoreObsoleteTLVs131And133#2": "697c63f4c0fcb173"
       },
       "units": {
-        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISIgnoreObsoleteTLVs131And133": "14e756e40658cadf",
-        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISIgnoreObsoleteTLVs131And133#2": "14e756e40658cadf"
+        "internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go::TestRFC1195UnknownTLVsFloodedUnchanged": "b6e38dda0215145b",
+        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISIgnoreObsoleteTLVs131And133": "b1b301d98d8f95ee",
+        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISIgnoreObsoleteTLVs131And133#2": "b1b301d98d8f95ee"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3787-x-2": {
       "note": "Quote is now Section 9 (IP capable routers MUST generate a Protocol Supported TLV, and MUST include the IP protocol); the Section 10 TLV 132 obligation is reported split-needed. Clause 1 (generate TLV 129): TestISISIIHOriginationTLVs asserts hasTLV(TLVProtocolsSupported) on the LAN and P2P IIH, red on dropping it from hello.go:59. The same paragraph places the TLV in ISH and LSP number Zero too; no tagged unit reads the LSP 0 origination (lsdb/origination.go:534) or the ISH (circuit/ish.go:30). Clause 2 (IP included): TestISISHelloTLV132RequiresInterfaceAddr asserts NLPIDIPv4 in c.protocolsSupportedTLV(), the IIH/ISH builder only, not the LSP 0 value. No negative case targets the Section 9 sentence; the negative tag asserts TLV 132 omission, the Section 10 obligation.",

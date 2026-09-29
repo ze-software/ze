@@ -726,8 +726,9 @@
     {
       "id": "5.3.4:3",
       "quote": "Bit 8 of this field is reserved, and must be set to zero on tranmission and ignored on reception.",
-      "disposition": "mapped",
-      "mapped-to": "RFC1195-5.3.4-3"
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 2966 section 2, which updates RFC 1195, reassigns bit 8 of the default metric of TLVs 128 and 130 to the up/down bit, so the obligation on that bit is RFC 2966's (RFC2966-2-1): 'L1L2 routers must set this bit to one for prefixes that are derived from L2 routing and are advertised into L1 LSPs.'"
     },
     {
       "id": "5.3.4:4",
@@ -745,9 +746,7 @@
     {
       "id": "5.3.4:6",
       "quote": "Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "the reserved-bit rule repeated for each of the delay, expense and error metric octets",
+      "disposition": "mapped",
       "mapped-to": "RFC1195-5.3.4-3"
     },
     {

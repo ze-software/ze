@@ -1,0 +1,38 @@
+{
+  "rfc": "rfc3787",
+  "records": [
+    {
+      "rid": "RFC3787-x-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go::TestRFC1195UnknownTLVsFloodedUnchanged",
+      "unit-sha": "d5ddc963aced7fb6",
+      "claim-sha": "b191c911a6c142a2",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb/flooding.go::ReceiveLSP",
+      "producer-sha": "05a0c3aa11ab5bac",
+      "break": "body of ReceiveLSP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3787-x-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISIgnoreObsoleteTLVs131And133",
+      "unit-sha": "cda82382c26e7f16",
+      "claim-sha": "616a0bd105298d0a",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/tlv_opaque.go::DecodeTLVs",
+      "producer-sha": "28f97de83c0d82b9",
+      "break": "body of DecodeTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3787-x-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISIgnoreObsoleteTLVs131And133",
+      "unit-sha": "cda82382c26e7f16",
+      "claim-sha": "bbd542760a57ef0a",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/tlv_opaque.go::DecodeTLVs",
+      "producer-sha": "28f97de83c0d82b9",
+      "break": "body of DecodeTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
