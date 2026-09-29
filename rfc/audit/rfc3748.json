@@ -119,17 +119,25 @@
       "verdict": "weak"
     },
     "RFC3748-4-1": {
-      "note": "Clauses: a Length larger than the received octets; the message MUST be silently discarded. TestRFC3748PacketLengthDiscard asserts only DecodePacket returns an error on a 5-octet packet declaring 12. Silence is not asserted: nothing shows the caller that receives the decode error sends nothing and keeps the conversation, so a caller answering with EAP-Failure or ending the SA stays green.",
+      "note": "Clauses: a Length larger than the received octets; the message MUST be silently discarded. Both roles are driven through the engine's real entry points with an IKE layer that is valid (checksum verifies, generic header states the true length), so the one fault is the EAP Length. Authenticator (TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength, handleResponderInbound): the overlong EAP Response leaves StateEAPInProgress and writes no datagram (rtxExpectSilence), then the real round-2 request at the same Message ID is processed and answered. Peer (TestRFC3748PeerDiscardsAnOverlongEAPLength, handleInbound): an overlong EAP Request on the first IKE_AUTH response and on round 2 leaves state, NextMsgID and LastSentMsg unchanged, then the real message is processed. Producer: wire/payload_eap.go returns ErrEAPLengthExceedsData, engine/eap_auth.go::eapMessageDiscarded, the three callers return before any state change. Both tests went red on the pre-fix code (StateDead). The four records are panic breaks of eapMessageDiscarded (reach only); the targeted discrimination is the pre-fix red. core/eap TestRFC3748PacketLengthDiscard still covers only the decode error.",
       "requirement_sha": "0367c8927c52abd3",
       "tests": {
+        "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength": "01da78c989864de5",
+        "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength#2": "01da78c989864de5",
+        "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748PeerDiscardsAnOverlongEAPLength": "01da78c989864de5",
+        "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748PeerDiscardsAnOverlongEAPLength#2": "01da78c989864de5",
         "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard": "36f84904ce37bb2d",
         "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard#2": "36f84904ce37bb2d"
       },
       "units": {
+        "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength": "ac2f731e78310cd6",
+        "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength#2": "ac2f731e78310cd6",
+        "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748PeerDiscardsAnOverlongEAPLength": "151e581f3a32c60f",
+        "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748PeerDiscardsAnOverlongEAPLength#2": "151e581f3a32c60f",
         "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard": "c178a1dd8f4db2e2",
         "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard#2": "c178a1dd8f4db2e2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3748-4-2": {
       "note": "Positive: a Request with Type and 3 data octets encodes to 8 octets with Length 8, and decodes back. Negative: the same packet with Length 4 (Data only) or 3 (Type-Data only) is refused by DecodePacket; a decoder reading Length as data length would accept both, so the pair discriminates the header-inclusive reading.",

@@ -4,9 +4,9 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc4301.txt",
   "source-sha": "263fd9a78175c888",
-  "signed-off": "2026-09-27",
+  "signed-off": "2026-09-29",
   "reviewer": "claude",
-  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 table row or byte dump that opens with an undotted number out of sequence is no longer a heading, and an appendix heading written with a colon, in capitals, or with a number after the letter now is. Sites moved into the sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains.",
+  "resign-reason": "Re-walked 2026-09-29 for sites 5.1:2 and 5.2:4 only: both sentences bind a packet that crosses the IPsec boundary a second time for nested-SA processing (section 5.1 step 4, section 5.2), a role Ze does not fill, so both are excluded as binds-another-role and rows RFC4301-5.1-2 and RFC4301-5.2-5 are retired (rfc/corrections/rfc4301.md, ruling R15). Exclusions rise from 12 to 14. Every other decision is carried forward unchanged from the 2026-09-27 walk, whose heading-reader re-sign reason stays in the git history of this file.",
   "sections": [
     {
       "id": "front",
@@ -743,8 +743,9 @@
     {
       "id": "5.1:2",
       "quote": "If so, there MUST be an entry in SPD-I database that permits inbound bypassing of the packet, otherwise the packet will be discarded.",
-      "disposition": "mapped",
-      "mapped-to": "RFC4301-5.1-2"
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Conditional on nested-SA processing: the sentence binds only a packet that the forwarding function 'may cause ... to be passed back across the IPsec boundary, for additional IPsec processing, e.g., in support of nested SAs' (section 5.1 step 4). Ze fills no such role: it configures no nested SAs, neither in Go nor through XFRM bundles (the XFRM policy builder in internal/component/ike/dataplane/xfrm_linux.go writes one template for a PROTECT policy and none for BYPASS, so no policy chains a second SA), so no packet of Ze's re-crosses the boundary for additional IPsec processing. Row RFC4301-5.1-2 retired 2026-09-29 (rfc/corrections/rfc4301.md, ruling R15). The SPD-I entry of a bypass entry is RFC4301-4.4.1-11."
     },
     {
       "id": "5.1:3",
@@ -779,8 +780,9 @@
     {
       "id": "5.2:4",
       "quote": "If so, then as with ALL outbound traffic that is to be bypassed, the packet MUST be matched against an SPD-O entry.",
-      "disposition": "mapped",
-      "mapped-to": "RFC4301-5.2-5"
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Conditional on nested-SA processing: the sentence binds only a packet the inbound forwarding function 'may cause ... to be sent (outbound) across the IPsec boundary for additional inbound IPsec processing, e.g., in support of nested SAs' (section 5.2). Ze fills no such role: it configures no nested SAs, neither in Go nor through XFRM bundles (the XFRM policy builder in internal/component/ike/dataplane/xfrm_linux.go writes one template for a PROTECT policy and none for BYPASS, so no policy chains a second SA), so no packet of Ze's re-crosses the boundary. Row RFC4301-5.2-5 retired 2026-09-29 (rfc/corrections/rfc4301.md, ruling R15). The SPD-O entry of a bypass entry is RFC4301-4.4.1-12."
     },
     {
       "id": "6:1",

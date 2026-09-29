@@ -254,6 +254,11 @@ func (ps *PeerSession) startResponderEAP(sa *SA, msgID uint32, remoteSAi2 *wire.
 // inbound IKE_AUTH while StateEAPInProgress. RFC 7296 Section 2.16.
 func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.UDPTransport, remote *net.UDPAddr, log *slog.Logger) {
 	inner, err := decryptAndParse(sa, msg, rawMsg)
+	// RFC 3748 Section 4: the EAP Response is discarded and the exchange waits.
+	if eapMessageDiscarded(err) {
+		log.Warn("ike: EAP packet discarded", "peer", sa.PeerName, "error", err)
+		return
+	}
 	if err != nil {
 		log.Warn("ike: EAP round decrypt failed", "peer", sa.PeerName, "error", err)
 		sa.State = StateDead

@@ -22,6 +22,19 @@ import (
 
 var keyPadForIKEv2 = []byte("Key Pad for IKEv2")
 
+// RFC 3748 Section 4: "A message with the Length field set to a value larger than
+// the number of received octets MUST be silently discarded."
+//
+// eapMessageDiscarded reports whether an inner-chain parse error is an EAP message
+// that EAP itself discards, so the IKE message carrying it is dropped with the SA
+// state, the Message ID window and the retransmission timers left as they were. No
+// notification goes out: the silence is EAP's, and RFC 7296 Section 3.10.1
+// INVALID_SYNTAX answers a malformed IKE message, not malformed EAP contents. The
+// peer's retransmission, or the authenticator's, continues the exchange.
+func eapMessageDiscarded(err error) bool {
+	return errors.Is(err, wire.ErrEAPLengthExceedsData)
+}
+
 // computeAuthFromSharedSecret computes an IKEv2 AUTH payload from a shared secret.
 //
 // RFC 7296 Section 2.15 gives ONE formula and one name for its key: "AUTH = prf(

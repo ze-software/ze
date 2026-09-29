@@ -763,6 +763,12 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 	}
 
 	innerPayloads, err := wire.ParsePayloadChain(plaintext, skPayload.InnerNextPayload)
+	// RFC 3748 Section 4: the first EAP Request is discarded, so the SA stays in
+	// StateAuthSent and its IKE_AUTH retransmission draws the response again.
+	if eapMessageDiscarded(err) {
+		log.Warn("ike: EAP packet discarded", "peer", sa.PeerName, "error", err)
+		return
+	}
 	if err != nil {
 		log.Warn("ike: AUTH response inner payload parse failed", "peer", sa.PeerName, "error", err)
 		sa.State = StateDead
@@ -1059,6 +1065,12 @@ func handleEAPResponse(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.U
 	}
 
 	innerPayloads, err := wire.ParsePayloadChain(plaintext, skPayload.InnerNextPayload)
+	// RFC 3748 Section 4: the EAP Request is discarded, so the SA stays in
+	// StateEAPInProgress and waits for the authenticator's next packet.
+	if eapMessageDiscarded(err) {
+		log.Warn("ike: EAP packet discarded", "peer", sa.PeerName, "error", err)
+		return
+	}
 	if err != nil {
 		log.Warn("ike: EAP response inner parse failed", "peer", sa.PeerName, "error", err)
 		sa.State = StateDead

@@ -894,6 +894,28 @@
     },
     {
       "rid": "RFC7296-3.14-6",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumIsTheHMACOfTheEncryptedMessage",
+      "unit-sha": "eac0324ea5e96875",
+      "claim-sha": "78d896c3af35f798",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/auth.go::buildSKMessageCBCWithMsgID",
+      "producer-sha": "d32a169a6beea61a",
+      "break": "body of buildSKMessageCBCWithMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-3.14-6",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumOverThePlaintextIsRefused",
+      "unit-sha": "731defa4dcf1711b",
+      "claim-sha": "2f85121d7bd229a6",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/cipher.go::VerifyIntegrity",
+      "producer-sha": "6f9b6e66ef5d5d23",
+      "break": "body of VerifyIntegrity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-3.14-6",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt",
       "unit-sha": "4c97e5a76b790124",
@@ -902,6 +924,28 @@
       "producer": "internal/component/ike/engine/auth.go::decryptSKPayload",
       "producer-sha": "d7d446228e538738",
       "break": "body of decryptSKPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-3.3.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused",
+      "unit-sha": "21a4438b64e7cdb2",
+      "claim-sha": "be63470cf75d147c",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/proposal.go::ikeProposalComplete",
+      "producer-sha": "e8041ed20d02f02f",
+      "break": "body of ikeProposalComplete replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-3.3.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalWithTheMandatoryTypesIsAccepted",
+      "unit-sha": "e9c395fedb0a94e9",
+      "claim-sha": "ec4b4ead92fd6e7a",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/proposal.go::negotiateIKE",
+      "producer-sha": "ac5863854a6c6b04",
+      "break": "body of negotiateIKE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7296-3.3.2-1",

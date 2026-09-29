@@ -178,6 +178,50 @@
       "break": "body of sendFailure replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC3748-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength",
+      "unit-sha": "ecde0f38e59fe1ea",
+      "claim-sha": "21f09520be0958b6",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/eap_auth.go::eapMessageDiscarded",
+      "producer-sha": "04a68a5fca3e26b3",
+      "break": "body of eapMessageDiscarded replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3748-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength",
+      "unit-sha": "ecde0f38e59fe1ea",
+      "claim-sha": "69901a49575abe65",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/eap_auth.go::eapMessageDiscarded",
+      "producer-sha": "04a68a5fca3e26b3",
+      "break": "body of eapMessageDiscarded replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3748-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748PeerDiscardsAnOverlongEAPLength",
+      "unit-sha": "a56c8e716b1a6334",
+      "claim-sha": "11a9413b6825b602",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/eap_auth.go::eapMessageDiscarded",
+      "producer-sha": "04a68a5fca3e26b3",
+      "break": "body of eapMessageDiscarded replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3748-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748PeerDiscardsAnOverlongEAPLength",
+      "unit-sha": "a56c8e716b1a6334",
+      "claim-sha": "0216f28f41c561f3",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/eap_auth.go::eapMessageDiscarded",
+      "producer-sha": "04a68a5fca3e26b3",
+      "break": "body of eapMessageDiscarded replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3748-4-2",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748LengthCountsTheWholePacket",

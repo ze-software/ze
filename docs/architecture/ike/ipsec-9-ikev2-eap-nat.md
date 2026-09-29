@@ -193,6 +193,21 @@ wanted a method ze does not run.
 <!-- source: internal/core/eap/peer.go -- handleRequest, commitMethod, methodCommitted -->
 <!-- source: internal/core/eap/eap.go -- Session.nakRefused, nakRefusal -->
 
+**An EAP message whose Length exceeds its octets is discarded, and the IKE SA
+lives.** RFC 3748 Section 4 states: "A message with the Length field set to a
+value larger than the number of received octets MUST be silently discarded."
+`PayloadEAP.ReadFrom` returns `wire.ErrEAPLengthExceedsData` for that case, not
+`ErrTruncated`. The three handlers that parse an IKE_AUTH chain carrying EAP
+(`handleAuthResponse`, `handleEAPResponse`, `handleResponderEAP`) ask
+`eapMessageDiscarded` first. On a match they drop the IKE message and change
+nothing: no state, no Message ID, no timer, no notification. RFC 7296 Section
+3.10.1 INVALID_SYNTAX answers a malformed IKE message, and this is malformed EAP
+contents. Until 2026-09-29 the parse error set `StateDead`, so one bad EAP Length
+ended the IKE SA.
+
+<!-- source: internal/component/ike/engine/eap_auth.go -- eapMessageDiscarded -->
+<!-- source: internal/component/ike/wire/payload_eap.go -- ErrEAPLengthExceedsData -->
+
 **EAP-TLS runs Go's `crypto/tls` over a custom `net.Conn`.** The transport pipes
 TLS records through EAP request and response packets. Implementing TLS again was
 rejected.

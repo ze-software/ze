@@ -950,19 +950,23 @@
       "verdict": "enforced"
     },
     "RFC7296-3.14-6": {
-      "note": "No unit distinguishes a checksum over the encrypted message from one over the plaintext. TestSKPaddingAlignsAndChecksumCoversCiphertext's positive is a Ze-to-Ze round trip, which a sender and receiver that both MAC the plaintext also pass; its negatives flip one ciphertext octet and one IV octet, which change the plaintext too (so a plaintext MAC also refuses them) and garble the first inner block (so the inner parse can refuse them without any MAC). TestSKAcceptsAnyIVOnReceipt's moved negative flips a checksum octet, proving the ICV is verified, not what it covers. Missing: compute HMAC(SK_a, header..Pad Length ciphertext) independently and compare with Ze's ICV, and a receive-side message whose ICV is taken over the plaintext refused. The moved negative's record is a whole-producer panic (reach only).",
+      "note": "Checksum over the encrypted message. Positive (TestRFC7296ChecksumIsTheHMACOfTheEncryptedMessage): the ICV Ze writes equals HMAC-SHA2-256-128 under SK_ai computed with crypto/hmac outside Ze over header, SK header, IV and ciphertext, and the peer accepts it. Negative (TestRFC7296ChecksumOverThePlaintextIsRefused): the ICV recomputed over header, IV and the plaintext (decrypted outside Ze) is refused by decryptAndParse, while the same construction over the ciphertext is accepted, so only the MAC input differs. Records: positive revert of engine/auth.go::buildSKMessageCBCWithMsgID, negative revert of crypto/cipher.go::VerifyIntegrity. CBC only: an AEAD transform carries no separate Integrity Checksum Data. The older round-trip and octet-flip units stay tagged and add nothing to discrimination.",
       "requirement_sha": "5439e1831480eefd",
       "tests": {
+        "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumIsTheHMACOfTheEncryptedMessage": "3ceaa9f84e99828e",
+        "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumOverThePlaintextIsRefused": "3ceaa9f84e99828e",
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "c17539d415be3db4",
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext": "c17539d415be3db4",
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext#2": "c17539d415be3db4"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumIsTheHMACOfTheEncryptedMessage": "b8795b1f309fc3ae",
+        "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumOverThePlaintextIsRefused": "d9cd06dd50dcae62",
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "adc200fefe87d241",
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext": "a1d95e7010770c80",
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext#2": "a1d95e7010770c80"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-3.15.1-2": {
       "note": "Clause: a CFG_REQUEST MUST NOT include a non-empty INTERNAL_IP4_NETMASK. The positive asserts no engine-built message carries CP(CFG_REQUEST). The negative tag asserts the receive side tolerates a peer's non-empty netmask, a neighbouring rule (Section 2.5 no-rejection), not a discriminator of this one; no {single-polarity} marker.",
@@ -1146,15 +1150,19 @@
       "verdict": "enforced"
     },
     "RFC7296-3.3.2-1": {
-      "note": "Row quotes the Section 3.3.3 span through the IKE line (ENCR, PRF, INTEG*, D-H) and the understand-all-types sentence. Asserted: Ze's IKE proposal carries exactly one ENCR, PRF, INTEG and DH, and a peer IKE proposal without PRF draws ErrNoProposalChosen (TestIKEWireProposalHasAllTransforms). TestResponderRequiresKEForDH (retagged from the retired 3.3.6-1) proves an IKE_SA_INIT without a KE payload is refused and one with it accepted: that is the KE payload of the exchange, not a D-H Transform Type in the SA proposal, so it proves a neighbour. Missing: peer IKE proposals missing ENCR, INTEG or D-H refused, and the understand-every-type clause (tagged under RFC7296-3.3.3-1 only).",
+      "note": "Row quotes the Section 3.3.3 span: the understand-all-types sentence and the IKE line (ENCR, PRF, INTEG*, D-H). The IKE line is now proven through the responder's selection (wireProposalsToIKE + crypto.NegotiateIKE): a complete proposal is chosen and an AES-GCM proposal without INTEG is chosen with integrity NONE (TestRFC7296PeerIKEProposalWithTheMandatoryTypesIsAccepted); proposals missing ENCR or INTEG draw ErrProposalIncomplete and one missing D-H draws ErrDHGroupNone (TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused); missing PRF draws ErrNoProposalChosen (TestIKEWireProposalHasAllTransforms). TestResponderRequiresKEForDH proves the KE payload, a neighbour. Missing under THIS id: the understand-every-type clause, proven only under RFC7296-3.3.3-1 (rfc7296_transformtype_test.go, crypto/rfc7296_proposal_test.go). Tag those units with this id too, or trim the duplicated sentence from this row.",
       "requirement_sha": "8057d3405db4009b",
       "tests": {
+        "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused": "ec6adab8b8441718",
+        "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalWithTheMandatoryTypesIsAccepted": "ec6adab8b8441718",
         "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms": "e032382b6fba7977",
         "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "e032382b6fba7977",
         "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "e032382b6fba7977",
         "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "e032382b6fba7977"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused": "5961576dc40f0d93",
+        "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalWithTheMandatoryTypesIsAccepted": "d319bc77c62477d4",
         "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms": "6cd078090f25af90",
         "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "6cd078090f25af90",
         "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "9150a5e7ed60264f",

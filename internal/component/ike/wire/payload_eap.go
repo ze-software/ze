@@ -2,7 +2,17 @@
 // RFC: rfc/short/rfc7296.md — EAP payload (Section 3.16)
 package wire
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"errors"
+)
+
+// ErrEAPLengthExceedsData reports an EAP message whose Length field claims more
+// octets than the EAP payload carries. It is not ErrTruncated, because the two
+// draw different answers: a truncated IKE payload is an IKE error, while this is
+// an EAP-layer error that RFC 3748 Section 4 makes the receiver discard in silence.
+// The engine drops the IKE message that carries it and keeps the EAP exchange.
+var ErrEAPLengthExceedsData = errors.New("ike: EAP length exceeds the received octets")
 
 // EAP codes.
 const (
@@ -39,8 +49,14 @@ func (p *PayloadEAP) ReadFrom(data []byte) error {
 	p.Code = data[0]
 	p.Identifier = data[1]
 	eapLen := int(binary.BigEndian.Uint16(data[2:4]))
-	if eapLen < 4 || eapLen > len(data) {
+	if eapLen < 4 {
 		return ErrTruncated
+	}
+	// RFC 3748 Section 4: "A message with the Length field set to a value
+	// larger than the number of received octets MUST be silently discarded."
+	// The distinct error lets the engine discard it rather than end the IKE SA.
+	if eapLen > len(data) {
+		return ErrEAPLengthExceedsData
 	}
 	if eapLen > 4 {
 		p.EAPData = make([]byte, eapLen-4)
