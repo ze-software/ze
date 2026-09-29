@@ -95,6 +95,7 @@ func eaprtxPeerAddr(t *testing.T, peerTr *transport.UDPTransport) *net.UDPAddr {
 // duplicate path and not from an inert handler.
 // RFC requirement: RFC7296-2.1-3 positive -- the response comes back byte for byte. A
 // rebuild cannot match it, because every build draws a fresh random CBC IV (auth.go).
+// RFC requirement: RFC3748-4.1-3 positive -- the EAP Request the authenticator sends again when the peer's IKE_AUTH is retransmitted is the first IKE_AUTH response byte for byte, so the Identifier field it carries is unchanged.
 func TestEapRtxResponderReplaysCachedResponseMidEAP(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	resp, ps, authReq := eaprtxResponderMidExchange(t)

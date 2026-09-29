@@ -187,6 +187,7 @@ func TestInitiatorUsesPeerSPI(t *testing.T) {
 // createFirstChildSA each refuse the 0.
 //
 // RFC requirement: RFC4303-2.1-1 negative -- an IKE_AUTH request whose SAi2 ESP SPI is 0 leaves the responder's IKE SA not established, and the session holds no first Child SA.
+// RFC requirement: RFC3948-2.1-1 negative -- the responder refuses an SAi2 ESP SPI of 0, the SPI its outbound ESP header would carry: its IKE SA is not established and no first Child SA exists.
 func TestResponderRefusesPeerSPIZero(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := peerSPIPreAuth(t)
@@ -208,6 +209,7 @@ func TestResponderRefusesPeerSPIZero(t *testing.T) {
 // exactly 0x0a0b0c0d.
 //
 // RFC requirement: RFC4303-2.1-1 positive -- an IKE_AUTH request whose SAi2 ESP SPI is 0x0a0b0c0d establishes the responder's IKE SA, and its first Child SA's outbound SPI is 0x0a0b0c0d.
+// RFC requirement: RFC3948-2.1-1 positive -- the responder's first Child SA carries the non-zero SAi2 SPI 0x0a0b0c0d as its outbound ESP SPI.
 func TestResponderUsesPeerSPI(t *testing.T) {
 	const peerSPI = 0x0a0b0c0d
 	log := slogutil.DiscardLogger()
@@ -271,6 +273,7 @@ func peerSPIRekey(t *testing.T) peerSPIRekeyExchange {
 // respondChildRekey (rekey.go) and this test goes red.
 //
 // RFC requirement: RFC4303-2.1-1 negative -- a CREATE_CHILD_SA rekey request whose ESP SPI is 0 makes respondChildRekey return an error wrapping errMalformedRequest and no Child SA, and the dataplane holds no ESP state.
+// RFC requirement: RFC3948-2.1-1 negative -- respondChildRekey refuses a rekey request ESP SPI of 0, the SPI the new outbound ESP header would carry: no Child SA and no ESP state.
 func TestChildRekeyRequestRefusesPeerSPIZero(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	x := peerSPIRekey(t)
@@ -296,6 +299,7 @@ func TestChildRekeyRequestRefusesPeerSPIZero(t *testing.T) {
 // 0x0a0b0c0d, and the rekeyed Child SA MUST send on exactly that SPI.
 //
 // RFC requirement: RFC4303-2.1-1 positive -- a CREATE_CHILD_SA rekey request whose ESP SPI is 0x0a0b0c0d makes respondChildRekey return a Child SA whose outbound SPI is 0x0a0b0c0d.
+// RFC requirement: RFC3948-2.1-1 positive -- the Child SA respondChildRekey returns for a rekey request SPI of 0x0a0b0c0d carries that non-zero SPI as its outbound ESP SPI.
 func TestChildRekeyRequestUsesPeerSPI(t *testing.T) {
 	const peerSPI = 0x0a0b0c0d
 	log := slogutil.DiscardLogger()
@@ -323,6 +327,7 @@ func TestChildRekeyRequestUsesPeerSPI(t *testing.T) {
 // applyChildRekeyResponse (rekey.go) and this test goes red.
 //
 // RFC requirement: RFC4303-2.1-1 negative -- a CREATE_CHILD_SA rekey response whose ESP SPI is 0 makes applyChildRekeyResponse return an error, and the dataplane holds no ESP state.
+// RFC requirement: RFC3948-2.1-1 negative -- applyChildRekeyResponse refuses a rekey response ESP SPI of 0, the SPI the new outbound ESP header would carry: an error and no ESP state.
 func TestChildRekeyResponseRefusesPeerSPIZero(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	x := peerSPIRekey(t)
@@ -350,6 +355,7 @@ func TestChildRekeyResponseRefusesPeerSPIZero(t *testing.T) {
 // 0x0a0b0c0d, and the rekeyed Child SA MUST send on exactly that SPI.
 //
 // RFC requirement: RFC4303-2.1-1 positive -- a CREATE_CHILD_SA rekey response whose ESP SPI is 0x0a0b0c0d makes applyChildRekeyResponse return a Child SA whose outbound SPI is 0x0a0b0c0d.
+// RFC requirement: RFC3948-2.1-1 positive -- the Child SA applyChildRekeyResponse returns for a rekey response SPI of 0x0a0b0c0d carries that non-zero SPI as its outbound ESP SPI.
 func TestChildRekeyResponseUsesPeerSPI(t *testing.T) {
 	const peerSPI = 0x0a0b0c0d
 	log := slogutil.DiscardLogger()

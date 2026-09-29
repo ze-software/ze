@@ -3,7 +3,7 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC3948-2.1-1": {
-      "note": "Generator and initiator IKE_AUTH path now proven: TestRFC3948GeneratedESPSPIIsNeverZero scripts five zero draws and asserts generateESPSPI returns the sixth (non-zero) draw after exactly 6 reads, red if the zero check in child.go goes; TestRFC3948OutboundESPSPIIsNeverZero re-encrypts the real IKE_AUTH response with SAr2 SPI 0 and asserts the SA is not established and no ESP state is installed, red if the fsm.go handleAuthResponse outSPI==0 refusal goes. Missing: the other paths that put a peer SPI in Ze's outbound ESP header carry no RFC3948 tag, so removing the guard at responder.go (SAi2, ChildOutboundSPI==0), rekey.go respondChildRekey (peerSPI==0) or rekey.go applyChildRekeyResponse (outSPI==0) turns no RFC3948-2.1-1 unit red. The RFC4303 peer-SPI tests in rfc4303_peer_spi_test.go already drive all three; tagging them here would close it. Records break whole producers (panic), proving reach only; discrimination judged by reading the assertions.",
+      "note": "Every path that sets an SPI Ze puts in an ESP header is covered both ways. Own SPI: TestRFC3948GeneratedESPSPIIsNeverZero (five scripted zero draws discarded, sixth returned after exactly 6 reads). Peer SPI Ze sends on: initiator IKE_AUTH (TestRFC3948OutboundESPSPIIsNeverZero, SAr2 SPI 0 not established, no ESP state), responder SAi2 (TestResponderRefusesPeerSPIZero / TestResponderUsesPeerSPI), rekey request (TestChildRekeyRequestRefusesPeerSPIZero / UsesPeerSPI) and rekey response (TestChildRekeyResponseRefusesPeerSPIZero / UsesPeerSPI): SPI 0 refused with no Child SA and no ESP state, 0x0a0b0c0d installed as the outbound SPI. Records revert the producers (whole-body, reach); discrimination judged from the exact assertions.",
       "requirement_sha": "96eb64607ceba544",
       "tests": {
         "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "3c602227a7107a32",
@@ -11,7 +11,13 @@
         "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero": "90be745644c57513",
         "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero#2": "90be745644c57513",
         "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero": "90be745644c57513",
-        "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero#2": "90be745644c57513"
+        "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero#2": "90be745644c57513",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestRefusesPeerSPIZero": "a9f7e73ec596693c",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestUsesPeerSPI": "a9f7e73ec596693c",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseRefusesPeerSPIZero": "a9f7e73ec596693c",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseUsesPeerSPI": "a9f7e73ec596693c",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderRefusesPeerSPIZero": "a9f7e73ec596693c",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderUsesPeerSPI": "a9f7e73ec596693c"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "44bf9768b4b90de3",
@@ -19,9 +25,15 @@
         "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero": "d83225ae54b918ca",
         "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero#2": "d83225ae54b918ca",
         "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero": "95042f25f6f4a11d",
-        "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero#2": "95042f25f6f4a11d"
+        "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero#2": "95042f25f6f4a11d",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestRefusesPeerSPIZero": "8902a9e90fd275c3",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestUsesPeerSPI": "ee1d91c0b6de37a1",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseRefusesPeerSPIZero": "dd1f54d682f2ceb0",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseUsesPeerSPI": "f300456c48620028",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderRefusesPeerSPIZero": "d512cc825c3a173a",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderUsesPeerSPI": "7261b7ebe366493c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3948-2.1-2": {
       "note": "Forbidden behaviour: UDP-encapsulated ESP whose source or destination port differs from the ports IKE traffic uses, which is the NAT-translated case (Section 5.2 shows IKE reaching the server as <Y,4500>). TestChildSANATTEncapPorts asserts both encap ports equal the constant transport.NATTPort (4500), which is what the code does, not what the RFC says: installChildSA (child.go) takes the peer's real IKE port only on the MOBIKE path (udpRemotePort) and otherwise falls back to 4500, so a peer whose IKE arrives from a translated port Y gets ESP on 4500 and the test stays green. The {single-polarity} marker's claim that no path produces a non-4500 port is also false for the MOBIKE path.",

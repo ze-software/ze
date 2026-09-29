@@ -85,13 +85,14 @@ func TestBypassPolicyReachesTheBackendAsBypass(t *testing.T) {
 	}
 }
 
-// VALIDATES: RFC4301-4.4.1-4. The inbound half of a both-direction entry swaps the
-// local and remote sides, because the local side of a flow is the SOURCE of an
-// outbound packet and the DESTINATION of an inbound one.
+// VALIDATES: RFC4301-4.4.1-11 and RFC4301-4.4.1-12. The inbound half of a both-direction
+// entry swaps the local and remote sides, because the local side of a flow is the SOURCE
+// of an outbound packet and the DESTINATION of an inbound one.
 // PREVENTS: an inbound entry installed with the outbound selector. It would match no
 // arriving packet, so a discard would silently stop discarding on the side the
 // attacker sends from, and nothing would report the entry as ineffective.
-// RFC requirement: RFC4301-4.4.1-4 positive -- SPD-O and SPD-I carry mirrored selectors.
+// RFC requirement: RFC4301-4.4.1-11 positive -- a both-direction DISCARD entry installs one SPD-I entry whose selector is the inbound traffic, remote prefix as source and local prefix as destination.
+// RFC requirement: RFC4301-4.4.1-12 positive -- the same entry installs one SPD-O entry whose selector is the outbound traffic, local prefix as source and remote prefix as destination.
 func TestSPDPolicyMirrorsTheInboundSelector(t *testing.T) {
 	params := spdPolicyParams(spdEntry(t, "drop-guest", dataplane.SPActionDiscard, ipsec.SPDDirBoth))
 

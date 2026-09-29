@@ -334,15 +334,13 @@ func TestRekeyKeepsBothESPFormAcceptance(t *testing.T) {
 // programs its SPD from that answer while ze programs its own from the retired pair, and
 // traffic inside the difference is protected at one end and dropped at the other.
 //
-// RFC requirement: RFC7296-2.9-1 negative -- "TS payloads specify the selection criteria
-// for packets that will be forwarded over the newly set up SA" (RFC 7296 S2.9,
-// rfc/full/rfc7296.txt:2347-2348), and the responder narrows the proposal without ever
-// widening it (rfc/full/rfc7296.txt:2393-2395). A request that proposes no selectors can
-// be narrowed to nothing, so every answer to it states criteria the peer never proposed.
-// RFC 7296 Section 1.3.3 puts TSi and TSr in the rekey request for that reason, so the
-// request is refused as malformed rather than answered.
+// RFC requirement: RFC7296-1.3.3-3 negative -- the rekey initiator sends "the proposed
+// Traffic Selectors for the proposed Child SA in the TSi and TSr payloads" (RFC 7296
+// S1.3.3). A peer's rekey request that carries neither is refused as malformed
+// (errMalformedRequest, INVALID_SYNTAX, the refusal naming TSi and TSr), installs nothing,
+// and leaves the negotiated scope unchanged.
 //
-// RFC requirement: RFC7296-2.9-1 positive -- the discriminator. The same fixture, one
+// RFC requirement: RFC7296-1.3.3-3 positive -- the discriminator. The same fixture, one
 // exchange later, proposes the scope in use and is answered with it. A refusal of both
 // would be a rekey path that is broken rather than a mandatory payload that is checked.
 func TestRekeyWithoutTrafficSelectorsIsRefused(t *testing.T) {

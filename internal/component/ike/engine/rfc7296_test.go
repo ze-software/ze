@@ -223,11 +223,11 @@ func TestIKEWireProposalHasAllTransforms(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7296-3.3.6-1 positive -- a DH group is mandatory for IKE SA negotiation:
-// a valid IKE_SA_INIT carrying a KE payload (whose group matches the negotiated DH group) is
-// accepted, advancing handleSAInitRequest (responder.go:193) to StateSAInitReceived.
-// RFC requirement: RFC7296-3.3.6-1 negative -- an IKE_SA_INIT that omits the KE payload (and thus
-// any DH group) is rejected: handleSAInitRequest (responder.go:115) marks the SA dead.
+// RFC requirement: RFC7296-3.3.2-1 positive -- D-H is a mandatory IKE type: a valid IKE_SA_INIT
+// carrying a KE payload whose group matches the negotiated D-H group is accepted, advancing
+// handleSAInitRequest to StateSAInitReceived.
+// RFC requirement: RFC7296-3.3.2-1 negative -- an IKE_SA_INIT that omits the KE payload (and thus
+// any D-H group) is rejected: handleSAInitRequest marks the SA dead.
 func TestResponderRequiresKEForDH(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	iniPeer, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, "dh-psk")

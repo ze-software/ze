@@ -156,6 +156,72 @@
       "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4301-4.4.1-11",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry",
+      "unit-sha": "7ca1f4ac7e328f04",
+      "claim-sha": "42e4962d9501cb6c",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
+      "producer-sha": "3f1463ff71f043fe",
+      "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.1-11",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy",
+      "unit-sha": "37a06fb6c9aa44c0",
+      "claim-sha": "b3cc2b3d92d6cb07",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
+      "producer-sha": "3f1463ff71f043fe",
+      "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.1-11",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector",
+      "unit-sha": "59f5213807d30a44",
+      "claim-sha": "ecf362aad43b412b",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
+      "producer-sha": "3f1463ff71f043fe",
+      "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.1-12",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy",
+      "unit-sha": "68114f67c5c72b6c",
+      "claim-sha": "5a92b2feebb7bc02",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
+      "producer-sha": "3f1463ff71f043fe",
+      "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.1-12",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry",
+      "unit-sha": "586560ff89bde9d7",
+      "claim-sha": "228fa2d7ca5862bb",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
+      "producer-sha": "3f1463ff71f043fe",
+      "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.1-12",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector",
+      "unit-sha": "59f5213807d30a44",
+      "claim-sha": "1befb34f8127fb58",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
+      "producer-sha": "3f1463ff71f043fe",
+      "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4301-4.4.1-4",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector",

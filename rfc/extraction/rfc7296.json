@@ -81,7 +81,11 @@
       "id": "1.3.3",
       "sites": 1,
       "disposition": "walked",
-      "reason": "Rekeying a Child SA. Its one keyword site binds the REKEY_SA notification into a CREATE_CHILD_SA exchange that replaces an ESP or AH SA. No row stated that obligation when the walk began: it was extracted during the walk as RFC7296-1.3.3-2, which site 1.3.3:1 now maps to. Note that RFC7296-1.3.3-1 is a different row whose obligation sits in section 1.3.2; its anchor is a recorded Known Limitation and was deliberately left alone."
+      "reason": "Rekeying a Child SA. Its one keyword site binds the REKEY_SA notification into a CREATE_CHILD_SA exchange that replaces an ESP or AH SA. No row stated that obligation when the walk began: it was extracted during the walk as RFC7296-1.3.3-2, which site 1.3.3:1 now maps to. Note that RFC7296-1.3.3-1 is a different row whose obligation sits in section 1.3.2; its anchor is a recorded Known Limitation and was deliberately left alone. Rows RFC7296-1.3.3-3 and RFC7296-1.3.3-4 are read from the two sentences that give the rekey request its SA, Ni, optional KEi, TSi and TSr payloads and the rekey response its TS payloads; neither carries a keyword (added 2026-09-29, the mistagged-unit fix of spec-rfc-verdict-fix-ike-eap).",
+      "unsourced-ids": [
+        "RFC7296-1.3.3-3",
+        "RFC7296-1.3.3-4"
+      ]
     },
     {
       "id": "1.4",
@@ -467,10 +471,7 @@
       "id": "3.3.6",
       "sites": 8,
       "disposition": "walked",
-      "reason": "Read the whole section: the responder selection rules, the handling of an unknown Transform Type or Transform Attribute, and the three Diffie-Hellman negotiation paragraphs. RFC7296-3.3.6-1 has no site here, because Section 3.3.6 treats Diffie-Hellman negotiation in indicative prose and the mandate that an IKE proposal carries a D-H transform is the mandatory Transform Type table of Section 3.3.3.",
-      "unsourced-ids": [
-        "RFC7296-3.3.6-1"
-      ]
+      "reason": "Read the whole section: the responder selection rules, the handling of an unknown Transform Type or Transform Attribute, and the three Diffie-Hellman negotiation paragraphs. Section 3.3.6 treats Diffie-Hellman negotiation in indicative prose; the mandate that an IKE proposal carries a D-H transform is the mandatory Transform Type table of Section 3.3.3, which RFC7296-3.3.2-1 carries (RFC7296-3.3.6-1, a duplicate of that span, was retired 2026-09-29)."
     },
     {
       "id": "3.4",

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4301-4.1-1": {
@@ -124,18 +124,46 @@
       },
       "verdict": "weak"
     },
+    "RFC4301-4.4.1-11": {
+      "note": "spdPolicyParams over an operator SPD entry: a both-direction DISCARD entry (TestSPDPolicyMirrorsTheInboundSelector) and a both-direction BYPASS entry (TestRFC4301BypassReturnTrafficHasAnSPDIEntry) each install one SPD-I entry whose selector is the inbound traffic, remote prefix as source, local as destination, ports mirrored (dst 22, src any), with the entry's action. Negative: the SPD-I entry never carries the outbound orientation, and an out-only entry installs no SPD-I entry. Driven from the ipsec.SPDPolicy the config builds, not from the YANG parse.",
+      "requirement_sha": "8d2219256c2659f6",
+      "tests": {
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry": "1c5afb6a4d2d457d",
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy": "1c5afb6a4d2d457d",
+        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "b26485af99d67b42"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry": "751df43f83c33edd",
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy": "8c6f54e2531e8043",
+        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "1650ee30d294a76f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-4.4.1-12": {
+      "note": "spdPolicyParams: the same both-direction DISCARD and BYPASS entries install one SPD-O entry whose selector is the outbound traffic, local prefix as source, remote as destination, src port 22, dst any, with the entry's action (TestSPDPolicyMirrorsTheInboundSelector, TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry). Negative: the SPD-O entry never carries the inbound orientation, and an in-only entry installs no SPD-O entry. Driven from the ipsec.SPDPolicy the config builds, not from the YANG parse.",
+      "requirement_sha": "abf28dafe88ad9a2",
+      "tests": {
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy": "1c5afb6a4d2d457d",
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry": "1c5afb6a4d2d457d",
+        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "b26485af99d67b42"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy": "f1078aae0f6f91d7",
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry": "c7aefe422a98a9be",
+        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "1650ee30d294a76f"
+      },
+      "verdict": "enforced"
+    },
     "RFC4301-4.4.1-4": {
-      "note": "TestSpdOperatorOrdersOverlappingPeers asserts the operator's priority reaches every entry in both directions and orders overlapping peers; negatives refuse rank 0 and ranks capturing IKE. TestSPDPolicyMirrorsTheInboundSelector is mistagged: it proves direction mirroring, not ordering",
+      "note": "TestSpdOperatorOrdersOverlappingPeers asserts the operator's priority reaches every entry in both directions and orders overlapping peers; negatives refuse an unstated order reaching the SPD as 0 and ranks that capture IKE (engine and ipsec). The mistagged mirroring unit (TestSPDPolicyMirrorsTheInboundSelector) moved to RFC4301-4.4.1-11/12.",
       "requirement_sha": "dafc8d3e6f262328",
       "tests": {
-        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "24a4eddcc725d477",
         "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOperatorOrdersOverlappingPeers": "4abe7bc229114752",
         "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOrderCannotCaptureTheIKEControlPlane": "4abe7bc229114752",
         "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdUnstatedOrderTakesTheDefaultRank": "4abe7bc229114752",
         "internal/component/ike/ipsec/rfc4301_spd_discard_test.go::TestSPDPolicyOrderInsideBypassBandRefused": "a05a17c69692d82b"
       },
       "units": {
-        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "90d8f3872a7e886b",
         "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOperatorOrdersOverlappingPeers": "d7157db96345a22b",
         "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOrderCannotCaptureTheIKEControlPlane": "dbcfabb91c150a6f",
         "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdUnstatedOrderTakesTheDefaultRank": "bdfafa744d8016bc",
@@ -332,15 +360,15 @@
       "verdict": "weak"
     },
     "RFC4301-5.1-2": {
-      "note": "the sentence is \u00a75.1 step 4: a packet the forwarding function passes back across the boundary (nested SAs) needs an SPD-I bypass entry; the units assert the return flow of a both-direction bypass gets a mirrored SPD-I entry, a different obligation",
+      "note": "the sentence is \u00a75.1 step 4: a packet the forwarding function passes back across the boundary (nested SAs) needs an SPD-I bypass entry; the units assert the return flow of a both-direction bypass gets a mirrored SPD-I entry, a different obligation. Re-read 2026-09-29 after RFC4301-4.4.1-11 tag lines were added: unchanged; the mirroring proof now also sits under 4.4.1-11, and ruling R15 (retire citing the nested-SA condition) is not yet applied.",
       "requirement_sha": "2cca4f264dc2dcd7",
       "tests": {
-        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry": "179cc72f75cf4cc1",
-        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy": "179cc72f75cf4cc1"
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry": "1c5afb6a4d2d457d",
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy": "1c5afb6a4d2d457d"
       },
       "units": {
-        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry": "19e7249c725b259b",
-        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy": "89ea402763dc5106"
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry": "751df43f83c33edd",
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy": "8c6f54e2531e8043"
       },
       "verdict": "wrong"
     },
@@ -358,15 +386,15 @@
       "verdict": "weak"
     },
     "RFC4301-5.2-5": {
-      "note": "The sentence (\u00a75.2): an inbound packet that the forwarding function sends back out across the boundary (nested SAs) MUST be matched against an SPD-O entry, the entry matching THAT packet's orientation. The units assert that a both-direction bypass builds a mirrored SPD-O entry for the reply flow (src 10.1/24 -> 10.2/24, src port 22) and explicitly assert it does NOT carry the inbound orientation, and that an in-only bypass gets no SPD-O entry. That is the bidirectional-bypass mirroring rule, not the re-crossing match the sentence states. Re-judged after the blind reader's enforced: the SPD-O entry proven is for a different packet.",
+      "note": "The sentence (\u00a75.2): an inbound packet that the forwarding function sends back out across the boundary (nested SAs) MUST be matched against an SPD-O entry, the entry matching THAT packet's orientation. The units assert that a both-direction bypass builds a mirrored SPD-O entry for the reply flow (src 10.1/24 -> 10.2/24, src port 22) and explicitly assert it does NOT carry the inbound orientation, and that an in-only bypass gets no SPD-O entry. That is the bidirectional-bypass mirroring rule, not the re-crossing match the sentence states. Re-judged after the blind reader's enforced: the SPD-O entry proven is for a different packet. Re-read 2026-09-29 after RFC4301-4.4.1-12 tag lines were added: unchanged; the mirroring proof now also sits under 4.4.1-12, and ruling R15 (retire citing the nested-SA condition) is not yet applied.",
       "requirement_sha": "c3a2c6b516d3bde6",
       "tests": {
-        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy": "179cc72f75cf4cc1",
-        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry": "179cc72f75cf4cc1"
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy": "1c5afb6a4d2d457d",
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry": "1c5afb6a4d2d457d"
       },
       "units": {
-        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy": "21d598e2074d3d24",
-        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry": "14d93557853e9716"
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy": "f1078aae0f6f91d7",
+        "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry": "c7aefe422a98a9be"
       },
       "verdict": "wrong"
     },

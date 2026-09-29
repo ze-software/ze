@@ -207,17 +207,19 @@
       "verdict": "weak"
     },
     "RFC3748-4.1-3": {
-      "note": "TestRFC3748NewRequestChangesIdentifier proves every new Request changes the Identifier; the first clause of the quoted span, a retransmitted Request keeps the same Identifier, has no case under this id.",
+      "note": "Clause 2 (new Requests modify the Identifier): TestRFC3748NewRequestChangesIdentifier, each Request differs from the one before and no Identifier repeats in the exchange. Clause 1 (a retransmitted Request keeps the Identifier): Ze runs no EAP-layer retransmission timer (IKEv2 carries EAP and the IKE initiator retransmits), so the retransmission path is the replay of the cached IKE_AUTH response; TestEapRtxResponderReplaysCachedResponseMidEAP asserts the EAP Request re-sent on a retransmitted IKE_AUTH is byte-identical to the first, so its Identifier is unchanged, while a rebuild cannot match (fresh CBC IV). Record: revert responder.go::replayCachedResponse.",
       "requirement_sha": "5aa99365ea6145f5",
       "tests": {
+        "internal/component/ike/engine/rfc7296_eap_retransmit_test.go::TestEapRtxResponderReplaysCachedResponseMidEAP": "c21a5491f2e72d68",
         "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier": "9c177c3a434afad0",
         "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier#2": "9c177c3a434afad0"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_eap_retransmit_test.go::TestEapRtxResponderReplaysCachedResponseMidEAP": "8ee29aaf0b5ed24d",
         "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier": "ff545a5e60ce9954",
         "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier#2": "ff545a5e60ce9954"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3748-4.1-4": {
       "note": "Forbidden: a peer Response whose Identifier differs from the outstanding Request's. TestRFC3748ResponseEchoesRequestIdentifier fails on resp.Identifier != requests[i].Identifier for every Response of a full MS-CHAPv2 flight, and on an unusual Identifier 0xC3 not echoed (catches a peer that counts or uses a constant).",

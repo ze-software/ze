@@ -264,13 +264,12 @@ func TestChildRekeyAnswerBelowTheScopeInUseIsRefused(t *testing.T) {
 // never stated. The peer programs its SPD from the SA it built, ze programs its own from an
 // SA that no longer exists, and neither end reports the difference.
 //
-// RFC requirement: RFC7296-2.9-1 negative -- "TS payloads specify the selection criteria
-// for packets that will be forwarded over the newly set up SA" (RFC 7296 S2.9,
-// rfc/full/rfc7296.txt:2347-2348). RFC 7296 Section 1.3.3 puts TSi and TSr in the rekey
-// RESPONSE for that reason (rfc/full/rfc7296.txt:918-919). A response that omits them
-// states no criteria for the SA it just created, so there is nothing to install.
+// RFC requirement: RFC7296-1.3.3-4 negative -- "The Traffic Selectors for traffic to be
+// sent on that SA are specified in the TS payloads in the response" (RFC 7296 S1.3.3). A
+// rekey response that omits them states no criteria for the SA it just created, so ze
+// refuses it and installs nothing.
 //
-// RFC requirement: RFC7296-2.9-1 positive -- the discriminator. The same fixture, given a
+// RFC requirement: RFC7296-1.3.3-4 positive -- the discriminator. The same fixture, given a
 // response that carries both payloads, installs the scope they name. A refusal of both
 // would be a rekey path that is broken rather than a mandatory payload that is checked.
 func TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused(t *testing.T) {

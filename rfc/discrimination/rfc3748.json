@@ -266,6 +266,17 @@
       "break": "body of nakUnexpected replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC3748-4.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_eap_retransmit_test.go::TestEapRtxResponderReplaysCachedResponseMidEAP",
+      "unit-sha": "5fb7ee11fe935bf8",
+      "claim-sha": "e1a2347924035825",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/responder.go::replayCachedResponse",
+      "producer-sha": "ac495c3e1e0a75c2",
+      "break": "body of replayCachedResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3748-4.1-5",
       "polarity": "negative",
       "unit": "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest",

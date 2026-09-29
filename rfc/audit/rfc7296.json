@@ -2,6 +2,8 @@
   "audited": "2026-09-29",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -10,8 +12,8 @@
       "note": "Clauses of the quoted span: IKE_SA_INIT negotiates algorithms, exchanges nonces and does a Diffie-Hellman exchange; IKE_AUTH authenticates the previous messages, exchanges identities and certificates and establishes the first Child SA. TestInitialExchangeEncryptionBoundary asserts only the encryption boundary (IKE_SA_INIT carries no SK and decryptAndParse refuses it; IKE_AUTH carries SK and decrypts). No assertion in the tagged unit covers the negotiation, nonce, DH, authentication, identity or Child SA clauses.",
       "requirement_sha": "fd6232ea3dc33023",
       "tests": {
-        "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary": "bf1e8ec52b6ed4c2",
-        "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary#2": "bf1e8ec52b6ed4c2"
+        "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary": "e032382b6fba7977",
+        "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary#2": "e032382b6fba7977"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary": "cc07ff143101d2da",
@@ -24,11 +26,43 @@
       "requirement_sha": "b883c2b9ab5dc7a6",
       "tests": {
         "internal/component/ike/engine/responder_test.go::TestRespondIKERekey": "0bd066ff172d78f8",
-        "internal/component/ike/engine/rfc7296_test.go::TestRespondIKERekeyRejectsMissingKE": "bf1e8ec52b6ed4c2"
+        "internal/component/ike/engine/rfc7296_test.go::TestRespondIKERekeyRejectsMissingKE": "e032382b6fba7977"
       },
       "units": {
         "internal/component/ike/engine/responder_test.go::TestRespondIKERekey": "478f1638e9e680a0",
         "internal/component/ike/engine/rfc7296_test.go::TestRespondIKERekeyRejectsMissingKE": "0e9663c6ad3e960d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-1.3.3-3": {
+      "note": "Positive: TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors decrypts ze's initiateChildRekey request at the peer: exactly one SA, one Ni, one TSi and one TSr with selectors, KEi present with pfs enable and absent with pfs disable (the optional clause both ways). Negative (receive side): TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused removes SA, Ni, TSi or TSr one at a time from a peer request: each refused with errMalformedRequest and INVALID_SYNTAX, nothing installed; the complete request is answered. TestRekeyWithoutTrafficSelectorsIsRefused (moved from 2.9-1) adds the no-TS request refusal and its answered twin.",
+      "requirement_sha": "f415c51b9c64aa9c",
+      "tests": {
+        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "8d0e2e1789602a48",
+        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "8d0e2e1789602a48",
+        "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors": "305ef154a3e0df0a",
+        "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused": "305ef154a3e0df0a"
+      },
+      "units": {
+        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "43c584f708ebe373",
+        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "43c584f708ebe373",
+        "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors": "ee81b9ef3c8adf28",
+        "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused": "2bf3982de7281d49"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-1.3.3-4": {
+      "note": "TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow: ze's respondChildRekey response announces TSi/TSr equal to the installed scope, and ze as rekey initiator installs an answer narrowed to 10.1.0.0/25 from a /24 proposal (the may-be-a-subset clause). TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused (moved from 2.9-1): a response without TS payloads is refused and installs nothing, the same fixture with both payloads installs their scope.",
+      "requirement_sha": "0b07c2440da39c79",
+      "tests": {
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "0b7e3c55d84c210a",
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "0b7e3c55d84c210a",
+        "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow": "305ef154a3e0df0a"
+      },
+      "units": {
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "0351b3fc440f5796",
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "0351b3fc440f5796",
+        "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow": "01ade9a5b3f7ad04"
       },
       "verdict": "enforced"
     },
@@ -88,8 +122,8 @@
       "note": "positive tag claims every rekey nonce uses nonceLen (rekey.go) but only newInitiatorSA/newResponderSA nonces are asserted; PRF list is hand-written in the test, not read from prfRegistry; negative is a tightness guard, not a violating input",
       "requirement_sha": "310ac223e95176d0",
       "tests": {
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestNonceMeetsHalfPRFKeySize": "29950a5975949ea7",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestNonceMeetsHalfPRFKeySize#2": "29950a5975949ea7"
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestNonceMeetsHalfPRFKeySize": "c17539d415be3db4",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestNonceMeetsHalfPRFKeySize#2": "c17539d415be3db4"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestNonceMeetsHalfPRFKeySize": "765878a8889d35d0",
@@ -223,19 +257,23 @@
       "verdict": "enforced"
     },
     "RFC7296-2.20-1": {
-      "note": "TestRFC7296ResponderAnswersAVersionRequestWithNoCP drives handleAuthRequest with a real IKE_AUTH request carrying CP(CFG_REQUEST, APPLICATION_VERSION) and asserts the SA is established and the response carries no CP; the sweep (TestZeDeclinesApplicationVersion) finds no APPLICATION_VERSION in any built message. Missing: Section 2.20's own method is a CP(CFG_REQUEST) inside an INFORMATIONAL exchange after the IKE SA and first Child SA exist; no unit sends that to Ze's INFORMATIONAL handler (handleInformationalOwned / inbound.go) and asserts the reply carries no CP or an empty string. The tagged negative is a codec round trip, which shows the attribute is expressible and violates nothing.",
+      "note": "Section 2.20's method: TestRFC7296InformationalVersionRequestDrawsNoCP sends the product INFORMATIONAL handler (handleInformationalOwned, MOBIKE enabled so mobikeResponsePayloads builds the answer) a post-auth CP(CFG_REQUEST, empty APPLICATION_VERSION) and asserts the response the peer decrypts carries no CP; TestRFC7296InformationalVersionRequestReflectsNoVersionString pushes toward reflection with a non-empty version string and asserts no CP and no non-empty APPLICATION_VERSION. IKE_AUTH path: TestRFC7296ResponderAnswersAVersionRequestWithNoCP. Sweep: TestZeDeclinesApplicationVersion. Ze supports no CP, so the no-CP arm is the one that binds.",
       "requirement_sha": "ce57bff15d289ceb",
       "tests": {
         "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion": "38bdb8cdc7d2fb80",
         "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "38bdb8cdc7d2fb80",
+        "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestDrawsNoCP": "607e73a674d6bbf3",
+        "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestReflectsNoVersionString": "607e73a674d6bbf3",
         "internal/component/ike/engine/rfc7296_cp_version_test.go::TestRFC7296ResponderAnswersAVersionRequestWithNoCP": "303ae8064814af34"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion": "086ac4931ee14b25",
         "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "086ac4931ee14b25",
+        "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestDrawsNoCP": "ec1d2b188532ce5c",
+        "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestReflectsNoVersionString": "4d7081a558a69c99",
         "internal/component/ike/engine/rfc7296_cp_version_test.go::TestRFC7296ResponderAnswersAVersionRequestWithNoCP": "09950db7f424210c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-2.21.2-1": {
       "note": "Clauses: a request with an unsupported critical payload, or a wholly malformed request, is rejected in its entirety and draws only UNSUPPORTED_CRITICAL_PAYLOAD or INVALID_SYNTAX. The malformed half is asserted (truncated inner chain answered with INVALID_SYNTAX only; bad payload contents not treated as malformed). The unsupported-critical-payload half has no assertion in the tagged units: no request carrying one is shown to draw exactly an UNSUPPORTED_CRITICAL_PAYLOAD response (see RFC7296-2.5-18, weak).",
@@ -373,7 +411,7 @@
       "requirement_sha": "91d409bd36d2f443",
       "tests": {
         "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "3c602227a7107a32",
-        "internal/component/ike/engine/rfc7296_test.go::TestChildSANoNATNoEncap": "bf1e8ec52b6ed4c2"
+        "internal/component/ike/engine/rfc7296_test.go::TestChildSANoNATNoEncap": "e032382b6fba7977"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "955a46be9071a360",
@@ -440,8 +478,8 @@
       "note": "empty INFORMATIONAL request answered by an encrypted INFORMATIONAL response with zero inner payloads echoing the message ID; a response is not answered",
       "requirement_sha": "a013c2b509cbd737",
       "tests": {
-        "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse": "bf1e8ec52b6ed4c2",
-        "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse#2": "bf1e8ec52b6ed4c2"
+        "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse": "e032382b6fba7977",
+        "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse#2": "e032382b6fba7977"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse": "037e8d1a1a8ac004",
@@ -476,7 +514,7 @@
       "requirement_sha": "7a75a12e3c5c39ca",
       "tests": {
         "internal/component/ike/engine/responder_test.go::TestInitiatorEmitsInitialContact": "0bd066ff172d78f8",
-        "internal/component/ike/engine/rfc7296_test.go::TestInitialContactAbsentFromRekey": "bf1e8ec52b6ed4c2"
+        "internal/component/ike/engine/rfc7296_test.go::TestInitialContactAbsentFromRekey": "e032382b6fba7977"
       },
       "units": {
         "internal/component/ike/engine/responder_test.go::TestInitiatorEmitsInitialContact": "f259e9f58519674e",
@@ -586,8 +624,8 @@
       "note": "no lifetime transform or attribute reaches the wire (TestLifetimesNotNegotiatedOnWire); lifetime state derives from the local value (TestSALifetimeTime)",
       "requirement_sha": "a8e4d60828a97692",
       "tests": {
-        "internal/component/ike/engine/rekey_test.go::TestSALifetimeTime": "968b97d18a6360a6",
-        "internal/component/ike/engine/rfc7296_test.go::TestLifetimesNotNegotiatedOnWire": "bf1e8ec52b6ed4c2"
+        "internal/component/ike/engine/rekey_test.go::TestSALifetimeTime": "8d0e2e1789602a48",
+        "internal/component/ike/engine/rfc7296_test.go::TestLifetimesNotNegotiatedOnWire": "e032382b6fba7977"
       },
       "units": {
         "internal/component/ike/engine/rekey_test.go::TestSALifetimeTime": "7a4b514516a21d66",
@@ -596,25 +634,17 @@
       "verdict": "enforced"
     },
     "RFC7296-2.9-1": {
-      "note": "narrowChildSelectors answers a disjoint proposal with TS_UNACCEPTABLE and accepts an overlapping one; initiator refuses a widened answer (errTSWidened). Two further tagged units (TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused, TestRekeyWithoutTrafficSelectorsIsRefused) test TS payload presence in rekey, a neighbouring obligation",
+      "note": "narrowChildSelectors answers a disjoint proposal with TS_UNACCEPTABLE and records no pairs, and accepts an overlapping one narrowed (TestTSUnacceptableIsSentWhenNothingIsAcceptable); the rekey initiator installs an answer inside its proposal and refuses a wider one (TestChildRekeyInitiatorInstallsTheAnsweredSelectors). The two TS-presence units formerly tagged here moved to RFC7296-1.3.3-3 and 1.3.3-4.",
       "requirement_sha": "c05dbf88d2b667b3",
       "tests": {
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "9292e36d3f2033df",
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "9292e36d3f2033df",
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "9292e36d3f2033df",
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "9292e36d3f2033df",
-        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "968b97d18a6360a6",
-        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "968b97d18a6360a6",
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "0b7e3c55d84c210a",
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "0b7e3c55d84c210a",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "24cf973ee458ee3d",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "24cf973ee458ee3d"
       },
       "units": {
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "52181625a166f793",
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "52181625a166f793",
         "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "9ca0c928a277a969",
         "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "9ca0c928a277a969",
-        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "107830d2836cbfc7",
-        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "107830d2836cbfc7",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "799b2ff1ee595ed2",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "799b2ff1ee595ed2"
       },
@@ -624,9 +654,9 @@
       "note": "V bit clear on every built message; set V bit on receipt changes nothing",
       "requirement_sha": "10244e09703cee9f",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "d3f001fc2a77226f",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "d3f001fc2a77226f",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "d3f001fc2a77226f"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "b06c27b0c6cb7382",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "b06c27b0c6cb7382",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "b06c27b0c6cb7382"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "12fb263d700767ed",
@@ -635,27 +665,48 @@
       },
       "verdict": "enforced"
     },
+    "RFC7296-3.1-12": {
+      "note": "TestNrsResponseNeverDrawsAResponse drives the responder handshake, out-of-SA admission (with a matching source so the flag is the only difference), INFORMATIONAL and CREATE_CHILD_SA paths: a message marked as a response builds and sends nothing, the same message with the flag clear is answered. TestNrsInformationalHandlerRefusesAResponse takes handleInformationalOwned at its own entry point, both ways. TestResponseBitMatchesDirection's moved negative repeats the handshake arm (R-set IKE_SA_INIT leaves the responder idle, the clear one reaches sa-init-received). The Section 2.21.2 exception is not exercised here.",
+      "requirement_sha": "9541df22d0b78b28",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "b06c27b0c6cb7382",
+        "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsInformationalHandlerRefusesAResponse": "13157a7cdb7a412c",
+        "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsInformationalHandlerRefusesAResponse#2": "13157a7cdb7a412c",
+        "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse": "13157a7cdb7a412c",
+        "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse#2": "13157a7cdb7a412c"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "214ee371f8ae3d13",
+        "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsInformationalHandlerRefusesAResponse": "c1f1126655818085",
+        "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsInformationalHandlerRefusesAResponse#2": "c1f1126655818085",
+        "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse": "8dd6d4d67c2a1072",
+        "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse#2": "8dd6d4d67c2a1072"
+      },
+      "verdict": "enforced"
+    },
     "RFC7296-3.1-13": {
-      "note": "Product-driven and discriminating: IKE_SA_INIT and IKE_AUTH request/response, the INFORMATIONAL response of each role (handleInformationalOwned, including the original initiator's response, I set), the original initiator's IKE rekey request (initiateIKERekey), and the DPD probe of each role (TestWp2DPDProbeIBitFollowsRole/DiffersByRole); initiatorFlag is tested on both branches. Missing: both Delete requests in the tagged units are built by the TEST calling buildEncryptedMessageEx(..., initiatorFlag(x)), not by delete.go, so a delete.go call site that set the flag wrongly stays green while the tag claims the Delete request; the CREATE_CHILD_SA responses (rekey.go 554/660/1085/1163), Child SA rekey requests, error-notify responses (notify_error.go) and MOBIKE messages (mobike.go) of either role are not driven.",
+      "note": "Every call site of initiatorFlag is now product-driven for both original roles: IKE_SA_INIT/IKE_AUTH request and response, INFORMATIONAL responses, IKE rekey request, DPD probes (earlier units), and TestRFC7296InitiatorBitAtEveryRemainingCallSite: writeDelete and sendIKESATeardown Delete requests and startMobikeRequest read off the peer socket, respondMobikeError, buildErrorNotifyResponse, initiateChildRekey, respondChildRekey accepted and INVALID_KE, respondIKERekey accepted and INVALID_KE. Each check asserts I == original-initiator and the R flag, so a site deriving I from direction goes red on a response or on the original responder's request, and a hard-coded value goes red for one role. The older unit's test-built Delete remains but no longer carries the Delete claim alone.",
       "requirement_sha": "719e75eee1468763",
       "tests": {
+        "internal/component/ike/engine/rfc7296_initiator_bit_sites_test.go::TestRFC7296InitiatorBitAtEveryRemainingCallSite": "34934f4417c6c829",
         "internal/component/ike/engine/rfc7296_initiator_bit_test.go::TestRFC7296InitiatorBitFollowsTheOriginalRole": "e86fe30046213f74",
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitDiffersByRole": "3aea182e6ec56bb9",
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitFollowsRole": "3aea182e6ec56bb9"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_initiator_bit_sites_test.go::TestRFC7296InitiatorBitAtEveryRemainingCallSite": "d0f6c034813da69d",
         "internal/component/ike/engine/rfc7296_initiator_bit_test.go::TestRFC7296InitiatorBitFollowsTheOriginalRole": "75573505af56541e",
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitDiffersByRole": "b6c1b1389db7461a",
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitFollowsRole": "9e04a951b1503cb5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-3.1-2": {
       "note": "IKE_AUTH request and response inner chains hold no SK payload; negative is a vacuity guard",
       "requirement_sha": "91df2a46a9386eaa",
       "tests": {
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested": "29950a5975949ea7",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested#2": "29950a5975949ea7"
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested": "c17539d415be3db4",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested#2": "c17539d415be3db4"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested": "359f0099d0ac11d4",
@@ -664,26 +715,28 @@
       "verdict": "enforced"
     },
     "RFC7296-3.1-3": {
-      "note": "Send: GenerateSPI and new SAs asserted non-zero (rfc7296_header_test.go). Receive on port 500: TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt drives the real dispatchInbound over UDP with an SA holding a zero Initiator's SPI in the table, so without the guard the datagram would reach that SA's owner; the following non-zero datagram is delivered. The record is a whole-producer panic (reach only); the isolation comes from the zero-iSPI SA. Missing: the port-4500 dispatcher (dispatchNATTInbound, register.go) holds its own iSPI==0 guard and no RFC7296-3.1-3 unit drives a zero-iSPI datagram through it, so removing that guard turns nothing red.",
+      "note": "Send: GenerateSPI and new SAs asserted non-zero (TestSPIZeroRules). Receive, both dispatchers: TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt (port 500, dispatchInbound) and TestRFC7296ZeroInitiatorSPIIsDroppedOnTheNATTSocket (port 4500, dispatchNATTInbound, non-ESP marker) each put an SA with a zero Initiator's SPI in the table, so without the guard the zero-iSPI datagram would reach that SA's owner; the following non-zero datagram is delivered (NAT-T: marker stripped). Records are whole-producer reverts (reach); the isolation comes from the zero-iSPI SA in the table.",
       "requirement_sha": "df0a427bb2fa29ae",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "d3f001fc2a77226f",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "d3f001fc2a77226f",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "b06c27b0c6cb7382",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "b06c27b0c6cb7382",
+        "internal/component/ike/engine/rfc7296_zero_ispi_natt_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnTheNATTSocket": "bec623016e9c3934",
         "internal/component/ike/engine/rfc7296_zero_ispi_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt": "9421156ced1ce8cb"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "582f67f7d5d15335",
         "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "582f67f7d5d15335",
+        "internal/component/ike/engine/rfc7296_zero_ispi_natt_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnTheNATTSocket": "1e1b9354165bd819",
         "internal/component/ike/engine/rfc7296_zero_ispi_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt": "a88a9b37b6cf5987"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-3.1-4": {
       "note": "First message: TestSPIZeroRules asserts octets 8..15 zero in Ze's IKE_SA_INIT request, non-zero in the response. Cookie repeat: TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat answers a COOKIE challenge whose Responder's SPI is 0909..09, checks the repeat carries the COOKIE notify and the same Initiator's SPI, and asserts octets 8..15 of the repeat are zero, red on a retry that copies the challenge's SPI.",
       "requirement_sha": "aec2989709fac5ae",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "d3f001fc2a77226f",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "d3f001fc2a77226f",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "b06c27b0c6cb7382",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "b06c27b0c6cb7382",
         "internal/component/ike/engine/rfc7296_spi_cookie_test.go::TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat": "9e3b858e56f0381a"
       },
       "units": {
@@ -697,8 +750,8 @@
       "note": "every engine-built message has X bits clear; I and R observed so the mask is not vacuous",
       "requirement_sha": "a83889dde379df73",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "d3f001fc2a77226f",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "d3f001fc2a77226f"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "b06c27b0c6cb7382",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "b06c27b0c6cb7382"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "12fb263d700767ed",
@@ -710,8 +763,8 @@
       "note": "IKE_SA_INIT with all X bits set is processed as the clean one; R bit set changes treatment",
       "requirement_sha": "a80d7400e445d775",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "d3f001fc2a77226f",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "d3f001fc2a77226f"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "b06c27b0c6cb7382",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "b06c27b0c6cb7382"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "15de1868282682bf",
@@ -720,17 +773,17 @@
       "verdict": "enforced"
     },
     "RFC7296-3.1-9": {
-      "note": "Clauses: R cleared in all requests; set in all responses. The positive asserts both on engine-built messages. The negative tag (the responder refuses a request whose R bit is set) exercises the receive-side rule of RFC7296-3.1-12, a neighbouring one, and is not a discriminator of the sender assertion; the row carries no {single-polarity} marker.",
+      "note": "Positive: TestResponseBitMatchesDirection asserts the exact R bit on every engine-built request and response. Negative (ruling R1 a, receive side): TestRFC7296InitiatorIgnoresAResponseWithTheRBitClear feeds the initiator's handleInbound the responder's real IKE_SA_INIT answer with only the R bit cleared (stays StateSAInitSent), then the untouched answer (advances), so the refusal is the R bit's doing. The old responder-side negative moved to RFC7296-3.1-12, which it proves. Record: whole-producer revert of fsm.go::handleInbound (reach); isolation by the one-bit difference.",
       "requirement_sha": "501ace8bd2b37543",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "d3f001fc2a77226f",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection#2": "d3f001fc2a77226f"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "b06c27b0c6cb7382",
+        "internal/component/ike/engine/rfc7296_response_bit_receive_test.go::TestRFC7296InitiatorIgnoresAResponseWithTheRBitClear": "27be632153608b49"
       },
       "units": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "41c4a84a5f756197",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection#2": "41c4a84a5f756197"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "214ee371f8ae3d13",
+        "internal/component/ike/engine/rfc7296_response_bit_receive_test.go::TestRFC7296InitiatorIgnoresAResponseWithTheRBitClear": "e123dab2fd919e31"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-3.10-3": {
       "note": "PayloadNotify codec round-trips a test-built struct with SPISize 0; no Ze producer of an IKE-SA notification (INITIAL_CONTACT, error notifies) is asserted to send SPI Size 0",
@@ -871,30 +924,45 @@
       "verdict": "enforced"
     },
     "RFC7296-3.14-3": {
-      "note": "Clause: recipients MUST accept any IV. The positive asserts all-zero, all-ones and ascending IVs decrypt. The negative tag exercises checksum corruption, a neighbouring integrity rule, not a violation of IV acceptance, and the row carries no {single-polarity} marker, so there is no pair.",
+      "note": "Positive: TestSKAcceptsAnyIVOnReceipt decrypts all-zero, all-ones and ascending IVs. Negative (ruling R1 b, no refusal path exists): TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen decrypts a message reusing the previous IV and one whose IV is the previous message's final ciphertext block, the IVs a recipient that policed the sender's rule would refuse; such a break leaves the positive green and turns this unit red. The checksum-corruption negative moved to RFC7296-3.14-6. The row is still the fragment \"recipients MUST accept any value\".",
       "requirement_sha": "94d965b11c7d747c",
       "tests": {
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "29950a5975949ea7",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt#2": "29950a5975949ea7"
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "c17539d415be3db4",
+        "internal/component/ike/engine/rfc7296_iv_receive_test.go::TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen": "ec58910b762cef5e"
       },
       "units": {
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "343c340a9ca5f816",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt#2": "343c340a9ca5f816"
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "adc200fefe87d241",
+        "internal/component/ike/engine/rfc7296_iv_receive_test.go::TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen": "363b6244dcdef689"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-3.14-5": {
       "note": "minimum pad and +16/+32 accepted; over-long Pad Length refused with a valid MAC",
       "requirement_sha": "f3bfd65be332a314",
       "tests": {
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength": "29950a5975949ea7",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength#2": "29950a5975949ea7"
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength": "c17539d415be3db4",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength#2": "c17539d415be3db4"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength": "6d72b0944f499449",
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength#2": "6d72b0944f499449"
       },
       "verdict": "enforced"
+    },
+    "RFC7296-3.14-6": {
+      "note": "No unit distinguishes a checksum over the encrypted message from one over the plaintext. TestSKPaddingAlignsAndChecksumCoversCiphertext's positive is a Ze-to-Ze round trip, which a sender and receiver that both MAC the plaintext also pass; its negatives flip one ciphertext octet and one IV octet, which change the plaintext too (so a plaintext MAC also refuses them) and garble the first inner block (so the inner parse can refuse them without any MAC). TestSKAcceptsAnyIVOnReceipt's moved negative flips a checksum octet, proving the ICV is verified, not what it covers. Missing: compute HMAC(SK_a, header..Pad Length ciphertext) independently and compare with Ze's ICV, and a receive-side message whose ICV is taken over the plaintext refused. The moved negative's record is a whole-producer panic (reach only).",
+      "requirement_sha": "5439e1831480eefd",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "c17539d415be3db4",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext": "c17539d415be3db4",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext#2": "c17539d415be3db4"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "adc200fefe87d241",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext": "a1d95e7010770c80",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext#2": "a1d95e7010770c80"
+      },
+      "verdict": "weak"
     },
     "RFC7296-3.15.1-2": {
       "note": "Clause: a CFG_REQUEST MUST NOT include a non-empty INTERNAL_IP4_NETMASK. The positive asserts no engine-built message carries CP(CFG_REQUEST). The negative tag asserts the receive side tolerates a peer's non-empty netmask, a neighbouring rule (Section 2.5 no-rejection), not a discriminator of this one; no {single-polarity} marker.",
@@ -1025,7 +1093,7 @@
       "tests": {
         "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadAloneInItsOwnProposalIsAccepted": "e2b129c524e22893",
         "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadMixInOneProposalIsRefused": "e2b129c524e22893",
-        "internal/component/ike/engine/rfc7296_test.go::TestESPProposalsNeverMixAEADClass": "bf1e8ec52b6ed4c2"
+        "internal/component/ike/engine/rfc7296_test.go::TestESPProposalsNeverMixAEADClass": "e032382b6fba7977"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadAloneInItsOwnProposalIsAccepted": "abeb51a4922d4ca4",
@@ -1038,8 +1106,8 @@
       "note": "AEAD ESP proposal built with no INTEG transform, non-AEAD keeps it (TestESPWireProposalAEADIntegNone)",
       "requirement_sha": "42c9b0dc31cef85c",
       "tests": {
-        "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone": "bf1e8ec52b6ed4c2",
-        "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone#2": "bf1e8ec52b6ed4c2"
+        "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone": "e032382b6fba7977",
+        "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone#2": "e032382b6fba7977"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone": "0faf220465920fd5",
@@ -1078,15 +1146,19 @@
       "verdict": "enforced"
     },
     "RFC7296-3.3.2-1": {
-      "note": "The row now quotes the Section 3.3.3 span through the IKE line of the table (IKE mandatory: ENCR, PRF, INTEG*, D-H) and the sentence that a compliant implementation MUST understand all mandatory and optional types for each protocol it supports. Asserted: Ze's IKE proposal carries exactly one ENCR, PRF, INTEG and DH (countTransform != 1 fails), and a peer IKE proposal without PRF draws ErrNoProposalChosen. Not asserted: a peer proposal missing ENCR, INTEG or D-H, and the understand-every-type clause (tagged under RFC7296-3.3.3-1 only).",
+      "note": "Row quotes the Section 3.3.3 span through the IKE line (ENCR, PRF, INTEG*, D-H) and the understand-all-types sentence. Asserted: Ze's IKE proposal carries exactly one ENCR, PRF, INTEG and DH, and a peer IKE proposal without PRF draws ErrNoProposalChosen (TestIKEWireProposalHasAllTransforms). TestResponderRequiresKEForDH (retagged from the retired 3.3.6-1) proves an IKE_SA_INIT without a KE payload is refused and one with it accepted: that is the KE payload of the exchange, not a D-H Transform Type in the SA proposal, so it proves a neighbour. Missing: peer IKE proposals missing ENCR, INTEG or D-H refused, and the understand-every-type clause (tagged under RFC7296-3.3.3-1 only).",
       "requirement_sha": "8057d3405db4009b",
       "tests": {
-        "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms": "bf1e8ec52b6ed4c2",
-        "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "bf1e8ec52b6ed4c2"
+        "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms": "e032382b6fba7977",
+        "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "e032382b6fba7977",
+        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "e032382b6fba7977",
+        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "e032382b6fba7977"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms": "6cd078090f25af90",
-        "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "6cd078090f25af90"
+        "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "6cd078090f25af90",
+        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "9150a5e7ed60264f",
+        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "9150a5e7ed60264f"
       },
       "verdict": "weak"
     },
@@ -1132,19 +1204,6 @@
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt#2": "2147dde0c243ba79"
       },
       "verdict": "weak"
-    },
-    "RFC7296-3.3.6-1": {
-      "note": "The row now quotes the Section 3.3.3 span that makes D-H a mandatory Transform Type for IKE and understanding every mandatory type a MUST. TestResponderRequiresKEForDH's negative removes the KE PAYLOAD from an IKE_SA_INIT whose SA proposals still carry the D-H transform (buildWireIKEProposals), and asserts the SA goes dead: that is the KE-payload rule (Sections 1.2, 3.4), a neighbouring obligation. No tagged unit offers an IKE proposal missing the D-H transform, so the tags attribute the neighbouring rule's evidence to this row.",
-      "requirement_sha": "315421de1b3b2feb",
-      "tests": {
-        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "bf1e8ec52b6ed4c2",
-        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "bf1e8ec52b6ed4c2"
-      },
-      "units": {
-        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "efe18c0971cb0c7d",
-        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "efe18c0971cb0c7d"
-      },
-      "verdict": "wrong"
     },
     "RFC7296-3.3.6-5": {
       "note": "the engine positive uses D-H NONE, a transform Ze understands and refuses, not one it does not understand; the crypto unit's positive proves another PROPOSAL is accepted (3.3.6-4), not a sibling transform; the Transform Attribute not-understood clause is not exercised",

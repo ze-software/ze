@@ -46,6 +46,7 @@ func rfc4301Half(set []dataplane.SPParams, dir dataplane.SADir) *dataplane.SPPar
 // PREVENTS: the return packet of a bypassed flow arriving with no SPD-I match and being
 // discarded, which is the outcome the section names.
 // RFC requirement: RFC4301-5.1-2 positive -- a both-direction bypass yields an SPD-I entry whose selector is the return flow.
+// RFC requirement: RFC4301-4.4.1-11 positive -- a both-direction BYPASS entry installs one SPD-I entry whose selector is the inbound traffic: source 10.2.0.0/24, destination 10.1.0.0/24, source port any, destination port 22.
 func TestRFC4301BypassReturnTrafficHasAnSPDIEntry(t *testing.T) {
 	in := rfc4301Half(spdPolicyParams(rfc4301BypassEntry(ipsec.SPDDirBoth)), dataplane.SADirIn)
 	if in == nil {
@@ -67,6 +68,7 @@ func TestRFC4301BypassReturnTrafficHasAnSPDIEntry(t *testing.T) {
 // PREVENTS: an inbound entry that matches the outbound flow's orientation, which permits
 // nothing that arrives, and an inbound hole the operator never wrote.
 // RFC requirement: RFC4301-5.1-2 negative -- the SPD-I entry never carries the outbound orientation, and an out-only entry gets no SPD-I entry.
+// RFC requirement: RFC4301-4.4.1-11 negative -- the SPD-I entry never carries the outbound traffic's selector values, and an out-only BYPASS entry installs no SPD-I entry.
 func TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy(t *testing.T) {
 	in := rfc4301Half(spdPolicyParams(rfc4301BypassEntry(ipsec.SPDDirBoth)), dataplane.SADirIn)
 	if in == nil {
@@ -86,6 +88,7 @@ func TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy(t *testing.T) {
 // PREVENTS: the reply to a bypassed inbound packet meeting a PROTECT entry, or no entry,
 // on its way out.
 // RFC requirement: RFC4301-5.2-5 positive -- a both-direction bypass yields an SPD-O entry whose selector is the outbound flow.
+// RFC requirement: RFC4301-4.4.1-12 positive -- a both-direction BYPASS entry installs one SPD-O entry whose selector is the outbound traffic: source 10.1.0.0/24, destination 10.2.0.0/24, source port 22, destination port any.
 func TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry(t *testing.T) {
 	out := rfc4301Half(spdPolicyParams(rfc4301BypassEntry(ipsec.SPDDirBoth)), dataplane.SADirOut)
 	if out == nil {
@@ -107,6 +110,7 @@ func TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry(t *testing.T) {
 // PREVENTS: an outbound entry no outbound packet can match, and an outbound bypass the
 // operator never wrote.
 // RFC requirement: RFC4301-5.2-5 negative -- the SPD-O entry never carries the inbound orientation, and an in-only entry gets no SPD-O entry.
+// RFC requirement: RFC4301-4.4.1-12 negative -- the SPD-O entry never carries the inbound traffic's selector values, and an in-only BYPASS entry installs no SPD-O entry.
 func TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy(t *testing.T) {
 	out := rfc4301Half(spdPolicyParams(rfc4301BypassEntry(ipsec.SPDDirBoth)), dataplane.SADirOut)
 	if out == nil {

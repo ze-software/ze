@@ -218,21 +218,25 @@
       "verdict": "enforced"
     },
     "RFC5282-8-1": {
-      "note": "IKE SA: TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm / TestRFC5282AEADOfferWithIntegrityIsRefused. ESP SA, initiator re-check only: TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm (NegotiateESP selects AUTH_NONE though Hash is configured) and TestRFC5282AEADESPOfferWithIntegrityIsRefused (AES-GCM+HMAC refused); both are red if espTransforms (initiator.go) stops mapping AEAD to AUTH_NONE, although the record names matchESP, which holds no AEAD rule. Missing: the responder's ESP selection, where Ze actually selects the Child SA's algorithms (matchOfferedESPProposal/espProposalMatches, responder.go, integID 0 for AEAD), has no 8-1 unit: a peer SAi2 offering AES-GCM with an integrity transform is never shown refused, nor an AES-GCM-only offer shown answered with no integrity transform in SAr2.",
+      "note": "IKE SA: TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm / TestRFC5282AEADOfferWithIntegrityIsRefused. ESP SA, initiator re-check: TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm / TestRFC5282AEADESPOfferWithIntegrityIsRefused. ESP SA, responder (where Ze selects the Child SA's algorithms): TestRFC5282ResponderSelectsNoIntegrityForAnAEADChildSA runs selectResponderESP over an AES-GCM-only SAi2 with Hash configured, then espProposalToWire over the selection exactly as buildAuthResponse does, and asserts one AES GCM transform and zero INTEG transforms in SAr2; TestRFC5282ResponderRefusesAnAEADChildSAOfferWithIntegrity refuses AES-GCM + HMAC-SHA2-256 with ErrNoProposalChosen and accepts no proposal. Records revert responder.go::espProposalMatches.",
       "requirement_sha": "7612d532bfa75002",
       "tests": {
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPOfferWithIntegrityIsRefused": "d2a8fe0dab3c6a2d",
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm": "d2a8fe0dab3c6a2d",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADOfferWithIntegrityIsRefused": "0b39a6806fb65453",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm": "0b39a6806fb65453"
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm": "0b39a6806fb65453",
+        "internal/component/ike/engine/rfc5282_responder_esp_test.go::TestRFC5282ResponderRefusesAnAEADChildSAOfferWithIntegrity": "47518a83342144a4",
+        "internal/component/ike/engine/rfc5282_responder_esp_test.go::TestRFC5282ResponderSelectsNoIntegrityForAnAEADChildSA": "47518a83342144a4"
       },
       "units": {
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPOfferWithIntegrityIsRefused": "0dfb1c546a3d73a3",
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm": "a62fe81713bd787d",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADOfferWithIntegrityIsRefused": "bbb5d867a1d341a1",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm": "184638515a99e3bb"
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm": "184638515a99e3bb",
+        "internal/component/ike/engine/rfc5282_responder_esp_test.go::TestRFC5282ResponderRefusesAnAEADChildSAOfferWithIntegrity": "9c88e6d777baefd4",
+        "internal/component/ike/engine/rfc5282_responder_esp_test.go::TestRFC5282ResponderSelectsNoIntegrityForAnAEADChildSA": "203caf29acf17750"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5282-8-2": {
       "note": "IKE proposal: TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform / TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform. ESP proposal: TestRFC5282AEADESPProposalCarriesNoIntegrityTransform (AES-GCM with Hash configured: zero Transform Type 3, ENCR and ESN kept) and TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform (AES-CBC: exactly one). espProposalToWire is the single ESP builder (IKE_AUTH offer, CREATE_CHILD_SA offer and answer).",

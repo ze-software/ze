@@ -374,10 +374,10 @@ func TestBuiltMessagesClearXAndVBits(t *testing.T) {
 // response. Each request the engine builds passes flags without wire.FlagResponse. Each
 // response ORs it in (handleInformationalOwned inbound.go:339, buildSAInitResponse
 // responder.go:262).
-// RFC requirement: RFC7296-3.1-9 negative -- the bit is read, not ignored. handleResponderInbound
-// refuses to process a message whose R bit is set (responder.go:53-56). handleOwnedInbound
-// classifies by it (inbound.go:45-46), so a request mislabeled as a response is treated
-// differently.
+// RFC requirement: RFC7296-3.1-12 negative -- handleResponderInbound does not process, and so
+// does not answer, an IKE_SA_INIT request whose R bit is set: the responder stays idle. The
+// same request with the R bit clear IS processed (sa-init-received), so the refusal is the
+// R bit's doing.
 func TestResponseBitMatchesDirection(t *testing.T) {
 	for _, m := range engineBuiltMessages(t) {
 		set := m.raw[19]&wire.FlagResponse != 0
