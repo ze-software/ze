@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC4552-11-1": {
       "note": "Forbidden: any inbound or outbound OSPF traffic that bypasses IPsec processing. TestIPsecPoliciesInterfaceScopedWildcard asserts out, in and fwd policies exist with UpperProto 89, ::/0 selectors and transport mode, red if a direction were missing. It never asserts the policy Action (the zero value protects, SPActionBypass is template-free) or the Proto template, so an installer that laid bypass policies in all three directions keeps every assertion green.",
@@ -57,15 +57,19 @@
       "verdict": "enforced"
     },
     "RFC4552-7-1": {
-      "note": "Clause 'same SPI for inbound and outbound': TestIPsecSAPerDestinationWithOSPFSelector asserts SPI 256 on every state, including the inbound link-local one, and the shared direction on the multicast states. Clause 'same keys': no 7-1-tagged assertion compares the key material across states, so an installer that keyed the inbound state differently passes. TestSAParamsSharedKey checks only that AuthKey is non-empty, and it carries the RFC4552-6-5 tag, not this one.",
+      "note": "Re-judged 2026-09-29 (independent judge). TestRFC4552EveryStateSharesSPIAndKeys builds the ESP interface's whole SA set (inbound unicast plus the two bidirectional multicast states) and asserts every state carries the one configured SPI and byte-identical integrity and encryption keys; the second half configures another SPI and other keys and finds those on every state, which refuses keys not taken from manual configuration. Records on buildIPsecInterfaceSAs and buildIPsecSA. The stale {single-polarity} annotation was removed from the row by the judge (./le rfc check demanded it). Not driven: the per-neighbour outbound unicast state (onNeighborSeen), which calls the same buildIPsecSA with the same spec.",
       "requirement_sha": "6b651075953b9d6e",
       "tests": {
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "6030e8816e85665f"
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "6030e8816e85665f",
+        "internal/plugins/ospf/rfc4552_same_keys_test.go::TestRFC4552EveryStateSharesSPIAndKeys": "3024909f4b444b0f",
+        "internal/plugins/ospf/rfc4552_same_keys_test.go::TestRFC4552EveryStateSharesSPIAndKeys#2": "3024909f4b444b0f"
       },
       "units": {
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "9e264ae6fcbef0c5"
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "9e264ae6fcbef0c5",
+        "internal/plugins/ospf/rfc4552_same_keys_test.go::TestRFC4552EveryStateSharesSPIAndKeys": "88058512ec18f702",
+        "internal/plugins/ospf/rfc4552_same_keys_test.go::TestRFC4552EveryStateSharesSPIAndKeys#2": "88058512ec18f702"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc4552"

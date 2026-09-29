@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc6138",
+  "records": [
+    {
+      "rid": "RFC6138-4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastCostOutCoversWholeSegment",
+      "unit-sha": "96465f3ad242a92e",
+      "claim-sha": "88bc5725f977e1dc",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/cutedge.go::IsCutEdge",
+      "producer-sha": "d164b33cab47e743",
+      "break": "body of IsCutEdge replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6138-4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC6138CutEdgeTransitLinkNotDelayed",
+      "unit-sha": "2aa35c858acba241",
+      "claim-sha": "d41ce162309a8daf",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/cutedge.go::IsCutEdge",
+      "producer-sha": "d164b33cab47e743",
+      "break": "body of IsCutEdge replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

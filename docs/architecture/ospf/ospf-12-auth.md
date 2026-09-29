@@ -21,6 +21,12 @@ extended 64-bit cryptographic sequence).
   the checksum and area checks and before any ISM, NSM or LSDB handler, so a
   failed packet is dropped before protocol processing.
   <!-- source: internal/plugins/ospf/dispatcher.go -- dispatcher -->
+- **The packet AuType must match the interface's AuType (RFC 2328 Section 8.2).**
+  An interface with no key chain runs Null authentication, so a packet with
+  AuType 1, 2 or 3 is dropped there. An interface with a key chain drops a
+  packet whose AuType differs from the chain's. Both drops count under reason
+  `autype-mismatch`.
+  <!-- source: internal/plugins/ospf/auth_keystore.go -- authStore.verify -->
 - **Go `hmac.New(H, Ko)` matches RFC 5709.** Section 3.3 derives Ko to L octets
   and computes `H(Ko XOR Ipad || msg)` with Ipad of block size B. Ko is shorter
   than B for every SHA in use, so the XOR zero-pads Ko to B, which is what

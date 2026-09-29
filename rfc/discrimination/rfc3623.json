@@ -2,6 +2,28 @@
   "rfc": "rfc3623",
   "records": [
     {
+      "rid": "RFC3623-5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623OperatorTurnsUnplannedRecoveryOff",
+      "unit-sha": "9113ff9c76efeec4",
+      "claim-sha": "68e1482cce820617",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config.go::parseGRSupport",
+      "producer-sha": "c914fff64c5e5ed6",
+      "break": "body of parseGRSupport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3623-5-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623OperatorTurnsUnplannedRecoveryOff",
+      "unit-sha": "9113ff9c76efeec4",
+      "claim-sha": "d6a09ead8a15ea8d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config.go::parseGRSupport",
+      "producer-sha": "c914fff64c5e5ed6",
+      "break": "body of parseGRSupport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3623-5-2",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go::TestRFC3623RestartGraceLSAFloodedToAllSPFRouters",
@@ -22,6 +44,28 @@
       "producer": "internal/plugins/ospf/lsdb/link_scope.go::floodLink",
       "producer-sha": "788557d47c29db25",
       "break": "body of floodLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3623-5-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623UnplannedGraceLSACarriesUnplannedReason",
+      "unit-sha": "dc7c960c34fe371a",
+      "claim-sha": "261e44ad340402f2",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/gr_restarter.go::maybeUnplannedRestart",
+      "producer-sha": "e23294b85eb1fbde",
+      "break": "body of maybeUnplannedRestart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3623-A-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress",
+      "unit-sha": "2d8f211fdc7d3667",
+      "claim-sha": "d912e6e6ecbfb6e0",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/gr_lsa.go::grSharedMedia",
+      "producer-sha": "4406c2e06de3b091",
+      "break": "body of grSharedMedia replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

@@ -51,7 +51,12 @@ inject nothing.
   RFC 5340 Appendix A.4.7 forbids a link-local or unspecified one. A received
   NSSA-LSA whose address fails the same eligibility rule local origination uses
   is not translated, so a peer's `fe80::/10` address never reaches the backbone.
+  On an IPv4 unicast or IPv4 multicast AF, RFC 5838 Section 2.6 sets the rule
+  instead: the field must hold a unicast IPv4 address in the first 32 bits and
+  zero in the other 96. A received NSSA-LSA with an IPv6 address, or with a
+  non-zero trailing bit, is not translated.
   <!-- source: internal/plugins/ospf/nssa.go -- translateNSSAV6 -->
+  <!-- source: internal/plugins/ospf/nssa.go -- translatableForwardingAddressV6 -->
   <!-- source: internal/plugins/ospf/interface_addr.go -- v6UsableForwardingAddress -->
 - **The scope decision lives in the engine**, so the redistribution framework
   stays address-family generic. An ASBR in an NSSA injects Type-7, and a

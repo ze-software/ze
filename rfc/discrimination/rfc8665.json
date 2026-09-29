@@ -24,6 +24,17 @@
       "break": "body of DecodeRangeValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8665-3.2-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_range_order_test.go::TestRFC8665RangeOrderStableThroughConfigRestart",
+      "unit-sha": "94ee569287116460",
+      "claim-sha": "149f1592d02cbf9f",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_config.go::parseSegmentRouting",
+      "producer-sha": "927c5f49268d9154",
+      "break": "body of parseSegmentRouting replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8665-5-6",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate",
@@ -47,6 +58,28 @@
     },
     {
       "rid": "RFC8665-5-6",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs",
+      "unit-sha": "2a0a95a106da8c4f",
+      "claim-sha": "7783031653ad4492",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_tilfa.go::PrefixSIDLabel",
+      "producer-sha": "9147a940e3d49c06",
+      "break": "body of PrefixSIDLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-5-6",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs",
+      "unit-sha": "2a0a95a106da8c4f",
+      "claim-sha": "42e591728cff61e3",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_tilfa.go::PrefixSIDLabel",
+      "producer-sha": "9147a940e3d49c06",
+      "break": "body of PrefixSIDLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-5-6",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored",
       "unit-sha": "82a8d91380881205",
@@ -66,6 +99,28 @@
       "producer": "internal/plugins/ospf/sr_malformed.go::resolve",
       "producer-sha": "232c081ddb95a2ba",
       "break": "body of resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-5-7",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_nexthop_flags_test.go::TestRFC8665NextHopEAndMFlagsApplied",
+      "unit-sha": "8cb4b7618092a374",
+      "claim-sha": "0e32bdca557e5242",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr/install.go::OutgoingActionFor",
+      "producer-sha": "9ca706d9d63730b0",
+      "break": "body of OutgoingActionFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-7.4.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_adjsid_withdraw_test.go::TestRFC8665AdjSIDWithdrawnThroughNeighborSink",
+      "unit-sha": "f15525056a18f474",
+      "claim-sha": "f92570b192fc6a55",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_adjsid.go::srAdjNeighborLost",
+      "producer-sha": "2e1760bdd5357412",
+      "break": "body of srAdjNeighborLost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8665-9-1",
@@ -91,6 +146,28 @@
     },
     {
       "rid": "RFC8665-9-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport",
+      "unit-sha": "38cbfa2a2121b501",
+      "claim-sha": "056babc0a018982a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::extendedV2Prefix",
+      "producer-sha": "ba5e25ac65b1b50d",
+      "break": "body of extendedV2Prefix replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-9-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport",
+      "unit-sha": "38cbfa2a2121b501",
+      "claim-sha": "03af406d67db7c75",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::extendedV2Prefix",
+      "producer-sha": "ba5e25ac65b1b50d",
+      "break": "body of extendedV2Prefix replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-9-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA",
       "unit-sha": "859aeaf0f572a513",
@@ -110,6 +187,17 @@
       "producer": "internal/plugins/ospf/sr_install.go::srRemotePrefixSIDs",
       "producer-sha": "3b992349c58f68b4",
       "break": "body of srRemotePrefixSIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-9-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidSRGBIgnoresLSA",
+      "unit-sha": "e7829f3d3479c00f",
+      "claim-sha": "b66941d88c2538fc",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr.go::srDecodeRemoteCapabilities",
+      "producer-sha": "f60e45a5bbbc0784",
+      "break": "body of srDecodeRemoteCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8665-9-1",

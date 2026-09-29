@@ -2,17 +2,21 @@
   "audited": "2026-09-29",
   "requirements": {
     "RFC6138-4-1": {
-      "note": "Re-judged 2026-09-29 after TestLDPSyncTECostUntouched changed (RFC5443-4-1 tags and a stale comment removed; the RFC 6138 assertions are unchanged). The unit asserts only the decision helper: ldpSyncWithholdTransit(NotSynchronized, managed, cutEdge=true) is false and the non-cut-edge case withholds. No assertion reads an originated Router-LSA, and nothing drives applyLDPSyncOverride's e.spf.IsCutEdge call or routerLinks' LDPSyncWithholdTransit gate, so a regression that passes the wrong cut-edge answer, or withholds a cut-edge transit link at origination, stays green. The earlier enforced verdict itself said the proof stops at the helper; held to the same standard as RFC5443-2-1 and 3-1, that is weak. Missing: an origination-level test with a real SPF graph where a not-synchronized cut-edge broadcast segment's transit link is present in the Router-LSA, and a non-cut-edge one is withheld.",
+      "note": "Re-judged 2026-09-29 (independent judge). The decision now reaches the originated LSA through the real SPF graph. Positive TestRFC6138CutEdgeTransitLinkNotDelayed: not synchronized, no alternate path in the SPF computer (cut-edge) -> production applyLDPSyncOverride plus OriginateRouter keep exactly 1 transit link. Negative TestRFC5443BroadcastCostOutCoversWholeSegment: the same not-synchronized segment with an alternate path (not a cut-edge) has its transit link withheld, so the cut-edge answer and not LDP alone decides. Revert records on spf IsCutEdge, observed red. Test race in the rfc6138SPF helper (field swap under the engine's own SPF goroutine) fixed by stopping the engine computer first; not a product race.",
       "requirement_sha": "2682cf3eba0a0a45",
       "tests": {
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "9e546619d1947e81",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "9e546619d1947e81"
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "9e546619d1947e81",
+        "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastCostOutCoversWholeSegment": "c1c795ba28a13064",
+        "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC6138CutEdgeTransitLinkNotDelayed": "c1c795ba28a13064"
       },
       "units": {
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "fe06dd08554cffcf",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "fe06dd08554cffcf"
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "fe06dd08554cffcf",
+        "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastCostOutCoversWholeSegment": "4bdc23ae6476cac9",
+        "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC6138CutEdgeTransitLinkNotDelayed": "0aea2652c574e88c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC6138-x-1": {
       "note": "SB-3 strict re-read 2026-09-27. Forbidden: a cut-edge check answering from the graph while an SPF is still pending. TestLDPSyncCutEdgeUsesFreshSPF fails if SPFSnapshot is empty after IsCutEdge, so the flush clause has a red assertion. The tagged 'negative' is the same unit's precondition (SPFSnapshot empty before the query), which violates nothing; the row carries no {single-polarity} marker. Nothing shows the answer changes with the fresh graph (a stale graph and the fresh one both yield non-cut-edge here).",

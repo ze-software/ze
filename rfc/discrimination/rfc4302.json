@@ -68,6 +68,28 @@
       "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4302-2.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI",
+      "unit-sha": "603258eade515e1f",
+      "claim-sha": "605a7b2b02868111",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecInterfaceSAs",
+      "producer-sha": "585210642d31eeae",
+      "break": "body of buildIPsecInterfaceSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4302-2.4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI",
+      "unit-sha": "603258eade515e1f",
+      "claim-sha": "1af36c646b0ec271",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "6a340d64849a22e0",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4302-2.4-5",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAAddressMatchIndication",
@@ -198,6 +220,17 @@
       "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecReplayWindow",
       "producer-sha": "5b69594e269c2512",
       "break": "line 167: \"w \u003e= ipsecReplayWindowMin \u0026\u0026 w \u003c= ipsecReplayWindowMax\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC4302-3.4.3-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302MinimumReplayWindowReachesEverySA",
+      "unit-sha": "f8d77bfc93053034",
+      "claim-sha": "8548a588eb316027",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "6a340d64849a22e0",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

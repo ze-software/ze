@@ -1,18 +1,23 @@
 {
   "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5838-2.3-1": {
-      "note": "Re-judged 2026-09-29. New negative TestRFC5838NonConformingPrefixNotInRouteComputation drives v6BuildRoutes on an IPv4-unicast AF with one Intra-Area-Prefix-LSA holding a /24 and a 64-bit prefix: exactly one route, the /24, so the conforming sibling proves the LSA was read (revert record on v6PrefixToNetip). Positive TestIPv4OverV3BuildRoutes has no record but is exact. Missing: the other route-computation inputs. The inter-area-prefix path and the AS-external/NSSA record path in afstrategy_v6.go each call v6PrefixToNetip with their own ok check; dropping either check stays green, since no tagged unit feeds a non-conforming inter-area or external prefix.",
+      "note": "Re-judged 2026-09-29 (independent judge, continuation 2). All three route-computation inputs on an IPv4-unicast AF now refuse a non-conforming (64-bit) prefix beside a conforming /24 that proves the reader ran: intra-area (TestRFC5838NonConformingPrefixNotInRouteComputation, v6BuildRoutes), inter-area (TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation, v6SummaryReader yields exactly the /24), and AS-External plus NSSA (TestRFC5838NonConformingExternalPrefixNotInRouteComputation, v6ExternalReader accepts the /24, refuses the 64-bit). Revert records on v6PrefixToNetip, v6SummaryReader and v6ExternalReader. Positive TestIPv4OverV3BuildRoutes is exact but carries no record.",
       "requirement_sha": "77dae112c4211bff",
       "tests": {
         "internal/plugins/ospf/afstrategy_v6_test.go::TestIPv4OverV3BuildRoutes": "e735eb206dc29802",
-        "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingPrefixNotInRouteComputation": "4cb25f8913bb18cc"
+        "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingExternalPrefixNotInRouteComputation": "871029566403d2c9",
+        "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation": "871029566403d2c9",
+        "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingPrefixNotInRouteComputation": "871029566403d2c9"
       },
       "units": {
         "internal/plugins/ospf/afstrategy_v6_test.go::TestIPv4OverV3BuildRoutes": "10d1c67249c2ed0c",
+        "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingExternalPrefixNotInRouteComputation": "5f2dc97ec3bdcb9f",
+        "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation": "8ba05f9ac8a29622",
         "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingPrefixNotInRouteComputation": "b71d69fae5fefd50"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5838-2.4-1": {
       "note": "Forbidden behaviour (a): a non-default-AF instance accepting a Hello with the AF-bit clear. (b) TestAFBitGatesFullNonDefault dispatches that Hello on an IPv4-unicast instance and asserts neighborSnapshot() is empty (a processed Hello would create an Init neighbor), then the same Hello with SetAF() yields one neighbor, isolating the AF-bit as the only difference.",
@@ -39,34 +44,42 @@
       "verdict": "enforced"
     },
     "RFC5838-2.6-1": {
-      "note": "Re-judged 2026-09-29. NSSA-LSA origination is proven both ways: TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4 decodes the originated NSSA-LSA for IPv4 unicast and IPv4 multicast AFs and reads 192.0.2.7 in the leading 32 bits; TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress offers only an IPv6 address and reads no FA; revert records on forwardingAddressForAF. Missing: the AS-external-LSA clause. Ze's redistributed Type-5 (v6OriginateExternalLSA) carries no FA, but the translated Type-5 does: translateNSSAV6 (nssa.go) copies a RECEIVED Type-7's 16-byte FA through v6UsableForwardingAddress, an IPv6-only check, with no address-family test, into v6OriginateTranslatedExternal. On an IPv4 AF a peer's Type-7 with an IPv6 FA would be re-originated in Ze's own AS-external-LSA. No test covers that path; the handoff's claim that the translated FA is always set by forwardingAddressForAF holds only for Ze's own Type-7s. Probable defect, reported.",
+      "note": "Re-judged 2026-09-29 (independent judge, continuation 2). Both LSA kinds that can carry an FA on an IPv4 AF are now proven both ways. NSSA-LSA origination: TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4 / TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress (records on forwardingAddressForAF). AS-external-LSA: Ze's redistributed Type-5 (v6OriginateExternalLSA) carries no FA, and the translated Type-5 copies the Type-7 FA; TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4 reads 192.0.2.7 in the translated Type-5 for both IPv4 AFs, TestRFC5838IPv4AFTranslatorRefusesIPv6ForwardingAddress feeds a Type-7 with FA 2001:db8:9::2 and finds no translated Type-5. Producer checked: nssa.go translatableForwardingAddressV6 (D-8 fix) gates the copy on the AF with the RFC 5838 s2.6 quote; revert records on it, observed red.",
       "requirement_sha": "6aab692a4b517197",
       "tests": {
         "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "60f823dd52fcc1f1",
-        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress": "60f823dd52fcc1f1"
+        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress": "60f823dd52fcc1f1",
+        "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4": "943420c3b72e5888",
+        "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatorRefusesIPv6ForwardingAddress": "943420c3b72e5888"
       },
       "units": {
         "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "98650907f0a3cc3c",
-        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress": "3f60c0643680ca34"
+        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress": "3f60c0643680ca34",
+        "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4": "edd02add2ad5e19a",
+        "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatorRefusesIPv6ForwardingAddress": "c466c518887688bb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5838-2.6-2": {
-      "note": "Re-judged 2026-09-29. The positive reads all 16 bytes of the originated NSSA-LSA FA (IPv4 then 96 zero bits) for both IPv4 AFs, with a revert record on forwardingAddressForAF. The {single-polarity} annotation argues no non-zero-trailing path exists; that holds for forwardingAddressForAF but not for the translated AS-external-LSA: translateNSSAV6 copies a received Type-7's FA verbatim with no AF check, so a peer's FA with non-zero trailing bits reaches Ze's own Type-5 on an IPv4 AF. The annotation's argument is therefore incomplete and the translation path is untested.",
+      "note": "Re-judged 2026-09-29 (independent judge, continuation 2). The {single-polarity} annotation is gone (the translation path could carry non-zero trailing bits, D-8). Positive: the originated NSSA-LSA and the translated AS-external-LSA each read all 16 FA bytes as 192.0.2.7 plus 96 zero bits, both IPv4 AFs. Negative: TestRFC5838IPv4AFTranslatorRefusesNonZeroTrailingBits feeds a Type-7 with 192.0.2.7 and bit 127 set and finds no translated Type-5, isolated (the same FA without the bit translates in the positive). Revert records on forwardingAddressForAF and translatableForwardingAddressV6.",
       "requirement_sha": "ab1696848a715e70",
       "tests": {
-        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "60f823dd52fcc1f1"
+        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "60f823dd52fcc1f1",
+        "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4": "943420c3b72e5888",
+        "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatorRefusesNonZeroTrailingBits": "943420c3b72e5888"
       },
       "units": {
-        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "98650907f0a3cc3c"
+        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "98650907f0a3cc3c",
+        "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4": "edd02add2ad5e19a",
+        "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatorRefusesNonZeroTrailingBits": "89d4531618807001"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5838-2.8-1": {
       "note": "Re-judged 2026-09-29. Positive TestV6VirtualEndpointResolvesGlobalAddress resolves global /128 LA addresses on both ends. Negatives cover both ends: the existing neighbor-side link-local-only case and new TestRFC5838VirtualLinkRequiresLocalGlobalAddress (this router advertises only fe80::1, neighbor global) which fails to resolve. v6ResolveVirtualEndpointLocked requires sok && dok and v6RouterGlobalAddr refuses non-global addresses; revert record on the resolver.",
       "requirement_sha": "b0701552f09f76a3",
       "tests": {
-        "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838VirtualLinkRequiresLocalGlobalAddress": "4cb25f8913bb18cc",
+        "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838VirtualLinkRequiresLocalGlobalAddress": "871029566403d2c9",
         "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointRequiresGlobalAddress": "571c66c643c8a516",
         "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointResolvesGlobalAddress": "571c66c643c8a516"
       },

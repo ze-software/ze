@@ -539,8 +539,9 @@ func (e *engine) translateNSSAV6(now time.Time) {
 				// (Prefix FE80/10)", and "an OSPFv3 implementation advertising a forwarding
 				// address MUST advertise a global IPv6 address". The translated Type-5 copies
 				// the Type-7's address (RFC 3101 Section 3.2), so a received NSSA-LSA whose
-				// address is not global is not translated.
-				if !v6UsableForwardingAddress(netip.AddrFrom16(body.ForwardingAddr)) {
+				// address is not global is not translated. On an IPv4 AF, RFC 5838 Section 2.6
+				// governs the field instead.
+				if !translatableForwardingAddressV6(body.ForwardingAddr, e.af) {
 					continue
 				}
 				lsid := h.LinkStateID
@@ -557,6 +558,26 @@ func (e *engine) translateNSSAV6(now time.Time) {
 		}
 	}
 	e.applyTranslationsV6(db, self, desired)
+}
+
+// translatableForwardingAddressV6 reports whether a received NSSA-LSA's Forwarding Address
+// field fa may be copied into the AS-external-LSA this router translates it into, at the
+// instance's address family af. The Type-7 is not translated when it returns false.
+func translatableForwardingAddressV6(fa [16]byte, af addressFamily) bool {
+	if !af.isIPv4() {
+		return v6UsableForwardingAddress(netip.AddrFrom16(fa))
+	}
+	// RFC 5838 Section 2.6: "For IPv4 unicast and IPv4 multicast AFs, the Forwarding Address
+	// in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address. To achieve this, the
+	// IPv4 Forwarding Address is advertised by placing it in the first 32 bits of the
+	// Forwarding Address field in AS-external-LSAs and NSSA-LSAs. The remaining bits MUST be
+	// set to zero." The translated Type-5 copies the field, so a received field that is not
+	// an IPv4 address followed by 96 zero bits is not translated.
+	if [12]byte(fa[4:]) != ([12]byte{}) {
+		return false
+	}
+	v4 := netip.AddrFrom4([4]byte(fa[:4]))
+	return !v4.IsUnspecified() && !v4.IsLoopback() && !v4.IsMulticast() && !v4.IsLinkLocalUnicast()
 }
 
 // nssaABRsV6 is the OSPFv3 counterpart of nssaABRs; the Router-LSA MUST also carry the

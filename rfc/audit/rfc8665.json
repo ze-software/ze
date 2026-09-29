@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8665-10-1": {
@@ -104,15 +104,17 @@
       "verdict": "enforced"
     },
     "RFC8665-3.2-5": {
-      "note": "TestRFC8665RangeOrderStableAcrossRestart feeds the same Go slice to srConfiguredRouter twice, so it proves srBuildSRGB is deterministic but bypasses parseSegmentRouting (sr_config.go), the step the single-polarity annotation says rebuilds the order after a restart; a parser that reordered ranges would stay green (questions 2 and 4)",
+      "note": "Re-judged 2026-09-29 (independent judge). TestRFC8665RangeOrderStableThroughConfigRestart now drives the configuration text through parseOSPFConfig, applySRConfig (parseSegmentRouting) and srBuildSRGB, clears the process SR store (restart) and re-applies: byte-identical SID/Label Range TLVs, identical under a different key order of the document, and exactly one SRGB range 16000/8000 (revert record on parseSegmentRouting, observed red). Single polarity is valid and the corrected annotation matches the producer: sr_config.go reads the one YANG srgb container into a one-element slice, so there is no reorderable input to reject.",
       "requirement_sha": "b2e55f70bb2d49c5",
       "tests": {
+        "internal/plugins/ospf/rfc8665_range_order_test.go::TestRFC8665RangeOrderStableThroughConfigRestart": "ff2ad4dd3deb0343",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RangeOrderStableAcrossRestart": "9a287c8302356a59"
       },
       "units": {
+        "internal/plugins/ospf/rfc8665_range_order_test.go::TestRFC8665RangeOrderStableThroughConfigRestart": "a07106b17e254da7",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RangeOrderStableAcrossRestart": "b0bd598535b8eb58"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8665-3.2-6": {
       "note": "SRGB.Label is asserted in order: index 5 over ranges 20000.. then 16000.. must be 16000 and the reversed order must differ at index 0, red on a sorted mapping. But the order the receiver adheres to is produced by srDecodeRemoteCapabilities, which appends decoded ranges into caps.SRGB, and no tagged unit decodes two SID/Label Range TLVs from an RI body and checks the resulting order; a decode that sorted or reordered ranges stays green (question 4)",
@@ -297,17 +299,15 @@
       "verdict": "enforced"
     },
     "RFC8665-5-6": {
-      "code": {
-        "internal/plugins/ospf/sr_malformed.go::add": "a34575fa9cf375ab",
-        "internal/plugins/ospf/sr_malformed.go::resolve": "99df496e869c4403"
-      },
-      "note": "RA-OSPF2 strict re-audit 2026-09-27 (independent of DF-OSPF-E). RFC 8665 Section 5 (rfc8665.txt:649-650): 'If an OSPF router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored.' Proven clauses: one router's repeated Prefix-SID, equal (TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored negative, two LSAs and two sub-TLVs: !rs.Duplicate goes red) or differing (TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate negative; TestRFC8665DuplicatePrefixSIDsAllIgnored); scope limits prefix, topology (MT-ID 5), algorithm, router and area in the positive cases, each red if its key field or the per-(area,router) count is dropped. 'Ignored' is proven for the MPLS installer only: removing `|| rs.Duplicate` from srInstaller (sr_install.go:80) reddens TestRFC8665DuplicatePrefixSIDsAllIgnored. Weak because the second reader of the same map, srTILFAResolver.PrefixSIDLabel (sr_tilfa.go:40), skips a Duplicate entry and no tagged unit asserts it: with `|| rs.Duplicate` removed there, every RFC8665-5-6 unit stays green (work/agents/RA-OSPF2/mutation.log), so a TI-LFA repair stack may use a Prefix-SID the RFC says to ignore without any red. Also unasserted: a router that repeats its Prefix-SID must not condemn another router's single Prefix-SID for the same scope (no case mixes a repeating and a single advertiser).",
+      "note": "Re-judged 2026-09-29 (independent judge). The second reader is now covered: TestRFC8665TILFAIgnoresDuplicatePrefixSIDs drives srTILFAResolver.PrefixSIDLabel with an absolute-label SID (no SRGB needed), resolves 20009 for one Prefix-SID and nothing once the same router advertises a second one for the same prefix, topology and algorithm; removing the Duplicate skip reddens it (records on PrefixSIDLabel). Installer proofs and per-(area,router,prefix,MT-ID,algorithm) scoping stand. A mixed case (one router repeating, another advertising once) is still not driven; the 2026-09-27 audit recorded that the positive scoping cases go red when the router key or the per-(area,router) count is dropped, which bounds that risk.",
       "requirement_sha": "38e20074a240d858",
       "tests": {
-        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate": "dce3602cd0ef9901",
-        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate#2": "dce3602cd0ef9901",
+        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate": "ef2971c9ee845d41",
+        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate#2": "ef2971c9ee845d41",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665DuplicatePrefixSIDsAllIgnored": "9a287c8302356a59",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised": "9a287c8302356a59",
+        "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs": "1baa9102a5482995",
+        "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs#2": "1baa9102a5482995",
         "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored": "4dc005b115e8b238",
         "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored#2": "4dc005b115e8b238"
       },
@@ -316,19 +316,23 @@
         "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate#2": "8ddbadd17b9e59cb",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665DuplicatePrefixSIDsAllIgnored": "f3d8fe750c1b1b6c",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised": "6f7ee6897ce94b04",
+        "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs": "6592472bc05bcfff",
+        "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs#2": "6592472bc05bcfff",
         "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored": "6c0841a259f20766",
         "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored#2": "6c0841a259f20766"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8665-5-7": {
-      "note": "through installRoutes only the NP-clear PHP case of the next-hop originator and the transit-hop swap are asserted; the E-Flag (Explicit NULL) and M-Flag outcomes via the next-hop are never driven through the installer, so ignoring E or M there stays green (question 4)",
+      "note": "Re-judged 2026-09-29 (independent judge). TestRFC8665NextHopEAndMFlagsApplied drives installRoutes toward the originator next-hop: NP=1 E=0 -> 16009, NP=1 E=1 -> Explicit NULL, M=1 with NP/E set -> 16009 (E ignored), so the E-Flag and 'M ignores NP and E' are applied through the installer (record on OutgoingActionFor). Weak on question 1: the row reads 'as described below', and s5 then says PHP 'SHOULD be done' when 'The Prefix is intra-area type and the downstream neighbor is the originator of the prefix' -- exactly this fixture -- yet the m-set-np-clear case pins 16009 (no PHP) as correct (OutgoingActionFor returns ActionKeep for any M). The test enshrines a deviation from RFC8665-5-14 without a recorded reason. Missing: either the M case asserts PHP for the intra-area originator next-hop, or the deviation is recorded on 5-14 and the M case drops that expectation. The earlier transit-hop negative is unchanged and has no record.",
       "requirement_sha": "02d16f90eaa7e273",
       "tests": {
+        "internal/plugins/ospf/rfc8665_nexthop_flags_test.go::TestRFC8665NextHopEAndMFlagsApplied": "ec2e6c3f55e29a44",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised": "9a287c8302356a59",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665OriginatorFlagsNotAppliedAtTransitHop": "9a287c8302356a59"
       },
       "units": {
+        "internal/plugins/ospf/rfc8665_nexthop_flags_test.go::TestRFC8665NextHopEAndMFlagsApplied": "c641759f4a58d066",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised": "a99bc9fab36cae77",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665OriginatorFlagsNotAppliedAtTransitHop": "31b1e7e6378db7f4"
       },
@@ -348,38 +352,33 @@
       "verdict": "enforced"
     },
     "RFC8665-7.4.1-1": {
-      "note": "the tests call srAdjManager.neighborLost directly and assert the store entry, the pop entry and the SRLB label are removed; neither the neighbor-FSM hook srAdjNeighborLost (sr_adjsid.go) nor the re-origination it triggers is exercised, so removing the hook or originateSelfLSAsDeferred leaves the Adj-SID advertised with the tests green (question 2)",
+      "note": "Re-judged 2026-09-29 (independent judge). TestRFC8665AdjSIDWithdrawnThroughNeighborSink reports the neighbor down through the production sink (neighborEventSinkValue().NeighborDown -> bfdNeighborLost -> srAdjNeighborLost), then asserts the Adj-SID is gone from the store the Extended Link LSA reads, its pop entry removed, its SRLB label freed and one self-LSA re-origination queued (revert record on srAdjNeighborLost). The queue is also fed by the sink's own onChange, so the unit proves the withdrawal is in the store before a re-origination that is certainly queued, which is what carries it to the area. The wrong-adjacency negative stands.",
       "requirement_sha": "16fad9c3653817ba",
       "tests": {
+        "internal/plugins/ospf/rfc8665_adjsid_withdraw_test.go::TestRFC8665AdjSIDWithdrawnThroughNeighborSink": "b123d9392ac3d3ba",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665AdjSIDWithdrawKeyedByAdjacency": "9a287c8302356a59",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665AdjSIDWithdrawnWhenAdjacencyDrops": "9a287c8302356a59"
       },
       "units": {
+        "internal/plugins/ospf/rfc8665_adjsid_withdraw_test.go::TestRFC8665AdjSIDWithdrawnThroughNeighborSink": "2f34f5b92fc130a9",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665AdjSIDWithdrawKeyedByAdjacency": "7072de1ffc544495",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665AdjSIDWithdrawnWhenAdjacencyDrops": "9df4eb44f66a7c72"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8665-9-1": {
-      "code": {
-        "internal/plugins/ospf/ext_prefix.go::extPrefixOnReceive": "f3c529d7cbe557d2",
-        "internal/plugins/ospf/sr/codec.go::DecodeAdjSIDValue": "184fa5abdb3e8baa",
-        "internal/plugins/ospf/sr/codec.go::DecodeExtPrefixRangeValueV4": "7cf8813700445b5a",
-        "internal/plugins/ospf/sr/codec.go::DecodeLANAdjSIDValue": "11b2effa686b79d6",
-        "internal/plugins/ospf/sr/codec.go::DecodePrefixSIDValue": "c32f46ebe360aa23",
-        "internal/plugins/ospf/sr/codec.go::DecodeRangeValue": "dc81d12be9255a03",
-        "internal/plugins/ospf/sr_malformed.go::srExtLinkLengthInvalid": "49cbab3793d6cab9",
-        "internal/plugins/ospf/sr_malformed.go::srExtPrefixLengthInvalid": "bf98e504778efd93"
-      },
-      "note": "RA-OSPF2 strict re-audit 2026-09-27 (independent of DF-OSPF-E). RFC 8665 Section 9 (rfc8665.txt, s9): 'For any new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored.' Kept weak; DF-OSPF-E's gaps confirmed at source. Proven at LSA level in tagged units: Prefix-SID too long/short/length-and-flags, Extended Prefix Range, Adj-SID, LAN Adj-SID length-and-flags (TestRFC8665LengthBeforeFlagsIgnoresLSA, TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA, TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA), SRLB truncated and SRMS short in the RI LSA (TestRFC8665LengthInvalidTLVIgnoresLSA), positive polarity in each. Unproven clauses: the SID/Label Range (SRGB) TLV with an invalid length: srDecodeRemoteCapabilities (sr.go:348) returns empty capabilities on ErrLength, but TestRFC8665LengthInvalidTLVIgnoresLSA's invalid map carries only srlb-truncated and srms-short, so turning the SRGB branch's return into continue leaves every tagged unit green; the BGP-LS export reader is asserted only by the untagged TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport.",
+      "note": "Re-judged 2026-09-29 (independent judge). Both gaps of the 2026-09-27 audit are closed. SRGB branch: TestRFC8665LengthInvalidSRGBIgnoresLSA truncates only the SRGB TLV's SID/Label sub-TLV in the body the well-formed case applies and asserts no capability (algorithm, SRGB, SRLB) is taken; negative record on srDecodeRemoteCapabilities. BGP-LS export: TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport is now tagged, its control half carries the Prefix-SID and its malformed half carries none from the LSA (records on extendedV2Prefix). Earlier LSA-level proofs (Prefix-SID, Extended Prefix Range, Adj-SID, LAN Adj-SID, SRLB, SRMS) stand.",
       "requirement_sha": "2363507fd25d8603",
       "tests": {
-        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA": "dce3602cd0ef9901",
-        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA#2": "dce3602cd0ef9901",
-        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA": "dce3602cd0ef9901",
-        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA#2": "dce3602cd0ef9901",
-        "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA": "c7f9a2f6abf22b69",
-        "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA#2": "c7f9a2f6abf22b69",
+        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA": "ef2971c9ee845d41",
+        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA#2": "ef2971c9ee845d41",
+        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport": "ef2971c9ee845d41",
+        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport#2": "ef2971c9ee845d41",
+        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA": "ef2971c9ee845d41",
+        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA#2": "ef2971c9ee845d41",
+        "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidSRGBIgnoresLSA": "71d30bc409f505ca",
+        "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA": "71d30bc409f505ca",
+        "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA#2": "71d30bc409f505ca",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665TruncatedTLVsRejectedWithoutPanic": "279bf468c654f872",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665WellFormedTLVsDecode": "279bf468c654f872",
         "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA": "83e5fc62a1790cf7",
@@ -388,8 +387,11 @@
       "units": {
         "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA": "2869be4a64da8e5e",
         "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA#2": "2869be4a64da8e5e",
+        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport": "3fcf4118b01019e8",
+        "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport#2": "3fcf4118b01019e8",
         "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA": "087887b02bab48d8",
         "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA#2": "087887b02bab48d8",
+        "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidSRGBIgnoresLSA": "098d3a8387d57414",
         "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA": "f1271a8538e3fd01",
         "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA#2": "f1271a8538e3fd01",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665TruncatedTLVsRejectedWithoutPanic": "84b313b3d7dbb4f4",
@@ -397,7 +399,7 @@
         "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA": "ac5e7002c90370da",
         "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA#2": "ac5e7002c90370da"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc8665"

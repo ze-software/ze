@@ -142,6 +142,12 @@ func TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA(t *testing.T) {
 // only valid Prefix-SID sits beside a length-invalid Prefix-SID in another prefix TLV, and
 // checks that BGP-LS carries no Prefix-SID from it. The control half exports the same LSA
 // without the bad sub-TLV and finds the Prefix-SID, so the absence is the malformed verdict.
+//
+// RFC requirement: RFC8665-9-1 positive -- the BGP-LS export of a well-formed Extended Prefix
+// LSA carries its Prefix-SID.
+// RFC requirement: RFC8665-9-1 negative -- the BGP-LS export of an Extended Prefix LSA holding
+// a length-invalid Prefix-SID sub-TLV (alone, or with invalid flags too) carries no Prefix-SID
+// from that LSA, including the valid Prefix-SID in its other prefix TLV.
 func TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport(t *testing.T) {
 	valid := sr.EncodePrefixSIDValue(sr.PrefixSID{MTID: 9, Index: 77})
 	first := packet.ExtPrefixTLV{RouteType: packet.ExtRouteTypeIntraArea, PrefixLength: 24, AddressPrefix: [4]byte{192, 0, 2, 0},

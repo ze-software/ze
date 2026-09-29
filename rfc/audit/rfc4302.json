@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC4302-2-1": {
       "note": "(a) forbidden: an AH SA whose protocol is not 51, so the kernel writes another value in the header preceding AH. (b) TestIPsecSAProtocolNumber: ah.Proto != 51 goes red; the esp case (Proto 50) goes red on a blanket-51 installer. Ze's boundary is the SA protocol number; Linux XFRM writes the Next Header from it.",
@@ -28,17 +28,21 @@
       "verdict": "enforced"
     },
     "RFC4302-2.4-1": {
-      "note": "(a) forbidden: an AH implementation that cannot map inbound traffic to a UNICAST SA by its SPI (alone or with the protocol). (b) TestAHSAIdentifiedBySPIAndProtocol asserts SPI, Proto AH, Dst and wildcard Src, but only for the ff02::5 AllSPFRouters state, a multicast destination. The unicast state setConfig also builds (buildIPsecSA(ifindex, local, SADirIn, c), ipsec_install.go) is never asserted, so the unicast clause the sentence is about has no red assertion.",
+      "note": "Re-judged 2026-09-29 (independent judge). The unicast clause is now asserted: TestRFC4302UnicastAHStateIdentifiedBySPI builds the interface's whole SA set and finds exactly one inbound state for the unicast link-local fe80::1 with SPI 0x1000, proto AH, source wildcarded; with SPI 0x2000 configured the unicast state carries 0x2000, so the mapping key follows the configured SPI. Records on buildIPsecInterfaceSAs and buildIPsecSA. Multicast units stand. Ze's role is installing the state the kernel maps inbound AH by; the kernel lookup itself is XFRM.",
       "requirement_sha": "1c40d5ea6827b71c",
       "tests": {
         "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol": "9c4cd634d1e5cd35",
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol#2": "9c4cd634d1e5cd35"
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol#2": "9c4cd634d1e5cd35",
+        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI": "75c9ceeba7e7207a",
+        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI#2": "75c9ceeba7e7207a"
       },
       "units": {
         "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol": "fe9892d839b88960",
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol#2": "fe9892d839b88960"
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol#2": "fe9892d839b88960",
+        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI": "13af0c0de68f9619",
+        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI#2": "13af0c0de68f9619"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4302-2.4-5": {
       "note": "The sentence is about the SAD entry's indication of which addresses join the SPI in the inbound SA lookup; in XFRM that is the state's daddr and whether its saddr is wildcarded (SAParams.Src/Dst). TestAHSAAddressMatchIndication asserts the state's traffic selector (Sel.Src/Sel.Dst ::/0, Sel.UpperProto 89), which filters traffic on an SA already found and does not decide the lookup key. The Src-wildcard indication is asserted in TestAHSAIdentifiedBySPIAndProtocol, which is not tagged for this row. The negative (upper protocol 89) proves a neighbouring selector rule.",
@@ -106,15 +110,17 @@
       "verdict": "weak"
     },
     "RFC4302-3.4.3-5": {
-      "note": "(a) forbidden: an implementation that cannot run an SA with a 32-packet replay window. (b) TestIPsecReplayWindowRange only asserts that validateConfig accepts replay-window 32; no tagged unit shows a 32 window reaching the SA or the kernel state. The negative (1 and 31 refused with ErrIPsecReplayWindow) does not violate this requirement: the RFC sets a minimum that must be SUPPORTED and forbids no smaller window, so the negative asserts a Ze policy, not the RFC.",
+      "note": "Re-judged 2026-09-29 (independent judge). The reach gap is closed: TestRFC4302MinimumReplayWindowReachesEverySA parses replay-window 32 from config text, validateConfig accepts it and all three SAs of buildIPsecInterfaceSAs carry ReplayWin 32 (revert record on buildIPsecSA); the kernel XFRM state is not read. Weak only on polarity: the tagged negative in TestIPsecReplayWindowRange (1 and 31 refused) is a Ze policy the RFC does not forbid, so it does not violate this requirement, and the row carries no {single-polarity} annotation. 'MUST support 32' has no violating input beyond 32 failing, so the fix is to replace that negative tag with a {single-polarity: positive} annotation.",
       "requirement_sha": "f615c5ec9826eb4d",
       "tests": {
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange": "24a99999625a9144",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange#2": "24a99999625a9144"
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange#2": "24a99999625a9144",
+        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302MinimumReplayWindowReachesEverySA": "75c9ceeba7e7207a"
       },
       "units": {
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange": "cddd29092ae0c0e1",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange#2": "cddd29092ae0c0e1"
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange#2": "cddd29092ae0c0e1",
+        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302MinimumReplayWindowReachesEverySA": "28de7da421630189"
       },
       "verdict": "weak"
     }

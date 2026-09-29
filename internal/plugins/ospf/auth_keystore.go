@@ -306,12 +306,18 @@ func (s *authStore) verify(iface string, rid types.RouterID, src [4]byte, wire [
 	keys := s.chains[iface]
 	now := s.now()
 	s.mu.Unlock()
-	if len(keys) == 0 {
-		return "", true // auth not configured on this interface
-	}
 	h, _, err := packet.DecodeHeader(wire)
 	if err != nil {
 		return "decode", false
+	}
+	// RFC 2328 Section 8.2: "The AuType specified in the packet must match the AuType
+	// specified for the associated area." An interface with no key chain runs Null
+	// authentication (AuType 0), so a packet carrying any other AuType is refused there too.
+	if len(keys) == 0 {
+		if h.AuType != packet.AuTypeNull {
+			return "autype-mismatch", false
+		}
+		return "", true
 	}
 	if h.AuType != keys[0].auType {
 		return "autype-mismatch", false

@@ -46,6 +46,28 @@
       "break": "body of routerLinks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5443-3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastCostOutCoversWholeSegment",
+      "unit-sha": "96465f3ad242a92e",
+      "claim-sha": "6c0a08adb207f7a6",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ldp_sync.go::applyLDPSyncOverride",
+      "producer-sha": "6b22f3c68a4fc52b",
+      "break": "body of applyLDPSyncOverride replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5443-3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut",
+      "unit-sha": "82c7f4d826e79cba",
+      "claim-sha": "bc7833e3f87b5abd",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ldp_sync.go::applyLDPSyncOverride",
+      "producer-sha": "6b22f3c68a4fc52b",
+      "break": "body of applyLDPSyncOverride replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5443-4-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutLeavesExplicitTEMetric",

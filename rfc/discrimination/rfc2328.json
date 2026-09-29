@@ -355,6 +355,28 @@
     },
     {
       "rid": "RFC2328-8.2-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType",
+      "unit-sha": "ff29a5e418390ae8",
+      "claim-sha": "ef4a35967be19870",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::verify",
+      "producer-sha": "e68804cc5263bcbb",
+      "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-8.2-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328PasswordAuTypeIntoNullAreaDropped",
+      "unit-sha": "cbd7de2f5c71c9d0",
+      "claim-sha": "64e2c062ec63458e",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::verify",
+      "producer-sha": "e68804cc5263bcbb",
+      "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-8.2-3",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAuType",
       "unit-sha": "dd094ad914513f9f",
@@ -484,6 +506,28 @@
       "producer": "internal/plugins/ospf/lsdb/origination.go::OriginateSummary",
       "producer-sha": "33527c0e59626c6e",
       "break": "body of OriginateSummary replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-C.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive",
+      "unit-sha": "dd889f68d685294b",
+      "claim-sha": "8a4a9f6505bb1b58",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/interface_cost.go::interfaceCost",
+      "producer-sha": "2a1830e65c7116fb",
+      "break": "body of interfaceCost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-C.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive",
+      "unit-sha": "dd889f68d685294b",
+      "claim-sha": "05ec806a8fe12eb0",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/types/metric.go::DefaultMetric",
+      "producer-sha": "6343be66f6f843d4",
+      "break": "body of DefaultMetric replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2328-D.3-2",

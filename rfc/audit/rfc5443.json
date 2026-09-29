@@ -50,17 +50,21 @@
       "verdict": "weak"
     },
     "RFC5443-3-1": {
-      "note": "Re-judged 2026-09-29 after TestLDPSyncTECostUntouched changed (the RFC5443-4-1 tags and a stale comment were removed; the 3-1 assertions are unchanged). The unit asserts only ldpSyncWithholdTransit(notSynced, managed, cutEdge) for cutEdge true and false. That function takes no peer input, so whole-link granularity is structural in the helper, and no assertion reads an originated Router-LSA for a broadcast segment with two IGP/LDP peers, one synchronized and one not. A per-neighbour withhold added in applyLDPSyncOverride or routerLinks stays green. Missing: an origination-level test through applyLDPSyncOverride with e.spf set (IsCutEdge path) and two peers on one broadcast link.",
+      "note": "Re-judged 2026-09-29 (independent judge). TestRFC5443BroadcastCostOutCoversWholeSegment builds a real engine with broadcast eth1, two Full IGP peers, a real ospfspf.Computer over a three-router LSDB with an alternate path, runs production applyLDPSyncOverride and decodes the originated Router-LSA: not synchronized -> 0 transit and 0 point-to-point links (only the subnet stub), synchronized -> exactly 1 transit link to the pseudonode and 0 per-peer links, so the cost-out never has per-peer granularity. Negative TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut: an LDP session up with hold-down pending still yields 0 transit and 0 per-peer links. Ze applies the RFC 6138 transit-link withhold on broadcast, which is the whole-link cost-out. Note: LDP session events are per interface, so the negative cannot name WHICH peer came up; it proves no partial cost-in. Revert records on applyLDPSyncOverride.",
       "requirement_sha": "064dbbac553b9cfb",
       "tests": {
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "9e546619d1947e81",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "9e546619d1947e81"
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "9e546619d1947e81",
+        "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastCostOutCoversWholeSegment": "c1c795ba28a13064",
+        "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut": "c1c795ba28a13064"
       },
       "units": {
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "fe06dd08554cffcf",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "fe06dd08554cffcf"
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "fe06dd08554cffcf",
+        "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastCostOutCoversWholeSegment": "4bdc23ae6476cac9",
+        "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut": "35df126f6df45649"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5443-4-1": {
       "note": "Re-judged 2026-09-29. Level: RFC 5443 section 4 reads lowercase 'should only be applied to the IP link cost'; under D-3 a lowercase keyword keeps the row's MUST level, so no correction is owed. TestRFC5443CostOutRaisesIPCostNotDefaultTEMetric originates both LSAs from one not-synchronized snapshot: the Router-LSA link is 0xFFFF and the TE Link LSA (teOriginateType1, decoded) keeps the TE metric defaulted from the configured IP cost, 100. TestRFC5443CostOutLeavesExplicitTEMetric covers the explicit te-metric branch (50 unchanged). Both branches of applyTELinkAttributes are covered and a TE metric raised by the cost-out goes red. The false 'Ze originates no TE LSA' tags were removed from TestLDPSyncTECostUntouched.",

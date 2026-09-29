@@ -1,5 +1,8 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2328-10.1-1": {
@@ -515,17 +518,21 @@
       "verdict": "weak"
     },
     "RFC2328-8.2-3": {
-      "note": "Forbidden: accepting a packet whose AuType differs from the area's. TestOSPFReceiveDropsMismatchedAuType sends AuType 0 into a simple-password area and asserts a drop, an auth failure and no neighbor; TestOSPFReceiveAcceptsMatchingAuType accepts AuType 1 with the right password. The negative is not isolated: a null-AuType packet carries no password, so a receiver that skipped the AuType check and failed on the password comparison produces the same drop and failure count; the unit never asserts the autype-mismatch reason. The reverse mismatch (AuType 1 into a null area) is not tested.",
+      "note": "Re-judged 2026-09-29 (independent judge). Isolation gap closed and a product defect fixed (D-8): TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType asserts the single auth failure carries reason 'autype-mismatch', not a password failure; TestRFC2328PasswordAuTypeIntoNullAreaDropped sends a Hello signed AuType 1 into a Null-auth interface and asserts the drop and no neighbor (red before the fix: dropped 0). Producer checked: authStore.verify now refuses any non-Null AuType on an interface with no key chain, RFC 2328 s8.2 quoted above the check; revert records on verify. Positive TestOSPFReceiveAcceptsMatchingAuType unchanged.",
       "requirement_sha": "7a4fd666d8de7bcc",
       "tests": {
+        "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType": "f93a319ce82ffb1c",
+        "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328PasswordAuTypeIntoNullAreaDropped": "f93a319ce82ffb1c",
         "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAuType": "da263e79ffba2ad8",
         "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAuType": "da263e79ffba2ad8"
       },
       "units": {
+        "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType": "da5da5d5be75cc6e",
+        "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328PasswordAuTypeIntoNullAreaDropped": "5a215a33af17bcfd",
         "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAuType": "eadb3aa4318a7b90",
         "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAuType": "e2937d2b1821be5f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-9.1-1": {
       "note": "Forbidden: the Designated Router for a network not originating its network-LSA. Red: TestRFC2328DROriginatesNetworkLSA fails unless OriginateFromTopology produces a network-LSA for eth1 (where 1.1.1.1 is DR) listing exactly [1.1.1.1 3.3.3.3]. Other polarity: TestRFC2328NonDROriginatesNoNetworkLSA fails if the Backup on eth0 originates one. One clause, both polarities.",
@@ -634,17 +641,21 @@
       "verdict": "enforced"
     },
     "RFC2328-C.3-1": {
-      "note": "Forbidden: an interface running with output cost 0. TestInterfaceCostAndTransmitDelayBoundary proves validateConfig rejects an explicit cost 0 with ErrInterfaceCostZero and accepts 1. It also accepts an UNSET cost 'defaulted later' without asserting the default is greater than 0, so a producer that defaulted the cost to 0 stays green; 'must always be greater than 0' covers every source of the cost, not only the explicit one.",
+      "note": "Re-judged 2026-09-29 (independent judge). Explicit cost 0 stays refused (TestInterfaceCostAndTransmitDelayBoundary). The unset-cost gap is closed: TestRFC2328DefaultedInterfaceCostIsPositive resolves interfaces from config text with no cost leaf and reads interfaceCost, the one producer every consumer uses (instance.go Router-LSA and routing-table cost, ldp_sync.go, te_originate.go): 1 Gbit/s under 100 Gbit/s -> 100, and the inputs that divide to 0 (100 Gbit/s under a 1 Mbit/s reference, unknown speed) -> 1. Records: revert on interfaceCost (positive) and on DefaultMetric (negative); a mutant dropping DefaultMetric's MetricMin clamp would be sharper.",
       "requirement_sha": "1f1ae4c769c592bc",
       "tests": {
         "internal/plugins/ospf/config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary": "44965ea02e856e15",
-        "internal/plugins/ospf/config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary#2": "44965ea02e856e15"
+        "internal/plugins/ospf/config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary#2": "44965ea02e856e15",
+        "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive": "d48a102aa7680d97",
+        "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive#2": "d48a102aa7680d97"
       },
       "units": {
         "internal/plugins/ospf/config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary": "af0552b6e7e35d3a",
-        "internal/plugins/ospf/config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary#2": "af0552b6e7e35d3a"
+        "internal/plugins/ospf/config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary#2": "af0552b6e7e35d3a",
+        "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive": "80c3a10fa24606da",
+        "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive#2": "80c3a10fa24606da"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-D.2-1": {
       "note": "Forbidden: accepting a Simple-password packet whose 64-bit authentication field differs from the configured password. Red: TestRFC2328SimplePasswordMismatchDiscarded fails if a packet signed with 'badpass' is accepted, and fails unless the reason is exactly password-mismatch (isolated: the AuType matches). Other polarity: the same unit fails if the configured 'goodpass' is rejected. One clause, both polarities.",
@@ -679,10 +690,10 @@
       "note": "Forbidden: an authentic packet's sequence number not becoming the stored value, and an AuType 2 sequence treated as anything but non-decreasing. Red: TestOSPFAuthReplay accepts 10 then 11, accepts a second 11 (D.4.3 discards only 'less than'), then rejects 10 with reason replay, which holds only if 11 (not 10) was stored; 5 is rejected. TestOSPFAuthReplayEqualSequenceByAuType asserts the AuType 2 equal-sequence acceptance on its own. TestNeighborDownResetsCryptoSeq adds the per-neighbor reset. RFC 7474's strictly-greater rule governs only its AuType 3 (replayedSequence).",
       "requirement_sha": "affd17c59f70abd9",
       "tests": {
-        "internal/plugins/ospf/auth_keystore_test.go::TestNeighborDownResetsCryptoSeq": "4c80cc2db69348dc",
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "4c80cc2db69348dc",
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "4c80cc2db69348dc",
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayEqualSequenceByAuType": "4c80cc2db69348dc"
+        "internal/plugins/ospf/auth_keystore_test.go::TestNeighborDownResetsCryptoSeq": "9456809df1e1c7b9",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "9456809df1e1c7b9",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "9456809df1e1c7b9",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayEqualSequenceByAuType": "9456809df1e1c7b9"
       },
       "units": {
         "internal/plugins/ospf/auth_keystore_test.go::TestNeighborDownResetsCryptoSeq": "a2e9cf922c7bdc9c",

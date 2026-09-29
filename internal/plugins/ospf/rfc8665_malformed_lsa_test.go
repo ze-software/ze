@@ -17,6 +17,24 @@ func srCapabilitiesApplied(c srRemoteCapabilities) bool {
 	return len(c.Algorithms) != 0 || !c.SRGB.Empty() || !c.SRLB.Empty() || c.HasSRMS
 }
 
+// RFC requirement: RFC8665-9-1 negative -- an RI LSA whose SID/Label Range (SRGB) TLV is cut
+// inside its SID/Label sub-TLV is malformed and ignored: none of its capabilities is applied,
+// neither the well-formed SR-Algorithm TLV nor the well-formed SRLB beside it.
+func TestRFC8665LengthInvalidSRGBIgnoresLSA(t *testing.T) {
+	// Goal: the SRGB TLV's length check rejects the whole LSA. Method: the same body as the
+	// well-formed case of TestRFC8665LengthInvalidTLVIgnoresLSA with only the SRGB truncated.
+	srTestReset(t)
+	srgb := sr.EncodeRangeValue(sr.LabelRange{Base: 16000, Size: 100})
+	body := packet.EncodeRITLVs([]packet.RITLV{
+		{Type: sr.V4TypeSRAlgorithm, Value: sr.EncodeAlgorithmValue([]uint8{0})},
+		{Type: sr.V4TypeSRGB, Value: srgb[:len(srgb)-2]},
+		{Type: sr.V4TypeSRLB, Value: sr.EncodeRangeValue(sr.LabelRange{Base: 15000, Size: 10})},
+	})
+	if caps := srDecodeRemoteCapabilities(interfaceFamilyIPv4, body); srCapabilitiesApplied(caps) {
+		t.Fatalf("RI LSA with a length-invalid SRGB TLV was applied: %+v", caps)
+	}
+}
+
 // TestRFC8665LengthInvalidTLVIgnoresLSA decodes one RI LSA body with well-formed SR TLVs,
 // then the same body with one TLV whose length is invalid for its layout.
 func TestRFC8665LengthInvalidTLVIgnoresLSA(t *testing.T) {
