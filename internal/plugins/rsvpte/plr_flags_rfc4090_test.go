@@ -85,3 +85,66 @@ func TestRFC4090RepairSetsInUseAndAvailable(t *testing.T) {
 	require.Equal(t, e.cfg().RouterID, rro[0].Address, "the PLR's own subobject")
 	assert.Equal(t, uint8(0x03), rro[0].Flags&0x03, "available and in use")
 }
+
+// TestRFC4090NodeBitSetWhenNodeProtectionProvided drives a node-protection
+// request through a PLR whose configured node bypass merges at the NNHOP: the
+// bypass is armed, so node protection is provided and was desired.
+//
+// RFC requirement: RFC4090-4.4-3 positive -- with "node protection desired" set in the received SESSION_ATTRIBUTE and a bypass merging at the NNHOP armed for the LSP (node protection provided), the PLR's own RRO subobject in the relayed RESV carries "node protection" (0x08).
+func TestRFC4090NodeBitSetWhenNodeProtectionProvided(t *testing.T) {
+	e, ft := rfc4090NodePLR(t)
+	ingress := netip.MustParseAddr("10.0.0.1")
+	psb := nodeProtectionPSB()
+	e.handlePacket(Packet{Src: ingress, Payload: buildPath(psb, ingress, 64)})
+	bringBypassUp(t, e, 5000, netip.MustParseAddr("10.0.1.4"))
+
+	flags := relayedRROFlags(t, e, ft, psb, netip.MustParseAddr("10.0.0.3"), nodeRecordedRRO())
+	assert.Equal(t, uint8(0x08), flags&0x08, "node protection is provided and desired")
+}
+
+// TestRFC4090NodeBitClearWhenNodeProtectionNotProvided drives the same node
+// request through a PLR whose only bypass merges at the NHOP. That bypass is up
+// but protects the link alone, so node protection is desired and not provided.
+//
+// RFC requirement: RFC4090-4.4-3 negative -- with "node protection desired" set but only a next-hop (link) bypass up, node protection is not provided and the PLR's own RRO subobject carries no "node protection" (0x08).
+func TestRFC4090NodeBitClearWhenNodeProtectionNotProvided(t *testing.T) {
+	e, ft, _ := plrEngine(t)
+	ingress := netip.MustParseAddr("10.0.0.1")
+	psb := nodeProtectionPSB()
+	e.handlePacket(Packet{Src: ingress, Payload: buildPath(psb, ingress, 64)})
+	bringBypassUp(t, e, 5000, netip.MustParseAddr("10.0.1.3"))
+
+	flags := relayedRROFlags(t, e, ft, psb, netip.MustParseAddr("10.0.0.3"), nodeRecordedRRO())
+	assert.Zero(t, flags&0x08, "a link bypass provides no node protection")
+}
+
+// TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair pushes every input a
+// PLR could take the bandwidth bit from: the head-end asks for bandwidth
+// protection with a FAST_REROUTE bandwidth, the downstream RRO subobject claims
+// the bit, and a local repair then puts traffic on the bypass. The bypass still
+// reserves no bandwidth, so the PLR's own subobject never carries the bit.
+//
+// RFC requirement: RFC4090-4.4-6 negative -- with "bandwidth protection desired" set, a downstream RRO subobject carrying "bandwidth protection" (0x04), and an armed bypass that reserves no bandwidth, the PLR's own RRO subobject has 0x04 clear, before and after local repair.
+// RFC requirement: RFC4090-6-7 negative -- the same inputs push toward setting the bit; the backup path offers no bandwidth guarantee, so the PLR's own subobject clears "bandwidth protection" in the relayed RESV and in the RESV refreshed during repair.
+func TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair(t *testing.T) {
+	e, ft, _ := plrEngine(t)
+	ingress := netip.MustParseAddr("10.0.0.1")
+	mp := netip.MustParseAddr("10.0.0.3")
+	psb := protectedTransitPSB(&protectionRequest{Facility: true, BandwidthProtection: true, HopLimit: 16, Bandwidth: 1e8, SetupPrio: 7, HoldPrio: 7})
+	e.handlePacket(Packet{Src: ingress, Payload: buildPath(psb, ingress, 64)})
+	bringBypassUp(t, e, 5000, netip.MustParseAddr("10.0.1.3"))
+	downstream := []rroEntry{{Type: RROSubIPv4, Address: mp, Flags: RROFlagProtectionAvailable | RROFlagBandwidthProtection}}
+
+	flags := relayedRROFlags(t, e, ft, psb, mp, downstream)
+	require.Equal(t, RROFlagProtectionAvailable, flags&RROFlagProtectionAvailable, "fixture: the bypass is armed")
+	assert.Zero(t, flags&RROFlagBandwidthProtection, "not copied from the downstream subobject")
+
+	e.handleLinkDown("eth0")
+	lsp, ok := e.table.Get(protectedKey())
+	require.True(t, ok)
+	require.NoError(t, e.sendResv(lsp))
+	rro := relayedResvRRO(t, ft)
+	require.Equal(t, e.cfg().RouterID, rro[0].Address, "the PLR's own subobject")
+	require.NotZero(t, rro[0].Flags&RROFlagProtectionInUse, "fixture: traffic is on the bypass")
+	assert.Zero(t, rro[0].Flags&RROFlagBandwidthProtection, "not claimed while the bypass carries traffic")
+}

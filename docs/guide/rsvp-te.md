@@ -63,7 +63,8 @@ rsvp-te {
   default 3. State expires when its last refresh is older than the period
   multiplied by this number, which is 90 seconds at the defaults. Expiry releases
   the reserved bandwidth, the MPLS forwarding entry and the label, then sends an
-  `lsp-down` event.
+  `lsp-down` event. A reservation that no RESV refreshed expires the same way,
+  while its PATH state stays: a transit then sends a ResvTear upstream.
 - `interface` -- per-link `max-bandwidth` / `max-reservable-bandwidth` used by
   admission control. `address` (the local link prefix, e.g. `10.0.0.4/30`) lets
   admission map an LSP to this interface when more than one is configured: the

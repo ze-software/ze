@@ -230,6 +230,10 @@ type LSP struct {
 // (RFC 3032) and 16-999 are left for static/other allocators.
 const firstDynamicLabel = 1000
 
+// labelImplicitNull is the reserved label value 3 (RFC 3032 Section 2.1 item
+// iv): a downstream LSR distributes it to ask for the stack to be popped.
+const labelImplicitNull = 3
+
 // lspTable manages all LSPs at this node. Thread-safe.
 type lspTable struct {
 	mu   sync.RWMutex
@@ -365,6 +369,38 @@ func (t *lspTable) expiredPSBs(now time.Time, factor int) []lspKey {
 		}
 	}
 	return expired
+}
+
+// expiredRSBs returns the LSPs whose received RESV state has expired: an ingress
+// or transit RSB that no RESV refreshed within the sender's period times factor.
+// An egress RSB is this node's own reservation, rebuilt by every PATH, so it
+// expires with the PSB through expiredPSBs.
+func (t *lspTable) expiredRSBs(now time.Time, factor int) []*LSP {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	var expired []*LSP
+	for _, lsp := range t.lsps {
+		lsp.mu.Lock()
+		if receivedRSBExpired(lsp, now, factor) {
+			expired = append(expired, lsp)
+		}
+		lsp.mu.Unlock()
+	}
+	return expired
+}
+
+// receivedRSBExpired reports whether lsp holds RESV state received from
+// downstream whose cleanup timeout has passed. The caller must hold lsp.mu.
+func receivedRSBExpired(lsp *LSP, now time.Time, factor int) bool {
+	if lsp.Role == RoleEgress {
+		return false
+	}
+	if lsp.RSB == nil {
+		return false
+	}
+	// RFC 2205 Section 2.3: "The state is deleted if no matching refresh
+	// messages arrive before the expiration of a "cleanup timeout" interval."
+	return now.After(lsp.RSB.LastRefresh.Add(lsp.RSB.RefreshPeriod * time.Duration(factor)))
 }
 
 // setState updates the LSP state with a timestamp. The caller must hold lsp.mu.

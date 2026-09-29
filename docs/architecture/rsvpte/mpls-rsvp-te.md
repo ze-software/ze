@@ -217,6 +217,28 @@ node sends upstream (`buildResv` reads the engine's configuration).
 <!-- source: internal/plugins/rsvpte/engine.go -- sendResv -->
 <!-- source: internal/plugins/rsvpte/engine.go -- sendPath -->
 
+## Decision: received reservation state expires on its own deadline
+
+RFC 2205 Section 2.3: "The state is deleted if no matching refresh messages arrive
+before the expiration of a "cleanup timeout" interval." That holds for the RSB as
+much as for the PSB. An ingress or transit keeps the RSB a downstream RESV
+installed, and each RESV refresh restamps it. `cleanupTick` asks
+`lspTable.expiredRSBs` for every ingress or transit RSB older than its received
+period times the live `refresh-multiplier`, and withdraws each through
+`removeReservation`: the forwarding entry, the label and the admitted bandwidth
+are released, and the LSP falls back to PathSent at an ingress or PathReceived at
+a transit. The path state stays, so the next RESV can reserve again.
+
+RFC 2205 Section 3.1.6: "ResvTear messages are initiated explicitly by receivers
+or by any node in which reservation state has timed out, and they travel upstream
+towards all matching senders." So a transit whose RSB timed out sends a ResvTear
+to each previous hop. An egress RSB is this node's own reservation, rebuilt by
+every PATH, so it expires with the PSB and never through this path.
+
+<!-- source: internal/plugins/rsvpte/fsm.go -- expiredRSBs, receivedRSBExpired -->
+<!-- source: internal/plugins/rsvpte/register.go -- cleanupTick -->
+<!-- source: internal/plugins/rsvpte/reservation.go -- removeReservation -->
+
 Two RFC 2205 Section 3.7 timing rules are still open. The cleanup timeout is K*R
 where item 2 sets the floor at `L >= (K + 0.5)*1.5*R`
 (`plan/journal/bound-too-small-for-its-own-burst.md`), and a committed period is
@@ -324,6 +346,17 @@ not merely event publication. The kernel backend programs the corresponding IP
 and `AF_MPLS` routes. Bypass control traffic uses private mark-selected contexts.
 See [`../mpls/mpls-kernel.md`](../mpls/mpls-kernel.md).
 
+A transit whose downstream RESV carries the Implicit NULL label (3) programs a pop
+toward the downstream hop, not a swap. RFC 3032 Section 2.1: "When an LSR would
+otherwise replace the label at the top of the stack with a new label, but the new
+label is "Implicit NULL", the LSR will pop the stack instead of doing the
+replacement." Every imposed stack goes through `imposedLabels`, which drops label
+3: an ingress that receives Implicit NULL programs its tunnel FEC with an empty
+push stack, and the fib-kernel backend installs that as a plain IP route via the
+next hop. At local repair a bypass or inner label of 3 is left out of the stack,
+and a transit whose whole backup stack empties pops toward the bypass next hop.
+
+<!-- source: internal/plugins/rsvpte/reservation.go -- installReservation, imposedLabels -->
 <!-- source: internal/plugins/rsvpte/fib.go -- busFIB programSwap, programPop, programPush -->
 <!-- source: internal/core/mplsfib/events.go -- the MPLS forwarding-entry event -->
 

@@ -52,8 +52,12 @@ func (n *netlinkBackend) addMPLSContext(r RichRoute) error {
 	if !r.Prefix.IsValid() || !r.NextHop.IsValid() {
 		return errors.New("mpls context: valid prefix and next hop required")
 	}
-	if err := validateMPLSLabels(r.Labels); err != nil {
-		return err
+	// An empty stack is a plain route via the next hop (Implicit NULL, see
+	// addMPLSEntryLocked).
+	if len(r.Labels) > 0 {
+		if err := validateMPLSLabels(r.Labels); err != nil {
+			return err
+		}
 	}
 	r.Prefix = r.Prefix.Masked()
 	route, err := n.buildMPLSContextRoute(r)

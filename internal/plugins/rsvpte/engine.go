@@ -45,8 +45,10 @@ type fibProgrammer interface {
 	// the outLabels stack imposed (the bypass label over the swapped protected
 	// label). The kernel AF_MPLS swap already accepts a multi-label stack.
 	programBackup(inLabel uint32, outLabels []uint32, nextHop netip.Addr, pathMTU uint32) error
-	// programPop installs an egress pop entry: packets arriving with inLabel are
-	// stripped of the label and forwarded toward nextHop (disposition).
+	// programPop installs a pop entry: packets arriving with inLabel are
+	// stripped of the label and forwarded toward nextHop. The egress uses it for
+	// disposition, and a transit whose downstream label is Implicit NULL uses it
+	// in place of a swap.
 	programPop(inLabel uint32, nextHop netip.Addr, pathMTU uint32) error
 	// removePush withdraws a previously programmed push entry for fec.
 	removePush(fec netip.Prefix, tableID uint32) error

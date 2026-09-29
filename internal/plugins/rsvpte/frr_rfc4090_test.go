@@ -298,7 +298,6 @@ func TestRFC4090NodeBitSetWhenNodeProtected(t *testing.T) {
 // TestRFC4090NodeBitClearWithoutNodeBypass: a node-protection request that only
 // a link bypass could serve gets no node protection, and the bit stays clear.
 //
-// RFC requirement: RFC4090-4.4-7 negative — when node protection is not provided (the only configured bypass merges at the NHOP), the "node protection" bit (0x08) is clear in the PLR's RRO subobject.
 // RFC requirement: RFC4090-6-6 negative — with "node protection desired" set and no backup path protecting the next node, the "node protection" bit is cleared to match.
 func TestRFC4090NodeBitClearWithoutNodeBypass(t *testing.T) {
 	e, ft, _ := plrEngine(t) // bypass "bp" merges at the NHOP only
@@ -339,8 +338,8 @@ func TestRFC4090InUseOnlyWhileRedirecting(t *testing.T) {
 // reprograms its in-label onto the bypass next hop; a failure elsewhere leaves
 // the normal out-segment in place.
 //
-// RFC requirement: RFC4090-6.3-1 positive — on the protected link's failure the PLR programs the protected in-label to the bypass next hop with the bypass label stacked, instead of the normal out-segment.
-// RFC requirement: RFC4090-6.3-1 negative — a failure on a link the protected LSP does not use programs no backup: packets stay on the normal out-segment.
+// RFC requirement: RFC4090-6.4.3-1 positive — on the protected link's failure the PLR reroutes the data traffic onto the bypass tunnel: it programs the protected in-label to the bypass next hop with the bypass label stacked, instead of the normal out-segment.
+// RFC requirement: RFC4090-6.4.3-1 negative — a failure on a link the protected LSP does not use programs no backup: packets stay on the normal out-segment.
 func TestRFC4090FailureSwitchesToBackup(t *testing.T) {
 	e, _, fib := plrEngine(t)
 	protectedIn := armAndUpProtected(t, e)
@@ -610,4 +609,99 @@ func TestRFC4090StateExpiresWithoutRefresh(t *testing.T) {
 	cleanupTick(log, e.table, cfg, e, time.Now(), cfg.RefreshPeriod)
 	_, alive := e.table.Get(key)
 	assert.False(t, alive, "unrefreshed state removed at expiry")
+}
+
+// detourPSB is the PATH a PLR sends toward an LSR without DETOUR support.
+func detourPSB(plr netip.Addr) *pathStateBlock {
+	return &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1, ExtTunnelID: 0x0a000001},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: plr, LSPID: 1},
+		SenderTSpec:    FlowSpec{TokenRate: 1e8, TokenBucket: 1e8, PeakRate: 1e8},
+		LabelRequest:   labelRequest{L3PID: 0x0800},
+		RefreshPeriod:  DefaultRefreshPeriod,
+	}
+}
+
+// TestRFC4090DetourPathErrAsUnknownClass sends a DETOUR-carrying PATH to an LSR
+// without DETOUR support and reads the PathErr it returns to the PLR.
+//
+// RFC requirement: RFC4090-4.2-2 positive -- the PathErr for a PATH carrying a DETOUR object (Class-Num 63 = 0b00111111, C-Type 7) is the RFC 2205 unknown-class answer: sent to the PLR, Error Code 13 "Unknown object class", Error Value = (Class-Num, C-Type), and no path state is kept.
+func TestRFC4090DetourPathErrAsUnknownClass(t *testing.T) {
+	plr := netip.MustParseAddr("10.0.0.1")
+	e, ft, _ := testEngine(t, "10.0.0.9", nil)
+	e.handlePacket(Packet{Src: plr, Payload: pathWithObject(detourPSB(plr), plr, ClassDetour, CTypeDetourIPv4, detourBodyIPv4(plr, netip.MustParseAddr("10.0.0.5")))})
+
+	perr, dst, ok := ft.lastByType(MsgTypePathErr)
+	require.True(t, ok, "the PLR is notified")
+	assert.Equal(t, plr, dst)
+	assert.Equal(t, uint8(13), perr.ErrorSpec.ErrorCode, "Unknown object class")
+	assert.Equal(t, uint16(0x3f07), perr.ErrorSpec.ErrorValue, "(Class-Num 63, C-Type 7)")
+	assert.Empty(t, e.table.All(), "no path state")
+}
+
+// TestRFC4090DetourOtherCTypeStillUnknownClass pushes the answer toward the
+// wrong RSVP error: the DETOUR object carries another C-Type (8, the IPv6
+// DETOUR), which would draw "Unknown C-Type" (14) from an LSR that knew the
+// class. An LSR without DETOUR support knows no DETOUR class at all, so the
+// unknown-class answer (13) still applies.
+//
+// RFC requirement: RFC4090-4.2-2 negative -- a DETOUR object with C-Type 8 is not answered as an unknown C-Type (14): the PathErr still carries Error Code 13 and Error Value (63, 8).
+func TestRFC4090DetourOtherCTypeStillUnknownClass(t *testing.T) {
+	plr := netip.MustParseAddr("10.0.0.1")
+	e, ft, _ := testEngine(t, "10.0.0.9", nil)
+	e.handlePacket(Packet{Src: plr, Payload: pathWithObject(detourPSB(plr), plr, ClassDetour, 8, detourBodyIPv4(plr, netip.MustParseAddr("10.0.0.5")))})
+
+	perr, _, ok := ft.lastByType(MsgTypePathErr)
+	require.True(t, ok, "the PLR is notified")
+	assert.NotEqual(t, uint8(14), perr.ErrorSpec.ErrorCode, "not Unknown C-Type")
+	assert.Equal(t, uint8(13), perr.ErrorSpec.ErrorCode, "Unknown object class")
+	assert.Equal(t, uint16(0x3f08), perr.ErrorSpec.ErrorValue, "(Class-Num 63, C-Type 8)")
+}
+
+// TestRFC4090HeadEndRevertsGlobally sends a head-end the PLR's Notify for a
+// locally repaired LSP, with the failed resource still down, and checks the
+// head-end re-optimizes the LSP itself, which is the globally revertive mode
+// RFC 4090 Section 6.5.2 defines.
+//
+// RFC requirement: RFC4090-6.5-3 positive -- on a Notify (Error Code 25, value 3 "Tunnel locally repaired") the head-end re-optimizes the repaired LSP at once, without waiting for the failed resource: it signals a make-before-break replacement, a fresh PATH with the next LSP_ID, while the repaired LSP stays in place.
+func TestRFC4090HeadEndRevertsGlobally(t *testing.T) {
+	e, ft, key := headEndEngine(t)
+
+	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.2"), Payload: notifyFor(key)})
+
+	replacement := key
+	replacement.LSPID = 2
+	_, ok := e.table.Get(replacement)
+	require.True(t, ok, "the head-end signals a replacement LSP")
+	_, ok = e.table.Get(key)
+	assert.True(t, ok, "the repaired LSP stays until the replacement is up")
+	path, _, sent := ft.lastByType(MsgTypePath)
+	require.True(t, sent, "a fresh PATH is sent")
+	assert.Equal(t, uint16(2), path.SenderTemplate.LSPID, "the replacement uses the next LSP_ID")
+}
+
+// TestRFC4090TransitDoesNotReoptimize pushes the Notify at an LSR that is not
+// the head-end. In the globally revertive mode only the head-end LSR
+// re-optimizes, so the transit signals no replacement of its own and passes
+// the Notify on toward the head-end.
+//
+// RFC requirement: RFC4090-6.5-3 negative -- a transit that receives the Notify for an LSP it does not head-end starts no re-optimization: it creates no replacement LSP, sends no PATH, and relays the Notify (Error Code 25, value 3) to its previous hop toward the head-end.
+func TestRFC4090TransitDoesNotReoptimize(t *testing.T) {
+	e, ft, psb := rfc2205TransitWithPath(t)
+	key := keyFromPSB(psb)
+	es := errorSpec{ErrorNode: rfc2205Egress, ErrorCode: ErrCodeNotify, ErrorValue: ErrValueTunnelLocallyRepaired}
+	pathsBefore := ft.countByType(MsgTypePath)
+
+	e.handlePacket(Packet{Src: rfc2205Egress, Payload: buildPathErr(psb.Session, psb.SenderTemplate, FlowSpec{TokenRate: 1e8}, es)})
+
+	replacement := key
+	replacement.LSPID = key.LSPID + 1
+	_, ok := e.table.Get(replacement)
+	assert.False(t, ok, "a transit creates no replacement LSP")
+	assert.Equal(t, pathsBefore, ft.countByType(MsgTypePath), "no PATH leaves the transit on the Notify")
+	relayed, dst, sent := ft.lastByType(MsgTypePathErr)
+	require.True(t, sent, "the Notify goes on toward the head-end")
+	assert.Equal(t, rfc2205Ingress, dst)
+	assert.Equal(t, ErrCodeNotify, relayed.ErrorSpec.ErrorCode)
+	assert.Equal(t, ErrValueTunnelLocallyRepaired, relayed.ErrorSpec.ErrorValue)
 }

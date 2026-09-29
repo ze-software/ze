@@ -1079,7 +1079,8 @@ func refreshPaths(log *slog.Logger, lspTable *lspTable, eng *engine) {
 }
 
 // cleanupTick is one iteration of the cleanup loop: expire every LSP whose PATH
-// state has outlived the live refresh multiplier, then report the refresh period in
+// state has outlived the live refresh multiplier, withdraw every received
+// reservation that no RESV refreshed in that time, then report the refresh period in
 // force for the next tick and whether it changed. The multiplier is read live, so a
 // reloaded refresh-multiplier takes effect here rather than staying at the value the
 // loop started with.
@@ -1105,6 +1106,16 @@ func cleanupTick(log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, eng *en
 			emitLSPDown(log, lsp, lspTable.Len())
 		}
 		log.Info("rsvp-te: LSP expired", "lsp", key.String())
+	}
+	// Only the engine installs RESV state, so without one there is none to expire.
+	if eng != nil {
+		for _, lsp := range lspTable.expiredRSBs(now, live.RefreshMultiplier) {
+			// RFC 2205 Section 3.1.6: "ResvTear messages are initiated explicitly by
+			// receivers or by any node in which reservation state has timed out, and
+			// they travel upstream towards all matching senders."
+			eng.removeReservation(lsp, nil)
+			log.Info("rsvp-te: reservation expired", "lsp", lsp.Key.String())
+		}
 	}
 	return adoptedRefreshPeriod(period, live.RefreshPeriod)
 }

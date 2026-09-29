@@ -2,30 +2,44 @@
   "audited": "2026-09-29",
   "requirements": {
     "RFC2205-2-1": {
-      "note": "Reverse-path clause: TestRFC2205ResvSentToPreviousHop asserts the egress RESV goes to the PATH's previous hop, one hop only. 'Upstream to all the sender hosts included in the sender selection': no tagged unit follows the RESV hop by hop to the sender or covers a sender selection with more than one sender. The negative (no relay without path state) proves a neighbouring rule.",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC2205ResvFollowsEachSendersReversePath: two senders of one session through two PHOPs each get their RESV at their own PHOP, and a transit relays the RESV on to the ingress. Negative TestRFC2205ResvNeverTakesAnotherSendersPath asserts neither sender's reservation leaves on the other's hop. Both records observed red (sendResv, handlePathEgress).",
       "requirement_sha": "f80c0f879b7ce0e8",
       "tests": {
         "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvSentToPreviousHop": "40d8aa6c3fe9e9e4",
-        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvWithoutPathStateNotRelayed": "40d8aa6c3fe9e9e4"
+        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvWithoutPathStateNotRelayed": "40d8aa6c3fe9e9e4",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvFollowsEachSendersReversePath": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvNeverTakesAnotherSendersPath": "7bc063943de30e7b"
       },
       "units": {
         "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvSentToPreviousHop": "000cc4a0cba6d650",
-        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvWithoutPathStateNotRelayed": "ceb67668caaaed06"
+        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvWithoutPathStateNotRelayed": "ceb67668caaaed06",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvFollowsEachSendersReversePath": "386549d96c428b6c",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvNeverTakesAnotherSendersPath": "3a5c193bb8fb5ba8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2205-2.3-1": {
-      "note": "Positive: TestRefreshResendsPathAndResv proves one refreshPaths tick re-sends a PATH for an ingress LSP and a RESV for an egress or transit LSP, not that refresh recurs periodically. Negative: TestRefreshDoesNotStampEgressPSB proves an unrefreshed PSB becomes eligible in expiredPSBs, not that the state is deleted at cleanup timeout, and nothing asserts Resv state expiry.",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Refresh: TestRFC2205RefreshRecursEachTick (three refreshPaths ticks, three PATHs) and TestRefreshResendsPathAndResv (RESV re-sent). Deletion: TestRFC2205PathStateDeletedAtCleanupTimeout (PSB) and TestRFC2205ResvStateDeletedAtCleanupTimeout (transit RSB dropped with ResvTear, ingress RSB dropped Up->PathSent, PSB kept). Negatives keep refreshed PSB and RSB. D-1 producer read: cleanupTick withdraws expiredRSBs through removeReservation.",
       "requirement_sha": "e4233a90dbb58ca4",
       "tests": {
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshRecursEachTick": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedPathStateKept": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedResvStateKept": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout": "7bc063943de30e7b",
         "internal/plugins/rsvpte/softstate_test.go::TestRefreshDoesNotStampEgressPSB": "6fbdb13c26377d72",
         "internal/plugins/rsvpte/softstate_test.go::TestRefreshResendsPathAndResv": "6fbdb13c26377d72"
       },
       "units": {
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "010341722a389017",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshRecursEachTick": "aea4787bb44f10ca",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedPathStateKept": "d3058bce5c537198",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedResvStateKept": "897a037ed4f46fe3",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout": "6d507556c9aa57c8",
         "internal/plugins/rsvpte/softstate_test.go::TestRefreshDoesNotStampEgressPSB": "c105fbf4ca8be9d1",
         "internal/plugins/rsvpte/softstate_test.go::TestRefreshResendsPathAndResv": "a4f0255a5bad6a50"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2205-3-1": {
       "note": "Rejudged 2026-09-29 (routing child). The missing ERROR_SPEC is now proven: TestRFC2205ErrorSpecClassRecognized decodes a PathErr with no unknown object and the error node, code and value intact. Other listed classes are covered by TestRFC2205KnownClassesRecognized and the NULL tests; negative TestRFC2205UnlistedClassNotRecognized. Class numbers are compared through the package constants, as for every other class in this row.",
@@ -47,30 +61,36 @@
       "verdict": "enforced"
     },
     "RFC2205-3-12": {
-      "note": "RA33 strict re-audit: weak. Forbidden: a PathTear routed differently from its PATH. TestRFC2205PathTearRoutedLikePath compares only Source, Destination and NextHop of the relayed PathTear's PathRoute with the PATH's; PathRoute also carries TableID, IfIndex and Lookup (transport.go), so a PathTear handed a different table, interface or loose-hop lookup than its PATH stays green. Only a transit relay is exercised: a PathTear the ingress originates at teardown is in no tagged unit. The negative (not via Send, source not the transit) proves a neighbouring addressing rule.",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). TestRFC2205PathTearRouteEqualsPathRoute compares the whole PathRoute of the relayed and the ingress-originated PathTear with the PATH's, closing both earlier gaps. Negative TestRFC2205PathTearNotAddressedHopByHop: a PathTear sent hop-by-hop through Send would not follow the PATH route, which is this rule.",
       "requirement_sha": "e7dad8019d5d3a1a",
       "tests": {
         "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearNotAddressedHopByHop": "2bbb0ce4611ada21",
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearRoutedLikePath": "2bbb0ce4611ada21"
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearRoutedLikePath": "2bbb0ce4611ada21",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearRouteEqualsPathRoute": "7bc063943de30e7b"
       },
       "units": {
         "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearNotAddressedHopByHop": "164b45c9ab729d40",
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearRoutedLikePath": "f9f764c4d6262d2b"
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearRoutedLikePath": "f9f764c4d6262d2b",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearRouteEqualsPathRoute": "2e38252c51d5670a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2205-3-14": {
-      "note": "PathTear clause: TestRFC2205PathTearReleasesReservation asserts the reservation bandwidth is released and TestRFC2205PathTearForOtherLSPLeavesReservation that an unmatched tear leaves it. Timeout clause: no tagged unit expires path state by timeout and asserts the reservation is adjusted.",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). PathTear clause: TestRFC2205PathTearReleasesReservation / ...ForOtherLSPLeavesReservation. Timeout clause: TestRFC2205PathStateDeletedAtCleanupTimeout asserts the reservation bandwidth released with the expired path state; TestRFC2205RefreshedPathStateKept keeps it for refreshed state.",
       "requirement_sha": "0e06fd2ac4e170be",
       "tests": {
         "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation": "40d8aa6c3fe9e9e4",
-        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearReleasesReservation": "40d8aa6c3fe9e9e4"
+        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearReleasesReservation": "40d8aa6c3fe9e9e4",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedPathStateKept": "7bc063943de30e7b"
       },
       "units": {
         "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation": "665d3697793570cb",
-        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearReleasesReservation": "8d7eefd41232cad2"
+        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearReleasesReservation": "8d7eefd41232cad2",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "010341722a389017",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedPathStateKept": "d3058bce5c537198"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2205-3-2": {
       "note": "Forbidden: a PATH whose IP source is not the sender, or whose IP destination is not the session DestAddress. TestRFC2205PathIPAddressesAreSenderAndSession requires Source == sender and Destination == tunnel endpoint for an originated and a relayed PATH; TestRFC2205PathIPAddressesNeverHopAddresses requires neither to be a hop address.",
@@ -148,6 +168,19 @@
       },
       "verdict": "enforced"
     },
+    "RFC2205-3.1.1-1": {
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC2205ZeroChecksumMeansNoneTransmitted: an all-zero checksum over a body that would fail verification is accepted at handlePacket (PSB installed, PATH relayed). Negative TestRFC2205NonzeroChecksumStillVerified bounds the rule: a nonzero failing checksum is dropped. Records break the whole DecodeMessage; a targeted mutant of the zero test would be sharper.",
+      "requirement_sha": "dccf5db3adc1e14d",
+      "tests": {
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205NonzeroChecksumStillVerified": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ZeroChecksumMeansNoneTransmitted": "7bc063943de30e7b"
+      },
+      "units": {
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205NonzeroChecksumStillVerified": "1298ba3cc53f8e79",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ZeroChecksumMeansNoneTransmitted": "0c999bcd2f086616"
+      },
+      "verdict": "enforced"
+    },
     "RFC2205-3.1.2-1": {
       "note": "Forbidden: an object Length not a multiple of 4, sent or accepted. Send: TestRSVPObjectLengthMultipleOfFour errors on objLen%4 != 0 over every object of a built PATH, RESV and PathErr. Receive: TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected requires errBadObjLen for a Length-6 object. The positive tag's prose ('Decode does not enforce %4') is stale.",
       "requirement_sha": "0a63901cb0272261",
@@ -162,29 +195,61 @@
       "verdict": "enforced"
     },
     "RFC2205-3.1.3-1": {
-      "note": "Verify clause: TestDecodeMandatoryObjects requires DecodeMessage to fail for each message type missing a required object, and TestEnginePathWithoutTimeValuesDropped asserts no state. Not-reported-in-ERROR_SPEC clause: the same test asserts no PathErr and no RESV. 'Logged locally' clause: no tagged unit asserts a log record for the malformed message, so a silent drop stays green. Re-judged 2026-09-27 by QF-2 after the row's citation moved to the appendix the sentence is in; the text is unchanged and the tagged units were re-read. Weak stands.",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Verify clause: TestDecodeMandatoryObjects and the engine TIME_VALUES pair. Not-in-ERROR_SPEC and logged-locally clauses: TestRFC2205MalformedMessageLoggedLocally asserts a WARN \"decode failed\" record naming the source and the error, nothing sent, no state; TestRFC2205WellFormedMessageNotLogged asserts no WARN for a conforming PATH.",
       "requirement_sha": "827c7b4c298934f8",
       "tests": {
         "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects": "bb9f9aad959fe57d",
         "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects#2": "bb9f9aad959fe57d",
         "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithTimeValuesAccepted": "bb9f9aad959fe57d",
         "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped": "bb9f9aad959fe57d",
-        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped#2": "bb9f9aad959fe57d"
+        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped#2": "bb9f9aad959fe57d",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205MalformedMessageLoggedLocally": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205WellFormedMessageNotLogged": "7bc063943de30e7b"
       },
       "units": {
         "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects": "6dd9835e18cbfe05",
         "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects#2": "6dd9835e18cbfe05",
         "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithTimeValuesAccepted": "826c82ac19e88536",
         "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped": "26830ea5d812e3d0",
-        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped#2": "26830ea5d812e3d0"
+        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped#2": "26830ea5d812e3d0",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205MalformedMessageLoggedLocally": "cef863a47011e53c",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205WellFormedMessageNotLogged": "172983c9f991e2a2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
+    },
+    "RFC2205-3.1.5-1": {
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Positive: relayed and ingress-originated PathTear both carry IP dst = session endpoint and IP src = sender address. Negative TestRFC2205PathTearSourceNotTakenFromCarrier: a PathTear arriving from another source is still relayed from the sender address, not the carrier or the router ID.",
+      "requirement_sha": "7c04ce0cc83b6997",
+      "tests": {
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearAddressedFromSenderToSession": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearSourceNotTakenFromCarrier": "7bc063943de30e7b"
+      },
+      "units": {
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearAddressedFromSenderToSession": "ec522cff91b5b0fe",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearSourceNotTakenFromCarrier": "99cf45305f2b058f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2205-3.1.6-1": {
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Positive: a ResvTear with a SCOPE naming the sender tears the RSB, keeps the PSB, draws no ResvErr and goes upstream. Negative TestRFC2205ResvTearScopeNotObeyed: a SCOPE that lists only another sender does not narrow the tear, so a node obeying SCOPE goes red.",
+      "requirement_sha": "154bc86ed27cb1da",
+      "tests": {
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvTearScopeNotObeyed": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvTearWithScopeTearsDown": "7bc063943de30e7b"
+      },
+      "units": {
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvTearScopeNotObeyed": "169c2655f44a2387",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvTearWithScopeTearsDown": "5115db009055e8d4"
+      },
+      "verdict": "enforced"
     },
     "RFC2205-3.10-1": {
-      "note": "Reject clause: TestDecodeUnknownObjectClass asserts only that DecodeMessage flags HasUnknownObject for 0bbbbbbb classes; no tagged unit asserts the engine discards the message. Error clause: no tagged unit asserts an 'Unknown Object Class' (code 13) error is returned; the untagged assertion at frr_test.go:909 does, under another tag.",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Reject and error clauses at the engine: TestRFC2205UnknownClassPathRejectedWithError (no PSB, no RESV, PathErr code 13, value Class<<8|C-Type to the PHOP) and TestRFC2205UnknownClassResvRejectedWithError (no relay, no RSB, ResvErr 13; unknown object placed before STYLE so no placement error confounds it).",
       "requirement_sha": "58eecccad889ff58",
       "tests": {
         "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithIgnorableObjectAccepted": "52858b98606905a5",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205UnknownClassPathRejectedWithError": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205UnknownClassResvRejectedWithError": "7bc063943de30e7b",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass": "edeb000ca6bd1f57",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#2": "edeb000ca6bd1f57",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#3": "edeb000ca6bd1f57",
@@ -193,13 +258,15 @@
       },
       "units": {
         "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithIgnorableObjectAccepted": "0f8c51d8d33e47cf",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205UnknownClassPathRejectedWithError": "c5e50ec83f76f827",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205UnknownClassResvRejectedWithError": "72a956a13c23a779",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass": "2b333a752e99d39c",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#2": "2b333a752e99d39c",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#3": "2b333a752e99d39c",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#4": "2b333a752e99d39c",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#5": "2b333a752e99d39c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2205-4-4": {
       "note": "Rejudged 2026-09-29 (routing child). Each message type is now covered: TestRFC2205EachMessageTypeConstructionAccepted decodes a conformant PathTear, ResvTear, PathErr, ResvErr and ResvConf; TestRFC2205EachMessageTypeMalformedRefused omits each unbracketed BNF object in turn, asserts DecodeMessage refuses it (errObjectAbsent except STYLE), and that a transit with matching path state sends nothing and keeps its state. PATH and RESV are covered by the existing units.",
@@ -223,17 +290,19 @@
       "verdict": "enforced"
     },
     "RFC2205-x-1": {
-      "note": "RA33 strict re-audit: weak (agrees with blind reader). Forbidden: Path, PathTear or ResvConf leaving without Router Alert. TestIntegrationRSVPPathCarriage proves only that Transport.SendPath writes option 94040000 for a hand-built ResvConf the test passes it. The engine's own ResvConf emission (confirmation.go originate and handleResvConf relay, both e.transport.SendPath) is in no tagged unit: TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier's scenario emits no ResvConf and never asserts seen[MsgTypeResvConf], so its ResvConf switch arm is vacuous and switching ResvConf to Send stays green.",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestIntegrationRSVPPathCarriage proves SendPath writes Router Alert. Negatives: TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier for Path/PathTear and TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier for both the originated and the relayed ResvConf going through SendPath, closing the vacuous ResvConf arm.",
       "requirement_sha": "8c881c623b5c8b2f",
       "tests": {
         "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier": "2bbb0ce4611ada21",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier": "7bc063943de30e7b",
         "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
       },
       "units": {
         "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier": "98b1652f6e16c28a",
+        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier": "592efa2f38d0e4d7",
         "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc2205"

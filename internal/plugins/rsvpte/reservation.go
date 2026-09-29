@@ -243,6 +243,12 @@ func (e *engine) installReservation(lsp *LSP, role lspRole, inLabel, outLabel ui
 		return e.refreshBackupForwarding(lsp, outLabel, pathMTU)
 	}
 	if role == RoleTransit {
+		// RFC 3032 Section 2.1: "When an LSR would otherwise replace the label at
+		// the top of the stack with a new label, but the new label is "Implicit
+		// NULL", the LSR will pop the stack instead of doing the replacement."
+		if outLabel == labelImplicitNull {
+			return e.fib.programPop(inLabel, src, pathMTU)
+		}
 		return e.fib.programSwap(inLabel, outLabel, src, pathMTU)
 	}
 	tableID := uint32(0)
@@ -250,7 +256,33 @@ func (e *engine) installReservation(lsp *LSP, role lspRole, inLabel, outLabel ui
 		tableID = bypassTableID(lsp.Key)
 	}
 	fec := netip.PrefixFrom(lsp.Key.TunnelEndpoint, 32)
-	return e.fib.programPush(fec, []uint32{outLabel}, src, tableID, pathMTU)
+	return e.fib.programPush(fec, imposedLabels(outLabel), src, tableID, pathMTU)
+}
+
+// imposedLabels returns the label stack to impose, outermost first, with every
+// Implicit NULL removed. An empty result forwards the traffic as plain IP.
+//
+// RFC 3032 Section 2.1: the Implicit NULL Label "is a label that an LSR may
+// assign and distribute, but which never actually appears in the
+// encapsulation".
+func imposedLabels(labels ...uint32) []uint32 {
+	stack := make([]uint32, 0, len(labels))
+	for _, label := range labels {
+		if label != labelImplicitNull {
+			stack = append(stack, label)
+		}
+	}
+	return stack
+}
+
+// programBackupStack reprograms a transit in-label onto the facility bypass.
+// When both labels are Implicit NULL nothing is imposed, so the in-label is
+// popped toward the bypass next hop (RFC 3032 Section 2.1).
+func (e *engine) programBackupStack(inLabel uint32, stack []uint32, nextHop netip.Addr, pathMTU uint32) error {
+	if len(stack) == 0 {
+		return e.fib.programPop(inLabel, nextHop, pathMTU)
+	}
+	return e.fib.programBackup(inLabel, stack, nextHop, pathMTU)
 }
 
 // receivedReservation retains borrowed objects and prepares the upstream RRO.

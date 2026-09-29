@@ -441,13 +441,14 @@ func (e *engine) tryLocalRepair(lsp *LSP, key lspKey) bool {
 	// RFC 4090 Section 3.2: push the bypass label on top of the swapped protected
 	// label and forward over the bypass next hop. labels[0] is the outermost label
 	// (the bypass label), so the merge point pops it and continues the protected
-	// LSP. The kernel AF_MPLS swap accepts this multi-label stack directly.
+	// LSP. The kernel AF_MPLS swap accepts this multi-label stack directly. An
+	// Implicit NULL bypass or inner label is left out of the stack (imposedLabels).
 	if e.fib != nil {
 		var err error
 		if role == RoleIngress {
-			err = e.fib.programPush(netip.PrefixFrom(key.TunnelEndpoint, key.TunnelEndpoint.BitLen()), []uint32{bypassLabel, protectedOut}, bypassNextHop, 0, pathMTU)
+			err = e.fib.programPush(netip.PrefixFrom(key.TunnelEndpoint, key.TunnelEndpoint.BitLen()), imposedLabels(bypassLabel, protectedOut), bypassNextHop, 0, pathMTU)
 		} else {
-			err = e.fib.programBackup(inLabel, []uint32{bypassLabel, protectedOut}, bypassNextHop, pathMTU)
+			err = e.programBackupStack(inLabel, imposedLabels(bypassLabel, protectedOut), bypassNextHop, pathMTU)
 		}
 		if err != nil {
 			e.log.Error("rsvp-te: local repair FIB program failed", "lsp", key.String(), "error", err)
@@ -705,9 +706,9 @@ func (e *engine) refreshBackupForwarding(lsp *LSP, inner, pathMTU uint32) error 
 		return errForwardingUnavailable
 	}
 	if role == RoleIngress {
-		return e.fib.programPush(netip.PrefixFrom(endpoint, endpoint.BitLen()), []uint32{label, inner}, hop, 0, pathMTU)
+		return e.fib.programPush(netip.PrefixFrom(endpoint, endpoint.BitLen()), imposedLabels(label, inner), hop, 0, pathMTU)
 	}
-	return e.fib.programBackup(in, []uint32{label, inner}, hop, pathMTU)
+	return e.programBackupStack(in, imposedLabels(label, inner), hop, pathMTU)
 }
 
 // mergeBackupPath joins a facility-backup sender to the protected downstream

@@ -4,7 +4,8 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc4090.txt",
   "source-sha": "d53e6ba082494f4e",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-09-29",
+  "resign-reason": "Walk redone at site 6.3.3:1 on 2026-09-29: the sentence is the one-to-one detour switch-over rule, and Ze implements facility backup only (RFC 4090 Section 6: \"A PLR MAY support the DETOUR object.\"), so the site moves from mapped to excluded as feature-out-of-scope and RFC4090-6.3-1 is retired (rfc/corrections/rfc4090.md). Its facility tests moved to RFC4090-6.4.3-1 (Section 6.4.3). Rows RFC4090-4.2-2 and RFC4090-6-8 were added as unsourced ids of Sections 4.2.2 and 6. Re-read against rfc/full/rfc4090.txt by the independent judge on 2026-09-29.",
   "reviewer": "claude",
   "sections": [
     {
@@ -71,7 +72,10 @@
     {
       "id": "4.2.2",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4090-4.2-2"
+      ]
     },
     {
       "id": "4.3",
@@ -95,7 +99,10 @@
     {
       "id": "6",
       "sites": 8,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4090-6-8"
+      ]
     },
     {
       "id": "6.1",
@@ -155,7 +162,10 @@
     {
       "id": "6.4.3",
       "sites": 2,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4090-6.4.3-1"
+      ]
     },
     {
       "id": "6.4.4",
@@ -478,8 +488,9 @@
     {
       "id": "6.3.3:1",
       "quote": "When the PLR detects a failure on the protected LSP, the PLR MUST rapidly switch packets to the protected LSP's backup LSP instead of to the protected LSP's normal out-segment.",
-      "disposition": "mapped",
-      "mapped-to": "RFC4090-6.3-1"
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is the detour switch-over rule of Section 6.3.3, Local Reroute of Traffic onto Detour LSP. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\" The facility-backup switch-over Ze performs is row RFC4090-6.4.3-1 (Section 6.4.3)."
     },
     {
       "id": "6.4.1:1",

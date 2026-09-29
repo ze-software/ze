@@ -1,16 +1,28 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC3032-2.1-1": {
-      "note": "{single-polarity: positive} covers only allocation. Asserted: AllocateLabel never returns below firstDynamicLabel, including across the MaxLabel wrap, so 0-15 is never allocated. The quote also states the Implicit NULL semantics: when the new label is 3 the LSR pops instead of swapping, and 3 never appears in the encapsulation. No tagged assertion covers a received label 3.",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Item iv at every imposing site Ze owns: a transit given label 3 programs a pop and no swap (TestRFC3032ImplicitNullResvProgramsPop / -OrdinaryResvLabelSwapped), an ingress programs an empty push stack (TestRFC3032IngressNeverPushesImplicitNull / -IngressPushesOrdinaryLabel), a bypass label 3 is not stacked (TestRFC3032ImplicitNullBypassLabelNotStacked), and fib-kernel installs an empty push as a plain route via the next hop (TestHandleMPLSEntryPushImplicitNull). Item v: TestLSPTableAllocateSkipsReservedLabels. Not covered: the transit backup stack that empties to a pop, and the kernel acceptance run in the QEMU guest (TestMPLSIntegration_PushImplicitNull, untagged, owed).",
       "requirement_sha": "c262dc601eab8a95",
       "tests": {
-        "internal/plugins/rsvpte/fsm_test.go::TestLSPTableAllocateSkipsReservedLabels": "e62078ef295b93c2"
+        "internal/plugins/fib/kernel/mplsentry_test.go::TestHandleMPLSEntryPushImplicitNull": "6579d75008d3249a",
+        "internal/plugins/rsvpte/fsm_test.go::TestLSPTableAllocateSkipsReservedLabels": "e62078ef295b93c2",
+        "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032ImplicitNullBypassLabelNotStacked": "c9a7284defa2fbd5",
+        "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032ImplicitNullResvProgramsPop": "c9a7284defa2fbd5",
+        "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032IngressNeverPushesImplicitNull": "c9a7284defa2fbd5",
+        "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032IngressPushesOrdinaryLabel": "c9a7284defa2fbd5",
+        "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032OrdinaryResvLabelSwapped": "c9a7284defa2fbd5"
       },
       "units": {
-        "internal/plugins/rsvpte/fsm_test.go::TestLSPTableAllocateSkipsReservedLabels": "4f34e2f4e8374f00"
+        "internal/plugins/fib/kernel/mplsentry_test.go::TestHandleMPLSEntryPushImplicitNull": "f69858cd8b84da9e",
+        "internal/plugins/rsvpte/fsm_test.go::TestLSPTableAllocateSkipsReservedLabels": "4f34e2f4e8374f00",
+        "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032ImplicitNullBypassLabelNotStacked": "135c3a1dd15619da",
+        "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032ImplicitNullResvProgramsPop": "74b2b2262d74c6d8",
+        "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032IngressNeverPushesImplicitNull": "5071ad02ac56cff8",
+        "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032IngressPushesOrdinaryLabel": "28c6bd30e89af8e8",
+        "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032OrdinaryResvLabelSwapped": "89763246b272e8fe"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc3032"

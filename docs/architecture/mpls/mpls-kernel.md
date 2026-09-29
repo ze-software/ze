@@ -19,6 +19,15 @@ the existing rich-route path, which imposes the stack as an MPLS encapsulation.
 The alternative, a separate MPLS code path, was rejected: push, withdraw and
 relabel then reuse the IP-route plumbing instead of duplicating it.
 
+A push entry with an empty label stack is an LSP whose downstream label was
+Implicit NULL, which RFC 3032 Section 2.1 says "never actually appears in the
+encapsulation". `addMPLSEntryLocked` installs it as a plain IP route via the
+next hop, and a withdraw removes it the same way as a labeled push. A swap
+still refuses an empty stack, because a transit with nothing to impose programs
+a pop.
+
+<!-- source: internal/plugins/fib/kernel/mplsentry.go -- addMPLSEntryLocked -->
+
 ## Constraint: the push shares the FIB with other writers
 
 An MPLS push bypasses sysrib best-path arbitration, so it can meet a foreign

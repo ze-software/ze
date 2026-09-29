@@ -63,6 +63,29 @@ func TestHandleMPLSEntryPush(t *testing.T) {
 	assert.Equal(t, 1, f.mplsCountLocked())
 }
 
+// TestHandleMPLSEntryPushImplicitNull: a push whose stack is empty, because the
+// producer's downstream label was Implicit NULL, installs the FEC as a plain
+// IP route via the next hop instead of being refused.
+//
+// RFC requirement: RFC3032-2.1-1 positive -- a push entry whose label stack is empty (the Implicit NULL label was dropped) installs the FEC as a route via the next hop with no label: 3 never appears in the encapsulation.
+func TestHandleMPLSEntryPushImplicitNull(t *testing.T) {
+	mb := newMPLSMockBackend()
+	f := newFIBKernel(mb)
+
+	f.handleMPLSEntry(&mplsfibevents.EntryBatch{Entries: []mplsfibevents.Entry{{
+		Action:  mplsfibevents.ActionAdd,
+		Op:      mplsfibevents.OpPush,
+		FEC:     netip.MustParsePrefix("10.0.0.9/32"),
+		NextHop: netip.MustParseAddr("10.0.0.5"),
+	}}})
+
+	require.Len(t, mb.richAdded, 1, "the empty stack is installed, not refused")
+	assert.Equal(t, netip.MustParsePrefix("10.0.0.9/32"), mb.richAdded[0].Prefix)
+	assert.Equal(t, netip.MustParseAddr("10.0.0.5"), mb.richAdded[0].NextHop, "forwarded via the next hop")
+	assert.Empty(t, mb.richAdded[0].Labels, "no label is imposed")
+	assert.True(t, f.mplsInstalled["10.0.0.9/32"], "tracked so the withdraw removes it")
+}
+
 // VALIDATES: mpls-2 -- re-advertising a FEC with a new label Replaces ze's own
 // route (so the new label is imposed), while the first install used Add.
 func TestHandleMPLSEntryPushRelabel(t *testing.T) {

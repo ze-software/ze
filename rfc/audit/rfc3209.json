@@ -148,8 +148,8 @@
       "verdict": "enforced"
     },
     "RFC3209-4.4.3-4": {
-      "note": "Forbidden: a Resv that carries an RRO after a Path without an RRO. TestRFC3209PathRROWithdrawal, at transit and egress, asserts HasRRO false on the next relayed RESV and on a sendResv refresh. The negative TestRFC3209PathRROForwarded asserts the RRO is still included while the PATH requests it, so an always-drop implementation goes red.",
-      "requirement_sha": "191190b71e4b8d5c",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Row widened to the verbatim trigger plus ban; the tests already drive the trigger. TestRFC3209PathRROWithdrawal: after a Path without an RRO, the next relayed RESV and a sendResv refresh carry no RRO, at transit and egress. Negative TestRFC3209PathRROForwarded keeps the RRO while the PATH requests it, so an always-drop implementation goes red.",
+      "requirement_sha": "32e6efd65d1bbacf",
       "tests": {
         "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209PathRROForwarded": "76ac04cc7023e893",
         "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209PathRROWithdrawal": "76ac04cc7023e893"

@@ -159,6 +159,7 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | ID | Verdict | Blocking spec |
 |----|---------|---------------|
 | RFC4090-6-6 | weak | `spec-rsvpte-frr-link-protection-fallback` |
+| RFC3209-4.6.1-2 | wrong | `spec-rsvpte-ipv6-lsp-tunnel` (added 2026-09-29: Ze has no LSP_TUNNEL_IPv6 SESSION codec) |
 
 - RFC905-x-3 and RFC905-x-4 tag OSPF checksum units and stay in the parent (AC-9); their split rows (RFC905-x-3, x-4 in the split table) are this child's, because it owns rfc905.
 

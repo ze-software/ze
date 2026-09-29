@@ -36,3 +36,9 @@ The LSP_TUNNEL_IPv6 SESSION (C-Type 8), SENDER_TEMPLATE (C-Type 8) and FILTER_SP
 |---|---|---|
 | RFC3209-4.6.1-2 | "MUST be zero" (S4.6.1, the LSP_TUNNEL_IPv6 SESSION diagram, 16-bit field before Tunnel ID) | absent: `wire.go::decodeSessionIPv4` decodes every SESSION C-Type as IPv4; no IPv6 SESSION codec exists |
 | RFC3209-4.6.2-2 | (wire diagram, S4.6.2.2: the 16-bit field before LSP ID reads "MUST be zero") | absent: `wire.go::encodeSenderTemplate` is IPv4 C-Type 7 only; `wire.go::decodeSenderTemplate` reads 4-byte addresses |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | RFC3209-4.6.1-2, moved here from `plan/pre-release/spec-rfc-verdict-fix-routing.md` under P-3 (verdict `wrong`, 2026-09-29) | Ze encodes an LSP_TUNNEL_IPv6 SESSION (C-Type 8) whose 16-bit field before Tunnel ID is zero, and its decoder reads that object as IPv6. The row's tag moves off `wire_test.go::TestRSVPSessionObjectEncoding`, which proves the IPv4 row RFC3209-4.6.1-1, onto tests of the IPv6 object in both polarities |

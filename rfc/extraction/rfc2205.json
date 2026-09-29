@@ -33,7 +33,7 @@
       "unsourced-ids": [
         "RFC2205-3.1-1",
         "RFC2205-3.1-2",
-        "RFC2205-3.1-3",
+        "RFC2205-3.1.1-1",
         "RFC2205-3.10-1"
       ]
     },
@@ -200,10 +200,8 @@
     {
       "id": "2:12",
       "quote": "This must not prevent a different receiver from now establishing a smaller reservation Q0 that would succeed if not merged with Q1.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "the same blockade state rule, stated for a different receiver establishing a smaller reservation",
-      "mapped-to": "RFC2205-2-9"
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-2.5-1"
     },
     {
       "id": "2:13",
@@ -438,10 +436,8 @@
     {
       "id": "3:24",
       "quote": "Therefore, its IP destination address must be the session DestAddress, and its IP source address must be the sender address from the path state being torn down.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "the addressing consequence of routing a PathTear exactly like its Path, in the same paragraph",
-      "mapped-to": "RFC2205-3-12"
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3.1.5-1"
     },
     {
       "id": "3:25",
@@ -476,10 +472,8 @@
     {
       "id": "3:30",
       "quote": "A ResvTear message may include a SCOPE object, but it must be ignored.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "the same ignore-on-receipt rule for an object a teardown message may carry, stated for SCOPE in ResvTear",
-      "mapped-to": "RFC2205-3-13"
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3.1.6-1"
     },
     {
       "id": "3:31",
@@ -684,10 +678,8 @@
     {
       "id": "3:61",
       "quote": "When Path and PathTear messages are forwarded, path state marked \"Local_Only\" must be ignored.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "the forwarding half of the same Local_Only rule",
-      "mapped-to": "RFC2205-3-34"
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3.9-1"
     },
     {
       "id": "3:62",

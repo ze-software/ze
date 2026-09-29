@@ -180,6 +180,28 @@
     {
       "rid": "RFC2205-2.3-1",
       "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedResvStateKept",
+      "unit-sha": "c46a6876dc6d1ac0",
+      "claim-sha": "a6cfe48556582a70",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/fsm.go::receivedRSBExpired",
+      "producer-sha": "113c7f40ea480608",
+      "break": "body of receivedRSBExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-2.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout",
+      "unit-sha": "739cdca06e554339",
+      "claim-sha": "c2169ac3e0847046",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/fsm.go::expiredRSBs",
+      "producer-sha": "c66dd20d835ca538",
+      "break": "body of expiredRSBs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-2.3-1",
+      "polarity": "negative",
       "unit": "internal/plugins/rsvpte/softstate_test.go::TestRefreshDoesNotStampEgressPSB",
       "unit-sha": "3f6c62b571d655d1",
       "claim-sha": "eb1f2ccdee807c29",
@@ -376,6 +398,28 @@
       "break": "body of DecodeHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2205-3.1.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205NonzeroChecksumStillVerified",
+      "unit-sha": "74cb235b346c6924",
+      "claim-sha": "1d6a2c77e71337fb",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/wire.go::DecodeMessage",
+      "producer-sha": "f64d0bb6e31e6cd8",
+      "break": "body of DecodeMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3.1.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ZeroChecksumMeansNoneTransmitted",
+      "unit-sha": "40b1e39424c99598",
+      "claim-sha": "e16e60cb74edfd73",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/wire.go::DecodeMessage",
+      "producer-sha": "f64d0bb6e31e6cd8",
+      "break": "body of DecodeMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2205-3.1.2-1",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected",
@@ -451,6 +495,50 @@
       "producer": "internal/plugins/rsvpte/engine.go::handlePathEgress",
       "producer-sha": "69edc65089534730",
       "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3.1.5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearAddressedFromSenderToSession",
+      "unit-sha": "19bdba6210426ee8",
+      "claim-sha": "e34270b2377b08bb",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reroute.go::pathTearLocked",
+      "producer-sha": "c52ba35b9241f646",
+      "break": "body of pathTearLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3.1.5-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearSourceNotTakenFromCarrier",
+      "unit-sha": "040778c21c82562f",
+      "claim-sha": "c8fbf15c10b6df3e",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reroute.go::pathTearLocked",
+      "producer-sha": "c52ba35b9241f646",
+      "break": "body of pathTearLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3.1.6-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvTearScopeNotObeyed",
+      "unit-sha": "cfd92c13338cfe39",
+      "claim-sha": "37cfeec609b806c4",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reservation.go::handleResvTear",
+      "producer-sha": "8e5ad9b57ffef3db",
+      "break": "body of handleResvTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3.1.6-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvTearWithScopeTearsDown",
+      "unit-sha": "d8bf00c7dee7622d",
+      "claim-sha": "d7a3a33d7ca7d097",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reservation.go::handleResvTear",
+      "producer-sha": "8e5ad9b57ffef3db",
+      "break": "body of handleResvTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2205-3.10-1",

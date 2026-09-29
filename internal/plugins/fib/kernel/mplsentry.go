@@ -98,10 +98,15 @@ func (f *fibKernel) handleMPLSEntry(batch *mplsfibevents.EntryBatch) {
 func (f *fibKernel) addMPLSEntryLocked(e *mplsfibevents.Entry, rb richRouteBackend, mb mplsBackend) error {
 	switch e.Op {
 	case mplsfibevents.OpPush:
-		if err := validateMPLSLabels(e.OutLabels); err != nil {
-			logger().Error("fib-kernel: mpls push validation failed", "fec", e.FEC, "error", err)
-			f.recordMPLSAddErrorLocked()
-			return err
+		// RFC 3032 Section 2.1: Implicit NULL is a label "which never actually
+		// appears in the encapsulation". An empty push stack is an LSP whose next hop is also its
+		// egress, so the FEC is programmed as a plain IP route via the next hop.
+		if len(e.OutLabels) > 0 {
+			if err := validateMPLSLabels(e.OutLabels); err != nil {
+				logger().Error("fib-kernel: mpls push validation failed", "fec", e.FEC, "error", err)
+				f.recordMPLSAddErrorLocked()
+				return err
+			}
 		}
 		if rb == nil || !e.FEC.IsValid() {
 			logger().Warn("fib-kernel: cannot program mpls push (no rich backend or invalid FEC)", "fec", e.FEC)

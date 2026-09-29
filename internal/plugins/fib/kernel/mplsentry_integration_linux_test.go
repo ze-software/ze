@@ -372,6 +372,54 @@ func TestMPLSIntegration_Push(t *testing.T) {
 	})
 }
 
+// TestMPLSIntegration_PushImplicitNull: an empty push stack (the downstream
+// label was Implicit NULL, RFC 3032 Section 2.1) installs a plain IP route via
+// the next hop, with no MPLS encap, and the withdraw removes it.
+func TestMPLSIntegration_PushImplicitNull(t *testing.T) {
+	loadMPLSModules(t)
+	withNetNS(t, func() {
+		h, err := netlink.NewHandle()
+		require.NoError(t, err)
+		defer h.Close()
+		enableNetnsMPLS(t)
+		setupDummyLink(t, h)
+
+		f := newFIBKernel(newTestBackend(h))
+		f.handleMPLSEntry(&mplsfibevents.EntryBatch{Entries: []mplsfibevents.Entry{{
+			Action:  mplsfibevents.ActionAdd,
+			Op:      mplsfibevents.OpPush,
+			FEC:     netip.MustParsePrefix("10.9.0.0/24"),
+			NextHop: netip.MustParseAddr("10.0.0.2"),
+		}}})
+
+		routes, err := h.RouteList(nil, netlink.FAMILY_V4)
+		require.NoError(t, err)
+		var plain *netlink.Route
+		for i := range routes {
+			if routes[i].Protocol == rtprotZE && routes[i].Dst != nil && routes[i].Dst.String() == "10.9.0.0/24" {
+				plain = &routes[i]
+				break
+			}
+		}
+		require.NotNil(t, plain, "route 10.9.0.0/24 not found in kernel")
+		assert.Nil(t, plain.Encap, "Implicit NULL imposes no label")
+		assert.Equal(t, "10.0.0.2", plain.Gw.String(), "forwarded via the next hop")
+
+		f.handleMPLSEntry(&mplsfibevents.EntryBatch{Entries: []mplsfibevents.Entry{{
+			Action: mplsfibevents.ActionRemove,
+			Op:     mplsfibevents.OpPush,
+			FEC:    netip.MustParsePrefix("10.9.0.0/24"),
+		}}})
+		routes, err = h.RouteList(nil, netlink.FAMILY_V4)
+		require.NoError(t, err)
+		for i := range routes {
+			if routes[i].Protocol == rtprotZE && routes[i].Dst != nil && routes[i].Dst.String() == "10.9.0.0/24" {
+				t.Fatal("route should be gone after withdraw")
+			}
+		}
+	})
+}
+
 // pushEncapLabels returns the MPLS encap labels of the fib-kernel push route for
 // dst, or nil if absent.
 func pushEncapLabels(t *testing.T, h *netlink.Handle, dst string) []int { //nolint:unparam // dst kept explicit for call-site readability

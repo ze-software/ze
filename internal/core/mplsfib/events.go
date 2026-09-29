@@ -67,7 +67,10 @@ type Entry struct {
 	// Swap/pop entries are in-label keyed and require zero.
 	TableID uint32
 
-	// OutLabels is the outgoing label stack for push/swap. Empty for pop.
+	// OutLabels is the outgoing label stack for push/swap. Empty for pop. An
+	// empty push stack forwards FEC traffic as plain IP toward NextHop: the
+	// downstream label was Implicit NULL, which "never actually appears in the
+	// encapsulation" (RFC 3032 Section 2.1).
 	OutLabels []uint32
 
 	// NextHop is the downstream neighbor the labeled packet is sent to.
