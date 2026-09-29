@@ -417,7 +417,11 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 		num = uint64(n)
 	case string:
 		// Config values arrive as strings — attempt conversion.
-		parsed, parseErr := strconv.ParseUint(n, 10, 64)
+		// RFC 7950 Section 9.2.1: "An integer value is lexically represented
+		// as an optional sign ("+" or "-"), followed by a sequence of decimal
+		// digits." ParseUint refuses a sign, so a leading "+" is dropped
+		// first; a "-" stays and is refused.
+		parsed, parseErr := strconv.ParseUint(strings.TrimPrefix(n, "+"), 10, 64)
 		if parseErr != nil {
 			return &ValidationError{
 				Path:     path,

@@ -1863,7 +1863,7 @@
       "id": "7.2.2:1",
       "quote": "A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-5.1-1"
+      "mapped-to": "RFC7950-7.2.2-1"
     },
     {
       "id": "7.3:1",
@@ -1887,7 +1887,7 @@
       "id": "7.3.2:1",
       "quote": "The \"type\" statement, which MUST be present, defines the base type from which this type is derived.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-7.3-1"
+      "mapped-to": "RFC7950-7.3.2-1"
     },
     {
       "id": "7.3.4:1",
@@ -2131,7 +2131,7 @@
       "id": "7.9.2:3",
       "quote": "The case identifier MUST be unique within a choice.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-7.9.2-1"
+      "mapped-to": "RFC7950-7.9.2-2"
     },
     {
       "id": "7.9.3:1",
@@ -2473,13 +2473,13 @@
       "id": "7.21.5:3",
       "quote": "If the XPath expression references any node that also has associated \"when\" statements, those \"when\" expressions MUST be evaluated first.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-7.21.5-1"
+      "mapped-to": "RFC7950-7.21.5-2"
     },
     {
       "id": "7.21.5:4",
       "quote": "There MUST NOT be any circular dependencies among \"when\" expressions.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-7.21.5-1"
+      "mapped-to": "RFC7950-7.21.5-2"
     },
     {
       "id": "8.1:1",
@@ -2657,7 +2657,7 @@
       "id": "9.1:3",
       "quote": "If the data type does not have a canonical form, the format of the value MUST match the data type's lexical representation, but the exact format is implementation dependent.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-9.1-1"
+      "mapped-to": "RFC7950-9.1-2"
     },
     {
       "id": "9.2.4:1",
@@ -2705,7 +2705,7 @@
       "id": "9.4.4:3",
       "quote": "If a length restriction is applied to a type that is already length-restricted, the new restriction MUST be equally limiting or more limiting, i.e., raising the lower bounds, reducing the upper bounds, removing explicit length values or ranges, or splitting ranges into multiple ranges with intermediate gaps.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-9.2.4-1"
+      "mapped-to": "RFC7950-9.4.4-2"
     },
     {
       "id": "9.5.1:1",
@@ -2940,13 +2940,13 @@
       "id": "11:7",
       "quote": "Otherwise, if the semantics of any previous definition are changed (i.e., if a non-editorial change is made to any definition other than those specifically allowed above), then this MUST be achieved by a new definition with a new identifier.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-11-1"
+      "mapped-to": "RFC7950-11-2"
     },
     {
       "id": "11:8",
       "quote": "In statements that have any data definition statements as substatements, those data definition substatements MUST NOT be reordered.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-11-1"
+      "mapped-to": "RFC7950-11-3"
     },
     {
       "id": "12:1",

@@ -641,8 +641,13 @@ func extractRelatedTools(entry *gyang.Entry, path string) []*RelatedTool {
 func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	typ := yangTypeToValueType(entry.Type)
 	node := Leaf(typ)
-	if len(entry.Default) > 0 {
-		node.Default = entry.Default[0]
+	// RFC 7950 Section 7.3.4: "If the base type has a default value and the
+	// new derived type does not specify a new default value, the base type's
+	// default value is also the default value of the new derived type."
+	// DefaultValues returns the leaf's own default, else its type's default,
+	// and none on a mandatory leaf.
+	if defaults := entry.DefaultValues(); len(defaults) > 0 {
+		node.Default = defaults[0]
 	}
 	validateLeafDefaults(entry, path)
 	node.Sensitive = hasSensitiveExtension(entry)
@@ -675,7 +680,8 @@ var defaultValidator = yang.NewValidator(nil)
 // validateLeafDefaults records a schema build error for a default statement
 // its own type refuses, and for a default placed where RFC 7950 forbids one.
 // goyang copies a leaf's own default onto entry.Default and a typedef's
-// default onto entry.Type.Default, so both are read.
+// default onto entry.Type.Default, so both are read: the leaf's own default
+// here, the typedef's in validateTypedefDefault.
 func validateLeafDefaults(entry *gyang.Entry, path string) {
 	if entry.Type == nil {
 		return
@@ -689,11 +695,10 @@ func validateLeafDefaults(entry *gyang.Entry, path string) {
 		if err := defaultValidator.ValidateType(path, entry.Type, def); err != nil {
 			recordSchemaBuildError(fmt.Errorf("at %s: default %q is not valid for type %s: %w", path, def, entry.Type.Name, err))
 		}
+		validateDefaultNotIfFeature(entry, path, def)
 	}
-	if entry.Type.Default != "" {
-		if err := defaultValidator.ValidateType(path, entry.Type, entry.Type.Default); err != nil {
-			recordSchemaBuildError(fmt.Errorf("at %s: typedef default %q is not valid for type %s: %w", path, entry.Type.Default, entry.Type.Name, err))
-		}
+	if entry.Type.HasDefault {
+		validateTypedefDefault(entry, path)
 	}
 	if len(entry.Default) == 0 {
 		return
@@ -708,6 +713,75 @@ func validateLeafDefaults(entry *gyang.Entry, path string) {
 	// one."
 	if entry.ListAttr != nil && entry.ListAttr.MinElements >= 1 {
 		recordSchemaBuildError(fmt.Errorf("at %s: default %q on a leaf-list with min-elements %d is invalid (RFC 7950 Section 7.7.4)", path, entry.Default[0], entry.ListAttr.MinElements))
+	}
+}
+
+// validateTypedefDefault checks the default a leaf's type carries from a
+// typedef. goyang sets entry.Type.Base to the type statement of the typedef
+// the leaf's type derives from, so its YangType holds the typedef's own
+// restrictions, while entry.Type also holds the leaf's.
+func validateTypedefDefault(entry *gyang.Entry, path string) {
+	def := entry.Type.Default
+	// RFC 7950 Section 7.3.4: "The value of the "default" statement MUST be
+	// valid according to the type specified in the "type" statement."
+	if base := entry.Type.Base; base != nil && base.YangType != nil {
+		if err := defaultValidator.ValidateType(path, base.YangType, def); err != nil {
+			recordSchemaBuildError(fmt.Errorf("at %s: typedef default %q is not valid for type %s: %w", path, def, base.YangType.Name, err))
+			return
+		}
+	}
+	if len(entry.Default) > 0 {
+		return
+	}
+	// RFC 7950 Section 7.3.4: "If the type's default value is not valid
+	// according to the new restrictions specified in a derived type or leaf
+	// definition, the derived type or leaf definition MUST specify a new
+	// default value compatible with the restrictions."
+	if err := defaultValidator.ValidateType(path, entry.Type, def); err != nil {
+		recordSchemaBuildError(fmt.Errorf("at %s: inherited default %q is not valid for the restricted type %s, which must specify a new default: %w", path, def, entry.Type.Name, err))
+		return
+	}
+	validateDefaultNotIfFeature(entry, path, def)
+}
+
+// typedefChainMax bounds the walk from a leaf's type statement through the
+// typedefs it derives from.
+const typedefChainMax = 64
+
+// validateDefaultNotIfFeature records a schema build error when an enum or a
+// bit that the default names carries an if-feature statement, in the leaf's
+// own type statement or in any typedef the type derives from.
+func validateDefaultNotIfFeature(entry *gyang.Entry, path, def string) {
+	var stmt *gyang.Type
+	switch n := entry.Node.(type) {
+	case *gyang.Leaf:
+		stmt = n.Type
+	case *gyang.LeafList:
+		stmt = n.Type
+	}
+	names := strings.Fields(def)
+	for range typedefChainMax {
+		if stmt == nil {
+			return
+		}
+		// RFC 7950 Section 7.6.4: "The definition of the default value MUST
+		// NOT be marked with an "if-feature" statement."
+		for _, enum := range stmt.Enum {
+			if enum.Name == def && len(enum.IfFeature) > 0 {
+				recordSchemaBuildError(fmt.Errorf("at %s: default %q names enum %q, whose definition carries an if-feature (RFC 7950 Section 7.6.4)", path, def, enum.Name))
+				return
+			}
+		}
+		for _, bit := range stmt.Bit {
+			if slices.Contains(names, bit.Name) && len(bit.IfFeature) > 0 {
+				recordSchemaBuildError(fmt.Errorf("at %s: default %q names bit %q, whose definition carries an if-feature (RFC 7950 Section 7.6.4)", path, def, bit.Name))
+				return
+			}
+		}
+		if stmt.YangType == nil || stmt.YangType.Base == stmt {
+			return
+		}
+		stmt = stmt.YangType.Base
 	}
 }
 
