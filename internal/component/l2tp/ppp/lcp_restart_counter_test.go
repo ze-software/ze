@@ -121,8 +121,8 @@ func TestLCPPeerTerminateRequestZeroesRestartCounter(t *testing.T) {
 
 	// The counter is zero, so the pause ends in TO- rather than in a
 	// Terminate-Request retransmission.
-	if done := s.handleRestartTimeout(); !done {
-		t.Fatal("the Timeout event after zrc must end the session (tlf)")
+	if done := s.handleRestartTimeout(); done {
+		t.Fatal("the Timeout event after zrc must leave the session waiting in Stopped (RFC 1661 Section 4.3)")
 	}
 	if st := s.currentState(); st != LCPStateStopped {
 		t.Fatalf("state = %s, want stopped (Stopping + TO- runs tlf)", st)
@@ -162,8 +162,11 @@ func TestLCPPeerTerminateRestartTimer(t *testing.T) {
 					if initial != LCPStateOpened {
 						t.Fatal("transition without zrc armed the Restart timer")
 					}
-					if !s.handleRestartTimeout() || s.currentState() != LCPStateStopped {
-						t.Fatal("expired grace timer did not terminate the session")
+					if s.handleRestartTimeout() {
+						t.Fatal("expired grace timer ended the session instead of waiting in Stopped")
+					}
+					if s.currentState() != LCPStateStopped {
+						t.Fatal("expired grace timer did not reach Stopped")
 					}
 				default:
 					if initial == LCPStateOpened {

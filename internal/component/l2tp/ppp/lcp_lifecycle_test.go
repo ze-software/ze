@@ -68,8 +68,21 @@ func TestPeriodicAuthenticationLCPInterruptions(t *testing.T) {
 						if ack.Identifier != 0x41 {
 							t.Fatalf("Terminate-Ack identifier = %d, want 65", ack.Identifier)
 						}
-						// No close/stop is injected: the grace timer must produce the
-						// event that tells the owning transport to disconnect.
+						// The grace timer takes LCP to Stopped, where RFC 1661
+						// Section 4.3 keeps the session waiting for a new
+						// Configure-Request: no teardown event yet.
+						time.Sleep(2 * defaultRestartTimer)
+						synctest.Wait()
+						for len(events) > 0 {
+							if ev, ok := (<-events).(EventSessionDown); ok {
+								t.Fatalf("session ended in Stopped before the transport teardown: %+v", ev)
+							}
+						}
+						// The transport teardown closes the channel; the cause stays
+						// the peer's Terminate-Request.
+						if err := peer.Close(); err != nil {
+							t.Fatalf("close peer: %v", err)
+						}
 						down := awaitLifecycleDown(t, events)
 						if down.Cause != l2tpevents.TerminateCauseUserRequest {
 							t.Fatalf("interrupted reauth ended for cause %v, want peer termination", down.Cause)

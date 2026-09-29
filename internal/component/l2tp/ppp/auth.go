@@ -4,6 +4,7 @@
 // Related: pap.go -- runPAPAuthPhase consumer of awaitAuthDecision
 // Related: chap.go -- runCHAPAuthPhase consumer of awaitAuthDecision + waitCHAPResponse
 // Related: mschapv2.go -- runMSCHAPv2AuthPhase consumer of awaitAuthDecision + waitMSCHAPv2Response
+// RFC: rfc/short/rfc1334.md
 
 package ppp
 
@@ -123,6 +124,30 @@ func defaultAuthFallbackOrder() []AuthMethod {
 		AuthMethodMSCHAPv2,
 		AuthMethodPAP,
 	}
+}
+
+// initialAuthMethod returns the AuthMethod ze offers in its first LCP
+// Configure-Request, given the configured method and the session's fallback
+// order. A configured PAP is replaced by the first CHAP variant the order
+// accepts, so PAP is offered only after the peer Naks toward it
+// (adjustAuthOnNakOrReject). An order without a CHAP variant leaves PAP as
+// configured: the session then holds no stronger method to offer.
+func initialAuthMethod(configured AuthMethod, order []AuthMethod) AuthMethod {
+	if configured != AuthMethodPAP {
+		return configured
+	}
+	// RFC 1334 Section 2: "Any implementations which include a stronger
+	// authentication method (such as CHAP, described below) MUST offer to
+	// negotiate that method prior to PAP."
+	for _, m := range order {
+		if m == AuthMethodCHAPMD5 {
+			return m
+		}
+		if m == AuthMethodMSCHAPv2 {
+			return m
+		}
+	}
+	return configured
 }
 
 // selectAuthFallback chooses the AuthMethod ze will advertise in its

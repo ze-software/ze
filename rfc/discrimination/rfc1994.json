@@ -2,6 +2,28 @@
   "rfc": "rfc1994",
   "records": [
     {
+      "rid": "RFC1994-1-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod",
+      "unit-sha": "40db9625bff7e301",
+      "claim-sha": "88882d0731d37966",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/auth.go::adjustAuthOnNakOrReject",
+      "producer-sha": "d4e0833095c99a9d",
+      "break": "body of adjustAuthOnNakOrReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1994-1-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod",
+      "unit-sha": "04f64c1e737629a5",
+      "claim-sha": "885d83fba3bf4855",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/auth.go::authMethodToLCPOptions",
+      "producer-sha": "7917d642d32d1603",
+      "break": "body of authMethodToLCPOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1994-4.1-10",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded",

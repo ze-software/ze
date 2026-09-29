@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"slices"
 	"testing"
+	"time"
 )
 
 // authProtoOffered returns the Authentication-Protocol value of the last LCP
@@ -77,5 +78,77 @@ func TestAuthOffersCHAPBeforePAP(t *testing.T) {
 			t.Fatalf("%s: after a PAP Nak the Configure-Request offers %#04x (present %v), want PAP %v",
 				tc.name, got, ok, tc.papAfter)
 		}
+	}
+}
+
+// TestConfiguredPAPStillOffersCHAPFirst starts a session through the Driver
+// with PAP configured, the way `auth-method pap` reaches spawnSession. The
+// peer reads the first Configure-Request, which MUST offer CHAP because the
+// session's fallback order includes CHAP-MD5, answers it with a Configure-Nak
+// that suggests PAP, and reads the next one, which then offers PAP. The
+// control configures a fallback order holding PAP alone, so the session
+// includes no stronger method and its first Configure-Request offers PAP.
+//
+// VALIDATES: RFC 1334 Section 2, a configured PAP preference does not make ze
+// offer PAP before CHAP.
+// PREVENTS: spawnSession copying StartSession.AuthMethod = PAP into the first
+// Configure-Request while CHAP is available to the session.
+//
+// RFC requirement: RFC1334-x-1 positive -- with PAP configured and CHAP-MD5 in the fallback order, the first Configure-Request built by spawnSession offers CHAP (0xc223), and the one after the peer's PAP Configure-Nak offers PAP (0xc023).
+// RFC requirement: RFC1334-x-1 negative -- with PAP configured and CHAP-MD5 in the fallback order, the first Configure-Request built by spawnSession does not offer PAP.
+func TestConfiguredPAPStillOffersCHAPFirst(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		fd        int
+		order     []AuthMethod
+		firstWant uint16
+	}{
+		{"CHAP in order", 16301, defaultAuthFallbackOrder(), authProtoCHAP},
+		{"PAP alone", 16302, []AuthMethod{AuthMethodPAP}, authProtoPAP},
+	} {
+		reg := newPipeRegistry()
+		installPipeRegistry(t, reg)
+		pair := newPipePair(reg, tc.fd)
+
+		ops, _, _ := newFakeOps()
+		d := newTestDriverNoResponder(&fakeBackend{}, ops)
+		if err := d.Start(); err != nil {
+			t.Fatalf("%s: Start: %v", tc.name, err)
+		}
+
+		secondCR := make(chan LCPPacket, 1)
+		peerDone := make(chan struct{})
+		go authProtoReplyPeer(t, pair.peerEnd, tc.firstWant, LCPConfigureNak, authProtoPAP, nil, secondCR, peerDone)
+
+		d.SessionsIn() <- StartSession{
+			TunnelID:          183,
+			SessionID:         uint16(tc.fd - 16000),
+			ChanFD:            tc.fd,
+			UnitFD:            tc.fd - 15000,
+			UnitNum:           23,
+			LNSMode:           true,
+			MaxMRU:            1500,
+			AuthMethod:        AuthMethodPAP,
+			AuthFallbackOrder: tc.order,
+		}
+
+		select {
+		case pkt := <-secondCR:
+			opts, err := ParseLCPOptions(pkt.Data)
+			if err != nil {
+				t.Fatalf("%s: second Configure-Request options: %v", tc.name, err)
+			}
+			data, ok := lookupOption(opts, LCPOptAuthProto)
+			if !ok || len(data) < 2 || binary.BigEndian.Uint16(data[:2]) != authProtoPAP {
+				t.Fatalf("%s: Configure-Request after the PAP Nak carries Auth-Protocol %x (present %v), want PAP",
+					tc.name, data, ok)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s: no second Configure-Request (the first did not offer %#04x)", tc.name, tc.firstWant)
+		}
+
+		<-peerDone
+		d.Stop()
+		closeConn(pair.peerEnd)
 	}
 }

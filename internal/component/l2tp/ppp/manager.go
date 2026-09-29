@@ -494,7 +494,7 @@ func (d *Driver) spawnSession(start *StartSession) {
 		authRequired:         start.AuthRequired,
 		authFallbackOrder:    fallback,
 		reauthInterval:       start.ReauthInterval,
-		configuredAuthMethod: start.AuthMethod,
+		configuredAuthMethod: initialAuthMethod(start.AuthMethod, fallback),
 		disableIPCP:          start.DisableIPCP,
 		disableIPv6CP:        start.DisableIPv6CP,
 		ipTimeout:            start.IPTimeout,

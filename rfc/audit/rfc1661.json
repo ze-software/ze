@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-29",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -9,8 +10,8 @@
       "note": "Receive, low-octet rule: TestRFC1661NonCompliantProtocolTreatedUnrecognized (0xC020 -> Protocol-Reject). Receive, high-octet rule: TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized sends an Echo-Request under 0xC121 in Opened, red unless exactly one Protocol-Reject naming 0xC121, no Echo-Reply, state Opened. Transmit side: the same unit checks both parity bits on every Protocol constant ze writes (LCP, PAP, CHAP, IPCP, IPV6CP, IPv4, IPv6).",
       "requirement_sha": "d38d0dc4f4ee74bc",
       "tests": {
-        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized": "7720659501d2246f",
-        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized#2": "7720659501d2246f",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized": "734d9aff4f96f981",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized#2": "734d9aff4f96f981",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized": "19e015b5d17e37e8",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized": "19e015b5d17e37e8"
       },
@@ -113,7 +114,7 @@
       "note": "Single-polarity accepted: no early-disconnect branch exists after sca in Opened+RTR. TestRFC1661TerminateAckSentAndLinkHeld pins the instant of receipt; TestRFC1661TerminateAckHoldsLinkForRestartTime adds the time bound: after the Terminate-Ack the Restart timer is running (armed by zrc via armRestartTimer, which uses defaultRestartTimer, asserted >= 3 s), and a Configure-Request and an Echo-Request meanwhile keep Stopping with no end and no EventSessionDown. Residual: the armed duration is asserted through the constant, not read off the timer.",
       "requirement_sha": "376a67e775b4a6f4",
       "tests": {
-        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661TerminateAckHoldsLinkForRestartTime": "7720659501d2246f",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661TerminateAckHoldsLinkForRestartTime": "734d9aff4f96f981",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "19e015b5d17e37e8"
       },
       "units": {
@@ -126,7 +127,7 @@
       "note": "TestRFC1661ConfigureRequestInOpenedRenegotiates drives handleLCPPacket with an acceptable Configure-Request in Opened: red unless ze writes its own Configure-Request and a Configure-Ack, lands in Ack-Sent, returns no end and emits no EventSessionDown. The table-level units (Opened+RCR has scr; RXR does not) stay as the specificity control.",
       "requirement_sha": "f615a6f02dc3c0c1",
       "tests": {
-        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates": "7720659501d2246f",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates": "734d9aff4f96f981",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoDoesNotRenegotiate": "19e015b5d17e37e8",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RenegotiateOnConfigureRequestInOpened": "19e015b5d17e37e8"
       },
@@ -138,26 +139,28 @@
       "verdict": "enforced"
     },
     "RFC1661-4.3-2": {
-      "note": "Clause (the RTR implementation note): accept a new Configure-Request after RTR with no admin action. TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest asserts the table only from ReqSent/AckRcvd/AckSent. The Opened+RTR path (Stopping -> Stopped, where run() ends the session) is not driven, and no unit feeds a Configure-Request to a session after a Terminate-Request.",
+      "note": "The Opened+RTR path is now driven. TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest: Terminate-Request in Opened, Restart timer expiry, then handleRestartTimeout must not end the session, the state is Stopped with no EventSessionDown, and a Configure-Request with no Open event draws ze's CONFREQ and a Configure-Ack echoing its Identifier, Ack-Sent, still no down. Red on the old end-at-Stopped behaviour (recorded against sessionEndedAt). TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest keeps the ReqSent/AckRcvd/AckSent table edges. Valid single-polarity: the MUST has no refusing counterpart. The row marker still cites ppp_fsm.go line numbers and omits sessionEndedAt; it stays true.",
       "requirement_sha": "feb5b73545defe92",
       "tests": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest": "734d9aff4f96f981",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest": "19e015b5d17e37e8"
       },
       "units": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest": "f45ad763c7cb443c",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest": "e3190fb1f22c8d05"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1661-4.4-2": {
-      "note": "Forbidden: zrc without arming the timeout. TestLCPPeerTerminateRestartTimer (Opened+RTR) goes red if the Restart timer fires before defaultRestartTimer, if it does not fire at it, or if the session leaves Stopping early; the Closed case goes red if a transition without zrc arms it.",
+      "note": "Re-read after TestLCPPeerTerminateRestartTimer changed its end-of-grace assertion to the RFC 1661 Section 4.3 behaviour (no session end, Stopped). The 4.4-2 assertions are unchanged: Opened+RTR arms the real Restart timer at defaultRestartTimer, the session stays Stopping for the grace period and the timer event reaches Stopped; the Closed case arms no timer. Both polarities observed red under recorded breaks (armRestartTimer, applyTransition).",
       "requirement_sha": "c2f1eadb4e4f0e72",
       "tests": {
-        "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer": "3c889b32f1a5e645",
-        "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer#2": "3c889b32f1a5e645"
+        "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer": "ece651a9cb319747",
+        "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer#2": "ece651a9cb319747"
       },
       "units": {
-        "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer": "0a41cc5aa6c54882",
-        "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer#2": "0a41cc5aa6c54882"
+        "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer": "f3cc909359687f65",
+        "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer#2": "f3cc909359687f65"
       },
       "verdict": "enforced"
     },
@@ -165,8 +168,8 @@
       "note": "TestRFC1661OpenTransmitsConfigureRequestOnWire runs applyTransition (the same path run() uses for its synthetic Open) for Closed+Open and Starting+Up: red unless exactly one LCP Configure-Request reaches the wire and state is Req-Sent. Initial+Up (no Open) writes nothing and lands in Closed. The run() entry itself is RFC1661-3.1-1's, still open.",
       "requirement_sha": "756f95a8b906a207",
       "tests": {
-        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire": "7720659501d2246f",
-        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire#2": "7720659501d2246f",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire": "734d9aff4f96f981",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire#2": "734d9aff4f96f981",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661OpenTransmitsConfigureRequest": "19e015b5d17e37e8",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UpWithoutOpenSendsNoConfigureRequest": "19e015b5d17e37e8"
       },
@@ -289,8 +292,8 @@
       "note": "TestRFC1661WellFormedBooleanDeclinedWithReject removes the length-fault confound: a well-formed Length-2 ACFC declined on PPPoE draws a Configure-Reject whose options are exactly that ACFC and no Nak; beside a Nak-earning MRU, NegotiatePeerOptions puts the ACFC in rejects not naks and the wire reply is the Reject naming only ACFC. Red on a Nak for the boolean.",
       "requirement_sha": "60e3df5f9f5b0259",
       "tests": {
-        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject": "7720659501d2246f",
-        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject#2": "7720659501d2246f",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject": "734d9aff4f96f981",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject#2": "734d9aff4f96f981",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661BooleanOptionsUseRejectNotNak": "19e015b5d17e37e8",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ValuedOptionUsesNak": "19e015b5d17e37e8"
       },
@@ -334,8 +337,8 @@
       "note": "Reordering: TestRFC1661NakPreservesRequestOrder / TestRFC1661NakOrderFollowsRequestNotAFixedOrder. Filtering: TestRFC1661NakFiltersAcceptableOptions puts an acceptable ACCM between Magic 0 and MRU 2000 in both orders and reads the wire Configure-Nak: red unless its Types are exactly the two Nak-earning ones in request order, so a copied ACCM or a reorder both fail.",
       "requirement_sha": "fec504f4c705c5ef",
       "tests": {
-        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions": "7720659501d2246f",
-        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions#2": "7720659501d2246f",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions": "734d9aff4f96f981",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions#2": "734d9aff4f96f981",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakOrderFollowsRequestNotAFixedOrder": "19e015b5d17e37e8",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakPreservesRequestOrder": "19e015b5d17e37e8"
       },
@@ -381,8 +384,8 @@
       "note": "Clause (a) unrecognized: TestRFC1661ConfigureRejectForUnrecognizedOption and the OutranksInvalidLength units. Clause (b) refused by configuration: TestRFC1661ConfigureRejectForOptionRefusedByConfiguration sends Auth-Protocol (any session) and ACCM (PPPoE), red unless the Reject carries exactly that option and no Ack is written; the same ACCM on L2TP, which configuration accepts, must be Acked with no Reject.",
       "requirement_sha": "441f1e38a240dc66",
       "tests": {
-        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration": "7720659501d2246f",
-        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration#2": "7720659501d2246f",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration": "734d9aff4f96f981",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration#2": "734d9aff4f96f981",
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength": "2325ea607f732027",
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength": "2325ea607f732027",
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength#2": "2325ea607f732027",
@@ -496,7 +499,7 @@
       "verdict": "enforced"
     },
     "RFC1661-5.5-2": {
-      "note": "TestTerminateRequestIdentifierChanges sends a Terminate-Request, feeds a Terminate-Ack with its Identifier (asserted valid: state moves to Closed), sends a second one: red when the second reuses the Identifier (reply clause); exactly two frames are written. Data is empty on both and asserted so; ze never varies Terminate-Request Data, so the Data-change clause has no reachable case. The old retransmission pair (which Section 5.5 lets keep its Identifier) is gone.",
+      "note": "Independent re-judge (R10). TestTerminateRequestIdentifierChanges: Terminate-Request, a Terminate-Ack with its Identifier accepted as a valid reply (state Closed asserted), a second Terminate-Request; red when the second reuses the Identifier, and only the two requests are written. Data is empty on both and asserted so: sendTerminateRequest always writes nil Data, so the Data-change clause has no reachable case. The negative tag reads the same Identifier assertion as the positive; the send-side MUST has no refusing input, so this is in substance a single-polarity positive (a marker on the row would say so). The recorded break panics sendTerminateRequest; the reply-clause break (dropping terminateID++) is caught by reading the assertion.",
       "requirement_sha": "db76e473ecf13877",
       "tests": {
         "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges": "034fb31a9e383e0e",

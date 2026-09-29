@@ -329,6 +329,12 @@ the no-auth accounting path. Set `allow-no-auth true` only for lab peers
 or explicit no-auth deployments; `auth-method none` is rejected unless
 that opt-in is present.
 
+With `auth-method pap`, the first Configure-Request still offers CHAP-MD5.
+Ze offers PAP only after the peer sends a Configure-Nak that suggests PAP,
+because RFC 1334 Section 2 requires an implementation that includes CHAP to
+offer it before PAP.
+<!-- source: internal/component/l2tp/ppp/auth.go -- initialAuthMethod -->
+
 Two auth handlers ship with ze. The slot holds one handler, and configuration
 decides its owner: `l2tp-auth-radius` claims it when a RADIUS server is
 configured, and `l2tp-auth-local` keeps it otherwise. Both transports resolve

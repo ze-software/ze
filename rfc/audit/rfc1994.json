@@ -2,15 +2,15 @@
   "audited": "2026-09-29",
   "requirements": {
     "RFC1994-1-1": {
-      "note": "Forbidden: a CONFREQ that omits the Authentication-Protocol option while authentication is desired. TestLocalCONFREQAdvertisesAuthMethod starts a session with CHAP-MD5 configured and asserts the CONFREQ carries Auth-Protocol 0xC223 algorithm 0x05 (red if absent); TestAuthProtoRejectClearsMethod asserts that once the peer Configure-Rejects the option and the method becomes None, the resent CONFREQ omits it, over the same producer, so emission follows the desire.",
+      "note": "Re-read after both units gained AuthFallbackOrder pinned to the configured method; the asserted behaviour is unchanged. TestLocalCONFREQAdvertisesAuthMethod asserts CHAP-MD5 configured puts Auth-Protocol 0xC223 algorithm 0x05 in the driver CONFREQ; TestAuthProtoRejectClearsMethod asserts the option is omitted once the peer Rejects it and the method becomes None. Both observed red under recorded breaks (authMethodToLCPOptions, adjustAuthOnNakOrReject).",
       "requirement_sha": "093f9a2e6c9c7f8d",
       "tests": {
-        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "110b8e909a6688fb",
-        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "110b8e909a6688fb"
+        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "8417fafaa5a334df",
+        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "8417fafaa5a334df"
       },
       "units": {
-        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "df4b14d1b6492618",
-        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "4435bd2bbff58f24"
+        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "fd7d02df859049d4",
+        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "986db7580b77147a"
       },
       "verdict": "enforced"
     },

@@ -103,6 +103,13 @@ type pppSession struct {
 	// Tracks final teardown publication. Owned by the session goroutine.
 	sessionDownSent bool
 
+	// peerTerminated is true from the peer's Terminate-Request in Opened
+	// until negotiation restarts. While it holds, Stopped waits for a new
+	// Configure-Request instead of ending the session (sessionEndedAt), and
+	// a later teardown reports the peer's request as its cause
+	// (terminateCause). Owned by the session goroutine.
+	peerTerminated bool
+
 	// peerMagic is the Magic-Number ze Configure-Acked in the peer's
 	// Configure-Request, or the proxied one; zero when the peer did not
 	// negotiate the option. RFC 1661 Section 6.4: "All received

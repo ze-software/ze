@@ -132,7 +132,7 @@ func (s *pppSession) run(start *StartSession) {
 					TunnelID:  s.tunnelID,
 					SessionID: s.sessionID,
 					Reason:    "session stopped",
-					Cause:     l2tpevents.TerminateCauseNASRequest,
+					Cause:     s.terminateCause(l2tpevents.TerminateCauseNASRequest),
 				})
 			default:
 			}
@@ -226,7 +226,7 @@ func (s *pppSession) run(start *StartSession) {
 		})
 		if !s.afterLCPOpen() {
 			state := s.currentState()
-			if state == LCPStateOpened || state == LCPStateClosed || state == LCPStateStopped {
+			if state == LCPStateOpened || s.sessionEndedAt(state) {
 				return
 			}
 		}
@@ -349,7 +349,7 @@ func (s *pppSession) run(start *StartSession) {
 			s.sendEvent(EventSessionDown{
 				TunnelID: s.tunnelID, SessionID: s.sessionID,
 				Reason: reason,
-				Cause:  l2tpevents.TerminateCauseNASError,
+				Cause:  s.terminateCause(l2tpevents.TerminateCauseNASError),
 			})
 			return
 
@@ -402,7 +402,7 @@ func (s *pppSession) run(start *StartSession) {
 				state := s.currentState()
 				// An LCP interruption resumes negotiation or its termination
 				// grace timer, just as it does during initial authentication.
-				if state == LCPStateOpened || state == LCPStateClosed || state == LCPStateStopped {
+				if state == LCPStateOpened || s.sessionEndedAt(state) {
 					return
 				}
 			}
@@ -1382,7 +1382,7 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 			// A nested restart resumes in the main LCP loop. A nested
 			// termination keeps its grace timer; never overwrite either
 			// transition with the old Opened result.
-			return state == LCPStateOpened || state == LCPStateClosed || state == LCPStateStopped
+			return state == LCPStateOpened || s.sessionEndedAt(state)
 		}
 		return false
 	}
@@ -1398,7 +1398,17 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 		s.stopRestartTimer()
 	}
 
-	if tr.NewState == LCPStateClosed || tr.NewState == LCPStateStopped {
+	switch tr.NewState {
+	case LCPStateStopping:
+		if pkt.Code == LCPTerminateRequest {
+			s.peerTerminated = true
+		}
+	case LCPStateStopped:
+	default:
+		s.peerTerminated = false
+	}
+
+	if s.sessionEndedAt(tr.NewState) {
 		var tb textbuf.Buffer
 		// RFC 2866 Section 5.10 value 1: "User requested termination of
 		// service, for example with LCP Terminate or by logging out."
@@ -1412,6 +1422,37 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 	}
 
 	return false
+}
+
+// sessionEndedAt reports whether reaching state ends the session. Closed
+// always does, because only ze's own Close leads there. Stopped does unless
+// the peer's Terminate-Request led there: that Stopped keeps the session and
+// waits for the peer's next Configure-Request, which LCPDoTransition answers
+// with irc, scr and sca or scn. The L2TP session teardown (sessStop) or the
+// channel closing then ends it.
+func (s *pppSession) sessionEndedAt(state LCPState) bool {
+	if state == LCPStateClosed {
+		return true
+	}
+	if state != LCPStateStopped {
+		return false
+	}
+	// RFC 1661 Section 4.3, RTR: "The implementation MUST be prepared to
+	// receive a new Configure-Request without network administrator
+	// intervention."
+	return !s.peerTerminated
+}
+
+// terminateCause returns the RFC 2866 Section 5.10 cause for a teardown that
+// ends the session while it waits in Stopped after the peer's
+// Terminate-Request, and fallback otherwise.
+func (s *pppSession) terminateCause(fallback l2tpevents.TerminateCause) l2tpevents.TerminateCause {
+	if s.peerTerminated {
+		// RFC 2866 Section 5.10 value 1: "User requested termination of
+		// service, for example with LCP Terminate or by logging out."
+		return l2tpevents.TerminateCauseUserRequest
+	}
+	return fallback
 }
 
 // logFSMNoOp emits a debug log for an FSM (state, event) combination
@@ -1576,8 +1617,8 @@ func restartTimerRuns(state LCPState) bool {
 // The counter is what tells the two apart, which is why zrc exists: a peer's
 // Terminate-Request puts Opened into Stopping with the counter at zero
 // (Section 4.1, "tld,zrc,sta/5"), so the first expiry after it is TO-, and
-// Stopping answers TO- with "tlf/3". The session then reaches Stopped, which
-// is where applyTransition reports it down.
+// Stopping answers TO- with "tlf/3". The session then waits in Stopped for the
+// peer's next Configure-Request (sessionEndedAt), and the L2TP teardown ends it.
 func (s *pppSession) handleRestartTimeout() bool {
 	cur := s.currentState()
 	ev := LCPEventTOMinus

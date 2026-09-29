@@ -101,6 +101,39 @@
       "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC1661-4.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest",
+      "unit-sha": "89714a123b2dc4f7",
+      "claim-sha": "c57ec9bb1872d989",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::sessionEndedAt",
+      "producer-sha": "0aa026cd9d649a77",
+      "break": "body of sessionEndedAt replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-4.4-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer",
+      "unit-sha": "8d7662cb7259127d",
+      "claim-sha": "94163636fa5dc40c",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::armRestartTimer",
+      "producer-sha": "723de859687359ae",
+      "break": "body of armRestartTimer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-4.4-2",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer",
+      "unit-sha": "8d7662cb7259127d",
+      "claim-sha": "6ccdf85f8e5acfaf",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::applyTransition",
+      "producer-sha": "6e30c6f71d623913",
+      "break": "body of applyTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1661-5.1-1",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire",

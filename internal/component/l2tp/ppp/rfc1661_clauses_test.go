@@ -235,6 +235,58 @@ func TestRFC1661ConfigureRequestInOpenedRenegotiates(t *testing.T) {
 	}
 }
 
+// TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest hands an Opened
+// session a Terminate-Request, lets the Restart timer expire, and then hands
+// it a Configure-Request with no Open event in between.
+//
+// VALIDATES: RFC 1661 Section 4.3 (RTR implementation note), after a peer's
+// Terminate-Request and the Restart timer expiry the session stays in Stopped
+// and a new Configure-Request restarts negotiation without any administrative
+// action.
+// PREVENTS: ending the session (EventSessionDown, run() returns) when Stopping
+// reaches Stopped, which left the peer no session to send the new
+// Configure-Request to.
+//
+// RFC requirement: RFC1661-4.3-2 positive -- Opened + Terminate-Request, then the Timeout: handleRestartTimeout does not end the session, the state is Stopped and no EventSessionDown is emitted; a Configure-Request then draws ze's Configure-Request and a Configure-Ack, reaching Ack-Sent, still with no EventSessionDown.
+func TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest(t *testing.T) {
+	t.Parallel()
+
+	s, rec, events := newRFC1661Session(LCPStateOpened)
+	s.restartTimer = time.NewTimer(time.Hour)
+	s.restartTimer.Stop()
+	defer s.restartTimer.Stop()
+
+	if term := s.handleLCPPacket(LCPPacket{Code: LCPTerminateRequest, Identifier: 0x31}); term {
+		t.Fatal("session ended on the Terminate-Request")
+	}
+	if done := s.handleRestartTimeout(); done {
+		t.Fatal("session ended when the Restart timer took Stopping to Stopped")
+	}
+	if got := s.currentState(); got != LCPStateStopped {
+		t.Fatalf("state = %s, want stopped", got)
+	}
+	framesBefore := rec.count()
+	if term := s.handleLCPPacket(LCPPacket{Code: LCPConfigureRequest, Identifier: 0x32, Data: optStream(mruOption(1400))}); term {
+		t.Fatal("session ended on the new Configure-Request in Stopped")
+	}
+	if rec.count() != framesBefore+2 {
+		t.Fatalf("wrote %d frames after the Configure-Request, want 2 (Configure-Request, Configure-Ack)",
+			rec.count()-framesBefore)
+	}
+	ack, ok := findCode(t, rec, LCPConfigureAck)
+	if !ok || ack.Identifier != 0x32 {
+		t.Fatal("the new Configure-Request was not Acked")
+	}
+	if got := s.currentState(); got != LCPStateAckSent {
+		t.Fatalf("state = %s, want ack-sent", got)
+	}
+	for len(events) > 0 {
+		if ev, ok := (<-events).(EventSessionDown); ok {
+			t.Fatalf("EventSessionDown emitted: %+v", ev)
+		}
+	}
+}
+
 // TestRFC1661TerminateAckHoldsLinkForRestartTime hands an Opened session a
 // Terminate-Request, then a Configure-Request and an Echo-Request while it
 // waits, and reads the Restart timer. The session leaves Stopping only on a

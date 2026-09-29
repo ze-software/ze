@@ -188,6 +188,9 @@ func TestAuthProtoRejectClearsMethod(t *testing.T) {
 		LNSMode:    true,
 		MaxMRU:     1500,
 		AuthMethod: AuthMethodPAP,
+		// PAP alone, so the first CONFREQ offers PAP: with CHAP in the
+		// order, RFC 1334 Section 2 makes ze offer CHAP first.
+		AuthFallbackOrder: []AuthMethod{AuthMethodPAP},
 	}
 
 	select {
@@ -241,7 +244,7 @@ func TestAuthFallbackOnNakDispatches(t *testing.T) {
 	peerDone := make(chan struct{})
 	go authProtoReplyPeer(
 		t, pair.peerEnd,
-		authProtoPAP, LCPConfigureNak,
+		authProtoCHAP, LCPConfigureNak,
 		authProtoCHAP, []byte{chapAlgorithmMD5},
 		secondCR, peerDone,
 	)
@@ -255,7 +258,7 @@ func TestAuthFallbackOnNakDispatches(t *testing.T) {
 		UnitNum:    22,
 		LNSMode:    true,
 		MaxMRU:     1500,
-		AuthMethod: AuthMethodPAP,
+		AuthMethod: AuthMethodMSCHAPv2,
 		// Explicit order so the test does not depend on the package
 		// default silently matching CHAP-MD5.
 		AuthFallbackOrder: []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2},
@@ -423,6 +426,9 @@ func TestStartSessionAuthMethodThreaded(t *testing.T) {
 		LNSMode:    true,
 		MaxMRU:     1500,
 		AuthMethod: AuthMethodPAP,
+		// PAP alone, so the session negotiates PAP: with CHAP in the
+		// order, RFC 1334 Section 2 makes ze offer CHAP first.
+		AuthFallbackOrder: []AuthMethod{AuthMethodPAP},
 	}
 
 	// Wait for EventLCPUp before writing PAP bytes. Without this the
@@ -708,6 +714,9 @@ func TestLocalCONFREQAdvertisesAuthMethod(t *testing.T) {
 				LNSMode:    true,
 				MaxMRU:     1500,
 				AuthMethod: tc.method,
+				// The configured method alone, so no stronger method
+				// displaces PAP in the first CONFREQ (RFC 1334 Section 2).
+				AuthFallbackOrder: []AuthMethod{tc.method},
 			}
 
 			proto, payload := readPeerFrame(t, pair.peerEnd)

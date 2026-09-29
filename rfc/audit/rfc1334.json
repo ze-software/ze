@@ -2,15 +2,15 @@
   "audited": "2026-09-29",
   "requirements": {
     "RFC1334-1-1": {
-      "note": "Forbidden: authentication configured but the LCP CONFREQ omits Auth-Protocol. TestLocalCONFREQAdvertisesAuthMethod asserts lookupOption(LCPOptAuthProto) ok and the protocol 0xC023 for PAP (0xC223 plus algorithm for CHAP) in the first CONFREQ from the driver; TestAuthProtoRejectClearsMethod asserts the option is absent once authentication is no longer desired, so an unconditional option goes red there.",
+      "note": "Re-read after both units gained AuthFallbackOrder pinned to the configured method (the RFC 1334 Section 2 fix would otherwise put CHAP first); the asserted behaviour is unchanged. TestLocalCONFREQAdvertisesAuthMethod asserts the Auth-Protocol option and its value in the first driver CONFREQ; TestAuthProtoRejectClearsMethod asserts it is absent once the peer Rejects it and authentication is no longer desired. Both observed red under recorded breaks (authMethodToLCPOptions, adjustAuthOnNakOrReject).",
       "requirement_sha": "093f9a2e6c9c7f8d",
       "tests": {
-        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "110b8e909a6688fb",
-        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "110b8e909a6688fb"
+        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "8417fafaa5a334df",
+        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "8417fafaa5a334df"
       },
       "units": {
-        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "df4b14d1b6492618",
-        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "4435bd2bbff58f24"
+        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "fd7d02df859049d4",
+        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "986db7580b77147a"
       },
       "verdict": "enforced"
     },
@@ -123,21 +123,25 @@
       "verdict": "weak"
     },
     "RFC1334-x-1": {
-      "note": "Default path now driven through LCP: TestAuthOffersCHAPBeforePAP reads the first Configure-Request (CHAP 0xc223, never PAP) and the one after a PAP Nak (PAP only when the fallback order holds it). Still missing: sendConfigureRequest offers authMethodToLCPOptions(configuredAuthMethod), so a session configured with AuthMethod PAP opens with PAP while ze includes CHAP. No unit pins that case, and whether operator configuration may override this MUST is an open design question for the owner.",
+      "note": "Both entry points now proven. TestConfiguredPAPStillOffersCHAPFirst starts a session through Driver/spawnSession with AuthMethod PAP and the default order: the first Configure-Request must offer CHAP 0xc223 (red on the old copy of StartSession.AuthMethod, observed before the fix and recorded against initialAuthMethod), PAP only after the peer's PAP Nak; the PAP-alone control keeps PAP first where no stronger method is included. TestAuthOffersCHAPBeforePAP drives the default path and the fallback after a PAP Nak. The negative (first Configure-Request never PAP while CHAP is in the order) reads the same first frame as the positive; a send-side MUST has no refusing input, so the pair is the correct shape. TestDefaultAuthFallbackOrder and TestSelectAuthFallback are supporting unit tags with no discrimination record.",
       "requirement_sha": "b9bbe3e692d702fa",
       "tests": {
         "internal/component/l2tp/ppp/auth_test.go::TestDefaultAuthFallbackOrder": "f630a02fc0831e73",
         "internal/component/l2tp/ppp/auth_test.go::TestSelectAuthFallback": "f630a02fc0831e73",
-        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP": "fd24670b993b5659",
-        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "fd24670b993b5659"
+        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP": "802e39c15c4d6802",
+        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "802e39c15c4d6802",
+        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst": "802e39c15c4d6802",
+        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2": "802e39c15c4d6802"
       },
       "units": {
         "internal/component/l2tp/ppp/auth_test.go::TestDefaultAuthFallbackOrder": "30409a962cf295b9",
         "internal/component/l2tp/ppp/auth_test.go::TestSelectAuthFallback": "dea6d9069e7dbadf",
         "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP": "b38caa18171af324",
-        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "b38caa18171af324"
+        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "b38caa18171af324",
+        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst": "4b7e163795183f4f",
+        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2": "4b7e163795183f4f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc1334"

@@ -66,6 +66,11 @@ answers no PADI.
 
 `auth-method` is the PPP Auth-Protocol the access concentrator puts in its own
 LCP Configure-Request: `chap-md5` (the default), `pap`, `ms-chap-v2`, or `none`.
+With `pap`, the first Configure-Request still offers CHAP-MD5, and PAP is
+offered only after the subscriber sends a Configure-Nak that suggests PAP
+(RFC 1334 Section 2: an implementation that includes CHAP MUST offer it before
+PAP).
+<!-- source: internal/component/l2tp/ppp/auth.go -- initialAuthMethod -->
 `none` requires `allow-no-auth true`. The daemon rejects `none` without that
 opt-in, and rejects an unknown authentication method, with
 `parse pppoe config: ...`.

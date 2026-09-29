@@ -338,7 +338,7 @@ func nakThenAckPeer(
 
 // VALIDATES: Decision E, end-to-end Nak fallback. When ze advertises
 //
-//	PAP and the peer Naks suggesting CHAP-MD5, ze's second
+//	MS-CHAPv2 and the peer Naks suggesting CHAP-MD5, ze's second
 //	CONFREQ carries CHAP-MD5, the peer ACKs it, LCP reaches
 //	Opened, and runAuthPhase dispatches to runCHAPAuthPhase
 //	-- observable as a CHAP Challenge frame on peerEnd.
@@ -365,7 +365,7 @@ func TestAuthFallbackOnNakProceedsToCHAP(t *testing.T) {
 	peerDone := make(chan struct{})
 	go nakThenAckPeer(
 		t, pair.peerEnd,
-		authProtoPAP,
+		authProtoCHAP,
 		authProtoCHAP, []byte{chapAlgorithmMD5},
 		peerDone,
 	)
@@ -379,7 +379,7 @@ func TestAuthFallbackOnNakProceedsToCHAP(t *testing.T) {
 		UnitNum:           19,
 		LNSMode:           true,
 		MaxMRU:            1500,
-		AuthMethod:        AuthMethodPAP,
+		AuthMethod:        AuthMethodMSCHAPv2,
 		AuthFallbackOrder: []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2},
 	}
 
