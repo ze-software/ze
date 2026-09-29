@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC1334-1-1": {
       "note": "Re-read after both units gained AuthFallbackOrder pinned to the configured method (the RFC 1334 Section 2 fix would otherwise put CHAP first); the asserted behaviour is unchanged. TestLocalCONFREQAdvertisesAuthMethod asserts the Auth-Protocol option and its value in the first driver CONFREQ; TestAuthProtoRejectClearsMethod asserts it is absent once the peer Rejects it and authentication is no longer desired. Both observed red under recorded breaks (authMethodToLCPOptions, adjustAuthOnNakOrReject).",
@@ -18,8 +19,8 @@
       "note": "Forbidden: a reissued Authenticate-Request carrying the previous Identifier. TestClientPAPRetriesUntilMatchingReply lets the first request go unanswered, advances the production retry timer, and asserts packets[0].Identifier != packets[1].Identifier with the credentials unchanged; the negative half asserts no third request after the matching Ack.",
       "requirement_sha": "d8ed39810ec9c589",
       "tests": {
-        "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientPAPRetriesUntilMatchingReply": "037bce881c657576",
-        "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientPAPRetriesUntilMatchingReply#2": "037bce881c657576"
+        "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientPAPRetriesUntilMatchingReply": "6868de7d83650d56",
+        "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientPAPRetriesUntilMatchingReply#2": "6868de7d83650d56"
       },
       "units": {
         "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientPAPRetriesUntilMatchingReply": "de79106e38a6b1d8",

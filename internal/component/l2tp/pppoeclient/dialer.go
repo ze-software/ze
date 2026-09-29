@@ -169,7 +169,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 
 	keepaliveDone := make(chan struct{})
 	go func() {
-		keepaliveLoop(link, result.frames, result.magic, keepaliveDone, link.stopped, logger)
+		keepaliveLoop(link, result.frames, result.magic, result.chap, keepaliveDone, link.stopped, logger)
 		_ = link.Close() //nolint:errcheck // shutdown after PPP termination or read failure
 	}()
 

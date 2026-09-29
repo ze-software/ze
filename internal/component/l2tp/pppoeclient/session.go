@@ -41,6 +41,9 @@ type sessionResult struct {
 	negMTU  uint16
 	magic   uint32
 	frames  <-chan readFrame // reused by keepaliveLoop to avoid double-reader
+	// chap is non-nil when LCP negotiated CHAP, so keepaliveLoop answers a
+	// Challenge the authenticator sends in the network phase.
+	chap *networkPhaseCHAP
 }
 
 // readFrame is a frame delivered from the reader goroutine.
@@ -109,8 +112,11 @@ func negotiateSession(chanFile io.ReadWriteCloser, frames <-chan readFrame, unit
 		}
 	}
 
-	// Phase 3: IPCP (AC-5).
-	ipcpResult, err := negotiateIPCP(chanFile, frames, frameBuf[:], magic, stopCh, logger)
+	// Phase 3: IPCP (AC-5). IPCP negotiation is the Network-Layer Protocol
+	// phase, so a CHAP re-challenge is answered from here on, and the same
+	// state carries the pending Response into keepaliveLoop.
+	chap := networkPhaseCHAPFor(lcpResult.authProto, cfg)
+	ipcpResult, err := negotiateIPCP(chanFile, frames, frameBuf[:], magic, chap, stopCh, logger)
 	if err != nil {
 		return sessionResult{}, err
 	}
@@ -146,6 +152,7 @@ func negotiateSession(chanFile io.ReadWriteCloser, frames <-chan readFrame, unit
 		negMTU:  negMTU,
 		magic:   magic,
 		frames:  frames,
+		chap:    chap,
 	}, nil
 }
 
@@ -581,7 +588,10 @@ type ipcpResult struct {
 	peerIP  netip.Addr
 }
 
-func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint32, stopCh <-chan struct{}, _ *slog.Logger) (ipcpResult, error) {
+// negotiateIPCP opens IPCP. chap is nil when LCP did not negotiate CHAP, and
+// a CHAP frame is then dropped; otherwise a Challenge is answered, because
+// IPCP negotiation is already the Network-Layer Protocol phase.
+func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint32, chap *networkPhaseCHAP, stopCh <-chan struct{}, logger *slog.Logger) (ipcpResult, error) {
 	var result ipcpResult
 	requestedIP := netip.IPv4Unspecified()
 	ipcpID := uint8(1)
@@ -636,6 +646,16 @@ func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint3
 				case ppp.LCPTerminateRequest:
 					sendTerminateAck(w, buf, pkt)
 					return ipcpResult{}, errors.New("pppoe-client: server terminated during IPCP")
+				}
+				continue
+			}
+			if proto == ppp.ProtoCHAP {
+				if chap == nil {
+					continue
+				}
+				// RFC 1994 Section 4.1 (re-challenge) and Section 4.2 (result).
+				if err := chap.handle(w, buf, pkt, logger); err != nil {
+					return ipcpResult{}, err
 				}
 				continue
 			}
@@ -774,65 +794,6 @@ func buildCHAPResponse(challenge ppp.LCPPacket, cfg sessionConfig) []byte {
 	copy(resp[5:5+len(digest)], digest[:])
 	copy(resp[5+len(digest):], nameBytes)
 	return resp
-}
-
-// keepaliveLoop handles LCP echo on the frames channel created during
-// negotiation. Closes done when the session ends (echo timeout,
-// terminate, read error). Uses the existing reader goroutine to avoid
-// a second concurrent Read on the same fd.
-func keepaliveLoop(chanFile io.Writer, frames <-chan readFrame, magic uint32, done chan<- struct{}, stopCh <-chan struct{}, logger *slog.Logger) {
-	defer close(done)
-
-	echoTicker := time.NewTicker(echoInterval)
-	defer echoTicker.Stop()
-
-	var (
-		echoID    uint8
-		echoFails int
-		frameBuf  [ppp.MaxFrameBufLen]byte
-	)
-
-	for {
-		select {
-		case <-stopCh:
-			return
-		case <-echoTicker.C:
-			echoID++
-			off := ppp.WriteFrame(frameBuf[:], 0, ppp.ProtoLCP, nil)
-			off += ppp.WriteLCPEcho(frameBuf[:], off, ppp.LCPEchoRequest, echoID, magic, nil)
-			if _, err := chanFile.Write(frameBuf[:off]); err != nil {
-				logger.Warn("pppoe-client: echo write failed", "error", err)
-				return
-			}
-			echoFails++
-			if echoFails >= echoMaxFailures {
-				logger.Warn("pppoe-client: echo timeout", "failures", echoFails)
-				return
-			}
-		case frame, ok := <-frames:
-			if !ok || frame.err != nil {
-				return
-			}
-			proto, payload, _, parseErr := ppp.ParseFrame(frame.data)
-			if parseErr != nil || proto != ppp.ProtoLCP {
-				continue
-			}
-			pkt, pktErr := ppp.ParseLCPPacket(payload)
-			if pktErr != nil {
-				continue
-			}
-			switch pkt.Code {
-			case ppp.LCPEchoReply:
-				echoFails = 0
-			case ppp.LCPEchoRequest:
-				sendEchoReply(chanFile, frameBuf[:], pkt, magic)
-			case ppp.LCPTerminateRequest:
-				sendTerminateAck(chanFile, frameBuf[:], pkt)
-				logger.Info("pppoe-client: server sent LCP Terminate-Request")
-				return
-			}
-		}
-	}
 }
 
 func extractServerOptions(opts []ppp.LCPOption) (authProto uint16, authData []byte, mru uint16) {

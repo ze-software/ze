@@ -16,6 +16,8 @@ import (
 	"encoding/binary"
 	"io"
 	"log/slog"
+	"slices"
+	"sync"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
@@ -23,21 +25,33 @@ import (
 
 // frameLog records every frame the client writes, one entry per Write, so a
 // test can tell "the client sent nothing" from "the client sent something the
-// test did not read".
+// test did not read". Safe for concurrent use: the client goroutine writes
+// while the test inspects, so every read goes through snapshot.
 type frameLog struct {
+	mu     sync.Mutex
 	frames [][]byte
 }
 
 func (f *frameLog) Write(p []byte) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.frames = append(f.frames, append([]byte(nil), p...))
 	return len(p), nil
+}
+
+// snapshot returns the frames written so far, taken under the lock. The
+// frames themselves are never modified after Write, so sharing them is safe.
+func (f *frameLog) snapshot() [][]byte {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.frames)
 }
 
 // lcpPackets decodes every LCP packet the client wrote.
 func (f *frameLog) lcpPackets(t *testing.T) []ppp.LCPPacket {
 	t.Helper()
 	var out []ppp.LCPPacket
-	for _, frame := range f.frames {
+	for _, frame := range f.snapshot() {
 		proto, payload, _, err := ppp.ParseFrame(frame)
 		if err != nil {
 			t.Fatalf("ParseFrame(% x): %v", frame, err)

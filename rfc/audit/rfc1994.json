@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC1994-1-1": {
       "note": "Re-read after both units gained AuthFallbackOrder pinned to the configured method; the asserted behaviour is unchanged. TestLocalCONFREQAdvertisesAuthMethod asserts CHAP-MD5 configured puts Auth-Protocol 0xC223 algorithm 0x05 in the driver CONFREQ; TestAuthProtoRejectClearsMethod asserts the option is omitted once the peer Rejects it and the method becomes None. Both observed red under recorded breaks (authMethodToLCPOptions, adjustAuthOnNakOrReject).",
@@ -54,21 +55,29 @@
       "verdict": "enforced"
     },
     "RFC1994-4.1-4": {
-      "note": "Judge ppp5 2026-09-30. Role reasoning holds: the row binds the peer that receives a Challenge, which Ze fills only in pppoeclient runClientAuth. New units are sound for the Authentication phase: TestRFC1994PeerTransmitsResponseForEveryChallenge (+, Challenge 0x42 then re-challenge 0x43 -> two Code 2 packets with matching Identifiers) and TestRFC1994PeerSendsNoResponseWithoutChallenge (-, Code 2 and Code 5 -> nothing written), both red under a runClientAuth revert. DEFECT: RFC 1994 Section 4.1 says 'The peer SHOULD expect Challenge packets during the Authentication phase and the Network-Layer Protocol phase. Whenever a Challenge packet is received, the peer MUST transmit a CHAP packet with the Code field set to 2 (Response).' After runClientAuth returns, pppoeclient's keepaliveLoop (session.go) drops every non-LCP frame, so a Network-phase re-challenge (which Ze's own LNS sends under periodic authentication) gets no Response. The 'whenever' clause is violated in the Network phase and no test covers it. The session_test.go negative (malformed Challenge) proves a neighbouring rule and stays supplementary.",
+      "note": "Judge ppp8 2026-09-30 (rejudge). The D-8 defect is fixed at the producer: networkPhaseCHAP.handle (network_phase.go) builds the Response through buildCHAPResponse (Code 2, the Challenge's Identifier, Value-Size 16, MD5(Identifier||secret||Challenge value), Name) and is called from negotiateIPCP (the Network-Layer phase opens with IPCP) and then keepaliveLoop, the same instance carrying a pending Response across; no window between runClientAuth and keepaliveLoop reads frames elsewhere. Every phase in which RFC 1994 Section 4.1 says the peer SHOULD expect a Challenge now has a positive: Authentication (TestRFC1994PeerTransmitsResponseForEveryChallenge), IPCP (TestRFC1994IPCPWindowChallengeAnswered), keepalive (TestRFC1994NetworkPhaseChallengeAnswered), each asserting exactly one Code 2 packet with the Identifier and the exact MD5 Value and Name; the two new positives went red naturally on the unfixed loops (ppp6-red, ppp7-red logs) and carry revert records. Negatives in each phase assert no CHAP packet is written for Code 2 and Code 5 packets, exact len==0 checks. session_test.go units stay supplementary (the malformed-Challenge negative proves a neighbouring discard rule). A Challenge during Link Establishment is correctly discarded under RFC 1661 and is not in scope of this row.",
       "requirement_sha": "d8f32281ecc9458f",
       "tests": {
-        "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994PeerSendsNoResponseWithoutChallenge": "32c14543e2d5aacd",
-        "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994PeerTransmitsResponseForEveryChallenge": "32c14543e2d5aacd",
+        "internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go::TestRFC1994IPCPWindowChallengeAnswered": "4e14a390245b658d",
+        "internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go::TestRFC1994IPCPWindowNoResponseWithoutChallenge": "4e14a390245b658d",
+        "internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go::TestRFC1994NetworkPhaseChallengeAnswered": "4e14a390245b658d",
+        "internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go::TestRFC1994NetworkPhaseNoResponseWithoutChallenge": "4e14a390245b658d",
+        "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994PeerSendsNoResponseWithoutChallenge": "0c2e76e5e04df64d",
+        "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994PeerTransmitsResponseForEveryChallenge": "0c2e76e5e04df64d",
         "internal/component/l2tp/pppoeclient/session_test.go::TestBuildCHAPResponse": "50a2fa5b77fbaf66",
         "internal/component/l2tp/pppoeclient/session_test.go::TestBuildCHAPResponseMalformed": "50a2fa5b77fbaf66"
       },
       "units": {
+        "internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go::TestRFC1994IPCPWindowChallengeAnswered": "bda8c100a2cee0bc",
+        "internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go::TestRFC1994IPCPWindowNoResponseWithoutChallenge": "2c9ac2414832a1a4",
+        "internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go::TestRFC1994NetworkPhaseChallengeAnswered": "72820710d623d026",
+        "internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go::TestRFC1994NetworkPhaseNoResponseWithoutChallenge": "f5b3dff100b44d7e",
         "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994PeerSendsNoResponseWithoutChallenge": "1cfe9840310e9df6",
         "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994PeerTransmitsResponseForEveryChallenge": "d453bfc7a59c8e37",
         "internal/component/l2tp/pppoeclient/session_test.go::TestBuildCHAPResponse": "7077d6244b1437d3",
         "internal/component/l2tp/pppoeclient/session_test.go::TestBuildCHAPResponseMalformed": "b173f886123fd393"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1994-4.1-5": {
       "note": "Forbidden: a Challenge sent with the previous Challenge's Identifier. TestCHAPIdentifierMonotonic seeds the counter with the Identifier the first Challenge carried and asserts the next Challenge's differs (and is +1); TestCHAPIdentifierWraps asserts 0xFF moves to 0x00. A runCHAPAuthPhase that did not advance the counter turns both red. Single-polarity marker.",
@@ -172,7 +181,7 @@
       "requirement_sha": "091f184f86280047",
       "tests": {
         "internal/component/l2tp/pppoeclient/rfc1994_chap_message_test.go::TestCHAPSuccessMessageDoesNotAffectOutcome": "d2d8e4764a8e3615",
-        "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994FailureMessageDoesNotAffectOutcome": "32c14543e2d5aacd"
+        "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994FailureMessageDoesNotAffectOutcome": "0c2e76e5e04df64d"
       },
       "units": {
         "internal/component/l2tp/pppoeclient/rfc1994_chap_message_test.go::TestCHAPSuccessMessageDoesNotAffectOutcome": "93ac6a9695d6ffe2",

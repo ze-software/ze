@@ -46,12 +46,12 @@ func TestClientCHAPReplyCorrelation(t *testing.T) {
 			assertWaiting(readFrame{data: chapReplyFrame(t, code, 42, "premature")})
 			assertWaiting(chapChallengeFrame(42, []byte{4, 1}))
 			assertWaiting(chapChallengeFrame(42, []byte{0}))
-			if len(w.frames) != 0 {
-				t.Fatalf("malformed challenge produced response: % x", w.frames)
+			if written := w.snapshot(); len(written) != 0 {
+				t.Fatalf("malformed challenge produced response: % x", written)
 			}
 			assertWaiting(chapChallengeFrame(42, []byte{4, 1, 2, 3, 4}))
-			if len(w.frames) != 1 {
-				t.Fatalf("valid challenge produced %d responses, want 1", len(w.frames))
+			if written := w.snapshot(); len(written) != 1 {
+				t.Fatalf("valid challenge produced %d responses, want 1", len(written))
 			}
 			assertWaiting(readFrame{data: chapReplyFrame(t, code, 41, "stale")})
 			frames <- readFrame{data: chapReplyFrame(t, code, 42, "current")}

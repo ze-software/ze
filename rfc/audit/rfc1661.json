@@ -4,6 +4,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -218,19 +219,19 @@
       "verdict": "enforced"
     },
     "RFC1661-5.1-3": {
-      "note": "(a) options change -> new Identifier: TestLCPConfigureRequestIdentifierLifecycle goes red when changed.Identifier == retry.Identifier; (b) valid reply -> new Identifier: red when afterAck.Identifier == changed.Identifier (server), and the client units go red when the post-Nak / post-Reject request keeps first.Identifier. Negative: timeout retransmission keeps the request, stale Ack does not advance.",
+      "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPRejectRemovesOnlyRejectedOptions changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. (a) options change -> new Identifier: TestLCPConfigureRequestIdentifierLifecycle goes red when changed.Identifier == retry.Identifier; (b) valid reply -> new Identifier: red when afterAck.Identifier == changed.Identifier (server), and the client units go red when the post-Nak / post-Reject request keeps first.Identifier. Negative: timeout retransmission keeps the request, stale Ack does not advance.",
       "requirement_sha": "5bc700d2390ce180",
       "tests": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle": "6e1e87cfaa4fb86b",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "e0085efaa973fd91",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "e0085efaa973fd91"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7"
       },
       "units": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle": "d6c7b7fef05afe2a",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle#2": "d6c7b7fef05afe2a",
         "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "d3962be51c53da88",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "ab469c94ab893f0e"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d"
       },
       "verdict": "enforced"
     },
@@ -265,36 +266,36 @@
       "verdict": "enforced"
     },
     "RFC1661-5.2-3": {
-      "note": "Forbidden: accepting a Configure-Ack whose Identifier differs from the last request. TestLCPRepliesMatchOutstandingRequest (\"Ack wrong Identifier\") goes red on any state or wire change; TestClientLCPReplyCorrelation goes red if Identifier+1 completes LCP. Positives: the matching Ack reaches Ack-Rcvd / completes negotiation.",
+      "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Forbidden: accepting a Configure-Ack whose Identifier differs from the last request. TestLCPRepliesMatchOutstandingRequest (\"Ack wrong Identifier\") goes red on any state or wire change; TestClientLCPReplyCorrelation goes red if Identifier+1 completes LCP. Positives: the matching Ack reaches Ack-Rcvd / completes negotiation.",
       "requirement_sha": "e28f64e845acd868",
       "tests": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "e0085efaa973fd91",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "e0085efaa973fd91"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "94dbfbde4e1ef3d7"
       },
       "units": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "70c6abe342bd58ca",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "70c6abe342bd58ca"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "63dcc89441d39416"
       },
       "verdict": "enforced"
     },
     "RFC1661-5.2-4": {
-      "note": "Forbidden: accepting an Ack whose options differ from the request. TestLCPRepliesMatchOutstandingRequest goes red when a changed value, a missing, extra or reordered option changes the FSM or wire; TestClientLCPReplyCorrelation goes red if a nil, modified or reordered Ack completes LCP. The exact Ack advances in both.",
+      "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Forbidden: accepting an Ack whose options differ from the request. TestLCPRepliesMatchOutstandingRequest goes red when a changed value, a missing, extra or reordered option changes the FSM or wire; TestClientLCPReplyCorrelation goes red if a nil, modified or reordered Ack completes LCP. The exact Ack advances in both.",
       "requirement_sha": "d4341112f3ab2d9b",
       "tests": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "e0085efaa973fd91",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "e0085efaa973fd91"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "94dbfbde4e1ef3d7"
       },
       "units": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "70c6abe342bd58ca",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "70c6abe342bd58ca"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "63dcc89441d39416"
       },
       "verdict": "enforced"
     },
@@ -374,19 +375,19 @@
       "verdict": "enforced"
     },
     "RFC1661-5.3-7": {
-      "note": "Forbidden: acting on a Nak whose Identifier differs from the last request. TestLCPRepliesMatchOutstandingRequest (\"Nak wrong Identifier\") goes red on any state/wire change; TestClientLCPReplyCorrelation goes red if Identifier+1 Nak emits a frame. Positives: matching Nak yields a new request carrying MRU 1400 (server) and a new request (client).",
+      "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Forbidden: acting on a Nak whose Identifier differs from the last request. TestLCPRepliesMatchOutstandingRequest (\"Nak wrong Identifier\") goes red on any state/wire change; TestClientLCPReplyCorrelation goes red if Identifier+1 Nak emits a frame. Positives: matching Nak yields a new request carrying MRU 1400 (server) and a new request (client).",
       "requirement_sha": "fc804cfd2a5f7edc",
       "tests": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "e0085efaa973fd91",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "e0085efaa973fd91"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7"
       },
       "units": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
         "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "d3962be51c53da88",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "70c6abe342bd58ca"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416"
       },
       "verdict": "enforced"
     },
@@ -415,9 +416,9 @@
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "9afaf002f0fd81ec",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoConfigureRejectWhenAllOptionsRecognized": "9afaf002f0fd81ec",
         "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly": "a65c290db4ba68a7",
-        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientAcceptsServerAuthProtocol": "628d91af81c6cdb9",
-        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength": "628d91af81c6cdb9",
-        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength#2": "628d91af81c6cdb9"
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientAcceptsServerAuthProtocol": "0d3244b2c125eaa3",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength": "0d3244b2c125eaa3",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength#2": "0d3244b2c125eaa3"
       },
       "units": {
         "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration": "294a5ed66c64fe52",
@@ -443,8 +444,8 @@
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectDoesNotReorderOptions": "9afaf002f0fd81ec",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "9afaf002f0fd81ec",
         "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly": "a65c290db4ba68a7",
-        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified": "628d91af81c6cdb9",
-        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified#2": "628d91af81c6cdb9"
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified": "0d3244b2c125eaa3",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified#2": "0d3244b2c125eaa3"
       },
       "units": {
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified": "9c86493b35ab748f",
@@ -458,53 +459,53 @@
       "verdict": "enforced"
     },
     "RFC1661-5.4-3": {
-      "note": "Forbidden: acting on a Reject whose Identifier differs. TestLCPRepliesMatchOutstandingRequest (\"Reject wrong Identifier\") and TestClientLCPReplyCorrelation go red on any state/wire change; positives: the matching Reject yields a new request without MRU (server) and a new-Identifier request without the rejected options (TestClientLCPRejectRemovesOnlyRejectedOptions).",
+      "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPRejectRemovesOnlyRejectedOptions and TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Forbidden: acting on a Reject whose Identifier differs. TestLCPRepliesMatchOutstandingRequest (\"Reject wrong Identifier\") and TestClientLCPReplyCorrelation go red on any state/wire change; positives: the matching Reject yields a new request without MRU (server) and a new-Identifier request without the rejected options (TestClientLCPRejectRemovesOnlyRejectedOptions).",
       "requirement_sha": "ef8cbb2be56072e4",
       "tests": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "e0085efaa973fd91",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "e0085efaa973fd91"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7"
       },
       "units": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "ab469c94ab893f0e",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "70c6abe342bd58ca"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416"
       },
       "verdict": "enforced"
     },
     "RFC1661-5.4-4": {
-      "note": "Sentence (erratum 543): the options in a Configure-Reject MUST be a subset of those in the last transmitted Configure-Request; invalid packets are silently discarded. (a) Accepting a Reject naming an option never requested, or with a changed value: TestLCPRepliesMatchOutstandingRequest cases Reject unrequested option and Reject changed value go red (state or frame count changes); TestClientLCPReplyCorrelation covers modified. (b) Refusing a Reject equal to the whole request, the case the erratum restores: TestClientLCPRejectRemovesOnlyRejectedOptions subtest all goes red if the replacement request is not emitted; a proper-subset check in ppp would also redden TestLCPRejectedOptionsStayRemoved (all=true), which carries the 5.4-5 tag only.",
+      "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPRejectRemovesOnlyRejectedOptions and TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Sentence (erratum 543): the options in a Configure-Reject MUST be a subset of those in the last transmitted Configure-Request; invalid packets are silently discarded. (a) Accepting a Reject naming an option never requested, or with a changed value: TestLCPRepliesMatchOutstandingRequest cases Reject unrequested option and Reject changed value go red (state or frame count changes); TestClientLCPReplyCorrelation covers modified. (b) Refusing a Reject equal to the whole request, the case the erratum restores: TestClientLCPRejectRemovesOnlyRejectedOptions subtest all goes red if the replacement request is not emitted; a proper-subset check in ppp would also redden TestLCPRejectedOptionsStayRemoved (all=true), which carries the 5.4-5 tag only.",
       "requirement_sha": "1db404df8454e0e0",
       "tests": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "e0085efaa973fd91",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "e0085efaa973fd91"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7"
       },
       "units": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "ab469c94ab893f0e",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "70c6abe342bd58ca"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416"
       },
       "verdict": "enforced"
     },
     "RFC1661-5.4-5": {
-      "note": "Sentence: when a new Configure-Request is sent after a valid Configure-Reject, it MUST NOT include any of the rejected options. (a) Re-including a rejected option: TestLCPRejectedOptionsStayRemoved (only MRU, and all options) and TestClientLCPRejectRemovesOnlyRejectedOptions (MRU, Magic, all; across a retransmission and a later Nak) go red on bytes.Equal(next.Data, want) / len(next.Data) != 0. Negative: un-rejected options stay byte-identical.",
+      "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPRejectRemovesOnlyRejectedOptions changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Sentence: when a new Configure-Request is sent after a valid Configure-Reject, it MUST NOT include any of the rejected options. (a) Re-including a rejected option: TestLCPRejectedOptionsStayRemoved (only MRU, and all options) and TestClientLCPRejectRemovesOnlyRejectedOptions (MRU, Magic, all; across a retransmission and a later Nak) go red on bytes.Equal(next.Data, want) / len(next.Data) != 0. Negative: un-rejected options stay byte-identical.",
       "requirement_sha": "0f0699a656379b2d",
       "tests": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRejectedOptionsStayRemoved": "6e1e87cfaa4fb86b",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "e0085efaa973fd91",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "e0085efaa973fd91"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "94dbfbde4e1ef3d7"
       },
       "units": {
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRejectedOptionsStayRemoved": "e3720a5097b1650d",
         "internal/component/l2tp/ppp/lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "e3720a5097b1650d",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "ab469c94ab893f0e",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "ab469c94ab893f0e"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "4414e892e55bf66d"
       },
       "verdict": "enforced"
     },
@@ -598,21 +599,21 @@
       "verdict": "enforced"
     },
     "RFC1661-5.8-2": {
-      "note": "Judge ppp4 2026-09-30. Polarity labels corrected (D-15): TestRFC1661EchoReplyInOpened is now the positive (reply sent in Opened, recorded red on sendEchoReply) and TestRFC1661NoEchoOutsideOpened the negative (Echo-Request in Req-Sent/Ack-Sent/Ack-Rcvd/Stopped draws neither Echo-Reply nor Echo-Request, recorded red on LCPDoTransition). The negative is no longer vacuous: the peer Magic-Number now matches peerMagic, so only the state blocks the reply, and an FSM that gave RXR a ser edge outside Opened turns it red. Echo-Request half unchanged: TestRFC1661KeepaliveEchoOnlyInOpened (run(), echo in Opened; after the peer CONFREQ the next frame is the CONFREQ retransmission, no Echo-Request). pppoeclient TestClientLCPEchoBeforeOpenDiscarded kept (client role, no record).",
+      "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPEchoBeforeOpenDiscarded changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Judge ppp4 2026-09-30. Polarity labels corrected (D-15): TestRFC1661EchoReplyInOpened is now the positive (reply sent in Opened, recorded red on sendEchoReply) and TestRFC1661NoEchoOutsideOpened the negative (Echo-Request in Req-Sent/Ack-Sent/Ack-Rcvd/Stopped draws neither Echo-Reply nor Echo-Request, recorded red on LCPDoTransition). The negative is no longer vacuous: the peer Magic-Number now matches peerMagic, so only the state blocks the reply, and an FSM that gave RXR a ser edge outside Opened turns it red. Echo-Request half unchanged: TestRFC1661KeepaliveEchoOnlyInOpened (run(), echo in Opened; after the peer CONFREQ the next frame is the CONFREQ retransmission, no Echo-Request). pppoeclient TestClientLCPEchoBeforeOpenDiscarded kept (client role, no record).",
       "requirement_sha": "9e7c1a7d87cb760e",
       "tests": {
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened": "d6b4e2cbd1b095e9",
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened#2": "d6b4e2cbd1b095e9",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "9afaf002f0fd81ec",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened": "9afaf002f0fd81ec",
-        "internal/component/l2tp/pppoeclient/lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded": "7c71e96d34318397"
+        "internal/component/l2tp/pppoeclient/lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded": "cb61e36ae227f21d"
       },
       "units": {
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened": "540e32ea517f5dcc",
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened#2": "540e32ea517f5dcc",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "2bb8cc697c6e3454",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened": "ec0d0ea97932d3f4",
-        "internal/component/l2tp/pppoeclient/lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded": "46fb378c412e699b"
+        "internal/component/l2tp/pppoeclient/lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded": "10758d2a75db1e0a"
       },
       "verdict": "enforced"
     },
@@ -666,8 +667,8 @@
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPWrongLengthMagicIsNakedNotRejected#2": "2325ea607f732027",
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce": "2325ea607f732027",
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce#2": "2325ea607f732027",
-        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak": "628d91af81c6cdb9",
-        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak#2": "628d91af81c6cdb9"
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak": "0d3244b2c125eaa3",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak#2": "0d3244b2c125eaa3"
       },
       "units": {
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661InvalidOptionLengthDrawsNak": "3a4f39019c412d8c",
@@ -696,8 +697,8 @@
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded#2": "2325ea607f732027",
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded": "2325ea607f732027",
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded#2": "2325ea607f732027",
-        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded": "628d91af81c6cdb9",
-        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded#2": "628d91af81c6cdb9"
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded": "0d3244b2c125eaa3",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded#2": "0d3244b2c125eaa3"
       },
       "units": {
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPReplyWithOptionsPastEndDiscarded": "2a9aad41c5045293",
@@ -775,8 +776,8 @@
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ZeroMagicNumberRefused": "9afaf002f0fd81ec",
         "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC1661ClientAcksANonZeroMagic": "f877ac02501b6ee0",
         "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC1661ClientNaksZeroMagicInAWellFormedRequest": "f877ac02501b6ee0",
-        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn": "628d91af81c6cdb9",
-        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn#2": "628d91af81c6cdb9"
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn": "0d3244b2c125eaa3",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn#2": "0d3244b2c125eaa3"
       },
       "units": {
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661PeerMagicNumberAcked": "661582f7b1140da1",
@@ -822,8 +823,8 @@
         "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberRedrawnOnNak#2": "034fb31a9e383e0e",
         "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicChoosesNewMagic": "7e6e02d9deb55d37",
         "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicRefusesRepeatedDraw": "7e6e02d9deb55d37",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "e0085efaa973fd91",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "e0085efaa973fd91"
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "94dbfbde4e1ef3d7"
       },
       "units": {
         "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberRedrawnOnNak": "a341047d5a329a15",

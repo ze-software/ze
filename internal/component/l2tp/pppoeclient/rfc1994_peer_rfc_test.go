@@ -23,7 +23,7 @@ import (
 func chapPacketsWritten(t *testing.T, w *recordingRWC) []ppp.LCPPacket {
 	t.Helper()
 	var out []ppp.LCPPacket
-	for _, frame := range w.frames {
+	for _, frame := range w.snapshot() {
 		proto, payload, _, err := ppp.ParseFrame(frame)
 		if err != nil {
 			t.Fatalf("ParseFrame(% x): %v", frame, err)

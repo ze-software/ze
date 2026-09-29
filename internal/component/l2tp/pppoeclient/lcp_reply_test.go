@@ -59,8 +59,8 @@ func TestClientLCPReplyCorrelation(t *testing.T) {
 				t.Fatalf("invalid reply completed LCP: % x, error %v", frame.data, err)
 			default:
 			}
-			if len(w.frames) != 2 {
-				t.Fatalf("invalid reply emitted extra frames: % x", w.frames)
+			if written := w.snapshot(); len(written) != 2 {
+				t.Fatalf("invalid reply emitted extra frames: % x", written)
 			}
 		}
 		frames <- serverFrame(ppp.LCPConfigureAck, request.Identifier, request.Data)
@@ -117,8 +117,9 @@ func TestClientLCPRejectRemovesOnlyRejectedOptions(t *testing.T) {
 				// sleep(timer): drive the production LCP retransmission timer.
 				time.Sleep(3 * time.Second)
 				synctest.Wait()
-				if len(w.frames) != 3 || !bytes.Equal(w.frames[1], w.frames[2]) {
-					t.Fatalf("retransmission changed the outstanding request: % x", w.frames)
+				written := w.snapshot()
+				if len(written) != 3 || !bytes.Equal(written[1], written[2]) {
+					t.Fatalf("retransmission changed the outstanding request: % x", written)
 				}
 				// Appended Nak suggestions cannot resurrect rejected options.
 				frames <- serverFrame(ppp.LCPConfigureNak, next.Identifier, reject)

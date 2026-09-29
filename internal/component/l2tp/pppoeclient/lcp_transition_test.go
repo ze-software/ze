@@ -130,14 +130,14 @@ func TestClientLCPEchoBeforeOpenDiscarded(t *testing.T) {
 		request := w.lcpPackets(t)[0]
 		frames <- serverFrame(ppp.LCPEchoRequest, 76, []byte{1, 2, 3, 4})
 		synctest.Wait()
-		if len(w.frames) != 1 {
-			t.Fatalf("Echo before negotiation completed produced frames: % x", w.frames)
+		if written := w.snapshot(); len(written) != 1 {
+			t.Fatalf("Echo before negotiation completed produced frames: % x", written)
 		}
 		frames <- serverFrame(ppp.LCPConfigureAck, request.Identifier, request.Data)
 		frames <- serverFrame(ppp.LCPEchoRequest, 77, []byte{1, 2, 3, 4})
 		synctest.Wait()
-		if len(w.frames) != 1 {
-			t.Fatalf("Echo in Ack-Rcvd produced frames: % x", w.frames)
+		if written := w.snapshot(); len(written) != 1 {
+			t.Fatalf("Echo in Ack-Rcvd produced frames: % x", written)
 		}
 		frames <- serverFrame(ppp.LCPConfigureRequest, 78, nil)
 		if err := <-done; err != nil {

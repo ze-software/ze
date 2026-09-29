@@ -28,7 +28,7 @@ func (*recordingRWC) Close() error             { return nil }
 func (f *frameLog) papPackets(t *testing.T) []ppp.LCPPacket {
 	t.Helper()
 	var out []ppp.LCPPacket
-	for _, frame := range f.frames {
+	for _, frame := range f.snapshot() {
 		proto, payload, _, err := ppp.ParseFrame(frame)
 		if err != nil {
 			t.Fatalf("ParseFrame(% x): %v", frame, err)
@@ -251,7 +251,7 @@ type retryFailingAuthWriter struct {
 }
 
 func (w *retryFailingAuthWriter) Write(frame []byte) (int, error) {
-	if len(w.frames) != 0 {
+	if len(w.snapshot()) != 0 {
 		return 0, w.err
 	}
 	return w.frameLog.Write(frame)

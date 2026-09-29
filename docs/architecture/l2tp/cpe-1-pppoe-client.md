@@ -7,7 +7,8 @@ server-assigned addresses.
 
 <!-- source: internal/component/iface/pppoe_client.go -- PPPoEClient, PPPoEClientConfig, PPPoEDialer, reconcilePPPoEClients -->
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dialer.Dial, waitForPADO, waitForPADS -->
-<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateSession, negotiateLCP, negotiateIPCP, keepaliveLoop -->
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateSession, negotiateLCP, negotiateIPCP -->
+<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
 <!-- source: internal/component/l2tp/pppoeclient/auth.go -- client-mode authentication helpers -->
 
 ## RFC obligations carried by this code
@@ -98,7 +99,19 @@ method with a CHAP-MD5 proposal. For CHAP, a malformed or empty Challenge
 produces no Response. Only a result whose Identifier matches a successfully
 written Response completes authentication; an unsolicited Success or an old
 result is discarded. The result's Message remains advisory.
-<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP, runClientAuth, buildCHAPResponse -->
+
+Authentication does not end at the first Success. In the network phase the
+access concentrator may challenge again at any time (RFC 1994 Section 4.1), so
+when LCP negotiated CHAP, the client answers every Challenge with a fresh
+Response built the same way. The network phase starts with IPCP negotiation,
+so `negotiateIPCP` answers a Challenge too, and the same `networkPhaseCHAP`
+state then passes to `keepaliveLoop`, which answers for the rest of the
+session. A Success for that Response is logged, a result for another
+Identifier is discarded, and a Failure for it ends the session, or ends IPCP
+negotiation with an error: the authenticator SHOULD terminate the link after a
+Failure (Section 4.2), and the client stops using it rather than wait.
+<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop, networkPhaseCHAP.handle -->
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP, runClientAuth, buildCHAPResponse, negotiateIPCP -->
 
 **Reconciliation follows the DHCP shape.** Desired against active map diffing, a
 config-change check that restarts affected clients, and a shutdown loop that

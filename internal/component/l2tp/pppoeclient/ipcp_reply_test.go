@@ -23,9 +23,10 @@ func ipcpFrame(code, id uint8, options []byte) readFrame {
 
 func recordedIPCP(t *testing.T, w *frameLog, index int) ppp.LCPPacket {
 	t.Helper()
-	proto, payload, _, err := ppp.ParseFrame(w.frames[index])
+	frame := w.snapshot()[index]
+	proto, payload, _, err := ppp.ParseFrame(frame)
 	if err != nil || proto != ppp.ProtoIPCP {
-		t.Fatalf("frame %d = % x, protocol %#x, error %v", index, w.frames[index], proto, err)
+		t.Fatalf("frame %d = % x, protocol %#x, error %v", index, frame, proto, err)
 	}
 	packet, err := ppp.ParseLCPPacket(payload)
 	if err != nil {
@@ -49,7 +50,7 @@ func TestClientIPCPReplyCorrelation(t *testing.T) {
 		done := make(chan outcome, 1)
 		go func() {
 			var buf [ppp.MaxFrameBufLen]byte
-			result, err := negotiateIPCP(w, frames, buf[:], 1, stop, slog.Default())
+			result, err := negotiateIPCP(w, frames, buf[:], 1, nil, stop, slog.Default())
 			done <- outcome{result, err}
 		}()
 		synctest.Wait()
@@ -72,15 +73,15 @@ func TestClientIPCPReplyCorrelation(t *testing.T) {
 				t.Fatalf("invalid reply completed IPCP: %+v", got)
 			default:
 			}
-			if len(w.frames) != 1 {
-				t.Fatalf("invalid reply emitted a replacement: % x", w.frames)
+			if written := w.snapshot(); len(written) != 1 {
+				t.Fatalf("invalid reply emitted a replacement: % x", written)
 			}
 		}
 		// sleep(timer): advance the outstanding IPCP request's restart timer.
 		time.Sleep(3 * time.Second)
 		synctest.Wait()
-		if len(w.frames) != 2 || !bytes.Equal(w.frames[0], w.frames[1]) {
-			t.Fatalf("timeout did not retransmit the same request: % x", w.frames)
+		if written := w.snapshot(); len(written) != 2 || !bytes.Equal(written[0], written[1]) {
+			t.Fatalf("timeout did not retransmit the same request: % x", written)
 		}
 		frames <- ipcpFrame(ppp.LCPConfigureNak, first.Identifier, options)
 		synctest.Wait()
@@ -98,7 +99,7 @@ func TestClientIPCPReplyCorrelation(t *testing.T) {
 		}
 		frames <- ipcpFrame(ppp.LCPConfigureRequest, 78, []byte{99, 2})
 		synctest.Wait()
-		reject := recordedIPCP(t, w, len(w.frames)-1)
+		reject := recordedIPCP(t, w, len(w.snapshot())-1)
 		if reject.Code != ppp.LCPConfigureReject || reject.Identifier != 78 || !bytes.Equal(reject.Data, []byte{99, 2}) {
 			t.Fatalf("unsupported peer proposal = %+v, want exact Configure-Reject", reject)
 		}
@@ -123,7 +124,7 @@ func TestClientIPCPRejectAndWriteFailure(t *testing.T) {
 	frames := make(chan readFrame, 1)
 	frames <- ipcpFrame(ppp.LCPConfigureReject, 1, buildIPCPRequest(1, netip.IPv4Unspecified())[4:])
 	var buf [ppp.MaxFrameBufLen]byte
-	if _, err := negotiateIPCP(io.Discard, frames, buf[:], 1, make(chan struct{}), slog.Default()); err == nil {
+	if _, err := negotiateIPCP(io.Discard, frames, buf[:], 1, nil, make(chan struct{}), slog.Default()); err == nil {
 		t.Fatal("valid IP-Address rejection opened IPCP")
 	}
 	for _, tc := range []struct{ writeErr, want error }{
@@ -131,7 +132,7 @@ func TestClientIPCPRejectAndWriteFailure(t *testing.T) {
 		{nil, io.ErrShortWrite},
 	} {
 		w := &failingAuthWriter{err: tc.writeErr}
-		_, err := negotiateIPCP(w, make(chan readFrame), buf[:], 1, make(chan struct{}), slog.Default())
+		_, err := negotiateIPCP(w, make(chan readFrame), buf[:], 1, nil, make(chan struct{}), slog.Default())
 		if !errors.Is(err, tc.want) {
 			t.Fatalf("request write error = %v, want %v", err, tc.want)
 		}
