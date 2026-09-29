@@ -2,6 +2,50 @@
   "rfc": "rfc3948",
   "records": [
     {
+      "rid": "RFC3948-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero",
+      "unit-sha": "88171684f37aa838",
+      "claim-sha": "6d08831a42883442",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::generateESPSPI",
+      "producer-sha": "bb8e37124734be7e",
+      "break": "body of generateESPSPI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero",
+      "unit-sha": "88171684f37aa838",
+      "claim-sha": "14157ec91fb7e68d",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::generateESPSPI",
+      "producer-sha": "bb8e37124734be7e",
+      "break": "body of generateESPSPI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero",
+      "unit-sha": "e5e56f226f08e40a",
+      "claim-sha": "74b8e0bdb953a994",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
+      "producer-sha": "990d294cb809b683",
+      "break": "body of handleAuthResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero",
+      "unit-sha": "e5e56f226f08e40a",
+      "claim-sha": "94757857bc741a0f",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
+      "producer-sha": "990d294cb809b683",
+      "break": "body of handleAuthResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3948-2.3-1",
       "polarity": "positive",
       "unit": "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive",

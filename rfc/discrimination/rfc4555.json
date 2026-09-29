@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc4555",
+  "records": [
+    {
+      "rid": "RFC4555-4.2.5-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4555_cookie2_test.go::TestRFC4555Cookie2IsTheRandomSourceOutput",
+      "unit-sha": "35db1bdff49ffcad",
+      "claim-sha": "9030f2e0052ad8b1",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/mobike.go::startMobikeRequest",
+      "producer-sha": "9666527bf71c7036",
+      "break": "body of startMobikeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

@@ -1,21 +1,23 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7427-3-4": {
-      "note": "The sentence conditions method 14 on the notify having been sent AND received by each peer. Received half: TestRFC7427DigitalSignatureNeedsTheNotify asserts computeX509Auth returns errNoSignatureHashAlgos with sa.RemoteHashAlgos nil and method 14 once a list arrived; red on a producer that emits 14 without a received notify. Sent half: no tagged assertion goes red if ze stops sending its own SIGNATURE_HASH_ALGORITHMS notify in IKE_SA_INIT (buildSignatureHashAlgosNotify) while still emitting method 14; the tests rest on the comment that ze always sends it. TestAuthX509UsesMethod14 is positive only.",
+      "note": "Received: TestRFC7427DigitalSignatureNeedsTheNotify (errNoSignatureHashAlgos with no received list, method 14 once one arrived). Sent: TestRFC7427IKESAInitSendsTheSignatureHashAlgorithmsNotify parses Ze's real IKE_SA_INIT request and the real response Ze's responder builds, each carrying exactly one SIGNATURE_HASH_ALGORITHMS notify listing 2,3,4; the cookie/INVALID_KE repeat goes through the same buildSAInitRequest. TestAuthX509UsesMethod14 positive, PSK uses method 2.",
       "requirement_sha": "fd86df0dc23d2f24",
       "tests": {
         "internal/component/ike/engine/auth_test.go::TestAuthX509UsesMethod14": "3d29b411bdc2a3b7",
+        "internal/component/ike/engine/rfc7427_notify_sent_test.go::TestRFC7427IKESAInitSendsTheSignatureHashAlgorithmsNotify": "97812bef1b84ec81",
         "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify": "4090466f71eff50f",
         "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify#2": "4090466f71eff50f"
       },
       "units": {
         "internal/component/ike/engine/auth_test.go::TestAuthX509UsesMethod14": "6ccf4077bd9f89de",
+        "internal/component/ike/engine/rfc7427_notify_sent_test.go::TestRFC7427IKESAInitSendsTheSignatureHashAlgorithmsNotify": "b4bf9b7b0a408519",
         "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify": "7012bbd47e52525c",
         "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify#2": "7012bbd47e52525c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7427-3-5": {
       "note": "Forbidden: with the notify exchanged and signature authentication in use, emitting a legacy AUTH method (1 RSA, 3 DSS) instead of Digital Signature (14). TestRFC7427DigitalSignatureMethodIsUsed asserts auth.AuthMethod == wire.AuthMethodDigitalSig with RemoteHashAlgos set (red on any other method) and, as the negative, that with no notify received computeX509Auth returns an error and a nil payload rather than falling back to a legacy method.",

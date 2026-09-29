@@ -1,17 +1,25 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC3948-2.1-1": {
-      "note": "Forbidden behaviour: an ESP SA whose SPI is 0. TestGenerateESPSPI asserts spi != 0 over 100 calls to generateESPSPI, and both tags sit on that one assertion (two hats). The assertion cannot observe the loss of the producer's guard: with the retry loop in child.go removed, a random 32-bit draw is 0 with probability 2^-32 per call, so the test stays green. No unit injects a zero draw into the generator.",
+      "note": "Generator and initiator IKE_AUTH path now proven: TestRFC3948GeneratedESPSPIIsNeverZero scripts five zero draws and asserts generateESPSPI returns the sixth (non-zero) draw after exactly 6 reads, red if the zero check in child.go goes; TestRFC3948OutboundESPSPIIsNeverZero re-encrypts the real IKE_AUTH response with SAr2 SPI 0 and asserts the SA is not established and no ESP state is installed, red if the fsm.go handleAuthResponse outSPI==0 refusal goes. Missing: the other paths that put a peer SPI in Ze's outbound ESP header carry no RFC3948 tag, so removing the guard at responder.go (SAi2, ChildOutboundSPI==0), rekey.go respondChildRekey (peerSPI==0) or rekey.go applyChildRekeyResponse (outSPI==0) turns no RFC3948-2.1-1 unit red. The RFC4303 peer-SPI tests in rfc4303_peer_spi_test.go already drive all three; tagging them here would close it. Records break whole producers (panic), proving reach only; discrimination judged by reading the assertions.",
       "requirement_sha": "96eb64607ceba544",
       "tests": {
         "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "3c602227a7107a32",
-        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "3c602227a7107a32"
+        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "3c602227a7107a32",
+        "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero": "90be745644c57513",
+        "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero#2": "90be745644c57513",
+        "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero": "90be745644c57513",
+        "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero#2": "90be745644c57513"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "44bf9768b4b90de3",
-        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "44bf9768b4b90de3"
+        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "44bf9768b4b90de3",
+        "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero": "d83225ae54b918ca",
+        "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero#2": "d83225ae54b918ca",
+        "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero": "95042f25f6f4a11d",
+        "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero#2": "95042f25f6f4a11d"
       },
       "verdict": "weak"
     },

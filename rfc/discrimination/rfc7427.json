@@ -2,6 +2,17 @@
   "rfc": "rfc7427",
   "records": [
     {
+      "rid": "RFC7427-3-4",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7427_notify_sent_test.go::TestRFC7427IKESAInitSendsTheSignatureHashAlgorithmsNotify",
+      "unit-sha": "36ac3b612663b936",
+      "claim-sha": "7db3f1d91dec0ee8",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/initiator.go::buildSignatureHashAlgosNotify",
+      "producer-sha": "c3bd257487ab2a94",
+      "break": "body of buildSignatureHashAlgosNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7427-3-5",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed",

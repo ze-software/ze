@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC5282-3-1": {
       "note": "Forbidden: a receiver refusing a message for its Padding length (0..255). Red: TestRFC5282AEADReceiveAcceptsAnyPaddingTo255 fatals 'decryptAndParse = %v, want the message accepted' for every length 0..255. Negative TestRFC5282AEADReceiveRefusesATruncatedInnerPayload bounds it (expectRefused).",
@@ -93,17 +93,19 @@
       "verdict": "enforced"
     },
     "RFC5282-4-1": {
-      "note": "Clause 'both the encryptor and decryptor construct the nonce by concatenating the salt with the IV' for AES GCM. Decryptor: TestRFC5282AEADNonceIsSaltThenIV accepts salt||IV, TestRFC5282AEADRefusesAReversedNonce refuses IV||salt. Encryptor: no 4-1 tagged unit checks the nonce ze seals under; SealIKEAEAD calling ikeAEADNonce with its arguments swapped keeps the same length and turns no 4-1 unit red. TestRFC5282AEADSendIVIsEightOctets opens ze's own message under salt||IV but is tagged 3.1-1 only.",
+      "note": "Encryptor: TestRFC5282AEADSendSealsUnderSaltThenIV opens the real initiator IKE_AUTH request and responder response with an independent stdlib AES-GCM under salt||IV and refuses IV||salt (same length, order alone); SealIKEAEAD (crypto/aead.go) is the only seal site. Decryptor: TestRFC5282AEADNonceIsSaltThenIV accepts salt||IV, TestRFC5282AEADRefusesAReversedNonce refuses the reversed nonce. The ikeAEADNonce record is a whole-producer panic (reach); discrimination read from the independent-oracle assertions.",
       "requirement_sha": "03cc06d5f60350ec",
       "tests": {
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendSealsUnderSaltThenIV": "d2a8fe0dab3c6a2d",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsSaltThenIV": "0b39a6806fb65453",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAReversedNonce": "0b39a6806fb65453"
       },
       "units": {
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendSealsUnderSaltThenIV": "6f9211c6d381e9af",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsSaltThenIV": "3c3543aea0fa581b",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAReversedNonce": "cb7cc91565c4006d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5282-4-2": {
       "note": "Forbidden: an AES GCM nonce other than 12 octets. Red: TestRFC5282AEADNonceIsTwelveOctets asserts len(nonce)==12 and expectOneDelete; TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets refuses 11 and 13. Sender side: the nonce size is fixed once in newIKEAEAD (salt+ikeIVOctets, checked by newAESGCM) and shared by SealIKEAEAD and OpenIKEAEAD, and Go's AEAD panics on a wrong-length nonce, so a sender-only length change is not reachable without reddening the receive units.",
@@ -145,30 +147,34 @@
       "verdict": "enforced"
     },
     "RFC5282-5.1-1": {
-      "note": "The associated data MUST span the fixed header through the SK generic header, including intervening payloads. Receiver: TestRFC5282AEADAssociatedDataCoversAnInterveningPayload accepts a test-sealed message over that span, TestRFC5282AEADRefusesAnAlteredInterveningPayload refuses an altered Notify. Sender: the AAD ze seals under is cut in buildSKMessageAEADWithMsgID, a separate producer, and no 5.1-1 tagged unit checks it; a sender cutting the AAD at 32 octets or past the SK header turns no 5.1-1 unit red.",
+      "note": "Sender: TestRFC5282AEADSendAssociatedDataRunsThroughTheSKHeader pins DataOffset 32 on both ends' real messages and opens them under raw[:32] with an independent AES-GCM, not under raw[:31] nor the fixed header alone; auth.go buildSKMessageAEADWithMsgID is the only seal site. Receiver: TestRFC5282AEADAssociatedDataCoversAnInterveningPayload accepts the span over an intervening payload, TestRFC5282AEADRefusesAnAlteredInterveningPayload refuses an altered one.",
       "requirement_sha": "2e7176e219811541",
       "tests": {
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataRunsThroughTheSKHeader": "d2a8fe0dab3c6a2d",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataCoversAnInterveningPayload": "0b39a6806fb65453",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAnAlteredInterveningPayload": "0b39a6806fb65453"
       },
       "units": {
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataRunsThroughTheSKHeader": "0cf23504f4f4af34",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataCoversAnInterveningPayload": "2998e981b3381787",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAnAlteredInterveningPayload": "dd1267649a6aca17"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5282-5.1-2": {
-      "note": "The IV and Ciphertext MUST NOT be in the associated data. Receiver: TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext accepts a span ending at the SK header, TestRFC5282AEADRefusesAssociatedDataCoveringTheIV refuses one covering the IV. Sender: no 5.1-2 tagged unit checks the AAD buildSKMessageAEADWithMsgID seals under; TestRFC5282AEADSendIVIsEightOctets opens ze's message under raw[:DataOffset] but is tagged 3.1-1 only.",
+      "note": "Sender: TestRFC5282AEADSendAssociatedDataExcludesTheIVAndCiphertext opens both ends' real messages under the span stopping before the IV and refuses AAD covering the IV and IV+ciphertext. Receiver: TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext accepts, TestRFC5282AEADRefusesAssociatedDataCoveringTheIV refuses.",
       "requirement_sha": "98a21f9c2c7029d6",
       "tests": {
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataExcludesTheIVAndCiphertext": "d2a8fe0dab3c6a2d",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext": "0b39a6806fb65453",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAssociatedDataCoveringTheIV": "0b39a6806fb65453"
       },
       "units": {
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataExcludesTheIVAndCiphertext": "b1956e7d7d76f026",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext": "12bd50ab9f3079b3",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAssociatedDataCoveringTheIV": "1069cc8ca61b7ac5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5282-7.1-1": {
       "note": "Clause 'When AES GCM or AES CCM is used ... each key MUST be treated as having a size of zero'. AES GCM: TestRFC5282AEADIntegrityKeysAreZeroOctets asserts zero-length SK_ai/SK_ar and the SK_ei offset; TestRFC5282NonAEADIntegrityKeysAreDerived is the negative. AES CCM: no tagged unit derives a CCM key hierarchy, so a CCM derivation reserving integrity key material turns nothing red.",
@@ -197,43 +203,53 @@
       "verdict": "weak"
     },
     "RFC5282-7.3-1": {
-      "note": "Clause 'any of the identifiers for AES GCM or AES CCM'. AES GCM: TestRFC5282AEADProposalCarriesTheKeyLengthAttribute asserts exactly one Key Length attribute on the IKE and ESP rails; TestRFC5282AEADOfferWithoutAKeyLengthIsRefused refuses a missing attribute. AES CCM (identifiers 14, 15, 16, offered on the IKE rail): no tagged unit asserts ze sends the attribute; assertKeyLength even fatals on any Transform ID other than 20.",
+      "note": "AES GCM: TestRFC5282AEADProposalCarriesTheKeyLengthAttribute (IKE and ESP rails, exactly one attribute), TestRFC5282AEADOfferWithoutAKeyLengthIsRefused (ErrKeyLengthMissing). AES CCM: TestRFC5282AEADCCMProposalCarriesTheKeyLengthAttribute asserts IDs 14/15/16 x 128/256 each carry exactly one Key Length attribute of the key size from buildWireIKEProposals; ESP does not offer CCM (ipsec.EncryptionImplementedESP excludes it). Residual observation: the receive-side refusal names CCM in keyLengthRequired but only a GCM offer is driven.",
       "requirement_sha": "d2a62399850c6bbe",
       "tests": {
         "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOfferWithoutAKeyLengthIsRefused": "7023705f0a1c4b4b",
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADCCMProposalCarriesTheKeyLengthAttribute": "d2a8fe0dab3c6a2d",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADProposalCarriesTheKeyLengthAttribute": "0b39a6806fb65453"
       },
       "units": {
         "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOfferWithoutAKeyLengthIsRefused": "76d2719bc0f4ac46",
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADCCMProposalCarriesTheKeyLengthAttribute": "3a12f7bee52ddd53",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADProposalCarriesTheKeyLengthAttribute": "fe735abd044dc1f5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5282-8-1": {
-      "note": "Clause 'for any SA (IKE or ESP)'. IKE SA: TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm asserts AUTH_NONE, zero key length and zero SK_ai/SK_ar; TestRFC5282AEADOfferWithIntegrityIsRefused refuses a peer's integrity transform beside AES GCM. ESP SA: no tagged unit asserts that ESP negotiation with an AEAD cipher selects no integrity algorithm.",
+      "note": "IKE SA: TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm / TestRFC5282AEADOfferWithIntegrityIsRefused. ESP SA, initiator re-check only: TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm (NegotiateESP selects AUTH_NONE though Hash is configured) and TestRFC5282AEADESPOfferWithIntegrityIsRefused (AES-GCM+HMAC refused); both are red if espTransforms (initiator.go) stops mapping AEAD to AUTH_NONE, although the record names matchESP, which holds no AEAD rule. Missing: the responder's ESP selection, where Ze actually selects the Child SA's algorithms (matchOfferedESPProposal/espProposalMatches, responder.go, integID 0 for AEAD), has no 8-1 unit: a peer SAi2 offering AES-GCM with an integrity transform is never shown refused, nor an AES-GCM-only offer shown answered with no integrity transform in SAr2.",
       "requirement_sha": "7612d532bfa75002",
       "tests": {
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPOfferWithIntegrityIsRefused": "d2a8fe0dab3c6a2d",
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm": "d2a8fe0dab3c6a2d",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADOfferWithIntegrityIsRefused": "0b39a6806fb65453",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm": "0b39a6806fb65453"
       },
       "units": {
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPOfferWithIntegrityIsRefused": "0dfb1c546a3d73a3",
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm": "a62fe81713bd787d",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADOfferWithIntegrityIsRefused": "bbb5d867a1d341a1",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm": "184638515a99e3bb"
       },
       "verdict": "weak"
     },
     "RFC5282-8-2": {
-      "note": "Clause 'any proposal'. IKE proposal: TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform asserts zero Transform Type 3 from buildWireIKEProposals; TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform is the negative. ESP proposal: espProposalToWire's omission for an AEAD ESP proposal is not asserted by any 8-2 tagged unit.",
+      "note": "IKE proposal: TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform / TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform. ESP proposal: TestRFC5282AEADESPProposalCarriesNoIntegrityTransform (AES-GCM with Hash configured: zero Transform Type 3, ENCR and ESN kept) and TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform (AES-CBC: exactly one). espProposalToWire is the single ESP builder (IKE_AUTH offer, CREATE_CHILD_SA offer and answer).",
       "requirement_sha": "861764685325f277",
       "tests": {
         "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform": "c9abc80b09e13d14",
-        "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform": "c9abc80b09e13d14"
+        "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform": "c9abc80b09e13d14",
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPProposalCarriesNoIntegrityTransform": "d2a8fe0dab3c6a2d",
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform": "d2a8fe0dab3c6a2d"
       },
       "units": {
         "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform": "452af7dd73f4ff79",
-        "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform": "cbb537e63edae857"
+        "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform": "cbb537e63edae857",
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPProposalCarriesNoIntegrityTransform": "efb43e51f272ad4f",
+        "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform": "04e79c9631651a85"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc5282"

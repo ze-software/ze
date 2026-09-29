@@ -158,6 +158,17 @@
     {
       "rid": "RFC5282-4-1",
       "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendSealsUnderSaltThenIV",
+      "unit-sha": "f19040fb7a8217d4",
+      "claim-sha": "157c5f9bd9d48a37",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/aead.go::ikeAEADNonce",
+      "producer-sha": "6536163049ce3b0b",
+      "break": "body of ikeAEADNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-4-1",
+      "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsSaltThenIV",
       "unit-sha": "7ae7928c6c5f6abd",
       "claim-sha": "0e4150e8934abd4a",
@@ -246,6 +257,17 @@
     {
       "rid": "RFC5282-5.1-1",
       "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataRunsThroughTheSKHeader",
+      "unit-sha": "f69b53c3b58ea8af",
+      "claim-sha": "ae18fb7fde4e0aba",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/auth.go::buildSKMessageAEADWithMsgID",
+      "producer-sha": "2bcba23be754aec5",
+      "break": "body of buildSKMessageAEADWithMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-5.1-1",
+      "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataCoversAnInterveningPayload",
       "unit-sha": "1404e7d7122a5f2d",
       "claim-sha": "3bbeffb0bb9b48f8",
@@ -264,6 +286,17 @@
       "producer": "internal/component/ike/engine/auth.go::decryptSKPayload",
       "producer-sha": "d7d446228e538738",
       "break": "body of decryptSKPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-5.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataExcludesTheIVAndCiphertext",
+      "unit-sha": "3b4301673447f4bc",
+      "claim-sha": "3ffd873448438a54",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/auth.go::buildSKMessageAEADWithMsgID",
+      "producer-sha": "2bcba23be754aec5",
+      "break": "body of buildSKMessageAEADWithMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-5.1-2",
@@ -345,6 +378,17 @@
     {
       "rid": "RFC5282-7.3-1",
       "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADCCMProposalCarriesTheKeyLengthAttribute",
+      "unit-sha": "3c3053b652d4f250",
+      "claim-sha": "9256e50d1944f527",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/initiator.go::encAttrs",
+      "producer-sha": "5f591c51cecce19a",
+      "break": "body of encAttrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-7.3-1",
+      "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADProposalCarriesTheKeyLengthAttribute",
       "unit-sha": "88328d3d92252044",
       "claim-sha": "ef88bd483e280d14",
@@ -374,6 +418,28 @@
       "producer": "internal/component/ike/crypto/proposal.go::acceptEncryption",
       "producer-sha": "62247f481f88d39a",
       "break": "body of acceptEncryption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-8-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPOfferWithIntegrityIsRefused",
+      "unit-sha": "c20a5c9c0836ff89",
+      "claim-sha": "b5da258a9e6f0b36",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/proposal.go::matchESP",
+      "producer-sha": "6a3d9c3594489bd8",
+      "break": "body of matchESP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-8-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm",
+      "unit-sha": "fd9a36592403d071",
+      "claim-sha": "4506eba43095764f",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/proposal.go::matchESP",
+      "producer-sha": "6a3d9c3594489bd8",
+      "break": "body of matchESP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-8-1",
@@ -418,6 +484,28 @@
       "producer": "internal/component/ike/engine/initiator.go::buildWireIKEProposals",
       "producer-sha": "bb5c444c5fbeaae1",
       "break": "body of buildWireIKEProposals replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-8-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPProposalCarriesNoIntegrityTransform",
+      "unit-sha": "36ae76a9220dcfe0",
+      "claim-sha": "8a86576e581760d1",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/initiator.go::espProposalToWire",
+      "producer-sha": "90db7205673f9767",
+      "break": "body of espProposalToWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-8-2",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform",
+      "unit-sha": "d12569cea547e834",
+      "claim-sha": "19a0905e33795aaf",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/initiator.go::espProposalToWire",
+      "producer-sha": "90db7205673f9767",
+      "break": "body of espProposalToWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

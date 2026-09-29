@@ -354,6 +354,17 @@
       "break": "body of advanceMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7296-2.20-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_cp_version_test.go::TestRFC7296ResponderAnswersAVersionRequestWithNoCP",
+      "unit-sha": "567e4e97281bd767",
+      "claim-sha": "b6f2d9cf285823c9",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/responder.go::handleAuthRequest",
+      "producer-sha": "391521701bb06eef",
+      "break": "body of handleAuthRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7296-2.21.2-3",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeAuthExtensionErrorsRequirePeerUnderstanding",
@@ -693,6 +704,39 @@
       "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
       "producer-sha": "a3e2df043c6db376",
       "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-3.1-13",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_initiator_bit_test.go::TestRFC7296InitiatorBitFollowsTheOriginalRole",
+      "unit-sha": "cc15315fa0c4f710",
+      "claim-sha": "9311cddfec5eb192",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/rekey.go::initiatorFlag",
+      "producer-sha": "197be878d20383ae",
+      "break": "body of initiatorFlag replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-3.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_zero_ispi_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt",
+      "unit-sha": "617c5b7abb90142a",
+      "claim-sha": "a23b0820a0121be1",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/register.go::dispatchInbound",
+      "producer-sha": "b38a7872bbf3e6d2",
+      "break": "body of dispatchInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-3.1-4",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_spi_cookie_test.go::TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat",
+      "unit-sha": "967b5a03932dfdef",
+      "claim-sha": "70757e7d9c11a9c1",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/sa_init_retry.go::retrySAInit",
+      "producer-sha": "cca0009a99a7d605",
+      "break": "body of retrySAInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

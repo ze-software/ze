@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -223,15 +223,17 @@
       "verdict": "enforced"
     },
     "RFC7296-2.20-1": {
-      "note": "sweep over engineBuiltChains finds no APPLICATION_VERSION; no unit sends Ze a CP(CFG_REQUEST) carrying APPLICATION_VERSION and asserts the reply carries no CP or an empty string",
+      "note": "TestRFC7296ResponderAnswersAVersionRequestWithNoCP drives handleAuthRequest with a real IKE_AUTH request carrying CP(CFG_REQUEST, APPLICATION_VERSION) and asserts the SA is established and the response carries no CP; the sweep (TestZeDeclinesApplicationVersion) finds no APPLICATION_VERSION in any built message. Missing: Section 2.20's own method is a CP(CFG_REQUEST) inside an INFORMATIONAL exchange after the IKE SA and first Child SA exist; no unit sends that to Ze's INFORMATIONAL handler (handleInformationalOwned / inbound.go) and asserts the reply carries no CP or an empty string. The tagged negative is a codec round trip, which shows the attribute is expressible and violates nothing.",
       "requirement_sha": "ce57bff15d289ceb",
       "tests": {
         "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion": "38bdb8cdc7d2fb80",
-        "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "38bdb8cdc7d2fb80"
+        "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "38bdb8cdc7d2fb80",
+        "internal/component/ike/engine/rfc7296_cp_version_test.go::TestRFC7296ResponderAnswersAVersionRequestWithNoCP": "303ae8064814af34"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion": "086ac4931ee14b25",
-        "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "086ac4931ee14b25"
+        "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "086ac4931ee14b25",
+        "internal/component/ike/engine/rfc7296_cp_version_test.go::TestRFC7296ResponderAnswersAVersionRequestWithNoCP": "09950db7f424210c"
       },
       "verdict": "weak"
     },
@@ -634,13 +636,15 @@
       "verdict": "enforced"
     },
     "RFC7296-3.1-13": {
-      "note": "only the DPD probe is asserted (TestWp2DPDProbeIBitFollowsRole/DiffersByRole); flags are passed per call site (buildEncryptedMessageEx flags argument), so one message kind does not prove every message the original initiator/responder sends",
+      "note": "Product-driven and discriminating: IKE_SA_INIT and IKE_AUTH request/response, the INFORMATIONAL response of each role (handleInformationalOwned, including the original initiator's response, I set), the original initiator's IKE rekey request (initiateIKERekey), and the DPD probe of each role (TestWp2DPDProbeIBitFollowsRole/DiffersByRole); initiatorFlag is tested on both branches. Missing: both Delete requests in the tagged units are built by the TEST calling buildEncryptedMessageEx(..., initiatorFlag(x)), not by delete.go, so a delete.go call site that set the flag wrongly stays green while the tag claims the Delete request; the CREATE_CHILD_SA responses (rekey.go 554/660/1085/1163), Child SA rekey requests, error-notify responses (notify_error.go) and MOBIKE messages (mobike.go) of either role are not driven.",
       "requirement_sha": "719e75eee1468763",
       "tests": {
+        "internal/component/ike/engine/rfc7296_initiator_bit_test.go::TestRFC7296InitiatorBitFollowsTheOriginalRole": "e86fe30046213f74",
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitDiffersByRole": "3aea182e6ec56bb9",
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitFollowsRole": "3aea182e6ec56bb9"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_initiator_bit_test.go::TestRFC7296InitiatorBitFollowsTheOriginalRole": "75573505af56541e",
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitDiffersByRole": "b6c1b1389db7461a",
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitFollowsRole": "9e04a951b1503cb5"
       },
@@ -660,30 +664,34 @@
       "verdict": "enforced"
     },
     "RFC7296-3.1-3": {
-      "note": "GenerateSPI and new SAs asserted non-zero; the negative tag claims dispatchInbound drops a zero initiator SPI on receipt (register.go) but the body never exercises dispatchInbound",
+      "note": "Send: GenerateSPI and new SAs asserted non-zero (rfc7296_header_test.go). Receive on port 500: TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt drives the real dispatchInbound over UDP with an SA holding a zero Initiator's SPI in the table, so without the guard the datagram would reach that SA's owner; the following non-zero datagram is delivered. The record is a whole-producer panic (reach only); the isolation comes from the zero-iSPI SA. Missing: the port-4500 dispatcher (dispatchNATTInbound, register.go) holds its own iSPI==0 guard and no RFC7296-3.1-3 unit drives a zero-iSPI datagram through it, so removing that guard turns nothing red.",
       "requirement_sha": "df0a427bb2fa29ae",
       "tests": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "d3f001fc2a77226f",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "d3f001fc2a77226f"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "d3f001fc2a77226f",
+        "internal/component/ike/engine/rfc7296_zero_ispi_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt": "9421156ced1ce8cb"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "582f67f7d5d15335",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "582f67f7d5d15335"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "582f67f7d5d15335",
+        "internal/component/ike/engine/rfc7296_zero_ispi_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt": "a88a9b37b6cf5987"
       },
       "verdict": "weak"
     },
     "RFC7296-3.1-4": {
-      "note": "Clauses: Responder's SPI is zero in the first message of an initial exchange, including repeats of that message including a cookie. TestSPIZeroRules asserts octets 8..15 are zero in Ze's IKE_SA_INIT request and non-zero in the response. The cookie-repeat clause of the quote has no case: a retried IKE_SA_INIT carrying a COOKIE is never checked for a zero Responder's SPI.",
+      "note": "First message: TestSPIZeroRules asserts octets 8..15 zero in Ze's IKE_SA_INIT request, non-zero in the response. Cookie repeat: TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat answers a COOKIE challenge whose Responder's SPI is 0909..09, checks the repeat carries the COOKIE notify and the same Initiator's SPI, and asserts octets 8..15 of the repeat are zero, red on a retry that copies the challenge's SPI.",
       "requirement_sha": "aec2989709fac5ae",
       "tests": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "d3f001fc2a77226f",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "d3f001fc2a77226f"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "d3f001fc2a77226f",
+        "internal/component/ike/engine/rfc7296_spi_cookie_test.go::TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat": "9e3b858e56f0381a"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "582f67f7d5d15335",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "582f67f7d5d15335"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "582f67f7d5d15335",
+        "internal/component/ike/engine/rfc7296_spi_cookie_test.go::TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat": "e5feaf9700e10c59"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-3.1-7": {
       "note": "every engine-built message has X bits clear; I and R observed so the mask is not vacuous",
