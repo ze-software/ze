@@ -25,6 +25,7 @@ func init() {
 	Register("plugin/bfd-transport-stage2", bfdTransportStage203)
 	Register("plugin/bgp-bfd-opt-in", bgpBFDOptIn03)
 	Register("plugin/bgp-bfd-strict", bgpBFDStrict03)
+	Register("plugin/bgp-bfd-multi-hop-pinned-shared", bgpBFDMultiHopPinnedShared03)
 	Register("plugin/bgp-bfd-strict-pinned", bgpBFDStrictPinned03)
 	Register("plugin/bgp-gtsm", observe03("gtsm-show-test", bgpGTSM03))
 	Register("plugin/bgp-health-show", observe03("bgp-health-show-test", bgpHealthShow03))

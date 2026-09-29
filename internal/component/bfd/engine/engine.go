@@ -164,6 +164,12 @@ type sessionEntry struct {
 	// holds STRINGS for display, and a session that has made no transition has
 	// no entry at all.
 	lastDiag packet.Diag
+	// joined is the most specific identity any client has reached this
+	// session with. It equals the session's map key until a client that names
+	// a field the key left unset joins it (sharedEntryLocked); from then on the
+	// session answers for that value, so a later client naming a DIFFERENT
+	// value is told apart from it and gets its own session.
+	joined api.Key
 }
 
 // recordTransition appends a new TransitionRecord to the ring buffer.
@@ -278,8 +284,11 @@ func (k firstPacketKey) reconcileZone() firstPacketKey {
 // A session's key is what its client could say about it.
 // api.SessionRequest.Canonical completes what a client left out where it can,
 // and where it cannot -- a link-local peer on several links, an off-link peer,
-// no route, no interface backend -- it returns the request UNCHANGED, so the
-// key carries a zero in every field the client never filled. The received
+// no interface backend, and every multi-hop local address, which it never
+// derives -- it returns the request UNCHANGED, so the key carries a zero in
+// every field the client never filled. EnsureSession joins such a request to
+// a session that named the field when exactly one matches (sharedEntryLocked);
+// the session keeps its own key, so the zero stays in the index. The received
 // packet, meanwhile, carries a real value in every field the kernel reports. An
 // exact struct match between the two can never hit, and the session stays Down
 // for as long as the daemon runs.
@@ -498,7 +507,10 @@ func (l *Loop) Stop() error {
 }
 
 // EnsureSession is the public api.Service entry point. If a session with
-// the same Key already exists, its refcount is bumped. Otherwise the
+// the same Key already exists, or exactly one session the request cannot be
+// told apart from (sharedEntryLocked), its refcount is bumped and the handle
+// names that session's key, which can carry fewer fields than the request's.
+// Otherwise the
 // engine creates the session, allocates a unique discriminator, and the
 // express loop will begin sending packets on the next tick.
 func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) {
@@ -509,6 +521,19 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 	if entry, ok := l.sessions[key]; ok {
 		entry.machine.Acquire()
 		return &handle{loop: l, key: key}, nil
+	}
+	// RFC 5882 Section 4.4: a client that named less joins the one session
+	// it cannot be told apart from.
+	if sessionKey, entry, ok := l.sharedEntryLocked(key); ok {
+		entry.machine.Acquire()
+		entry.joined = narrowKey(entry.joined, key)
+		engineLog().Info("bfd session shared",
+			"peer", key.Peer.String(),
+			"mode", key.Mode.String(),
+			"vrf", key.VRF,
+			"request-local", key.Local.String(),
+			"session-local", sessionKey.Local.String())
+		return &handle{loop: l, key: sessionKey}, nil
 	}
 
 	discr, err := l.allocateDiscriminatorLocked()
@@ -522,6 +547,7 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 		profile:   req.Profile,
 		createdAt: l.clk.Now(),
 		lastState: packet.StateDown,
+		joined:    key,
 	}
 	notify := l.makeNotify(key, entry)
 	m.Init(req, discr, l.clk, notify)
@@ -546,6 +572,97 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 	l.byDiscr[discr] = entry
 	l.byKey[firstPacketIndex(key)] = entry
 	return &handle{loop: l, key: key}, nil
+}
+
+// sharedEntryLocked answers the one live session a request shares, when its
+// key is not one the engine already holds exactly. The caller MUST hold l.mu.
+//
+// RFC 5882 Section 4.4: "If multiple control protocols wish to establish BFD
+// sessions with the same remote system for the same data protocol, all MUST
+// share a single BFD session."
+//
+// The clients do not name a session with the same fields.
+// api.SessionRequest.Canonical completes what it can from the link table, and
+// what it cannot complete stays unset: the local address of a multi-hop BGP
+// peer with no `connection local ip`, which Canonical never derives, and the
+// link and address of a single-hop peer on two links, on no connected prefix,
+// or on a daemon with no interface backend. An unset field says the client
+// does not care, so it matches any value (sharesSession). ok is false when no
+// session matches, and also when more than one does: a request that could
+// mean either of two sessions is not merged onto one of them by a guess, and
+// gets its own.
+//
+// The scan is linear in the loop's sessions. EnsureSession runs once per
+// client per session lifetime, never per packet.
+func (l *Loop) sharedEntryLocked(key api.Key) (api.Key, *sessionEntry, bool) {
+	var (
+		foundKey api.Key
+		found    *sessionEntry
+		count    int
+	)
+	for k, entry := range l.sessions {
+		if !sharesSession(key, entry.joined) {
+			continue
+		}
+		count++
+		foundKey, found = k, entry
+	}
+	if count != 1 {
+		return api.Key{}, nil, false
+	}
+	return foundKey, found, true
+}
+
+// sharesSession reports whether two keys can name one session: the same peer,
+// VRF and hop mode, and no field that both name with different values.
+//
+// RFC 5883 Section 4.1: "Multiple sessions between the same pair of systems
+// must have at least one endpoint address distinct from one another." Two
+// local addresses both named are two address pairs, so they never share; an
+// address one side left unset is no endpoint distinct from anything.
+//
+// RFC 5881 Section 2 puts a single-hop session on "a single IP hop that is
+// associated with an incoming interface", so two named links never share
+// either.
+//
+// A link-local peer is the exception to the unset link. RFC 4007 Section 6:
+// "the same non-global address may be in use in more than one zone of the
+// same scope (e.g., the use of link-local address fe80::1 in two separate
+// physical links)". fe80::1 with no link does not name a remote system, so it
+// matches only a session that names no link either.
+func sharesSession(a, b api.Key) bool {
+	if a.Peer != b.Peer {
+		return false
+	}
+	if a.VRF != b.VRF {
+		return false
+	}
+	if a.Mode != b.Mode {
+		return false
+	}
+	if a.Local.IsValid() && b.Local.IsValid() && a.Local != b.Local {
+		return false
+	}
+	if a.Peer.IsLinkLocalUnicast() {
+		return a.Interface == b.Interface
+	}
+	if a.Interface != "" && b.Interface != "" && a.Interface != b.Interface {
+		return false
+	}
+	return true
+}
+
+// narrowKey returns joined with every field it left unset taken from key, the
+// identity of the client that just joined. sharesSession already refused any
+// field both name differently, so nothing named is overwritten.
+func narrowKey(joined, key api.Key) api.Key {
+	if !joined.Local.IsValid() {
+		joined.Local = key.Local
+	}
+	if joined.Interface == "" {
+		joined.Interface = key.Interface
+	}
+	return joined
 }
 
 // buildAuthPair converts api.AuthSettings into a session.AuthPair,

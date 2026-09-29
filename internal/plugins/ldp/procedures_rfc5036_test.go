@@ -371,20 +371,68 @@ func TestRFC5036SetupRetryRefusedInsideDelay(t *testing.T) {
 // --------------------------------------------------------------------------
 
 // RFC requirement: RFC5036-3.1-1 positive -- a Hello whose LDP Identifier names
-// another LSR forms an adjacency, and the identifier ze puts in its own PDU
-// header is the configured lsr-id, unchanged.
+// another LSR forms an adjacency, and the first four octets of every LDP
+// Identifier ze sends are the lsr-id the engine was given, unchanged: the header
+// of the Hello sendHello puts on the wire, and the header of the Initialization
+// runSession sends on a session built by sessionConfigForAdj from that adjacency.
 func TestRFC5036DistinctLSRIDFormsAdjacency(t *testing.T) {
+	lsrID := [4]byte{192, 0, 2, 77}
+	peerLSRID := [4]byte{198, 51, 100, 9}
+
 	table := newAdjacencyTable()
-	pkt := encodeHelloPDU([4]byte{10, 0, 0, 2}, 15, 0)
-	processDiscoveryPacket(pkt, [4]byte{10, 0, 0, 1}, "eth0", table, nil, slogutil.DiscardLogger())
-	if table.Len() != 1 {
+	var adjacency *Adjacency
+	pkt := encodeHelloPDU(peerLSRID, 15, 0)
+	processDiscoveryPacket(pkt, lsrID, "eth0", table,
+		func(adj *Adjacency) { adjacency = adj }, slogutil.DiscardLogger())
+	if table.Len() != 1 || adjacency == nil {
 		t.Fatalf("adjacencies = %d, want 1 for a Hello from another LSR", table.Len())
 	}
 
-	var buf [ldpHeaderLen]byte
-	encodePDUHeader(buf[:], PDUHeader{Version: ldpVersion, PDULength: 6, LSRID: [4]byte{10, 0, 0, 1}})
-	if got := [4]byte(buf[4:8]); got != [4]byte{10, 0, 0, 1} {
-		t.Errorf("PDU header LSR ID = %v, want the configured 10.0.0.1", got)
+	// The Hello header.
+	rx, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatalf("ListenUDP: %v", err)
+	}
+	defer func() { _ = rx.Close() }()
+	tx, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatalf("ListenUDP: %v", err)
+	}
+	defer func() { _ = tx.Close() }()
+	dest, ok := rx.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("LocalAddr = %T, want *net.UDPAddr", rx.LocalAddr())
+	}
+	sendHello(tx, dest, lsrID, ldpConfig{HelloHoldTime: 15 * time.Second}, slogutil.DiscardLogger())
+	if err := rx.SetReadDeadline(time.Now().Add(ldpReadTimeout)); err != nil {
+		t.Fatalf("SetReadDeadline: %v", err)
+	}
+	var hello [128]byte
+	n, _, err := rx.ReadFromUDP(hello[:])
+	if err != nil {
+		t.Fatalf("read Hello: %v", err)
+	}
+	pdu, err := decodePDUHeader(hello[:n])
+	if err != nil {
+		t.Fatalf("decodePDUHeader: %v", err)
+	}
+	if pdu.LSRID != lsrID {
+		t.Errorf("Hello PDU header LSR ID = %v, want the engine's %v", pdu.LSRID, lsrID)
+	}
+
+	// The session header.
+	local, remote := net.Pipe()
+	defer func() { _ = local.Close() }()
+	defer func() { _ = remote.Close() }()
+	sess := NewSession(local, sessionConfigForAdj(lsrID, DefaultKeepaliveTime, adjacency), newLIB(), slogutil.DiscardLogger())
+	stop := runSessionForTest(t, sess)
+	defer stop()
+	sessionPDU, msgHdr, _ := readLDPPDU(t, remote)
+	if msgHdr.Type != MsgTypeInitialize {
+		t.Fatalf("first session message = %#x, want Initialization", msgHdr.Type)
+	}
+	if sessionPDU.LSRID != lsrID {
+		t.Errorf("session PDU header LSR ID = %v, want the engine's %v", sessionPDU.LSRID, lsrID)
 	}
 }
 
@@ -410,23 +458,12 @@ func TestRFC5036OwnLSRIDFormsNoAdjacency(t *testing.T) {
 // --------------------------------------------------------------------------
 
 // readSessionUp drives sess through runSession to operational over remote: it
-// reads ze's Initialization and KeepAlive, then answers with the peer's
-// Initialization. It returns after ze has taken the session operational.
+// reads ze's Initialization, answers with the peer's Initialization, and reads
+// the KeepAlive ze accepts it with. It returns after ze has taken the session
+// operational.
 func readSessionUp(t *testing.T, sess *Session, remote net.Conn) func() {
 	t.Helper()
-	stop := runSessionForTest(t, sess)
-	_, msgHdr, _ := readLDPPDU(t, remote)
-	if msgHdr.Type != MsgTypeInitialize {
-		t.Fatalf("first message = %#x, want Initialization", msgHdr.Type)
-	}
-	_, msgHdr, _ = readLDPPDU(t, remote)
-	if msgHdr.Type != MsgTypeKeepAlive {
-		t.Fatalf("second message = %#x, want KeepAlive", msgHdr.Type)
-	}
-	if _, err := remote.Write(encodeInitPDU(ldpVersion, 30)); err != nil {
-		t.Fatalf("write peer Initialization: %v", err)
-	}
-	return stop
+	return runSessionToOperational(t, sess, remote, 30)
 }
 
 // RFC requirement: RFC5036-2.6.1.2-2 positive -- a FEC ze is the egress for is

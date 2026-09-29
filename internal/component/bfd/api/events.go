@@ -50,7 +50,8 @@ const (
 	// bound to an outgoing interface and enforces TTL=255 (GTSM).
 	SingleHop HopMode = iota
 	// MultiHop is RFC 5883 multi-hop BFD on UDP 4784. The session is keyed
-	// on the address pair alone and enforces a configurable minimum TTL.
+	// on the peer, plus the local address when a client pins one, and
+	// enforces a configurable minimum TTL.
 	MultiHop
 )
 
@@ -68,7 +69,9 @@ func (h HopMode) String() string {
 // SessionRequest describes a session a client wants the engine to maintain.
 //
 // Two requests with the same Key tuple coalesce into one session via
-// refcounting (see RFC 5882 Section 2). When two clients disagree on
+// refcounting (see RFC 5882 Section 4.4), and so does a request that left a
+// Key field unset with the one session it cannot be told apart from
+// (engine.Loop.EnsureSession). When two clients disagree on
 // timer parameters, the engine picks the more aggressive (smaller) value
 // for each.
 type SessionRequest struct {

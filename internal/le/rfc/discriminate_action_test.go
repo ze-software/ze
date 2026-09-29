@@ -129,3 +129,34 @@ func size(pkt packet) int {
 		t.Errorf("the field read was rewritten:\n%s", pruned)
 	}
 }
+
+// TestDropOrphanedImportsKeepsAMajorVersionImportInUse: "math/rand/v2" is
+// reached as rand, not v2, because Go names a module's major-version suffix
+// after the element before it. Read as v2, the prune found no use and dropped
+// an import the rest of the file still called, so the overlay failed to build
+// (measured 2026-09-28 on internal/component/bfd/engine/engine.go).
+func TestDropOrphanedImportsKeepsAMajorVersionImportInUse(t *testing.T) {
+	source := `package engine
+
+import (
+	"fmt"
+	"math/rand/v2"
+)
+
+func disabled() string {
+	panic("BUG: disabled")
+}
+
+func pick() uint32 {
+	return rand.Uint32()
+}
+`
+	pruned := dropOrphanedImports("engine.go", source)
+
+	if !strings.Contains(pruned, `"math/rand/v2"`) {
+		t.Errorf("math/rand/v2 was dropped although rand.Uint32 still uses it:\n%s", pruned)
+	}
+	if strings.Contains(pruned, `"fmt"`) {
+		t.Errorf("fmt, used nowhere, survived the prune:\n%s", pruned)
+	}
+}

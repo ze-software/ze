@@ -400,8 +400,9 @@ func TestRFC5036InitZeroKeepaliveTimeRejected(t *testing.T) {
 // RFC5036-2.5.1-1 -- an LSR sends the Initialization message to start a session
 // --------------------------------------------------------------------------
 
-// RFC requirement: RFC5036-2.5.1-1 positive -- the first message ze puts on a new LDP
-// session is an Initialization, and sending it moves the FSM to open-sent.
+// TestRFC5036SessionSendsInitializationFirst checks SendInit alone: the message it
+// writes is an Initialization, and sending it moves the FSM to open-sent. The
+// session-start path is proven by TestRFC5036ActiveRoleInitiatesNegotiation.
 func TestRFC5036SessionSendsInitializationFirst(t *testing.T) {
 	local, remote := net.Pipe()
 	defer func() { _ = local.Close() }()
@@ -511,35 +512,39 @@ func runSessionForTest(t *testing.T, sess *Session) func() {
 	}
 }
 
-// RFC requirement: RFC5036-2.5.3-1 positive -- an established session emits KeepAlive
-// messages repeatedly, paced at a third of the negotiated KeepAlive time.
+// RFC requirement: RFC5036-2.5.3-1 positive -- on an operational session with no
+// other message to send (the LIB is empty, so no Label Mapping goes out), the peer
+// still receives a message from ze at least every KeepAlive Time: with both sides
+// proposing 1s, each of the next three PDUs is a KeepAlive and no gap between two
+// consecutive PDUs exceeds the 1s KeepAlive Time.
 func TestRFC5036KeepalivesSentPeriodically(t *testing.T) {
 	local, remote := net.Pipe()
 	defer func() { _ = local.Close() }()
 	defer func() { _ = remote.Close() }()
 
+	const keepalive = time.Second
 	sess := rfcTestSession(local)
-	sess.keepaliveTime = 150 * time.Millisecond // period = 50ms
-	stop := runSessionForTest(t, sess)
+	sess.keepaliveTime = keepalive
+	stop := runSessionToOperational(t, sess, remote, 1)
 	defer stop()
 
-	// runSession sends Initialization first, then keepalives.
-	_, msgHdr, _ := readLDPPDU(t, remote)
-	if msgHdr.Type != MsgTypeInitialize {
-		t.Fatalf("first message = %#x, want Initialization", msgHdr.Type)
-	}
-
-	for i := range 4 {
+	last := time.Now()
+	for i := range 3 {
 		_, msgHdr, _ := readLDPPDU(t, remote)
+		now := time.Now()
 		if msgHdr.Type != MsgTypeKeepAlive {
-			t.Fatalf("message %d = %#x, want KeepAlive (%#x)", i, msgHdr.Type, MsgTypeKeepAlive)
+			t.Fatalf("message %d = %#x, want KeepAlive (%#x): no other message was due", i, msgHdr.Type, MsgTypeKeepAlive)
 		}
+		if gap := now.Sub(last); gap > keepalive {
+			t.Errorf("gap before KeepAlive %d = %v, want at most the KeepAlive Time %v", i, gap, keepalive)
+		}
+		last = now
 	}
 }
 
-// RFC requirement: RFC5036-2.5.3-1 negative -- KeepAlives are PACED by the negotiated
-// interval, not emitted continuously: with a long keepalive time no second KeepAlive
-// follows the initial one inside a short window.
+// TestRFC5036KeepalivesNotSentContinuously checks that KeepAlives are paced, not
+// emitted back to back: with a 60s KeepAlive Time on both sides, no PDU follows
+// the establishment KeepAlive inside a short window.
 func TestRFC5036KeepalivesNotSentContinuously(t *testing.T) {
 	local, remote := net.Pipe()
 	defer func() { _ = local.Close() }()
@@ -547,18 +552,8 @@ func TestRFC5036KeepalivesNotSentContinuously(t *testing.T) {
 
 	sess := rfcTestSession(local)
 	sess.keepaliveTime = 60 * time.Second // period = 20s: nothing more is due for 20s
-	stop := runSessionForTest(t, sess)
+	stop := runSessionToOperational(t, sess, remote, 60)
 	defer stop()
-
-	_, msgHdr, _ := readLDPPDU(t, remote)
-	if msgHdr.Type != MsgTypeInitialize {
-		t.Fatalf("first message = %#x, want Initialization", msgHdr.Type)
-	}
-	// The session-establishment KeepAlive that follows the Initialization.
-	_, msgHdr, _ = readLDPPDU(t, remote)
-	if msgHdr.Type != MsgTypeKeepAlive {
-		t.Fatalf("second message = %#x, want KeepAlive", msgHdr.Type)
-	}
 
 	// No further KeepAlive is due for another 20s.
 	if err := remote.SetReadDeadline(time.Now().Add(300 * time.Millisecond)); err != nil {

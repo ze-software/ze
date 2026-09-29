@@ -516,7 +516,8 @@ func revertBreak(reader *sourceReader, index *scopeIndex,
 //
 // The one assumption is that an import whose package name differs from the last
 // element of its path carries that name explicitly, which is what goimports
-// writes. Where it does not, the prune drops an import still in use and the
+// writes. A major-version suffix is the exception the language itself makes, so
+// importName reads "math/rand/v2" as rand. Where it does not, the prune drops an import still in use and the
 // build fails exactly as it failed before, so the assumption costs nothing it
 // did not already cost.
 func dropOrphanedImports(rel, broken string) string {
@@ -599,10 +600,29 @@ func importName(spec *ast.ImportSpec) string {
 		return spec.Name.Name
 	}
 	path := strings.Trim(spec.Path.Value, `"`)
-	if cut := strings.LastIndex(path, "/"); cut >= 0 {
-		return path[cut+1:]
+	cut := strings.LastIndex(path, "/")
+	if cut < 0 {
+		return path
 	}
-	return path
+	// A major-version suffix is not the package name: "math/rand/v2" is
+	// reached as rand, so the element before the suffix names it.
+	if last := path[cut+1:]; !isMajorVersion(last) {
+		return last
+	}
+	return importName(&ast.ImportSpec{Path: &ast.BasicLit{Value: `"` + path[:cut] + `"`}})
+}
+
+// isMajorVersion reports whether a path element is a module major-version
+// suffix: "v" followed by digits only, as in "math/rand/v2".
+func isMajorVersion(element string) bool {
+	digits, found := strings.CutPrefix(element, "v")
+	if !found {
+		return false
+	}
+	if digits == "" {
+		return false
+	}
+	return strings.Trim(digits, "0123456789") == ""
 }
 
 // disableBody answers the function with its body replaced by a halt.

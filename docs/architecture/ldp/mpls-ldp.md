@@ -51,6 +51,23 @@ would otherwise reach nothing.
 <!-- source: internal/plugins/ldp/register.go -- sessionConfigForAdj, startSessionForAdj -->
 <!-- source: internal/plugins/ldp/session.go -- SessionConfig, NewSession -->
 
+## Decision: the establishment KeepAlive answers the peer's Initialization
+
+Ze dials every session, so it always plays the active role of RFC 5036 section
+2.5.3. Nothing listens on TCP port 646, and a peer that plays the active role
+finds no listener. `runSession` sends ze's Initialization first. It sends no
+KeepAlive until the peer's Initialization has arrived and `processMessages` has
+accepted it. The operational callback then sends the KeepAlive that accepts the
+peer's parameters, before any Label Mapping. The periodic KeepAlive sender waits
+for that reply before its first period starts.
+
+A KeepAlive sent right after the Initialization was rejected. A KeepAlive tells
+the peer that its parameters are acceptable, and ze has not read them yet. When
+the peer's Initialization is unacceptable, a KeepAlive sent ahead of it
+contradicts the Notification that follows.
+
+<!-- source: internal/plugins/ldp/register.go -- runSession, startSessionForAdj -->
+
 ## Decision: an unacceptable Initialization is NAK'd, never clamped
 
 `processMessages` checks the Common Session Parameters before `handleInit` reads

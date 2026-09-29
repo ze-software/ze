@@ -128,7 +128,7 @@ modes:
 | Mode | Interface | Local address |
 |------|-----------|---------------|
 | Single-hop | the link holding the request's local address, or the one link whose connected prefix contains the peer | that link's address in the prefix that contains the peer |
-| Multi-hop | cleared: a routed session is on no link, and `SessionRequest.Interface` is documented single-hop only. The transport holds the other half of that invariant, stamping no ingress interface on a multi-hop packet: the first-packet index is an exact match, so one stamped there would make every RFC 5880 §6.8.6 lookup miss | the address on the interface the route to the peer leaves by, which is the source the stack would have chosen |
+| Multi-hop | cleared: a routed session is on no link, and `SessionRequest.Interface` is documented single-hop only. The transport holds the other half of that invariant, stamping no ingress interface on a multi-hop packet: the first-packet index is an exact match, so one stamped there would make every RFC 5880 §6.8.6 lookup miss | never derived. A multi-hop key carries a local address only where a client pinned one, because RFC 5883 §4.1 makes a pinned address part of the session's identity |
 
 A link belongs to a routing instance, and a request is only ever given a link
 from the VRF it names. `connectedLinks` resolves each link's VRF by walking
@@ -136,26 +136,36 @@ from the VRF it names. `connectedLinks` resolves each link's VRF by walking
 VRF reads as that VRF. The same prefix in two VRFs reaches two different
 systems, so crossing them would merge two sessions that are not one.
 
-The derivation refuses to guess, and every refusal leaves the request exactly as
-the client wrote it. Single-hop refuses when no link matches or more than one
-does; an IPv6 link-local peer is the standing example, because every link
-carries `fe80::/64`. Multi-hop refuses when there is no route, when the egress
-interface carries no address of the peer's family, and when it carries more than
-one. A multi-hop request in a VRF is refused at the source: `ifcomp.RouteLookup`
-reads the default routing table, so `topologyFor` does not call it there. With
-no interface backend loaded the link table is empty and every key stays as its
-client wrote it. Both OSPF families name their own interface and address, so
-they never reach the derivation at all.
+The single-hop derivation refuses to guess, and a refusal leaves the request
+as the client wrote it: no link matches, or more than one does. An IPv6
+link-local peer is the standing example, because every link carries
+`fe80::/64`. With no interface backend loaded the link table is empty. Both
+OSPF families name their own interface and address, so they never reach the
+derivation at all.
 
-A refusal is safe but not free: the under-specified request gets its own
-session, so those are exactly the configurations where §4.4's single session is
-not achieved. The seven of them are listed in `rfc/short/rfc5882.md`, under
-"Multiple Control Protocols (Section 4.4)", where the conformance ledger reads
-them.
+The engine finishes the key. `Loop.EnsureSession` joins a request that left a
+field unset to the one live session it cannot be told apart from
+(`sharedEntryLocked`): the same peer, VRF and mode, and no field that both name
+with different values (`sharesSession`). The join works in either arrival
+order, because the session records the most specific identity a client reached
+it with, so a later client naming a different local address or link is told
+apart from it. A BGP multi-hop peer with no local address therefore shares the
+pinned `multi-hop-session` to the same peer in any VRF, and a BGP peer with no
+interface leaf shares the OSPF session to a global neighbor that `Canonical`
+could not place on one link.
+
+Two cases are not joined, and each gives the under-specified client its own
+session. A link-local peer with no link matches only a session that names no
+link either, because RFC 4007 §6 lets `fe80::1` be in use on two links. A
+request that could mean two live sessions, such as two pinned local addresses to
+one multi-hop peer, is not merged onto one of them by a guess. Both are listed
+in `rfc/short/rfc5882.md`, under "Multiple Control Protocols (Section 4.4)",
+where the conformance ledger reads them.
 
 <!-- source: internal/component/bfd/api/session_identity.go -- Canonical, canonicalMultiHop -->
 <!-- source: internal/component/bfd/transport/udp.go -- ingressInterface -->
-<!-- source: internal/component/bfd/session_identity.go -- connectedLinks, topologyFor, vrfMembership -->
+<!-- source: internal/component/bfd/session_identity.go -- connectedLinks, vrfMembership -->
+<!-- source: internal/component/bfd/engine/engine.go -- sharedEntryLocked, sharesSession -->
 
 ### Discriminator allocation
 

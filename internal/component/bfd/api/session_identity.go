@@ -27,16 +27,9 @@ type Link struct {
 }
 
 // Topology is what Canonical reads to complete a request: the links this
-// system has, and, for a multi-hop request, the interface the route to the
-// peer leaves by.
+// system has.
 type Topology struct {
 	Links []Link
-
-	// Egress names the interface the route to this request's peer leaves by,
-	// empty when no route is known or the lookup was not attempted. Multi-hop
-	// only: a single-hop peer sits on a link, and Links answers that without a
-	// route lookup.
-	Egress string
 }
 
 // Canonical returns the request with the five fields of Key reduced to the
@@ -70,19 +63,21 @@ type Topology struct {
 // The derivation is refused when it is ambiguous: no link matches, or more
 // than one does. An IPv6 link-local peer is the standing example, because
 // every link carries fe80::/64 and only the client knows which one it meant. A
-// refusal leaves the request as the client wrote it, so an under-specified
-// request gets its own session rather than being merged onto a link it may not
-// be on. Both OSPF families, and a BGP peer carrying the `bfd interface` leaf,
-// name the interface themselves and never reach the derivation.
+// refusal leaves the request as the client wrote it, and the key half is then
+// finished by the engine: engine.Loop.EnsureSession joins a request with unset
+// fields to the ONE live session it cannot be told apart from, and gives it
+// its own session only when it could mean more than one. Both OSPF families,
+// and a BGP peer carrying the `bfd interface` leaf, name the interface
+// themselves and never reach the derivation.
 //
-// Multi-hop takes the same reduction through a different route, because
-// Section 4.4 binds it too: canonicalMultiHop below.
+// Multi-hop takes a different reduction, because Section 4.4 binds it too:
+// canonicalMultiHop below.
 func (r SessionRequest) Canonical(t Topology) SessionRequest {
 	if r.VRF == "" {
 		r.VRF = DefaultVRF
 	}
 	if r.Mode != SingleHop {
-		return r.canonicalMultiHop(t)
+		return r.canonicalMultiHop()
 	}
 	if r.Interface != "" && r.Local.IsValid() {
 		return r
@@ -96,64 +91,30 @@ func (r SessionRequest) Canonical(t Topology) SessionRequest {
 	return r
 }
 
-// canonicalMultiHop is the same reduction for a session that is not on a link.
+// canonicalMultiHop is the reduction for a session that is not on a link.
 //
 // RFC 5882 Section 4.4 binds multi-hop exactly as it binds single-hop, and the
 // clients disagree there too: parseMultiHopSession requires the operator to
 // write `local`, while bfdRequestFor leaves Local invalid for a peer with no
-// `connection local ip`. Two clients for one remote system then build two keys
-// and get two sessions.
+// `connection local ip`.
 //
-// Two reductions close it. The interface is cleared, because a multi-hop
-// session is routed rather than put on one link: SessionRequest.Interface
-// documents itself as single-hop only, the engine's first-packet index keys on
-// it, and a received multi-hop packet names no ingress link, so a session that
-// kept an interface could not be demultiplexed by it either. And the local
-// address, when the client left it out, is the address on the interface the
-// route to the peer leaves by, which is the source the stack would have chosen
-// anyway.
+// The interface is cleared, because a multi-hop session is routed rather than
+// put on one link: SessionRequest.Interface documents itself as single-hop
+// only, the engine's first-packet index keys on it, and a received multi-hop
+// packet names no ingress link, so a session that kept an interface could not
+// be demultiplexed by it either.
 //
-// The derivation is refused in the same spirit as the single-hop one. No route
-// (Egress empty), no address of the peer's family on that interface, or more
-// than one such address, all leave the request as its client wrote it.
-func (r SessionRequest) canonicalMultiHop(t Topology) SessionRequest {
+// The local address is NOT derived. A multi-hop session is keyed on the peer,
+// the VRF and the mode, plus the local address only where a client pinned one,
+// because RFC 5883 Section 4.1 makes a pinned address part of the session's
+// identity: "Multiple sessions between the same pair of systems must have at
+// least one endpoint address distinct from one another." A client that pinned
+// none joins the session to that peer in the engine
+// (engine.Loop.EnsureSession), which needs no route lookup and so answers in
+// every VRF and with no interface backend.
+func (r SessionRequest) canonicalMultiHop() SessionRequest {
 	r.Interface = ""
-	if r.Local.IsValid() || t.Egress == "" {
-		return r
-	}
-	addr, ok := soleAddressOn(t.Links, t.Egress, r.VRF, r.Peer)
-	if !ok {
-		return r
-	}
-	r.Local = addr
 	return r
-}
-
-// soleAddressOn answers the one address of the peer's family on the named link
-// in the named VRF. ok is false when the link is absent, carries no address of
-// that family, or carries more than one: a multi-homed interface does not say
-// which source the client meant, so nothing is invented.
-func soleAddressOn(links []Link, name, vrf string, peer netip.Addr) (netip.Addr, bool) {
-	var (
-		found netip.Addr
-		count int
-	)
-	for _, l := range links {
-		if l.Name != name || l.VRF != vrf {
-			continue
-		}
-		for _, a := range l.Addrs {
-			if a.Addr.Is4() != peer.Is4() || a.Addr.IsLinkLocalUnicast() {
-				continue
-			}
-			count++
-			if count > 1 {
-				return netip.Addr{}, false
-			}
-			found = a.Addr
-		}
-	}
-	return found, count == 1
 }
 
 // deriveLink returns the one link consistent with what the request already

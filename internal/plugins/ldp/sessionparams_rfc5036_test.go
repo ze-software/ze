@@ -379,18 +379,14 @@ func TestRFC5036PeerHearsFromZeWithinKeepaliveTime(t *testing.T) {
 	defer func() { _ = local.Close() }()
 	defer func() { _ = remote.Close() }()
 
-	const keepalive = 300 * time.Millisecond
+	const keepalive = time.Second
 	sess := rfcTestSession(local)
 	sess.keepaliveTime = keepalive
-	stop := runSessionForTest(t, sess)
+	stop := runSessionToOperational(t, sess, remote, 1)
 	defer stop()
 
-	_, msgHdr, _ := readLDPPDU(t, remote)
-	if msgHdr.Type != MsgTypeInitialize {
-		t.Fatalf("first message = %#x, want Initialization", msgHdr.Type)
-	}
 	last := time.Now()
-	for i := range 4 {
+	for i := range 3 {
 		readLDPPDU(t, remote)
 		now := time.Now()
 		if gap := now.Sub(last); gap > keepalive {
@@ -403,6 +399,10 @@ func TestRFC5036PeerHearsFromZeWithinKeepaliveTime(t *testing.T) {
 // RFC requirement: RFC5036-3.5.4.1-1 negative -- the pacing follows the KeepAlive
 // Time the exchange NEGOTIATED, not the one ze proposed: after the peer lowers a
 // 60s proposal to 1s, no gap between ze's PDUs exceeds 1s.
+// RFC requirement: RFC5036-2.5.3-1 negative -- the input a sender fails on: ze
+// proposed 60s, so a sender pacing from its own proposal would leave the peer 20s
+// without a message; after the peer's 1s proposal wins, each of the next three
+// PDUs arrives within 1s of the one before.
 func TestRFC5036KeepalivePacingFollowsNegotiatedTime(t *testing.T) {
 	local, remote := net.Pipe()
 	defer func() { _ = local.Close() }()
@@ -417,13 +417,15 @@ func TestRFC5036KeepalivePacingFollowsNegotiatedTime(t *testing.T) {
 	if msgHdr.Type != MsgTypeInitialize {
 		t.Fatalf("first message = %#x, want Initialization", msgHdr.Type)
 	}
-	// The session-establishment KeepAlive that follows the Initialization.
-	readLDPPDU(t, remote)
 
 	// The peer's Initialization proposes 1s; the negotiation takes the smaller.
 	pdu := encodeInitPDURaw(0, 1, 4096)
 	if _, err := remote.Write(pdu); err != nil {
 		t.Fatalf("write Initialization: %v", err)
+	}
+	// The KeepAlive that accepts the peer's parameters.
+	if _, msgHdr, _ = readLDPPDU(t, remote); msgHdr.Type != MsgTypeKeepAlive {
+		t.Fatalf("reply to the Initialization = %#x, want KeepAlive", msgHdr.Type)
 	}
 	last := time.Now()
 

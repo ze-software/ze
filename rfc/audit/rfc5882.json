@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -19,22 +19,26 @@
       "verdict": "weak"
     },
     "RFC5882-4.4-1": {
-      "note": "Forbidden behaviour: two control protocols wanting a session to the same remote system for the same data protocol end up on two BFD sessions. Red assertions: TestBFDSharedSessionSameKey len(snap)!=1 and Refcount!=2 (same request twice); TestCanonicalCollapsesEveryClientShapeOntoOneKey, TestCanonicalCollapsesMultiHopShapesOntoOneKey, TestStrictPeerRequestReachesTheSharedKey, TestOSPFNeighborRequestReachesTheSharedKey and TestPinnedSessionReachesTheSharedKey assert BGP/OSPF/pinned request shapes reduce to one api.Key when the link table resolves one link. Negative TestBFDDistinctSessionsDifferentKey pins that different remotes are not aliased. Not the whole MUST: in the configurations api.SessionRequest.Canonical refuses to derive (IPv6 link-local peer, two links on one subnet, off-link peer, no route, egress with zero or several same-family addresses, multi-hop in a non-default VRF, no interface backend) two clients for one remote get two sessions, no tagged unit goes red on that, and untagged TestCanonicalRefusesToGuessAnAmbiguousLink asserts the two-key behaviour. The summary's Enrolment reason already records this as PARTIALLY met.",
+      "note": "Judge 2026-09-29 (AC-9 re-judge). Forbidden: two control protocols wanting a session to one remote system for one data protocol end up on two BFD sessions. Proven, each unit with an observed-red record: the exact-key registry (TestBFDSharedSessionSameKey len!=1/Refcount!=2 through release; negative TestBFDDistinctSessionsDifferentKey), the single-hop and multi-hop Canonical shapes, the BGP/OSPF/pinned request builders, and the new engine join through the real entry points applyPinned + pluginService.EnsureSession (TestMultiHopClientsInAVRFShareOneSession: pinned-local entry plus BGP peer with no local in VRF red share one session at refcount 2; negative TestMultiHopClientsToTwoRemoteSystemsGetTwoSessions: a different remote in the same VRF, which matches the pinned session on every other field, gets its own; dropping the Peer comparison in sharesSession turns it red). Not the whole MUST: (1) DEFECT at the producer, engine.(*Loop).EnsureSession/sharedEntryLocked: sessionEntry.joined is only ever narrowed (narrowKey) and never widened when the client that narrowed it releases, so after a pinned-local-X client joins an unpinned session and leaves, a pinned-local-Y client to the same peer is refused by sharesSession(Y, joined X) and opens a second session beside the unpinned client's; the outcome depends on history and no tagged unit covers release-then-rejoin. (2) The two configurations the summary discloses as partial (link-local peer with no interface; an unset field with two or more live candidates) still give two sessions by design. Every unit is judged against RFC 5882 sec 4.4 text; buffers isolate (engine loops unstarted, Snapshot read).",
       "requirement_sha": "71fc9db5c164d0d0",
       "tests": {
-        "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey": "bda753f0d0b52051",
-        "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey": "bda753f0d0b52051",
+        "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey": "6c36255755c3721b",
+        "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey": "6c36255755c3721b",
         "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDDistinctSessionsDifferentKey": "1febb5fea3470596",
         "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDSharedSessionSameKey": "1febb5fea3470596",
+        "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsInAVRFShareOneSession": "7c98451d91f3d951",
+        "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsToTwoRemoteSystemsGetTwoSessions": "7c98451d91f3d951",
         "internal/component/bfd/session_identity_test.go::TestPinnedSessionReachesTheSharedKey": "27db35785fbd8a98",
         "internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey": "7309aa741867a1b8",
         "internal/plugins/ospf/rfc5882_shared_key_test.go::TestOSPFNeighborRequestReachesTheSharedKey": "4959bdf283761598"
       },
       "units": {
         "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey": "80c46a4bddb1069c",
-        "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey": "d77f8cd33231d94e",
+        "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey": "c1d4099a9b45ab9f",
         "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDDistinctSessionsDifferentKey": "29e3843d4f16deb0",
         "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDSharedSessionSameKey": "295d24b9f8d7d852",
+        "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsInAVRFShareOneSession": "465ba47e82c32302",
+        "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsToTwoRemoteSystemsGetTwoSessions": "f5478815bdaf154e",
         "internal/component/bfd/session_identity_test.go::TestPinnedSessionReachesTheSharedKey": "b3b18c6e78ffeaca",
         "internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey": "10b4fc48ccff5b70",
         "internal/plugins/ospf/rfc5882_shared_key_test.go::TestOSPFNeighborRequestReachesTheSharedKey": "0104c72905069302"

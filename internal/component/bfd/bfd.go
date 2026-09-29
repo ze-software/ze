@@ -209,7 +209,7 @@ func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 	requests := make(map[api.Key]api.SessionRequest, len(cfg.sessions))
 	for _, s := range cfg.sessions {
 		req := s.toSessionRequest(cfg.profiles)
-		req = req.Canonical(topologyFor(req, links))
+		req = req.Canonical(api.Topology{Links: links})
 		wanted[req.Key()] = s
 		requests[req.Key()] = req
 	}
@@ -522,7 +522,9 @@ func (s *pluginService) EnsureSession(req api.SessionRequest) (api.SessionHandle
 	// all MUST share a single BFD session." Every client reaches the engine
 	// through this method, so Canonical here is what makes the OSPF request
 	// and the BGP request for one neighbor land on one key, and so on one
-	// session (api/session_identity.go).
+	// session (api/session_identity.go). Where Canonical cannot complete a
+	// request, the engine joins it to the one session it shares
+	// (engine.Loop.EnsureSession).
 	// A protocol client names a profile and carries no timers (BGP's
 	// `connection bfd { profile ... }`, a static route's next-hop), so the
 	// profile is resolved here, the one place every client passes through.
@@ -530,7 +532,7 @@ func (s *pluginService) EnsureSession(req api.SessionRequest) (api.SessionHandle
 	if err != nil {
 		return nil, err
 	}
-	normalized := req.Canonical(topologyFor(req, connectedLinks()))
+	normalized := req.Canonical(api.Topology{Links: connectedLinks()})
 	lk := loopKey{vrf: normalized.VRF, mode: normalized.Mode}
 	loop, err := s.state.loopFor(lk, loopDeviceFor(normalized))
 	if err != nil {

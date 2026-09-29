@@ -547,6 +547,11 @@ func TestFirstPacketRelaxedMatchCosts(t *testing.T) {
 // choice above. Where two sessions share (peer, local, vrf, mode) and only one
 // names a link, the exact match wins for a packet on that link, and the one
 // that named no link takes what is left.
+//
+// A request that names no link joins the one session it cannot be told apart
+// from (Loop.sharedEntryLocked), so the two sessions coexist only when that
+// request could mean more than one: a second session on eth2 is what keeps the
+// unnamed one its own here.
 func TestFirstPacketPrefersTheSessionThatNamedTheLink(t *testing.T) {
 	ct := &captureTransport{}
 	l := NewLoop(ct, clock.RealClock{})
@@ -554,6 +559,11 @@ func TestFirstPacketPrefersTheSessionThatNamedTheLink(t *testing.T) {
 	named.Interface = "eth0"
 	if _, err := l.EnsureSession(named); err != nil {
 		t.Fatalf("EnsureSession named: %v", err)
+	}
+	onEth2 := reqFor(addrB, addrA)
+	onEth2.Interface = "eth2"
+	if _, err := l.EnsureSession(onEth2); err != nil {
+		t.Fatalf("EnsureSession eth2: %v", err)
 	}
 	anyLink := reqFor(addrB, addrA)
 	anyLink.Interface = ""
@@ -597,6 +607,11 @@ func TestFirstPacketPrefersTheSessionThatNamedTheLink(t *testing.T) {
 // relaxLocal is declared first, so the packet is offered to the session that
 // named the LINK. Swap the two constants and this test reds; nothing else in
 // the package does, which is what made the comment the only guard.
+//
+// The local-only request could join the link-only session, which names nothing
+// it contradicts (Loop.sharedEntryLocked). A third session, naming the same
+// local address on eth1, makes that request mean two sessions, so it gets its
+// own, and the packet below meets the two this test is about.
 func TestFirstPacketTieBreakPrefersTheLink(t *testing.T) {
 	ct := &captureTransport{}
 	l := NewLoop(ct, clock.RealClock{})
@@ -606,6 +621,11 @@ func TestFirstPacketTieBreakPrefersTheLink(t *testing.T) {
 	linkOnly.Interface = "eth0"
 	if _, err := l.EnsureSession(linkOnly); err != nil {
 		t.Fatalf("EnsureSession link-only: %v", err)
+	}
+	onEth1 := reqFor(addrB, addrA)
+	onEth1.Interface = "eth1"
+	if _, err := l.EnsureSession(onEth1); err != nil {
+		t.Fatalf("EnsureSession eth1: %v", err)
 	}
 	localOnly := reqFor(addrB, addrA)
 	localOnly.Interface = ""

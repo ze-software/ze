@@ -31,19 +31,63 @@
       "claim-sha": "65a3ef744ec2f2ad",
       "route": "revert",
       "producer": "internal/component/bfd/api/session_identity.go::Canonical",
-      "producer-sha": "6fae48db4cc1cd02",
+      "producer-sha": "6fc4025dd3418d0c",
       "break": "body of Canonical replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5882-4.4-1",
       "polarity": "positive",
       "unit": "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey",
-      "unit-sha": "be4a28ee1e3af26f",
-      "claim-sha": "8e8a2f6db7f43ce6",
+      "unit-sha": "1b62f85f775bec3e",
+      "claim-sha": "cd7eb1e0043c382e",
       "route": "revert",
       "producer": "internal/component/bfd/api/session_identity.go::canonicalMultiHop",
-      "producer-sha": "2efec09c9c4710b9",
+      "producer-sha": "9edc5a8886b00a41",
       "break": "body of canonicalMultiHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5882-4.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDDistinctSessionsDifferentKey",
+      "unit-sha": "52e582c835475911",
+      "claim-sha": "7fd93d94594ce9db",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/engine.go::EnsureSession",
+      "producer-sha": "2d036c364e927c2f",
+      "break": "body of EnsureSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5882-4.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDSharedSessionSameKey",
+      "unit-sha": "fc8d9cff3b303ec9",
+      "claim-sha": "d8809599a9eb3a8d",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/engine.go::EnsureSession",
+      "producer-sha": "2d036c364e927c2f",
+      "break": "body of EnsureSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5882-4.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsInAVRFShareOneSession",
+      "unit-sha": "b364b49bdf9804bc",
+      "claim-sha": "9e7c7d41a6d40134",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/engine.go::sharedEntryLocked",
+      "producer-sha": "fba60e00f45b7578",
+      "break": "body of sharedEntryLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5882-4.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsToTwoRemoteSystemsGetTwoSessions",
+      "unit-sha": "f530dc1c0a163e4a",
+      "claim-sha": "bce0592b8c92beae",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/engine.go::sharesSession",
+      "producer-sha": "bf035fdad178f792",
+      "break": "body of sharesSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5882-4.4-1",

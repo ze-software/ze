@@ -10,45 +10,6 @@ import (
 	ifcomp "github.com/ze-software/ze/internal/component/iface"
 )
 
-// topologyFor answers what api.SessionRequest.Canonical needs to complete ONE
-// request: the link table, which is the same for every request, and for a
-// multi-hop request the interface the route to its peer leaves by.
-//
-// The route lookup is attempted only where it can answer. A single-hop peer is
-// on a link, so the table alone settles it; a request that already names its
-// local address needs nothing derived; and a VRF request gets no lookup at all,
-// because ifcomp.RouteLookup reads the default routing table.
-func topologyFor(req api.SessionRequest, links []api.Link) api.Topology {
-	t := api.Topology{Links: links}
-	if req.Mode != api.MultiHop || req.Local.IsValid() {
-		return t
-	}
-	// The route lookup reads the DEFAULT routing table, so it cannot answer for
-	// a request in a VRF. Leaving Egress empty there refuses the derivation
-	// rather than handing back another VRF's source address, which is the same
-	// fail-closed rule the link table follows (api.SessionRequest.Canonical).
-	if req.VRF != api.DefaultVRF {
-		return t
-	}
-	t.Egress = routeEgress(req.Peer)
-	return t
-}
-
-// routeEgress names the interface the route to peer leaves by, or "" when the
-// interface backend cannot answer. It is the multi-hop half of the link table:
-// a multi-hop peer is on no connected prefix, so the route is the only thing
-// that can say which of this system's addresses would reach it.
-func routeEgress(peer netip.Addr) string {
-	route, err := ifcomp.RouteLookup(peer)
-	if err != nil {
-		logger().Debug("bfd session identity: no route to the multi-hop peer, key stays as written",
-			"peer", peer.String(), "err", err)
-		return ""
-	}
-	name, _ := route["interface"].(string)
-	return name
-}
-
 // connectedLinks reads the link table api.SessionRequest.Canonical derives a
 // session's interface and local address from, with each link's VRF resolved so
 // a request is never given a link from a routing instance it does not name.

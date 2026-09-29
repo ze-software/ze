@@ -139,6 +139,66 @@ bgp {
 }
 `
 
+// bgpBFDMultiHopPinnedShared03Config pins a multi-hop session to 127.0.0.254
+// from 127.0.0.1 and runs a strict-mode BGP peer to the same address with
+// multi-hop BFD and `connection local ip auto`, which leaves the settings'
+// local address unset, so bfdRequestFor builds a request with no local address. RFC 5882 Section 4.4 asks for one
+// session, so the BGP request MUST join the pinned one.
+const bgpBFDMultiHopPinnedSharedConfig03 = `environment {
+}
+
+bfd {
+	enabled true;
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 50000
+		required-min-rx-us 50000
+	}
+	multi-hop-session 127.0.0.254 {
+		local 127.0.0.1
+		profile fast
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			local {
+				ip auto
+				accept false
+			}
+			remote {
+				ip 127.0.0.254
+			}
+			bfd {
+				enabled true
+				mode multi-hop
+				profile fast
+				strict true
+				hold-time 45
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+`
+
+func bgpBFDMultiHopPinnedShared03(ctx context.Context, _ []string) error {
+	return runZeUntilLogsRejecting03(ctx, bgpBFDMultiHopPinnedSharedConfig03,
+		[]string{logBFDStarting, logBFDConfigured, logBFDRunning, "bfd pinned session created", "bfd session opened for peer", "bfd session shared"},
+		[]string{logRejectInvalidBFD, "bfd service delivered no initial state"},
+		20*time.Second, map[string]string{envLogBFD: logLevelDebug, envLogBGP: logLevelDebug})
+}
+
 func bgpBFDStrictPinned03(ctx context.Context, _ []string) error {
 	return runZeUntilLogsRejecting03(ctx, bgpBFDStrictPinnedConfig03,
 		[]string{logBFDStarting, logBFDConfigured, logBFDRunning, "bfd session opened for peer", logBFDStrictSessionOpened},

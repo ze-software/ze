@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-27",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -9,8 +10,8 @@
       "note": "Forbidden: one session carrying both IPv4 and IPv6, or a protocol's packets not encapsulated in that protocol. TestRFC5881PerProtocolSessions reds if a v4 and a v6 peer collapse (n != 2, key equal, discriminator equal), and TestRFC5881SamePeerCoalesces pins keying. No tagged assertion covers '(and thus encapsulated by that protocol)': nothing checks that the v6 session transmits in IPv6 (sendLocked To/transport family).",
       "requirement_sha": "f847315439c3d8c8",
       "tests": {
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881PerProtocolSessions": "3b4586b9aefe451c",
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881SamePeerCoalesces": "3b4586b9aefe451c"
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881PerProtocolSessions": "c8bf3135e7e74ea3",
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881SamePeerCoalesces": "c8bf3135e7e74ea3"
       },
       "units": {
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881PerProtocolSessions": "bd9f84e966d68179",
@@ -43,8 +44,8 @@
       "note": "Forbidden: a Your-Discriminator-zero packet not associated with the session bound to (remote, interface, protocol), or associated with another. TestRFC5881FirstPacketMatchesByTuple reds on non-association; TestRFC5881FirstPacketWrongSourceDropped reds if the remote-address dimension is ignored. No tagged unit varies the interface or the protocol (the interface arm lives in untagged TestFirstPacketMatchesWhatTheTransportSurfaces), so matching that ignored interface or protocol stays green.",
       "requirement_sha": "cd25a5a7c476ea90",
       "tests": {
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple": "3b4586b9aefe451c",
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketWrongSourceDropped": "3b4586b9aefe451c"
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple": "c8bf3135e7e74ea3",
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketWrongSourceDropped": "c8bf3135e7e74ea3"
       },
       "units": {
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple": "8d9ee703f1e56ddb",
@@ -80,8 +81,8 @@
       "note": "Forbidden: demultiplexing a subsequent packet by something other than the RFC 5880 discriminator. (a) a packet with an unallocated Your Discriminator from the configured peer's source being associated: TestRFC5881DiscriminatorDemuxUnknownDropped reds (RemoteDiscriminator != 0), catching a source-address fallback; (b) a packet with the right discriminator from another source not delivered: TestRFC5881DiscriminatorDemuxDelivers reds (RemoteDiscriminator != peerMyDiscr). Producer loop.go handleInbound byDiscr.",
       "requirement_sha": "4065c4e17308516b",
       "tests": {
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers": "3b4586b9aefe451c",
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxUnknownDropped": "3b4586b9aefe451c"
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers": "c8bf3135e7e74ea3",
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxUnknownDropped": "c8bf3135e7e74ea3"
       },
       "units": {
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers": "3880f5c58e9af09b",
@@ -169,7 +170,7 @@
       "note": "Forbidden: on multiaccess, a Control packet whose source or destination is off the subnet. TestRFC5881TransmitDestinationStable asserts ct.last.To == configured peer; nothing asserts the peer or the source is on the interface subnet, and the source address is not observed. {single-polarity} marker present.",
       "requirement_sha": "f4c706fa335c606d",
       "tests": {
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "3b4586b9aefe451c"
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "c8bf3135e7e74ea3"
       },
       "units": {
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "c21c424b4e04aa90"
@@ -180,8 +181,8 @@
       "note": "Forbidden: subsequent packets demultiplexed on anything besides Your Discriminator. TestRFC5881DiscriminatorDemuxDelivers reds if the source address participates (other source still delivered); TestRFC5881DiscriminatorDemuxUnknownDropped reds on a source fallback. Neither varies the ingress interface or local address, so a byDiscr lookup that additionally required the interface to match stays green; 'solely' is proven for the source dimension only.",
       "requirement_sha": "20717f228d4fb731",
       "tests": {
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers": "3b4586b9aefe451c",
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxUnknownDropped": "3b4586b9aefe451c"
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers": "c8bf3135e7e74ea3",
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxUnknownDropped": "c8bf3135e7e74ea3"
       },
       "units": {
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers": "3880f5c58e9af09b",
@@ -193,8 +194,8 @@
       "note": "Forbidden: after a changed received source, using it as the transmit destination, or not using the configured address. After handleInbound from 198.51.100.7 by discriminator, TestRFC5881TransmitDestinationStable reds if PeerAddr drifts or ct.last.To != configured peer (MUST continue to use configured), and TestRFC5881TransmitDestinationIgnoresChangedSource reds if ct.last.To == changed source (MUST NOT use that address). Producer loop.go sendLocked To: PeerAddr().",
       "requirement_sha": "3764219be7595988",
       "tests": {
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationIgnoresChangedSource": "3b4586b9aefe451c",
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "3b4586b9aefe451c"
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationIgnoresChangedSource": "c8bf3135e7e74ea3",
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "c8bf3135e7e74ea3"
       },
       "units": {
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationIgnoresChangedSource": "0d7cd491ec3a112e",

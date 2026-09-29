@@ -837,19 +837,27 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 	defer onDone()
 	defer sess.Stop()
 
+	// Ze dialed this connection, so it plays the active role.
+	// RFC 5036 Section 2.5.3: "After the connection is established, if LSR1 is
+	// playing the active role, it initiates negotiation of session parameters by
+	// sending an Initialization message to LSR2."
 	if err := sess.SendInit(); err != nil {
 		log.Warn("ldp: init send failed", "peer", sess.PeerAddr(), "error", err)
 		return
 	}
 
-	if err := sess.SendKeepalive(); err != nil {
-		log.Warn("ldp: keepalive send failed", "peer", sess.PeerAddr(), "error", err)
-		return
-	}
-
+	// accepted is closed once ze has sent the KeepAlive that accepts the peer's
+	// Initialization. The KeepAlive sender waits for it: a KeepAlive signals that
+	// the peer's session parameters are acceptable, and ze has not read them yet.
+	accepted := make(chan struct{})
 	kaCtx, kaCancel := context.WithCancel(ctx)
 	defer kaCancel()
 	go func() {
+		select {
+		case <-kaCtx.Done():
+			return
+		case <-accepted:
+		}
 		// Re-read the keepalive each cycle, and re-arm the moment it changes:
 		// handleInit lowers it during the Initialization exchange, so a period
 		// sized from the pre-negotiation proposal could outlast the negotiated
@@ -927,6 +935,18 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 			})
 		},
 		func() {
+			// processMessages calls this only for an Initialization it accepted,
+			// received after ze's own, which is the active role's step 2.b.
+			// RFC 5036 Section 2.5.3: "If LSR1 receives an Initialization message,
+			// it checks whether the session parameters are acceptable.  If so, it
+			// replies with a KeepAlive message."
+			if err := sess.SendKeepalive(); err != nil {
+				log.Warn("ldp: keepalive send failed", "peer", sess.PeerAddr(), "error", err)
+				sess.Stop()
+				return
+			}
+			close(accepted)
+
 			// AC-3: session reached operational -- advertise our local FEC
 			// bindings downstream-unsolicited (RFC 5036 Section 2.3).
 			locals := lib.localBindings()
