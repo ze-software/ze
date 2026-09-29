@@ -40,6 +40,8 @@ var (
 // RFC requirement: RFC5798-7.2-2 positive -- a transmitted VRRPv3 IPv4 advertisement leaves with source MAC 00-00-5e-00-01-{VRID}, read from the captured frame (openV4 backend_linux.go).
 // RFC requirement: RFC9568-7.2-2 positive -- a transmitted VRRPv3 IPv4 advertisement leaves with source MAC 00-00-5e-00-01-{VRID}, read from the captured frame (openV4 backend_linux.go).
 // RFC requirement: RFC3768-7.2-3 positive -- with a primary 192.0.2.251/24 and a lower secondary 192.0.2.5/24 on the interface, a VRRPv2 advertisement leaves with source 192.0.2.251 (resolveParentPrimaryV4 transport.go).
+// RFC requirement: RFC5798-7.2-3 positive -- with a primary 192.0.2.251/24 and a lower secondary 192.0.2.5/24 on the interface, a VRRPv3 IPv4 advertisement leaves with source 192.0.2.251, the interface primary, never the secondary (resolveParentPrimaryV4 transport.go).
+// RFC requirement: RFC9568-7.2-3 positive -- with a primary 192.0.2.251/24 and a lower secondary 192.0.2.5/24 on the interface, a VRRPv3 IPv4 advertisement leaves with source 192.0.2.251, the interface's primary IPv4 address, never the secondary (resolveParentPrimaryV4 transport.go).
 // RFC requirement: RFC3768-7.2-4 positive -- a captured VRRPv2 advertisement carries IP protocol 112 and destination 224.0.0.18, compared with literals (buildIPv4Header transport.go).
 // RFC requirement: RFC5798-7.2-4 positive -- a captured VRRPv3 IPv4 advertisement carries IP protocol 112 and destination 224.0.0.18, compared with literals (buildIPv4Header transport.go).
 // RFC requirement: RFC9568-7.2-4 positive -- a captured VRRPv3 IPv4 advertisement carries IP protocol 112 and destination 224.0.0.18, compared with literals (buildIPv4Header transport.go).

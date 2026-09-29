@@ -105,7 +105,7 @@ func TestEncodeGoldenV2(t *testing.T) {
 //
 // RFC requirement: RFC9568-5.2.6-1 positive -- WriteTo writes the Reserve nibble as zero on transmission; only the low 12 bits of bytes 4-5 carry the interval (packet.go:269)
 // RFC requirement: RFC5798-5.2.6-1 positive -- WriteTo writes the rsvd nibble as zero on transmission, the first half of RFC 5798 Section 5.2.6; only the low 12 bits of bytes 4-5 carry the interval (packet.go:269)
-// RFC requirement: RFC9568-7.2-1 positive -- WriteTo fills every VRRP field from the Virtual Router's advertisement state and FillChecksum computes the checksum, producing the exact golden bytes (packet.go:251, checksum.go:86).
+// RFC requirement: RFC9568-7.2-1 positive -- WriteTo fills the Version, Type, VRID, Priority, Count, Reserve, Max Advertise Interval and IPv4 address fields from the Virtual Router's advertisement state, each equal to the golden octets (packet.go:251); the checksum this golden carries is the RFC 5798 form, the interop deviation disclosed on RFC9568-7.2-5, and is not claimed here.
 // RFC requirement: RFC5798-7.2-1 positive -- WriteTo fills every VRRP field from the virtual router's advertisement state and FillChecksum computes the VRRP checksum, producing the exact golden bytes (packet.go:251, checksum.go:86).
 func TestEncodeGoldenV3IPv4(t *testing.T) {
 	adv := advV3v4(t)
@@ -131,6 +131,8 @@ func TestEncodeGoldenV3IPv4(t *testing.T) {
 // VALIDATES: AC-2 -- v3 IPv6 encode produces exact G3 bytes (RFC 8200
 // pseudo-header checksum 0x3F5D).
 // PREVENTS: wrong pseudo-header composition, wrong upper-layer length.
+//
+// RFC requirement: RFC9568-7.2-1 positive -- WriteTo fills the Version, Type, VRID, Priority, Count, Reserve, Max Advertise Interval and IPv6 address fields from the Virtual Router's advertisement state, each equal to the golden octets (packet.go:251).
 func TestEncodeGoldenV3IPv6(t *testing.T) {
 	adv := advV3v6(t)
 	buf := make([]byte, MaxLenV3v6)

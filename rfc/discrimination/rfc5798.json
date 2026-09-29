@@ -510,6 +510,17 @@
     {
       "rid": "RFC5798-6.4.2-7",
       "polarity": "positive",
+      "unit": "internal/plugins/vrrp/promote_install_v6_test.go::TestPromotionInstallsIPv6AddressesOnVirtualMACDevice",
+      "unit-sha": "30abde8dae00ae73",
+      "claim-sha": "9b55a74c52953bda",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+      "producer-sha": "6c990de7776ea965",
+      "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5798-6.4.2-7",
+      "polarity": "positive",
       "unit": "internal/plugins/vrrp/transport/rfc_announce_verdict_test.go::TestAnnounceMasterFramesPerAddress",
       "unit-sha": "9a946463ff413405",
       "claim-sha": "2c1938baf9386112",
@@ -1091,6 +1102,17 @@
       "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5798-7.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum",
+      "unit-sha": "397df6ea788852b8",
+      "claim-sha": "f7e22ef3e0576e6c",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/transport/transport.go::encodeLocked",
+      "producer-sha": "846ee1f4761bd28a",
+      "break": "body of encodeLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5798-7.2-2",
       "polarity": "positive",
       "unit": "internal/plugins/vrrp/packet/packet_test.go::TestConstants",
@@ -1122,6 +1144,17 @@
       "producer": "internal/plugins/vrrp/transport/backend_linux.go::openV6",
       "producer-sha": "50f76b0b197d39ae",
       "break": "body of openV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5798-7.2-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire",
+      "unit-sha": "3bdf9b6ba9e44d2c",
+      "claim-sha": "1d9bf1f1f7f690af",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/transport/transport.go::resolveParentPrimaryV4",
+      "producer-sha": "93e7bfe0ac1b9d0c",
+      "break": "body of resolveParentPrimaryV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5798-7.2-3",

@@ -8,6 +8,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -540,7 +541,7 @@
       "note": "Single-polarity positive. Forbidden: any VRRP field or the checksum not filled from the advertisement state. TestEncodeGoldenV2 compares WriteTo plus FillChecksum output byte for byte against the v2 golden, so a wrong field or checksum goes red.",
       "requirement_sha": "2bdc6f1fd8477145",
       "tests": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV2": "3fd728ced10544ca"
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV2": "1bf84088a1c1b91f"
       },
       "units": {
         "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV2": "76a736361372e665"
@@ -548,40 +549,40 @@
       "verdict": "enforced"
     },
     "RFC3768-7.2-2": {
-      "note": "vrrp judge 2026-09-29 (independent): TestTxAdvertV4OnWire (guest, integration && linux) captures a transmitted VRRPv2 frame on the peer veth and compares the source MAC with the literal 00-00-5e-00-01-0a. Single-polarity positive per the row annotation (constant derivation).",
+      "note": "vrrp final judge 2026-09-29 (independent): re-read after the comment-only edit to TestTxAdvertV4OnWire (body unchanged): the guest test captures a transmitted VRRPv2 frame on the peer veth and compares the source MAC with the literal 00-00-5e-00-01-0a. Single-polarity positive per the row annotation (constant derivation).",
       "requirement_sha": "dd841b2072dad4b9",
       "tests": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "3fd728ced10544ca",
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "b607a8e27c4c0698"
+        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "1bf84088a1c1b91f",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "268650204dbb2979"
       },
       "units": {
         "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "815ed7ee56089d0e",
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "1f44542460923595"
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "67f2d740f3a8d572"
       },
       "verdict": "enforced"
     },
     "RFC3768-7.2-3": {
-      "note": "vrrp judge 2026-09-29 (independent): TestTxAdvertV4OnWire adds a lower secondary 192.0.2.5/24 after the primary 192.0.2.251/24 and requires the captured VRRPv2 source to be the primary, so a lowest-address or any-address selection fails. Single-polarity positive per the row annotation.",
+      "note": "vrrp final judge 2026-09-29 (independent): re-read after the comment-only edit to TestTxAdvertV4OnWire (body unchanged): it adds a lower secondary 192.0.2.5/24 after the primary 192.0.2.251/24 and requires the captured VRRPv2 source to be the primary, so a lowest-address or any-address selection fails. Single-polarity positive per the row annotation.",
       "requirement_sha": "a6184d2a52d69426",
       "tests": {
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "b607a8e27c4c0698",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "268650204dbb2979",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "74ad900f2e06c8d5"
       },
       "units": {
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "1f44542460923595",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "67f2d740f3a8d572",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "71d8d585b800743e"
       },
       "verdict": "enforced"
     },
     "RFC3768-7.2-4": {
-      "note": "vrrp judge 2026-09-29 (independent): TestTxAdvertV4OnWire compares the captured VRRPv2 IP protocol and destination with the literals 112 and 224.0.0.18, not the package constants. Single-polarity positive per the row annotation.",
+      "note": "vrrp final judge 2026-09-29 (independent): re-read after the comment-only edit to TestTxAdvertV4OnWire (body unchanged): it compares the captured VRRPv2 IP protocol and destination with the literals 112 and 224.0.0.18. Single-polarity positive per the row annotation.",
       "requirement_sha": "e7f85cc87cf4f2c7",
       "tests": {
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "b607a8e27c4c0698",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "268650204dbb2979",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertIPv4HeaderTTLProtoDst": "74ad900f2e06c8d5"
       },
       "units": {
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "1f44542460923595",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "67f2d740f3a8d572",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertIPv4HeaderTTLProtoDst": "e5856054721cd122"
       },
       "verdict": "enforced"

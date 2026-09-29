@@ -103,15 +103,15 @@
       "verdict": "enforced"
     },
     "RFC5798-5.2.6-1": {
-      "note": "vrrp judge 2026-09-29 (independent): TestEncodeV3ReserveZeroOverDirtyBuffer: WriteTo into an all-0xFF buffer writes the rsvd nibble 0 and the bytes equal the IPv4 and IPv6 goldens, so an untouched or OR-ed nibble fails; TestDecodeV3ReserveIgnoredOnReceive holds the reception half.",
+      "note": "vrrp final judge 2026-09-29 (independent): re-read after the comment-only edit to TestEncodeGoldenV3IPv4 (body unchanged). TestEncodeV3ReserveZeroOverDirtyBuffer: WriteTo into an all-0xFF buffer writes the rsvd nibble 0 and the bytes equal the goldens; TestDecodeV3ReserveIgnoredOnReceive holds the reception half.",
       "requirement_sha": "3b95c99b3ca55ebb",
       "tests": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "3fd728ced10544ca",
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1bf84088a1c1b91f",
         "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestEncodeV3ReserveZeroOverDirtyBuffer": "ea8c73c193bdd188",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3ReserveIgnoredOnReceive": "19a4c15f930f948e"
       },
       "units": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1a9b4da7f7674f01",
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "3de12a3108614ec7",
         "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestEncodeV3ReserveZeroOverDirtyBuffer": "0a06a8bd917f6335",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3ReserveIgnoredOnReceive": "59d3ebc558c91ec2"
       },
@@ -273,21 +273,23 @@
       "verdict": "enforced"
     },
     "RFC5798-6.4.2-7": {
-      "note": "vrrp judge 2026-09-29 (independent): Proven: the exact promotion action list with StartAdvertTimer{1s} (own interval, not the learned 4 s); one GARP per IPv4 VIP with the virtual router MAC; one unsolicited NA per IPv6 VIP with R=1 S=0 O=1, Target the VIP and TLL 00-00-5e-00-02-0a; the stale-generation negative. Missing: the 'Compute and join the Solicited-Node multicast address' clause has no assertion. The kernel joins on address add, but no tagged unit asserts the IPv6 VIP is installed so that the kernel joins, or reads the membership.",
+      "note": "vrrp final judge 2026-09-29 (independent): earlier proof stands (promotion action list, StartAdvertTimer at the own interval, GARP per IPv4 VIP with the virtual router MAC, NA per IPv6 VIP R=1 S=0 O=1 TLL 00-00-5e-00-02-0a, stale-generation negative). The Solicited-Node clause is now asserted at Ze's boundary: TestPromotionInstallsIPv6AddressesOnVirtualMACDevice requires nothing installed in Backup and, on the Master_Down_Timer, exactly fe80::1 and 2001:db8::1 installed on the virtual-MAC device, never the parent -- the address add from which Linux addrconf joins each Solicited-Node group (record: doInstallVIPs). Kernel membership itself is not read.",
       "requirement_sha": "0ae4d61330ab50c9",
       "tests": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMMasterDownPromotion": "b2b7454fac310168",
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "b2b7454fac310168",
         "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestPromotionSetsAdverTimerToOwnInterval": "529420a351d8b685",
+        "internal/plugins/vrrp/promote_install_v6_test.go::TestPromotionInstallsIPv6AddressesOnVirtualMACDevice": "a3f984b19213ee87",
         "internal/plugins/vrrp/transport/rfc_announce_verdict_test.go::TestAnnounceMasterFramesPerAddress": "ae6af29a2a8c28fc"
       },
       "units": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMMasterDownPromotion": "681303d0683131ce",
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "7c0fe29c87ffeb1d",
         "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestPromotionSetsAdverTimerToOwnInterval": "04feb1c234946c3b",
+        "internal/plugins/vrrp/promote_install_v6_test.go::TestPromotionInstallsIPv6AddressesOnVirtualMACDevice": "ba9ecb9afd050b1d",
         "internal/plugins/vrrp/transport/rfc_announce_verdict_test.go::TestAnnounceMasterFramesPerAddress": "07ea4c4b0ec8e9cb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5798-6.4.2-8": {
       "note": "Priority 0 advert arms StartMasterDownTimer(skewDur); non-zero arms mdDur",
@@ -537,62 +539,66 @@
       "verdict": "enforced"
     },
     "RFC5798-7.2-1": {
-      "note": "vrrp judge 2026-09-29 (independent): Fill clause enforced: TestTransmittedAdvertFilledFromInstanceState requires the params handed to the transport to carry version 3, the effective priority (200, then 150 after a tracked interface fails), 1000 ms and both VIPs. Checksum clause: the test encodes and checksums those params itself (WriteTo plus FillChecksum), not through the transport's encodeLocked, so a transmit path that skipped FillChecksum stays green in every tagged unit.",
+      "note": "vrrp final judge 2026-09-29 (independent): fill clause: TestTransmittedAdvertFilledFromInstanceState requires the params handed to the transport to carry version 3, the effective priority (200, then 150 after a tracked interface fails), 1000 ms and both VIPs. Checksum clause now through the production transmit path: TestSendAdvertFillsFieldsAndChecksum sends through encodeLocked and requires the IPv4 frame's checksum to equal an RFC 1071 sum the test computes itself over the RFC 5798 Section 5.2.8 pseudo-header (source, 224.0.0.18, 0, 112, length) and the zeroed message; an encodeLocked that skipped FillChecksum reddens it (author's targeted mutant, record: encodeLocked). IPv6 checksum is the kernel's (IPV6_CHECKSUM), not claimed.",
       "requirement_sha": "fda7506724dfb32e",
       "tests": {
         "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "850865a4dc003eaf",
-        "internal/plugins/vrrp/packet/packet_test.go::TestBoundaryInterval": "3fd728ced10544ca",
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "3fd728ced10544ca"
+        "internal/plugins/vrrp/packet/packet_test.go::TestBoundaryInterval": "1bf84088a1c1b91f",
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1bf84088a1c1b91f",
+        "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "025e3148566bb3fe"
       },
       "units": {
         "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "ee15ebd20919de7c",
         "internal/plugins/vrrp/packet/packet_test.go::TestBoundaryInterval": "806fdcb52c9b268c",
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1a9b4da7f7674f01"
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "3de12a3108614ec7",
+        "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "e4f00dae4db9300c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5798-7.2-2": {
-      "note": "vrrp judge 2026-09-29 (independent): TestTxAdvertV4OnWire and TestTxAdvertV6OnWire (guest) compare the captured source MAC with the literals 00-00-5e-00-01-0a and 00-00-5e-00-02-0a. Single-polarity positive per the row annotation.",
+      "note": "vrrp final judge 2026-09-29 (independent): re-read after the comment-only edit to TestTxAdvertV4OnWire (body unchanged): it and TestTxAdvertV6OnWire (guest) compare the captured source MAC with the literals 00-00-5e-00-01-0a and 00-00-5e-00-02-0a. Single-polarity positive per the row annotation.",
       "requirement_sha": "447e1b9f4570d8b2",
       "tests": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "3fd728ced10544ca",
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "b607a8e27c4c0698",
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "b607a8e27c4c0698"
+        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "1bf84088a1c1b91f",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "268650204dbb2979",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "268650204dbb2979"
       },
       "units": {
         "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "815ed7ee56089d0e",
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "1f44542460923595",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "67f2d740f3a8d572",
         "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "743f9108e7f1c010"
       },
       "verdict": "enforced"
     },
     "RFC5798-7.2-3": {
-      "note": "vrrp judge 2026-09-29 (independent): IPv6 half now enforced: TestTxAdvertV6OnWire requires the captured source to be the macvlan link-local; TestSendAdvertNoLinkLocalSkipsAndCounts is the negative. IPv4 half: the tagged TestSendAdvertUsesParentPrimaryV4Source stubs exactly one IPv4 address, so primary versus secondary is never distinguished for this row. TestTxAdvertV4OnWire already checks the VRRPv3 source against a lower secondary but is tagged only to RFC3768-7.2-3; tagging it here (with a guest record) closes this.",
+      "note": "vrrp final judge 2026-09-29 (independent): IPv4 half now tagged: TestTxAdvertV4OnWire (guest) adds a lower secondary 192.0.2.5/24 after the primary 192.0.2.251/24 and requires the captured VRRPv3 source to be the primary (record: resolveParentPrimaryV4, observed red in guest). IPv6 half: TestTxAdvertV6OnWire source equals the macvlan link-local; TestSendAdvertNoLinkLocalSkipsAndCounts is the negative; the source MAC is RFC5798-7.2-2.",
       "requirement_sha": "db7cf7598283f5a8",
       "tests": {
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "b607a8e27c4c0698",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "268650204dbb2979",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "268650204dbb2979",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoLinkLocalSkipsAndCounts": "74ad900f2e06c8d5",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoPrimaryV4SkipsAndCounts": "74ad900f2e06c8d5",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "74ad900f2e06c8d5"
       },
       "units": {
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "67f2d740f3a8d572",
         "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "743f9108e7f1c010",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoLinkLocalSkipsAndCounts": "a2a42810b4b4a5d6",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoPrimaryV4SkipsAndCounts": "d010337619277e96",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "71d8d585b800743e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5798-7.2-4": {
-      "note": "vrrp judge 2026-09-29 (independent): TestTxAdvertV4OnWire and TestTxAdvertV6OnWire compare the captured protocol/next header and destination with the literals 112, 224.0.0.18 and ff02::12. Single-polarity positive per the row annotation.",
+      "note": "vrrp final judge 2026-09-29 (independent): re-read after the comment-only edit to TestTxAdvertV4OnWire (body unchanged): it and TestTxAdvertV6OnWire compare the captured protocol/next header and destination with the literals 112, 224.0.0.18 and ff02::12. Single-polarity positive per the row annotation.",
       "requirement_sha": "387a92c747fca0ee",
       "tests": {
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "b607a8e27c4c0698",
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "b607a8e27c4c0698",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "268650204dbb2979",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "268650204dbb2979",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "74ad900f2e06c8d5"
       },
       "units": {
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "1f44542460923595",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "67f2d740f3a8d572",
         "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "743f9108e7f1c010",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "ed1d6c271e3fed5c"
       },
