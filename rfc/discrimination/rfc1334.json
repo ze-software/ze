@@ -66,6 +66,28 @@
       "producer": "internal/component/l2tp/ppp/session_run.go::rejectUnsupportedProtocol",
       "producer-sha": "0e912d3f18f3ad7a",
       "break": "body of rejectUnsupportedProtocol replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1334-x-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP",
+      "unit-sha": "af1e03db7228d047",
+      "claim-sha": "fe15ce83f2d74d5f",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/auth.go::adjustAuthOnNakOrReject",
+      "producer-sha": "d4e0833095c99a9d",
+      "break": "body of adjustAuthOnNakOrReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1334-x-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP",
+      "unit-sha": "af1e03db7228d047",
+      "claim-sha": "8d87d034ecea39f0",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/auth.go::selectAuthFallback",
+      "producer-sha": "b48d3452a1ecaf6c",
+      "break": "body of selectAuthFallback replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

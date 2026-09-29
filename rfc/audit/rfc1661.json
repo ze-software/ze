@@ -1,18 +1,26 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC1661-2-1": {
-      "note": "Sentence: all Protocols MUST be odd (LSB of the least significant octet 1), MUST be assigned with the LSB of the most significant octet 0, and received frames breaking these rules MUST be treated as an unrecognized Protocol. (a) Even Protocol 0xC020 treated as LCP: TestRFC1661NonCompliantProtocolTreatedUnrecognized goes red (Code != LCPProtocolReject, Rejected-Protocol != 0xC020, state moved). (b) A received Protocol whose most significant octet has LSB 1 (e.g. 0xC121) treated as recognized: no tagged unit sends one, so no assertion goes red. The transmit-side oddness clause has no assertion either (ze sends only constants). Weak on the most-significant-octet clause.",
+      "note": "Receive, low-octet rule: TestRFC1661NonCompliantProtocolTreatedUnrecognized (0xC020 -> Protocol-Reject). Receive, high-octet rule: TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized sends an Echo-Request under 0xC121 in Opened, red unless exactly one Protocol-Reject naming 0xC121, no Echo-Reply, state Opened. Transmit side: the same unit checks both parity bits on every Protocol constant ze writes (LCP, PAP, CHAP, IPCP, IPV6CP, IPv4, IPv6).",
       "requirement_sha": "d38d0dc4f4ee74bc",
       "tests": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized": "7720659501d2246f",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized#2": "7720659501d2246f",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized": "19e015b5d17e37e8",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized": "19e015b5d17e37e8"
       },
       "units": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized": "d4a168f08f11f2e5",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized#2": "d4a168f08f11f2e5",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized": "95aab366be3298dd",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized": "85e93b8a5b282a91"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1661-3.1-1": {
       "note": "Clause: send LCP first. TestRFC1661LCPPacketsSentFirst drives only the Closed+Open actions through performAction and asserts frames[0] is an LCP Configure-Request; run() (session_run.go), which performs the Initial+Up / Closed+Open sequence, is never driven, so a run() that wrote any other frame before the synthetic Open stays green.",
@@ -102,28 +110,32 @@
       "verdict": "enforced"
     },
     "RFC1661-3.7-1": {
-      "note": "Sentence: the receiver of a Terminate-Request SHOULD wait for the peer to disconnect, and MUST NOT disconnect until at least one Restart time has passed after sending a Terminate-Ack. (a) Disconnecting at once on Terminate-Request: TestRFC1661TerminateAckSentAndLinkHeld goes red (term true, state != Stopping, or EventSessionDown drained). (b) Disconnecting after the Ack but before one Restart time has passed (a shorter timer, or a disconnect on the next event): the test never advances time and asserts nothing after the instant of receipt, so no assertion pins the one-Restart-time floor. Single-polarity by marker; still weak on the time bound.",
+      "note": "Single-polarity accepted: no early-disconnect branch exists after sca in Opened+RTR. TestRFC1661TerminateAckSentAndLinkHeld pins the instant of receipt; TestRFC1661TerminateAckHoldsLinkForRestartTime adds the time bound: after the Terminate-Ack the Restart timer is running (armed by zrc via armRestartTimer, which uses defaultRestartTimer, asserted >= 3 s), and a Configure-Request and an Echo-Request meanwhile keep Stopping with no end and no EventSessionDown. Residual: the armed duration is asserted through the constant, not read off the timer.",
       "requirement_sha": "376a67e775b4a6f4",
       "tests": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661TerminateAckHoldsLinkForRestartTime": "7720659501d2246f",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "19e015b5d17e37e8"
       },
       "units": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661TerminateAckHoldsLinkForRestartTime": "8570eab09b4f3a18",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "3825213225d359e1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1661-4.3-1": {
-      "note": "Clause: be prepared to renegotiate immediately in Opened. Both units assert only the LCPDoTransition table (Opened+RCR+/- -> [tld,scr,sca|scn]; RXR has no scr/tld). handleLCPPacket on a Configure-Request in Opened is never driven, so a session whose tld action (resetNCP, EventLCPDown) ended the session instead of renegotiating stays green.",
+      "note": "TestRFC1661ConfigureRequestInOpenedRenegotiates drives handleLCPPacket with an acceptable Configure-Request in Opened: red unless ze writes its own Configure-Request and a Configure-Ack, lands in Ack-Sent, returns no end and emits no EventSessionDown. The table-level units (Opened+RCR has scr; RXR does not) stay as the specificity control.",
       "requirement_sha": "f615a6f02dc3c0c1",
       "tests": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates": "7720659501d2246f",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoDoesNotRenegotiate": "19e015b5d17e37e8",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RenegotiateOnConfigureRequestInOpened": "19e015b5d17e37e8"
       },
       "units": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates": "10e4e2442df38e91",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoDoesNotRenegotiate": "f3f36def7d607344",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RenegotiateOnConfigureRequestInOpened": "75ec212ec74da79a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1661-4.3-2": {
       "note": "Clause (the RTR implementation note): accept a new Configure-Request after RTR with no admin action. TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest asserts the table only from ReqSent/AckRcvd/AckSent. The Opened+RTR path (Stopping -> Stopped, where run() ends the session) is not driven, and no unit feeds a Configure-Request to a session after a Terminate-Request.",
@@ -150,17 +162,21 @@
       "verdict": "enforced"
     },
     "RFC1661-5.1-1": {
-      "note": "Clause: MUST transmit a Configure-Request. Both units assert only LCPDoTransition action lists (Closed+Open, Starting+Up contain scr; Initial+Up has none). Nothing on the wire is asserted, so an scr action that performAction failed to turn into a Configure-Request stays green here.",
+      "note": "TestRFC1661OpenTransmitsConfigureRequestOnWire runs applyTransition (the same path run() uses for its synthetic Open) for Closed+Open and Starting+Up: red unless exactly one LCP Configure-Request reaches the wire and state is Req-Sent. Initial+Up (no Open) writes nothing and lands in Closed. The run() entry itself is RFC1661-3.1-1's, still open.",
       "requirement_sha": "756f95a8b906a207",
       "tests": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire": "7720659501d2246f",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire#2": "7720659501d2246f",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661OpenTransmitsConfigureRequest": "19e015b5d17e37e8",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UpWithoutOpenSendsNoConfigureRequest": "19e015b5d17e37e8"
       },
       "units": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire": "3f5b5bf91084e056",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire#2": "3f5b5bf91084e056",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661OpenTransmitsConfigureRequest": "e8ef5d1a08a2a896",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UpWithoutOpenSendsNoConfigureRequest": "ab02919dc776b205"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1661-5.1-2": {
       "note": "Forbidden: no reply, or the wrong reply, to a Configure-Request. TestRFC1661ConfigureAckEchoesOptionsVerbatim goes red when no Configure-Ack (Identifier 0x21) is written for an acceptable request; TestRFC1661ConfigureRejectForUnrecognizedOption goes red on an Ack or a missing Configure-Reject for an unrecognized option. Driven in ReqSent through handleLCPPacket.",
@@ -270,17 +286,21 @@
       "verdict": "enforced"
     },
     "RFC1661-5.3-2": {
-      "note": "Clause: a boolean option is refused with Reject, not Nak. TestRFC1661BooleanOptionsUseRejectNotNak feeds PFC/ACFC carrying data octets (Length 3 and 4), i.e. malformed booleans whose Reject can come from the length fault; a well-formed Length-2 boolean ze declines is never driven, so the choice of Reject over Nak for the boolean itself is unisolated.",
+      "note": "TestRFC1661WellFormedBooleanDeclinedWithReject removes the length-fault confound: a well-formed Length-2 ACFC declined on PPPoE draws a Configure-Reject whose options are exactly that ACFC and no Nak; beside a Nak-earning MRU, NegotiatePeerOptions puts the ACFC in rejects not naks and the wire reply is the Reject naming only ACFC. Red on a Nak for the boolean.",
       "requirement_sha": "60e3df5f9f5b0259",
       "tests": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject": "7720659501d2246f",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject#2": "7720659501d2246f",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661BooleanOptionsUseRejectNotNak": "19e015b5d17e37e8",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ValuedOptionUsesNak": "19e015b5d17e37e8"
       },
       "units": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject": "0cc5e611ff5a07bd",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject#2": "0cc5e611ff5a07bd",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661BooleanOptionsUseRejectNotNak": "e8750e8fe3c2813b",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ValuedOptionUsesNak": "74ce163a33ca58a1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1661-5.3-3": {
       "note": "Forbidden: a Nak that repeats an unacceptable single-instance value. TestRFC1661ConfigureNakSuggestsAcceptableValue goes red unless the Nak carries one MRU at 1500 for a requested 2000; TestRFC1661RepeatedOptionDrawsOneNakEntry goes red on more than one Magic entry; TestRFC1661NoNakForAcceptableValue goes red if an acceptable MRU is Nak'd or modified.",
@@ -311,17 +331,21 @@
       "verdict": "enforced"
     },
     "RFC1661-5.3-6": {
-      "note": "Sentence: all acceptable Configuration Options are filtered out of the Configure-Nak, but otherwise the options from the Configure-Request MUST NOT be reordered. (a) Reordering: TestRFC1661NakPreservesRequestOrder and TestRFC1661NakOrderFollowsRequestNotAFixedOrder check naks[0]/naks[1] Types in both request orders, red on a fixed order. (b) Leaving an acceptable option in the Nak: neither tagged unit feeds an acceptable option beside the Nak-earning ones, so an implementation that copies an acceptable option into the Nak passes. Weak on the filtering clause.",
+      "note": "Reordering: TestRFC1661NakPreservesRequestOrder / TestRFC1661NakOrderFollowsRequestNotAFixedOrder. Filtering: TestRFC1661NakFiltersAcceptableOptions puts an acceptable ACCM between Magic 0 and MRU 2000 in both orders and reads the wire Configure-Nak: red unless its Types are exactly the two Nak-earning ones in request order, so a copied ACCM or a reorder both fail.",
       "requirement_sha": "fec504f4c705c5ef",
       "tests": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions": "7720659501d2246f",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions#2": "7720659501d2246f",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakOrderFollowsRequestNotAFixedOrder": "19e015b5d17e37e8",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakPreservesRequestOrder": "19e015b5d17e37e8"
       },
       "units": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions": "81370385d7aa001b",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions#2": "81370385d7aa001b",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakOrderFollowsRequestNotAFixedOrder": "f6cdbaed55098e1c",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakPreservesRequestOrder": "5d4805744ceb7f11"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1661-5.3-7": {
       "note": "Forbidden: acting on a Nak whose Identifier differs from the last request. TestLCPRepliesMatchOutstandingRequest (\"Nak wrong Identifier\") goes red on any state/wire change; TestClientLCPReplyCorrelation goes red if Identifier+1 Nak emits a frame. Positives: matching Nak yields a new request carrying MRU 1400 (server) and a new request (client).",
@@ -354,9 +378,11 @@
       "verdict": "enforced"
     },
     "RFC1661-5.4-1": {
-      "note": "Clause (a) not recognizable -> Reject: enforced by TestRFC1661ConfigureRejectForUnrecognizedOption, the LCP/NCP/client OutranksInvalidLength units (red on a Nak or a missing Reject naming Type 99). Clause (b) recognized but not acceptable for negotiation as configured: no tagged unit feeds a recognized option ze is configured to refuse; TestRFC1661ClientAcceptsServerAuthProtocol is only the non-reject side.",
+      "note": "Clause (a) unrecognized: TestRFC1661ConfigureRejectForUnrecognizedOption and the OutranksInvalidLength units. Clause (b) refused by configuration: TestRFC1661ConfigureRejectForOptionRefusedByConfiguration sends Auth-Protocol (any session) and ACCM (PPPoE), red unless the Reject carries exactly that option and no Ack is written; the same ACCM on L2TP, which configuration accepts, must be Acked with no Reject.",
       "requirement_sha": "441f1e38a240dc66",
       "tests": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration": "7720659501d2246f",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration#2": "7720659501d2246f",
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength": "2325ea607f732027",
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength": "2325ea607f732027",
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength#2": "2325ea607f732027",
@@ -368,6 +394,8 @@
         "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength#2": "628d91af81c6cdb9"
       },
       "units": {
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration": "294a5ed66c64fe52",
+        "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration#2": "294a5ed66c64fe52",
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength": "574c3e977e88ab81",
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength": "54fe4404adf7db3d",
         "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength#2": "54fe4404adf7db3d",
@@ -378,7 +406,7 @@
         "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength": "6ba552ceaf7cafec",
         "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength#2": "6ba552ceaf7cafec"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1661-5.4-2": {
       "note": "Sentence: all recognizable and negotiable options are filtered out of the Configure-Reject, but otherwise the options MUST NOT be reordered or modified in any way. (a) Keeping a recognizable option: TestRFC1661ConfigureRejectForUnrecognizedOption sends MRU(1400)+type 99 and bytes.Equal(pkt.Data, optStream(unknown)) goes red if MRU stays. (b) Reordering: TestRFC1661ConfigureRejectDoesNotReorderOptions compares Types in both orders. (c) Modifying: the same test compares each Data, and TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified / TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified check the echoed bytes.",
@@ -468,17 +496,17 @@
       "verdict": "enforced"
     },
     "RFC1661-5.5-2": {
-      "note": "Sentence: on transmission the Identifier MUST be changed whenever the Data field content changes, and whenever a valid reply has been received for a previous request. TestTerminateRequestIdentifierChanges calls sendTerminateRequest twice from Closing with the same empty Data and no Terminate-Ack between them, then fails when the two Identifiers are equal. That pair is a retransmission, for which Section 5.5 continues: \"For retransmissions, the Identifier MAY remain unchanged.\" The assertion therefore forbids behaviour the RFC permits and pins what sendTerminateRequest does, not what the sentence requires. (a) Keeping the Identifier across a Data change: no unit sends two Terminate-Requests with different Data. (b) Keeping it after a valid Terminate-Ack: no unit delivers a reply between two requests. Neither clause of the row is tested, so the tag is misinformation: wrong.",
+      "note": "TestTerminateRequestIdentifierChanges sends a Terminate-Request, feeds a Terminate-Ack with its Identifier (asserted valid: state moves to Closed), sends a second one: red when the second reuses the Identifier (reply clause); exactly two frames are written. Data is empty on both and asserted so; ze never varies Terminate-Request Data, so the Data-change clause has no reachable case. The old retransmission pair (which Section 5.5 lets keep its Identifier) is gone.",
       "requirement_sha": "db76e473ecf13877",
       "tests": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges": "782ab2fe91715eef",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges#2": "782ab2fe91715eef"
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges#2": "034fb31a9e383e0e"
       },
       "units": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges": "69caed534fdcd0bd",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges#2": "69caed534fdcd0bd"
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges": "fb53993a1897b2e5",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges#2": "fb53993a1897b2e5"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC1661-5.6-1": {
       "note": "Forbidden: not Code-Rejecting an unknown Code. TestRFC1661CodeRejectForUnknownCode goes red on no Code-Reject or a Rejected-Packet not carrying Code 99, Identifier 0x41, Length 6, Data aabb; TestRFC1661NoCodeRejectForKnownCode goes red if a Terminate-Request is Code-Rejected.",
@@ -559,24 +587,24 @@
       "verdict": "weak"
     },
     "RFC1661-5.8-4": {
-      "note": "Sentence: on transmission the Identifier MUST be changed whenever the Data field content changes, and whenever a valid reply has been received for a previous request. TestEchoRequestIdentifierChanges calls sendEchoRequest twice from Opened with the same Data (the Magic-Number) and no Echo-Reply between them, then fails when the two Identifiers are equal. Section 5.8 continues: \"For retransmissions, the Identifier MAY remain unchanged.\" The assertion forbids behaviour the RFC permits and pins what sendEchoRequest does. (a) Data-change clause and (b) valid-reply clause: no unit exercises either. The Echo-Reply Identifier copy the same unit checks is the separate On-reception sentence, not this row. wrong, for the same reason as RFC1661-5.5-2.",
+      "note": "TestEchoRequestIdentifierChanges isolates both triggers: a valid Echo-Reply (echoOutstanding cleared) between two Echo-Requests with the same Data (asserted equal), red on a reused Identifier; then magicNegotiated flips with no reply, Data asserted changed, red on a reused Identifier. sendEchoReply Identifier copy also pinned.",
       "requirement_sha": "382d025d3d2e4cdc",
       "tests": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges": "782ab2fe91715eef",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges#2": "782ab2fe91715eef"
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges#2": "034fb31a9e383e0e"
       },
       "units": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges": "f1ceed5985393870",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges#2": "f1ceed5985393870"
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges": "eaeb0a401e972f93",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges#2": "eaeb0a401e972f93"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC1661-5.8-5": {
       "note": "Sentence: until the Magic-Number option has been successfully negotiated, the Magic-Number MUST be transmitted as zero. (a) Sending the chosen Magic-Number before negotiation: TestMagicNumberZeroUntilNegotiated goes red on req != 0 || rep != 0 before any Ack, and again after a Configure-Ack that carries no option 5. Positive: after an Ack with option 5 both packets carry the value. Echo-Request and Echo-Reply both covered; the identical Discard-Request sentence is Section 5.9 and ze sends no Discard-Request.",
       "requirement_sha": "b8270377c0536f55",
       "tests": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated": "782ab2fe91715eef",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated#2": "782ab2fe91715eef"
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated#2": "034fb31a9e383e0e"
       },
       "units": {
         "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated": "674a14893314861c",
@@ -659,8 +687,8 @@
       "note": "Forbidden: refusing a 1500-octet Information field. TestFullInformationFieldReceived goes red if ParseFrame refuses 1502 octets, returns fewer than 1500, if getFrameBuf (the readFrames buffer, MRU-independent) is shorter than the frame, or ParseLCPPacket refuses Length 1500.",
       "requirement_sha": "bf8de5e1aac53efe",
       "tests": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestFullInformationFieldReceived": "782ab2fe91715eef",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestFullInformationFieldReceived#2": "782ab2fe91715eef"
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestFullInformationFieldReceived": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestFullInformationFieldReceived#2": "034fb31a9e383e0e"
       },
       "units": {
         "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestFullInformationFieldReceived": "7891357135ea0ffe",
@@ -693,17 +721,21 @@
       "verdict": "enforced"
     },
     "RFC1661-6.4-2": {
-      "note": "Section 6.4 names Echo-Request, Echo-Reply and Discard-Request. The tagged units assert only the Echo-Reply Magic (== local, != peer's). ze also sends Echo-Requests (sendEchoRequest via transmitMagic); no tagged unit asserts their Magic-Number field.",
+      "note": "Echo-Reply half: the rfc1661_test.go units (reply Magic == local, != peer). Echo-Request half now: TestEchoRequestCarriesNegotiatedMagic reads the Magic-Number sendEchoRequest writes, red on zero, the peer's value, or anything but the negotiated local value. ze sends no Discard-Request (no producer).",
       "requirement_sha": "88b6b79801644a6c",
       "tests": {
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestCarriesNegotiatedMagic": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestCarriesNegotiatedMagic#2": "034fb31a9e383e0e",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyDoesNotMirrorPeerMagic": "19e015b5d17e37e8",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "19e015b5d17e37e8"
       },
       "units": {
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestCarriesNegotiatedMagic": "c6346cdc5edd76e3",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestCarriesNegotiatedMagic#2": "c6346cdc5edd76e3",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyDoesNotMirrorPeerMagic": "42086c5180046b91",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "0ae759d4a3549ce1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1661-6.4-3": {
       "note": "Forbidden: accepting a zero Magic-Number. TestRFC1661ZeroMagicNumberRefused (server) and TestRFC1661ClientNaksZeroMagicInAWellFormedRequest / ...WithAValueOfItsOwn (client) go red unless a zero Magic draws a Nak carrying a 4-octet non-zero value; negatives Ack a non-zero Magic (TestRFC1661PeerMagicNumberAcked, TestRFC1661ClientAcksANonZeroMagic).",
@@ -756,8 +788,8 @@
       "note": "The condition is a received Nak whose Magic equals the one ze sent in its own last Configure-Nak. TestMagicNumberRedrawnOnNak never has ze send a Nak (the received Nak names ze's own request value). TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue sets the condition up but asserts only magic != 0 and != clientMagic; a client that adopted the looped-back value from the Nak (the forbidden behaviour) stays green.",
       "requirement_sha": "94435eed625a075f",
       "tests": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberRedrawnOnNak": "782ab2fe91715eef",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberRedrawnOnNak#2": "782ab2fe91715eef",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberRedrawnOnNak": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberRedrawnOnNak#2": "034fb31a9e383e0e",
         "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "e0085efaa973fd91",
         "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "e0085efaa973fd91"
       },
@@ -770,17 +802,21 @@
       "verdict": "weak"
     },
     "RFC1661-6.4-8": {
-      "note": "The sentence has two cases: the peer's Magic when it negotiated one, zero when it did not. TestReceivedMagicNumberMustBePeers covers only the negotiated case (0, peer+1 and own refused; peer's accepted). The peer-did-not-negotiate case (zero accepted, non-zero refused) is never driven.",
+      "note": "Both cases now driven. Negotiated: TestReceivedMagicNumberMustBePeers (0, peer+1, own refused; peer's accepted). Not negotiated: TestReceivedMagicNumberZeroWhenPeerNegotiatedNone acks a Configure-Request without Magic over a stale peerMagic, then zero draws an Echo-Reply and clears echoOutstanding, while the stale value and ze's own draw no reply and leave the count. Red if handleLCPPacket kept the stale peerMagic.",
       "requirement_sha": "19ddf5d795a86265",
       "tests": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberMustBePeers": "782ab2fe91715eef",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberMustBePeers#2": "782ab2fe91715eef"
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberMustBePeers": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberMustBePeers#2": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone#2": "034fb31a9e383e0e"
       },
       "units": {
         "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberMustBePeers": "e7430d1489d57887",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberMustBePeers#2": "e7430d1489d57887"
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberMustBePeers#2": "e7430d1489d57887",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone": "df77c8110338e5ca",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone#2": "df77c8110338e5ca"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1661-6.5-1": {
       "note": "{single-polarity} justified. Forbidden: a one-octet Protocol field on transmit. TestRFC1661TwoOctetProtocolField goes red when WriteFrame writes off != 2 or octets != c021.",

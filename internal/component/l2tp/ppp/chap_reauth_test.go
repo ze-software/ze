@@ -147,11 +147,6 @@ func writeCHAPResponseFrame(t *testing.T, peerEnd net.Conn, identifier uint8, di
 //
 //	restored, which would kill the session on any stale or
 //	duplicated CHAP Response packet.
-//
-// RFC requirement: RFC1994-4.1-10 positive -- a CHAP Response that does not
-// correspond to the outstanding Challenge (mismatched Identifier) is silently
-// discarded: no EventAuthRequest is emitted and the session is not torn down;
-// the handler resumes normally once a matching Response arrives.
 func TestCHAPIdentifierMismatchSilentDiscard(t *testing.T) {
 	peerEnd, driverEnd := net.Pipe()
 	defer closeConn(peerEnd)
@@ -228,6 +223,50 @@ func TestCHAPIdentifierMismatchSilentDiscard(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("handler never returned")
+	}
+}
+
+// TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded hands a session a CHAP
+// Response while LCP is still in the Link Establishment phase (Req-Sent and
+// Ack-Sent) and while it is in the Termination phase (Closing), which are
+// phases other than Authentication and the Network-Layer phase after it.
+//
+// VALIDATES: RFC 1994 Section 4.1, a Response outside those phases is
+// silently discarded.
+// PREVENTS: a stray Response starting authentication, drawing a reply, or
+// ending the session before LCP is Opened or while it closes.
+//
+// RFC requirement: RFC1994-4.1-10 positive -- a CHAP Response that handleFrame
+// receives in Req-Sent, Ack-Sent or Closing draws no frame, emits no auth or
+// session event, does not end the session and leaves the LCP state unchanged.
+func TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded(t *testing.T) {
+	t.Parallel()
+
+	frame := make([]byte, MaxFrameLen)
+	off := WriteFrame(frame, 0, ProtoCHAP, nil)
+	body := []byte{CHAPCodeResponse, 0x21, 0, 0, chapMD5DigestLen}
+	body = append(body, bytes.Repeat([]byte{0x5A}, chapMD5DigestLen)...)
+	body = append(body, "bob"...)
+	binary.BigEndian.PutUint16(body[2:4], uint16(len(body)))
+	off += copy(frame[off:], body)
+
+	for _, state := range []LCPState{LCPStateReqSent, LCPStateAckSent, LCPStateClosing} {
+		s, rec, events := newRFC1661Session(state)
+		if term := s.handleFrame(frame[:off]); term {
+			t.Fatalf("%s: session ended on a CHAP Response", state)
+		}
+		if n := rec.count(); n != 0 {
+			t.Fatalf("%s: a CHAP Response drew %d frames, want none", state, n)
+		}
+		if got := s.currentState(); got != state {
+			t.Fatalf("%s: LCP state moved to %s on a CHAP Response", state, got)
+		}
+		if n := len(s.authEventsOut); n != 0 {
+			t.Fatalf("%s: a CHAP Response emitted %d auth events, want none", state, n)
+		}
+		if n := len(events); n != 0 {
+			t.Fatalf("%s: a CHAP Response emitted %d session events, want none", state, n)
+		}
 	}
 }
 
@@ -404,9 +443,10 @@ func awaitAuthEventOfType[T AuthEvent](t *testing.T, ch <-chan AuthEvent, timeou
 //	Success tears the session down, making any long-lived L2TP
 //	session fragile to a duplicated auth packet.
 //
-// RFC requirement: RFC1994-4.1-8 positive -- a repeated CHAP Response received
-// during the Network-Layer Protocol phase is silently dropped and the session
-// remains up (no teardown), proving the authenticator allows repeated Responses.
+// RFC requirement: RFC1994-4.1-8 positive -- a repeat of the Response that earned
+// the Success (same Identifier, same Value), received during the Network-Layer
+// Protocol phase, leaves the session up: no EventSessionDown, and it still
+// answers an LCP Echo-Request.
 func TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp(t *testing.T) {
 	reg := newPipeRegistry()
 	installPipeRegistry(t, reg)
@@ -441,7 +481,7 @@ func TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp(t *testing.T) {
 	<-peerDone
 
 	// Initial CHAP auth -> Success; session enters the Network-Layer phase.
-	readCHAPChallengeAndRespond(t, pair.peerEnd)
+	challengeID := readCHAPChallengeAndRespond(t, pair.peerEnd)
 	awaitAuthEventOfType[EventAuthRequest](t, d.AuthEventsOut(), 2*time.Second)
 	if err := d.AuthResponse(421, 521, true, "", nil); err != nil {
 		t.Fatalf("AuthResponse(accept): %v", err)
@@ -454,11 +494,12 @@ func TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp(t *testing.T) {
 	// later EventSessionDown (if any) cannot be mistaken for a queued event.
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
 
-	// Network-Layer phase: deliver a repeated CHAP Response. The
-	// authenticator MUST allow it -- handleFrame drops the frame and the
-	// session must NOT tear down (RFC 1994 Section 4.1).
-	digest := bytes.Repeat([]byte{0x44}, chapMD5DigestLen)
-	writeCHAPResponseFrame(t, pair.peerEnd, 0x99, digest)
+	// Network-Layer phase: repeat the Response that earned the Success,
+	// with the same Identifier and Value, as a peer does when the Success
+	// was lost. The authenticator MUST allow it: the session must NOT tear
+	// down (RFC 1994 Section 4.1).
+	digest := bytes.Repeat([]byte{0x33}, chapMD5DigestLen)
+	writeCHAPResponseFrame(t, pair.peerEnd, challengeID, digest)
 
 	// No EventSessionDown (or any other lifecycle event) may fire because
 	// of the stray Response.

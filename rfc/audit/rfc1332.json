@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC1332-2-1": {
       "note": "SB-3 strict re-read 2026-09-27. Clauses: an IPCP packet travels under Protocol 0x8021, and exactly one packet fills the Information field. The Protocol clause is enforced: TestIPCPFrameCarriesExactlyOnePacket fails unless the frame octets are 80 21 and ParseFrame returns ProtoIPCP. The 'exactly one' clause is not: the positive checks LCP Length == len(Information) on a frame the test itself assembles with one WriteLCPPacket call, so no Ze send path is driven and no sender that packed two packets into one frame could turn it red; the negative TestIPCPFrameRejectsNonSinglePacket rejects a Length below the header or past the Information field, which is RFC 1661 length validation, and no case offers a frame holding two IPCP packets.",
@@ -41,17 +41,19 @@
       "verdict": "weak"
     },
     "RFC1332-3-1": {
-      "note": "Forbidden: IPCP options that do not use the RFC 1661 Type/Length/Data format, in either direction. Receive side: TestIPCPParseOptions decodes a well-formed list (type 3 as IP-Address, not an LCP meaning) and TestIPCPParseRejects asserts errOptionTooShort/errOptionLengthMismatch/errIPCPBadOptionLen, red on a parser that accepts malformed TLVs. Send side: no tagged unit asserts that WriteIPCPOptions emits the TLV format (TestIPCPRoundtrip does, untagged).",
+      "note": "Send side now tagged: TestIPCPOptionsWrittenInLCPFormat compares WriteIPCPOptions output byte for byte (Types 3/129/131, Length 6, four octets) and walks it with ParseLCPOptions; any drift of Type, Length or Data is red. Receive side: TestIPCPParseOptions decodes a well-formed list, TestIPCPParseRejects refuses malformed TLVs with the exact errors.",
       "requirement_sha": "f06d4411bfe3e685",
       "tests": {
         "internal/component/l2tp/ppp/ipcp_test.go::TestIPCPParseOptions": "819925f844dde0dd",
-        "internal/component/l2tp/ppp/ipcp_test.go::TestIPCPParseRejects": "819925f844dde0dd"
+        "internal/component/l2tp/ppp/ipcp_test.go::TestIPCPParseRejects": "819925f844dde0dd",
+        "internal/component/l2tp/ppp/rfc1332_clauses_test.go::TestIPCPOptionsWrittenInLCPFormat": "61d2fbdb9d2674da"
       },
       "units": {
         "internal/component/l2tp/ppp/ipcp_test.go::TestIPCPParseOptions": "a479cbc1c4c3b377",
-        "internal/component/l2tp/ppp/ipcp_test.go::TestIPCPParseRejects": "474ea7d5a41ec24b"
+        "internal/component/l2tp/ppp/ipcp_test.go::TestIPCPParseRejects": "474ea7d5a41ec24b",
+        "internal/component/l2tp/ppp/rfc1332_clauses_test.go::TestIPCPOptionsWrittenInLCPFormat": "e2119b28e4e6437d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1332-3.3-2": {
       "note": "Forbidden: a Configure-Nak IP-Address that is not acceptable as the remote address. TestIPCPNakCarriesTheAssignedRemoteAddress asserts the Nak carries the assigned 10.0.0.2 for a request of 10.9.9.9 and for a request with no address, red if another value is given. TestIPCPNakNeverCarriesAnUnacceptableAddress asserts the requested address is not echoed and that with nothing assigned the option is omitted rather than written invalid. The 'or indicate a request' branch is a permitted alternative Ze does not use.",

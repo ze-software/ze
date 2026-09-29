@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC1334-1-1": {
       "note": "Forbidden: authentication configured but the LCP CONFREQ omits Auth-Protocol. TestLocalCONFREQAdvertisesAuthMethod asserts lookupOption(LCPOptAuthProto) ok and the protocol 0xC023 for PAP (0xC223 plus algorithm for CHAP) in the first CONFREQ from the driver; TestAuthProtoRejectClearsMethod asserts the option is absent once authentication is no longer desired, so an unconditional option goes red there.",
@@ -123,15 +123,19 @@
       "verdict": "weak"
     },
     "RFC1334-x-1": {
-      "note": "Forbidden: an implementation that includes CHAP offering PAP before offering CHAP in LCP negotiation. The positive TestDefaultAuthFallbackOrder asserts only the helper list [CHAP-MD5, MS-CHAPv2, PAP]; the negative TestSelectAuthFallback asserts a CHAP-only order refuses a PAP suggestion, which is downgrade refusal, a neighbouring rule. No tagged unit drives LCP and asserts the first CONFREQ carries CHAP (0xC223) with PAP offered only after CHAP is refused, and a session configured with AuthMethod PAP opens with PAP regardless of the order list.",
+      "note": "Default path now driven through LCP: TestAuthOffersCHAPBeforePAP reads the first Configure-Request (CHAP 0xc223, never PAP) and the one after a PAP Nak (PAP only when the fallback order holds it). Still missing: sendConfigureRequest offers authMethodToLCPOptions(configuredAuthMethod), so a session configured with AuthMethod PAP opens with PAP while ze includes CHAP. No unit pins that case, and whether operator configuration may override this MUST is an open design question for the owner.",
       "requirement_sha": "b9bbe3e692d702fa",
       "tests": {
         "internal/component/l2tp/ppp/auth_test.go::TestDefaultAuthFallbackOrder": "f630a02fc0831e73",
-        "internal/component/l2tp/ppp/auth_test.go::TestSelectAuthFallback": "f630a02fc0831e73"
+        "internal/component/l2tp/ppp/auth_test.go::TestSelectAuthFallback": "f630a02fc0831e73",
+        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP": "fd24670b993b5659",
+        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "fd24670b993b5659"
       },
       "units": {
         "internal/component/l2tp/ppp/auth_test.go::TestDefaultAuthFallbackOrder": "30409a962cf295b9",
-        "internal/component/l2tp/ppp/auth_test.go::TestSelectAuthFallback": "dea6d9069e7dbadf"
+        "internal/component/l2tp/ppp/auth_test.go::TestSelectAuthFallback": "dea6d9069e7dbadf",
+        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP": "b38caa18171af324",
+        "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "b38caa18171af324"
       },
       "verdict": "weak"
     }

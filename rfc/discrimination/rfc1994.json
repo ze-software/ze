@@ -2,6 +2,28 @@
   "rfc": "rfc1994",
   "records": [
     {
+      "rid": "RFC1994-4.1-10",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded",
+      "unit-sha": "e2d03cc5a9add41c",
+      "claim-sha": "46a5511c557e212d",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
+      "producer-sha": "15bf63c906944976",
+      "break": "body of handleFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1994-4.1-8",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp",
+      "unit-sha": "224ca5d5aa3cdd88",
+      "claim-sha": "375023a02805b490",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
+      "producer-sha": "15bf63c906944976",
+      "break": "body of handleFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1994-4.2-4",
       "polarity": "positive",
       "unit": "internal/component/l2tp/pppoeclient/rfc1994_chap_message_test.go::TestCHAPSuccessMessageDoesNotAffectOutcome",

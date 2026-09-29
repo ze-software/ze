@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC1994-1-1": {
       "note": "Forbidden: a CONFREQ that omits the Authentication-Protocol option while authentication is desired. TestLocalCONFREQAdvertisesAuthMethod starts a session with CHAP-MD5 configured and asserts the CONFREQ carries Auth-Protocol 0xC223 algorithm 0x05 (red if absent); TestAuthProtoRejectClearsMethod asserts that once the peer Configure-Rejects the option and the method becomes None, the resent CONFREQ omits it, over the same producer, so emission follows the desire.",
@@ -14,19 +14,6 @@
       },
       "verdict": "enforced"
     },
-    "RFC1994-1.1-1": {
-      "note": "The sentence is RFC 1994 Section 1.1's definition of MAY (quoted there under 'MAY'): an implementation lacking an optional feature must interoperate with one that has it. It states no CHAP obligation, so the row should be retired with its two tags. Both tagged units (TestNegotiatePeerAuthProtoAccepted, TestNegotiatePeerAuthProtoRejected) read 'option' as the LCP Auth-Protocol option and exercise NegotiatePeerOptions with a PAP option, which is not what the sentence obliges.",
-      "requirement_sha": "1922977fe9bf8842",
-      "tests": {
-        "internal/component/l2tp/ppp/lcp_options_test.go::TestNegotiatePeerAuthProtoAccepted": "01fa50a51e9e09f7",
-        "internal/component/l2tp/ppp/lcp_options_test.go::TestNegotiatePeerAuthProtoRejected": "01fa50a51e9e09f7"
-      },
-      "units": {
-        "internal/component/l2tp/ppp/lcp_options_test.go::TestNegotiatePeerAuthProtoAccepted": "adfaf25857783705",
-        "internal/component/l2tp/ppp/lcp_options_test.go::TestNegotiatePeerAuthProtoRejected": "87ad2aa292c59598"
-      },
-      "verdict": "wrong"
-    },
     "RFC1994-4.1-1": {
       "note": "Forbidden: an authenticator that does not send a Challenge (Code 1). TestCHAPResponseEmitsEvent reads the first wire frame runCHAPAuthPhase writes and asserts protocol 0xC223 and Code CHAPCodeChallenge, red otherwise. Single-polarity marker: there is no must-not-challenge branch.",
       "requirement_sha": "2cd22406261bb6de",
@@ -39,15 +26,15 @@
       "verdict": "enforced"
     },
     "RFC1994-4.1-10": {
-      "note": "The only tagged unit, TestCHAPIdentifierMismatchSilentDiscard, sends mismatched-Identifier Responses DURING the Authentication phase. The requirement is about Responses received in any OTHER phase (outside Authentication and the post-auth Network-Layer phase, e.g. Link Establishment). No unit sends a Response in another phase.",
+      "note": "Single-polarity accepted. TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded hands handleFrame a well-formed CHAP Response in Req-Sent, Ack-Sent (Link Establishment) and Closing (Termination): red on any frame written, any auth or session event, an end, or a state change. The auth-phase unit TestCHAPIdentifierMismatchSilentDiscard no longer claims this row. The annotation still cites the auth-wait mismatch path (auth.go) as a second example; that clause is not this row's.",
       "requirement_sha": "010ca8cb4c6fb229",
       "tests": {
-        "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPIdentifierMismatchSilentDiscard": "1c7c60802d5f0e09"
+        "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded": "f77f40f6ed3b5dd0"
       },
       "units": {
-        "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPIdentifierMismatchSilentDiscard": "e82064e996ae0061"
+        "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded": "2a6f5ead9d5823ae"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC1994-4.1-3": {
       "note": "Forbidden: answering a Response with something other than Success or Failure chosen BY THE COMPARISON. TestCHAPResponseEmitsEvent and TestCHAPRejectWritesFailure inject the decision on s.authRespCh (accept true/false) and assert Code 3/4; the comparison of the received Value with the expected one is not in either unit. Inverting the verifier-to-authRespCh handoff leaves both green, the same two-half gap as RFC1994-4.2-1/4.2-2.",
@@ -111,15 +98,15 @@
       "verdict": "enforced"
     },
     "RFC1994-4.1-8": {
-      "note": "TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp sends a Response with Identifier 0x99 after Success, not a repeat of the Response that earned it (the current Challenge Identifier). It proves a stray Response is tolerated, not a genuinely repeated one.",
+      "note": "Single-polarity accepted. TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp now repeats the Response that earned the Success (challenge Identifier from readCHAPChallengeAndRespond, same 0x33 Value) in the Network-Layer phase: red on EventSessionDown or any lifecycle event, and the session must still answer an LCP Echo-Request. Re-sending the prior reply Code is RFC1994-4.1-9, a recorded gap.",
       "requirement_sha": "8e45ac1b01ccce12",
       "tests": {
-        "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp": "1c7c60802d5f0e09"
+        "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp": "f77f40f6ed3b5dd0"
       },
       "units": {
-        "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp": "1561f26c081325a4"
+        "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp": "0f8832b0e34eb14d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1994-4.2-1": {
       "note": "Proven in two halves: authlocal TestLocalAuthCHAPMD5Accept/Reject prove verifyCHAPMD5 compares the Value, and ppp TestCHAPResponseEmitsEvent/TestCHAPRejectWritesFailure prove an accept/reject decision yields Code 3/4. No tagged unit drives a Response Value through to the wire Code, so inverting the result-to-authRespCh handoff would leave every tag green.",

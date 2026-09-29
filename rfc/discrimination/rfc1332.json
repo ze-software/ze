@@ -24,6 +24,17 @@
       "break": "body of afterLCPOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC1332-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1332_clauses_test.go::TestIPCPOptionsWrittenInLCPFormat",
+      "unit-sha": "28734e2f7d0ed023",
+      "claim-sha": "923fba033eda9cb0",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ipcp.go::writeIPCPv4Option",
+      "producer-sha": "f058a063887518d3",
+      "break": "body of writeIPCPv4Option replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1332-3.3-2",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestIPCPNakCarriesTheAssignedRemoteAddress",
