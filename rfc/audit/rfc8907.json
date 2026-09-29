@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC8907-10-1": {
       "note": "{single-polarity} on the row: no configuration enables the flag. (a) forbidden: any configuration state, including a keyless server, under which the client sends with TAC_PLUS_UNENCRYPTED_FLAG. (b) TestRFC8907UnencryptedModeIsNotReachableFromConfiguration reads the socket: a keyed config puts wire[3]&0x01 == 0 (assert.Zero), a keyless config writes no bytes (assert.Empty); TestRFC8907ClientNeverSendsUnobfuscatedBody requires the wire body to be the pseudo-pad XOR of the plaintext.",
@@ -64,32 +64,40 @@
       "verdict": "enforced"
     },
     "RFC8907-10.5.2-1": {
-      "note": "TestRFC8907ClientRefusesUnobfuscatedReply asserts only the FAIL status for an authentication session; the MUST close the TCP session clause is not asserted, and the authorization-session FAIL path is not exercised",
+      "note": "Rejudged 2026-09-29. Clause (a), keyed server + TAC_PLUS_UNENCRYPTED_FLAG: TestRFC8907ObfuscationMismatchClosesAndFails asserts AUTHEN FAIL and AUTHOR FAIL (the two session kinds the RFC names) AND that the client closed the TCP (probe reads EOF/ECONNRESET after writing a single-connect reply); producer trySend closeAndEvict + sendToServers errObfuscationMismatch->FAIL. Positive TestRFC8907MatchingObfuscationKeepsStatusAndConnection keeps PASS/PASS_ADD and the TCP open, so a client closing on every reply goes red. Clause (b), keyless server + flag clear, cannot arise: Packet.MarshalInto refuses an empty key, so the keyless probe sees no request (asserted); the trySend guard still covers both directions. Old units in rfc8907_obfuscation_test.go remain valid.",
       "requirement_sha": "819fc56a315bc87e",
       "tests": {
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907MatchingObfuscationKeepsStatusAndConnection": "879b13e19509fb75",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ObfuscationMismatchClosesAndFails": "879b13e19509fb75",
         "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientAcceptsObfuscatedReply": "bdf178f3a2f32770",
         "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientRefusesUnobfuscatedReply": "bdf178f3a2f32770"
       },
       "units": {
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907MatchingObfuscationKeepsStatusAndConnection": "ecc8bd38e6f5cf21",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ObfuscationMismatchClosesAndFails": "070d0aecd4b97279",
         "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientAcceptsObfuscatedReply": "2dc14061e67a6397",
         "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientRefusesUnobfuscatedReply": "4969abbf36034547"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-10.5.4-1": {
-      "note": "(a) forbidden: Ze interpreting a shared argument-value pair differently from its defined meaning. (b) TestRFC8907MandatoryCommandPolicyAccepted asserts an exact service/cmd/cmd-arg policy with separators inside the value is enacted, which is one consistent-interpretation case. The negatives (TestRFC8907MandatoryCommandPolicyDenied, TestRFC8907MandatorySessionPolicyDenied) prove the next sentence of Section 10.5.4, unrecognized mandatory argument evaluated as FAIL, which RFC8907-6-1 carries. No assertion covers interpretation of the rest of the base dictionary Ze consumes (priv-lvl is asserted under RFC8907-8.1-1 only).",
+      "note": "Rejudged 2026-09-29. The consistent interpretation of shared values Ze consumes is now proven: priv-lvl 0/1/15 select exactly their profiles, and 16, ' 15', '0x0f', '1.5' are rejected (ErrAuthRejected, no profile); full-width digits refused with no profile; a PASS_REPL naming the same cmd/cmd-arg in order authorizes, and a case or order change denies. Old units keep the unrecognized-mandatory-argument case.",
       "requirement_sha": "09d36698b087b9f7",
       "tests": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsKeepDefinedMeaning": "fb302ebfa0d9b135",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsNeverReinterpreted": "fb302ebfa0d9b135",
         "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyAccepted": "7e3084d65c3e691a",
         "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyDenied": "7e3084d65c3e691a",
         "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatorySessionPolicyDenied": "7e3084d65c3e691a"
       },
       "units": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsKeepDefinedMeaning": "0f98d0756ec86dd4",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsNeverReinterpreted": "e2a7935cd7ff7dcc",
         "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyAccepted": "a6b83fef8cfbc0d2",
         "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyDenied": "79786e270f25c885",
         "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatorySessionPolicyDenied": "347a302bc9732184"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-3.7-1": {
       "note": "(a) forbidden: a username sent without UsernameCasePreserved enforcement: no width mapping, no NFC, case folded, or a PRECIS-disallowed string (control, private use, ZWJ outside context, invalid UTF-8, bidi-rule violation) sent. (b) TestRFC8907UsernameProfileOnWire reads the username off the wire for all three services and requires \"\uff21lice\\u0301\" to arrive as \"Alic\u00e9\" (width-mapped, NFC, case kept); TestRFC8907ForbiddenUsernameNeverSent requires errRequestInvalid and no server contact for \"alice\\x00\", \"alice\\ue000\", \"a\\u200db\", \"\\xff\" and \"\\u05d0a\" on every service.",
@@ -105,45 +113,57 @@
       "verdict": "enforced"
     },
     "RFC8907-3.7-2": {
-      "note": "Clause 'all other text fields' is proven for four fields only: TestRFC8907NonPrintableTextRejected fails on a control, DEL or non-ASCII byte in the PAP password (authen data), an authorization cmd argument, the accounting port, and an authentication server_msg; TestRFC8907PrintableTextRoundTrip is the positive. validateText also guards rem_addr (authen.go:66, author.go:55, acct.go:62), the authentication and authorization port (authen.go:63, author.go:52), accounting arguments (acct.go:78) and the authorization/accounting reply message (reply.go:60,66); removing any of those calls leaves every tagged assertion green.",
+      "note": "Rejudged 2026-09-29. With the old units, every text field Ze writes or reads is now refused on NUL, 0x1f, DEL and a non-ASCII byte: authentication port/rem_addr, authorization port/rem_addr/argument, accounting port/rem_addr/argument, authentication reply server_msg, authorization reply server_msg/data/argument, accounting reply server_msg/data (RFC 6.2/7.2 route those data fields to Section 3.7). Negative request cases leave every other field empty/valid, so validateText is the refusing check. Authentication reply data and START/CONTINUE data are correctly excluded (not a printable text encoding). Positive TestRFC8907PrintableTextInEveryField carries all 95 printable characters through each field.",
       "requirement_sha": "c4518c7c60c9828f",
       "tests": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907ControlCharactersRefusedInEveryField": "fb302ebfa0d9b135",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PrintableTextInEveryField": "fb302ebfa0d9b135",
         "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907TrustedDispatchIdentitiesReachWire": "3bb85e6ab2672ec2",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907NonPrintableTextRejected": "59ca691aca621600",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907PrintableTextRoundTrip": "59ca691aca621600"
       },
       "units": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907ControlCharactersRefusedInEveryField": "2f78ce5595cd37b7",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PrintableTextInEveryField": "3196fc4f383f2370",
         "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907TrustedDispatchIdentitiesReachWire": "9b0a0d4ecc9853c3",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907NonPrintableTextRejected": "009a3334741c80df",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907PrintableTextRoundTrip": "395f1ecdb73e393a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-4-1": {
-      "note": "validateResponseHeader compares the reply major nibble with the request, not with 0xc, and the test server echoes the request version: a client emitting major 0xD stays green in both TestTacacsClientAuthenticatePass and the wrong-major-version case; no tagged unit asserts the emitted major version is 0xc",
+      "note": "Rejudged 2026-09-29. Positive TestRFC8907EveryRequestCarriesMajorVersion12 reads the captured request header (not an echo) and requires major nibble 0xc for authentication, authorization and accounting, so a client emitting 0xd goes red. Negative TestRFC8907ReplyWithOtherMajorVersionRefused mutates only the reply major nibble (header check runs before the body is read) for all 15 other values x 3 kinds and requires error + zero status; producer validateResponseHeader.",
       "requirement_sha": "8401b7be0414da04",
       "tests": {
         "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "cbb58d00c914079a",
-        "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader": "cbb58d00c914079a"
+        "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader": "cbb58d00c914079a",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907EveryRequestCarriesMajorVersion12": "879b13e19509fb75",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOtherMajorVersionRefused": "879b13e19509fb75"
       },
       "units": {
         "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "40c135cf6049f3c4",
-        "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader": "00ca9353da5902e6"
+        "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader": "00ca9353da5902e6",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907EveryRequestCarriesMajorVersion12": "2bd864dcf94b81d1",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOtherMajorVersionRefused": "c1cbadd445d5cedb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-4-2": {
-      "note": "tests assert reply seq == request seq+1 only; the echoing test server hides the client parity (a client sending seq 2 would get 3 and pass), and the seq-7 negative is refused for not being seq+1, not for being odd from a server",
+      "note": "Rejudged 2026-09-29. Positive TestRFC8907ClientSendsOddSequenceNumbers reads the captured request seq_no and requires it odd for all 3 kinds, closing the old echo-server hole (a client sending 2 now goes red). Negative TestRFC8907ReplyWithOddSequenceNumberRefused sends each of the 128 odd server seq_no values x 3 kinds and requires refusal; only the reply seq_no differs.",
       "requirement_sha": "8778ccaa92c999c4",
       "tests": {
         "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "cbb58d00c914079a",
-        "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader": "cbb58d00c914079a"
+        "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader": "cbb58d00c914079a",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ClientSendsOddSequenceNumbers": "879b13e19509fb75",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOddSequenceNumberRefused": "879b13e19509fb75"
       },
       "units": {
         "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "40c135cf6049f3c4",
-        "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader": "00ca9353da5902e6"
+        "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader": "00ca9353da5902e6",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ClientSendsOddSequenceNumbers": "4356a589584f42a2",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOddSequenceNumberRefused": "16ee2565dce3673b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-4-3": {
       "note": "TestRFC8907SessionIDComesFromCryptoRand substitutes crypto/rand.Reader and requires the id to be exactly those octets; TestRandomSessionIDDistinct adds cross-session distinctness",
@@ -159,39 +179,49 @@
       "verdict": "enforced"
     },
     "RFC8907-4-4": {
-      "note": "TestTacacsClientAuthenticatePass asserts only status and server_msg; the test server always echoes session_id, so removing the client mismatch guard or changing the id would stay green; single-polarity marker acknowledges no negative",
+      "note": "Rejudged 2026-09-29 after the invalid {single-polarity} marker was removed (correction recorded). Negative TestRFC8907ReplyChangingSessionIDRefused flips bit 0, bit 31 and all bits of the reply session_id (only field changed; type/version/seq/flags intact so the trySend session_id guard is the refusing check) for 3 kinds and requires error + zero status. Positive TestRFC8907ReplyKeepingSessionIDAccepted is the accepting path for all 3 kinds.",
       "requirement_sha": "8bf61ab756a32be3",
       "tests": {
-        "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "cbb58d00c914079a"
+        "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "cbb58d00c914079a",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyChangingSessionIDRefused": "879b13e19509fb75",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyKeepingSessionIDAccepted": "879b13e19509fb75"
       },
       "units": {
-        "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "40c135cf6049f3c4"
+        "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "40c135cf6049f3c4",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyChangingSessionIDRefused": "82f1d57802fd0072",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyKeepingSessionIDAccepted": "3d9c92c431514763"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-4-5": {
-      "note": "TestPacketHeaderMarshalRoundTrip is a symmetric marshal/unmarshal round trip with no wire-octet assertion: a little-endian codec on both sides passes",
+      "note": "Rejudged 2026-09-29. TestRFC8907LengthsAreUnsignedNetworkOrder asserts fixed wire octets for session_id and length (an independent big-endian oracle: a little-endian codec goes red), reads length 0xFFFFFFFE as unsigned, and reads 2-octet reply lengths 0x0100 and 0x8001 big-endian and unsigned in authentication, authorization and accounting replies (request lengths are 1 octet). {single-polarity: positive} holds: byte order has no refusal path. The marker's prose still describes the old symmetric round trip and should be refreshed; the argument itself stands.",
       "requirement_sha": "22d5d46137a82b66",
       "tests": {
-        "internal/component/tacacs/packet_test.go::TestPacketHeaderMarshalRoundTrip": "56fada5674164c83"
+        "internal/component/tacacs/packet_test.go::TestPacketHeaderMarshalRoundTrip": "56fada5674164c83",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907LengthsAreUnsignedNetworkOrder": "879b13e19509fb75"
       },
       "units": {
-        "internal/component/tacacs/packet_test.go::TestPacketHeaderMarshalRoundTrip": "0a077676a43d30f6"
+        "internal/component/tacacs/packet_test.go::TestPacketHeaderMarshalRoundTrip": "0a077676a43d30f6",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907LengthsAreUnsignedNetworkOrder": "0ff257e746c0100e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-4.1-1": {
-      "note": "Only the data field is asserted: TestRFC8907ZeroLengthDataIsReadAsAbsent (data_len 0 -> Empty) and TestRFC8907PresentZeroByteIsNotReadAsAbsent (one zero byte retained). The quote binds any variable-length field whose length is zero (server_msg, user, port, rem_addr, reply arguments); no tagged assertion goes red if another zero-length field were read as present or read past.",
+      "note": "Rejudged 2026-09-29. New units extend the old data-only proof to server_msg, data and reply arguments in all three reply kinds: TestRFC8907ZeroLengthFieldsAreNotPresent requires empty msg/data and that zero-length arguments yield no entry (Args == [a=b]); TestRFC8907PresentFieldsFollowZeroLengthOnes requires present fields read at the offsets the zero-length fields leave (read-past goes red). Request-side fields are written by Ze, not read.",
       "requirement_sha": "e3e572c6aacc5767",
       "tests": {
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907PresentFieldsFollowZeroLengthOnes": "879b13e19509fb75",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ZeroLengthFieldsAreNotPresent": "879b13e19509fb75",
         "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907PresentZeroByteIsNotReadAsAbsent": "23c0bdfae4121070",
         "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ZeroLengthDataIsReadAsAbsent": "23c0bdfae4121070"
       },
       "units": {
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907PresentFieldsFollowZeroLengthOnes": "a3cf9fa4638ec0c1",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ZeroLengthFieldsAreNotPresent": "b63066283ddbb965",
         "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907PresentZeroByteIsNotReadAsAbsent": "0c8a09a1ad89c050",
         "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ZeroLengthDataIsReadAsAbsent": "2a45fc2fc267a767"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-4.1-2": {
       "note": "(a) forbidden: a session's first packet with a seq_no other than 1, or accepting a reply that does not follow it. (b) TestRFC8907FirstPacketCarriesSequenceOne requires requests[0].SeqNo == 1 on each new connection; TestRFC8907ReplyReusingSequenceOneIsRefused requires a reply carrying seq_no 1 to fail Authenticate and validateResponseHeader to report \"sequence mismatch\". The increment clause is descriptive (\"will\").",
@@ -246,17 +276,19 @@
       "verdict": "enforced"
     },
     "RFC8907-4.3-3": {
-      "note": "(a) forbidden: failing a later session, or writing to the dead socket, after the server closed an established single-connect TCP. TestRFC8907ServerClosureOfPooledConnectionIsAccommodated goes red on that (authenticatePass, require.Len connections 2, requestsOn(1) 1). The negative-tagged TestRFC8907ClosureOnFreshDialIsNotRetried asserts a neighbouring property (a closure on a fresh dial is not retried), which does not violate this requirement, and the row carries no {single-polarity} marker, so only one genuine polarity exists.",
+      "note": "Rejudged 2026-09-29. Positive TestRFC8907ServerClosureOfPooledConnectionIsAccommodated (closure between sessions) and new TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated (server reads session 3's request on the established single-connect TCP, closes unanswered; session 3 must PASS on a fresh TCP, counts [3,1]) both go red if the client fails a session after the closure; producer sendReceive pooled retry. The negative-tagged TestRFC8907ClosureOnFreshDialIsNotRetried still asserts a neighbouring property (fresh-dial closure not retried) and is mistagged; it adds nothing to this row and should be retagged.",
       "requirement_sha": "1acd59d07e0a92f9",
       "tests": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClosureOnFreshDialIsNotRetried": "78ab2498fce332a1",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ServerClosureOfPooledConnectionIsAccommodated": "78ab2498fce332a1"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ServerClosureOfPooledConnectionIsAccommodated": "78ab2498fce332a1",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated": "879b13e19509fb75"
       },
       "units": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClosureOnFreshDialIsNotRetried": "d8ed71650cabc88b",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ServerClosureOfPooledConnectionIsAccommodated": "d90b80cd13c69610"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ServerClosureOfPooledConnectionIsAccommodated": "d90b80cd13c69610",
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated": "f9bde66d9e84471a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-4.4-1": {
       "note": "(a) forbidden: applying an ERROR reply as a result (terminal rejection) instead of behaving as if the server were unreachable. (b) TestRFC8907ErrorUsesBackupServer fails for authentication, authorization and accounting unless the backup is contacted and its status 1 is returned with no error; TestRFC8907FailDoesNotUseBackupServer is the discriminating pair: a FAIL keeps failStatus and never contacts the backup.",
@@ -298,17 +330,19 @@
       "verdict": "enforced"
     },
     "RFC8907-4.6-1": {
-      "note": "Clause 'the sum is not identical' has two directions. TestRFC8907TrailingReplyBytesRejected proves only sum < datalength (one trailing decrypted byte -> error, status 0) for all three services, and TestRFC8907ExactReplyLengthsAccepted is the positive. No tagged unit sends component lengths whose sum exceeds datalength, so the other half of the inequality (reply.go:56 total != len(body), and the earlier truncation guards) is unasserted.",
+      "note": "Rejudged 2026-09-29. The missing direction is now proven: TestRFC8907OverlongReplyComponentsRejected sends replies whose server_msg_len, data_len or argument length sums past the datalength, for all three kinds, and requires error + zero status (discard and ERROR). The < direction (TestRFC8907TrailingReplyBytesRejected) and exact positive (TestRFC8907ExactReplyLengthsAccepted) stand; producer validateReplyBody.",
       "requirement_sha": "3ad5559b6a36797e",
       "tests": {
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907OverlongReplyComponentsRejected": "879b13e19509fb75",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907ExactReplyLengthsAccepted": "59ca691aca621600",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907TrailingReplyBytesRejected": "59ca691aca621600"
       },
       "units": {
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907OverlongReplyComponentsRejected": "868d2f2ee5219f3a",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907ExactReplyLengthsAccepted": "f5de926cf26ce67c",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907TrailingReplyBytesRejected": "31ac6a0bb353fdc7"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-5.1-1": {
       "note": "(a) forbidden: a START with no username whose user_len is not 0. (b) TestRFC8907AuthenStartAbsentUserWritesZeroLength requires body[4] == 0, no user bytes and the port at offset 8; TestRFC8907AuthenStartPresentUserWritesItsLength requires body[4] == len(\"alice\") and the user bytes.",
@@ -337,30 +371,38 @@
       "verdict": "enforced"
     },
     "RFC8907-5.4.2.2-2": {
-      "note": "Clause 'MUST contain a username' has no red assertion in a tagged unit: TestRFC8907PAPStartCarriesUserAndPassword asserts the user and data fields when a username is given, and the absent-username refusal lives only in the untagged TestRFC8907PAPRequiresPresentBoundedUsername. TestRFC8907PAPStartRefusesPasswordItCannotCarry proves a length bound, not presence of the password. The data-field-is-the-password clause is enforced.",
+      "note": "Rejudged 2026-09-29. Positive TestRFC8907PAPStartOnWireCarriesUserAndPassword decodes the START from the wire and requires user=alice and data=the password. Negative TestRFC8907PAPStartWithoutUsernameNeverSent requires errRequestInvalid and that the server is never contacted, the tagged red assertion for 'MUST contain a username' the old verdict lacked.",
       "requirement_sha": "f14c5cd02fa6c83c",
       "tests": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPStartOnWireCarriesUserAndPassword": "fb302ebfa0d9b135",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPStartWithoutUsernameNeverSent": "fb302ebfa0d9b135",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907PAPStartCarriesUserAndPassword": "226ab125232efc32",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907PAPStartRefusesPasswordItCannotCarry": "226ab125232efc32"
       },
       "units": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPStartOnWireCarriesUserAndPassword": "c68eab0768cfd384",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPStartWithoutUsernameNeverSent": "60451a065203bb93",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907PAPStartCarriesUserAndPassword": "70d2f3b0cc48094e",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907PAPStartRefusesPasswordItCannotCarry": "b76421e1633c0862"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-5.4.2.6-2": {
-      "note": "Clause 1 ('MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE') has no assertion and no annotation: Ze sets only authenServiceLogin (authen.go:176) and never requests ENABLE, but the row carries no {single-polarity} or {not-applicable} argument for that half. Clause 2 is covered, though the two tagged units are one assertion wearing two hats (Equal LOGIN implies NotEqual ENABLE).",
-      "requirement_sha": "e66d117b37a1611f",
+      "note": "Rejudged 2026-09-29 on the narrowed row (verbatim second sentence of 5.4.2.6; the first sentence is RFC8907-5.4.2.6-1, feature-declined; correction recorded). Negative TestRFC8907NoRequestCarriesEnableService checks the authen_service octet of all five requests Ze sends (PAP START and session/command authorization from the wire, accounting START/STOP) and requires none be 0x02; it is no longer the positive's assertion in a second hat. Positive TestRFC8907PAPLoginOnWireCarriesLoginService requires LOGIN on the wire START.",
+      "requirement_sha": "7d1952978907e2f7",
       "tests": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907NoRequestCarriesEnableService": "fb302ebfa0d9b135",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPLoginOnWireCarriesLoginService": "fb302ebfa0d9b135",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907LoginStartCarriesLoginService": "226ab125232efc32",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907LoginStartNeverCarriesEnableService": "226ab125232efc32"
       },
       "units": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907NoRequestCarriesEnableService": "343bf3bc5a2d3e45",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPLoginOnWireCarriesLoginService": "305e717107f48a1d",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907LoginStartCarriesLoginService": "04f220c0abc1be87",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907LoginStartNeverCarriesEnableService": "ca342f3735210996"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-5.4.3-1": {
       "note": "(a) forbidden: processing RESTART as anything but FAIL. (b) TestRFC8907RestartIsProcessedAsFail requires ErrorIs aaa.ErrAuthRejected, Authenticated false and Source == backendName; TestRFC8907ErrorIsNotProcessedAsFail is the discriminating pair: ERROR must not be ErrAuthRejected.",
@@ -393,17 +435,21 @@
       "verdict": "enforced"
     },
     "RFC8907-6.1-1": {
-      "note": "(a) forbidden: a user_len that is not the BYTE length of the user field (for example a character count). Both tagged units use ASCII users, where bytes and characters coincide: TestRFC8907AuthorRequestUserLenMatchesUser asserts body[4] == 5 and the five user bytes for \"alice\", and TestRFC8907AuthorRequestRefusesUserItCannotMeasure asserts a 256-byte ASCII user is refused. A user_len computed as a rune count stays green; the multi-byte case (\"Alic\u00e9\") is asserted only in TestRFC8907UsernameProfileOnWire, tagged to RFC8907-3.7-1.",
+      "note": "Rejudged 2026-09-29. Positive TestRFC8907AuthorUserLenCountsBytes: 'Alic\u00e9' writes user_len 6 (a rune count writes 5) and a 255-byte multibyte user writes 255, with the user bytes read back at that length. Negative TestRFC8907AuthorUserLenRefusesRuneCount: 128 runes / 256 bytes is refused, which a rune-count producer would accept.",
       "requirement_sha": "5209b5d5e3658a33",
       "tests": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorUserLenCountsBytes": "fb302ebfa0d9b135",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorUserLenRefusesRuneCount": "fb302ebfa0d9b135",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthorRequestRefusesUserItCannotMeasure": "226ab125232efc32",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthorRequestUserLenMatchesUser": "226ab125232efc32"
       },
       "units": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorUserLenCountsBytes": "e04032703e56317a",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorUserLenRefusesRuneCount": "84bcb0d1578609a5",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthorRequestRefusesUserItCannotMeasure": "80e65480c6b77237",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthorRequestUserLenMatchesUser": "e925a943e4a6cdab"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-6.1-2": {
       "note": "(a) forbidden: an argument whose name contains = or *. (b) TestRFC8907ArgumentNamesCarryNoSeparator requires every built name to be service, cmd or cmd-arg; TestRFC8907ArgumentValueKeepsSeparatorOutOfName requires splitTacacsArgs(\"set key=a*b value=*\") to equal exactly service=shell, cmd=set, cmd-arg=key=a*b, cmd-arg=value=*, so a token carried as a name goes red.",
@@ -464,17 +510,21 @@
       "verdict": "enforced"
     },
     "RFC8907-7-1": {
-      "note": "producer (acct.go flag switch) allowlists START, STOP, WATCHDOG and WATCHDOG|START, but the tagged units probe only the 0x01 bit; a denylist of 0x01 alone would pass, and bits 0x10-0x80 are never exercised",
+      "note": "Rejudged 2026-09-29. Positive TestRFC8907AccountingValidFlagsWritten writes 0x02, 0x04, 0x08 and 0x0a unchanged. Negative TestRFC8907AccountingOtherFlagsRefused refuses all 252 other values (every undefined bit 0x01, 0x10-0x80 and invalid combinations) and SendAccounting refuses 0x82 before contacting the server. Producer acct.go MarshalBinaryInto allowlist switch; a denylist now goes red.",
       "requirement_sha": "53789bea9b4985eb",
       "tests": {
         "internal/component/tacacs/acct_test.go::TestAcctRequestMarshalStartStop": "75b965d7ba21dabe",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingOtherFlagsRefused": "fb302ebfa0d9b135",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingValidFlagsWritten": "fb302ebfa0d9b135",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingMoreFlagRefused": "59ca691aca621600"
       },
       "units": {
         "internal/component/tacacs/acct_test.go::TestAcctRequestMarshalStartStop": "72b09318dca8a267",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingOtherFlagsRefused": "e6756f70e1fc889f",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingValidFlagsWritten": "2a442778a380b1e0",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingMoreFlagRefused": "71625675e53b5e7c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-7-2": {
       "note": "(a) forbidden: a request carrying START and STOP together. (b) TestRFC8907AccountingStartStopCombinationRefused requires errors.Is(err, errRequestInvalid) for Flags START|STOP; TestAcctRequestMarshalStartStop marshals START and STOP as separate flags.",
@@ -505,17 +555,21 @@
       "verdict": "enforced"
     },
     "RFC8907-8-1": {
-      "note": "The quote binds every use case the Section 8 dictionary serves. The tagged units assert only command accounting: TestRFC8907CommandRecordsUseDictionaryArguments requires service/cmd/cmd-arg/task_id/start_time|stop_time and TestRFC8907CommandRecordsCarryNoForeignArgument refuses names outside the dictionary. Authorization requests (command and session) are not asserted under this row, and the 8.2 rows that carry them are themselves weak.",
+      "note": "Rejudged 2026-09-29. Every request kind Ze sends is now asserted: authorization (command request exactly service/cmd/cmd-arg, session request service=shell cmd=) in TestRFC8907AuthorizationRequestsUseDictionaryArguments and TestRFC8907AuthorizationRequestsCarryNoForeignArgument, accounting in the old units. Exact equality catches a private name substituted for a dictionary one.",
       "requirement_sha": "26e18f76bdc02ed1",
       "tests": {
         "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsCarryNoForeignArgument": "d6e03486f174ca78",
-        "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsUseDictionaryArguments": "d6e03486f174ca78"
+        "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsUseDictionaryArguments": "d6e03486f174ca78",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsCarryNoForeignArgument": "fb302ebfa0d9b135",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsUseDictionaryArguments": "fb302ebfa0d9b135"
       },
       "units": {
         "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsCarryNoForeignArgument": "97416f9111420695",
-        "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsUseDictionaryArguments": "3ab587f0228eaaf6"
+        "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsUseDictionaryArguments": "3ab587f0228eaaf6",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsCarryNoForeignArgument": "2f91e5709d9c92e9",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsUseDictionaryArguments": "f38c2773f033550f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-8.1-1": {
       "note": "(a) forbidden: processing a numeric argument whose length Ze cannot accommodate, or not applying Section 6.1 to it. (b) TestRFC8907InvalidMandatoryPrivilegeDenied asserts ErrAuthRejected and zero profiles for priv-lvl=18446744073709551631 and a 242-digit value (mandatory -> authorization failed); TestRFC8907OverlongOptionalPrivilegeCannotElevate asserts the overlong optional priv-lvl is disregarded (profile ops); TestRFC8907SessionPrivilegeApplied is the positive (priv-lvl=15 -> admin). priv-lvl is the only numeric argument Ze processes; timeout and others are refused as unsupported mandatory.",
@@ -533,43 +587,55 @@
       "verdict": "enforced"
     },
     "RFC8907-8.1-2": {
-      "note": "(a) forbidden: an absolute date/time in local time, or not in epoch seconds, without a timezone argument. (b) TestRFC8907StartTimeIsEpochSeconds bounds start_time to time.Now().Unix(); TestRFC8907StartTimeIgnoresLocalZone sets time.Local five hours east and asserts no shift and no timezone argument. stop_time, the other absolute date/time Ze emits (accounting.go line 189), has no assertion, so a local-zone stop_time passes.",
+      "note": "Rejudged 2026-09-29. stop_time, the missing absolute time, is now proven: TestRFC8907StopTimeIsEpochSeconds bounds it to [before, after] Unix seconds and TestRFC8907StopTimeIgnoresLocalZone sets time.Local +5h and requires no shift and no timezone argument. start_time stays proven by the old units.",
       "requirement_sha": "3a30b1b834c434bb",
       "tests": {
         "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIgnoresLocalZone": "d6e03486f174ca78",
-        "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIsEpochSeconds": "d6e03486f174ca78"
+        "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIsEpochSeconds": "d6e03486f174ca78",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIgnoresLocalZone": "fb302ebfa0d9b135",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIsEpochSeconds": "fb302ebfa0d9b135"
       },
       "units": {
         "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIgnoresLocalZone": "5575bac2053d64e5",
-        "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIsEpochSeconds": "05f7a1f59bd3f453"
+        "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIsEpochSeconds": "05f7a1f59bd3f453",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIgnoresLocalZone": "46db4b1cef137e88",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIsEpochSeconds": "d4452373c871d278"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-8.2-1": {
-      "note": "(a) forbidden: an authorization or accounting request without a service argument. (b) TestRFC8907ServiceArgumentAlwaysFirst and TestRFC8907ServiceArgumentPresentForEmptyCommand assert service=shell only for splitTacacsArgs, the command-authorization builder. The session authorization request built in authenticator.go (args service=shell, cmd=) and the accounting records have no assertion in a unit tagged to this row, so \"always\" is proven for one request kind.",
+      "note": "Rejudged 2026-09-29. Service is now asserted on every request kind: command and session authorization (service=shell first) and accounting START/STOP (TestRFC8907EveryRequestKindLeadsWithService); TestRFC8907NoRequestKindOmitsService requires exactly one service in each, including the session request with empty cmd and records for an argless command.",
       "requirement_sha": "7f9a985396b9707b",
       "tests": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907EveryRequestKindLeadsWithService": "fb302ebfa0d9b135",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907NoRequestKindOmitsService": "fb302ebfa0d9b135",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ServiceArgumentAlwaysFirst": "226ab125232efc32",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ServiceArgumentPresentForEmptyCommand": "226ab125232efc32"
       },
       "units": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907EveryRequestKindLeadsWithService": "278b68576476b606",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907NoRequestKindOmitsService": "6b4634725c038654",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ServiceArgumentAlwaysFirst": "783dc461fff0dad6",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ServiceArgumentPresentForEmptyCommand": "e87e579a1606d398"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-8.2-2": {
-      "note": "(a) forbidden: a service=shell request without a cmd argument. (b) TestRFC8907CmdArgumentFollowsShellService and TestRFC8907CmdArgumentPresentForEmptyCommand assert cmd= after service=shell only for splitTacacsArgs. The session authorization request (authenticator.go, service=shell with cmd=) is not asserted by a unit tagged to this row.",
+      "note": "Rejudged 2026-09-29. Every service=shell request now carries cmd under a tagged unit: command request cmd=show, session request cmd=, accounting START/STOP cmd=show (TestRFC8907EveryShellRequestCarriesCmd); TestRFC8907ShellRequestNeverLacksCmd covers the edge inputs (empty session cmd, argless 'show' records); old units cover the empty command in splitTacacsArgs.",
       "requirement_sha": "f2f920e25a78b039",
       "tests": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907EveryShellRequestCarriesCmd": "fb302ebfa0d9b135",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907ShellRequestNeverLacksCmd": "fb302ebfa0d9b135",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907CmdArgumentFollowsShellService": "226ab125232efc32",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907CmdArgumentPresentForEmptyCommand": "226ab125232efc32"
       },
       "units": {
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907EveryShellRequestCarriesCmd": "4cc7600757ee3290",
+        "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907ShellRequestNeverLacksCmd": "400e238fbab05863",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907CmdArgumentFollowsShellService": "013bc5ae53e97bdd",
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907CmdArgumentPresentForEmptyCommand": "18fda4ee84c9c121"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8907-8.3-1": {
       "note": "(a) forbidden: a Section 8.2 argument (service, cmd, cmd-arg) before task_id/start_time/stop_time in an accounting record. (b) TestRFC8907AccountingArgumentsPrecedeAuthorizationOnes asserts task_id and start_time (START) and task_id and stop_time (STOP) index below service; TestRFC8907NoAuthorizationArgumentPrecedesAccountingOne fails on any service/cmd/cmd-arg seen before task_id or start_time in START. Both records share accountingArguments.",

@@ -9,7 +9,7 @@
       "claim-sha": "ea72bbf27c125959",
       "route": "revert",
       "producer": "internal/component/tacacs/client.go::trySend",
-      "producer-sha": "9936079104575840",
+      "producer-sha": "521ecbc2921e4804",
       "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -20,7 +20,7 @@
       "claim-sha": "91841bb7608bbf3e",
       "route": "revert",
       "producer": "internal/component/tacacs/client.go::trySend",
-      "producer-sha": "9936079104575840",
+      "producer-sha": "521ecbc2921e4804",
       "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -47,14 +47,179 @@
     },
     {
       "rid": "RFC8907-10.5.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907MatchingObfuscationKeepsStatusAndConnection",
+      "unit-sha": "67e61b8582c39074",
+      "claim-sha": "2aca54a4e13e8b43",
+      "route": "revert",
+      "producer": "internal/component/tacacs/client.go::trySend",
+      "producer-sha": "521ecbc2921e4804",
+      "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-10.5.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ObfuscationMismatchClosesAndFails",
+      "unit-sha": "d99c0b77d8f8672d",
+      "claim-sha": "59e8a6bdcac0f073",
+      "route": "revert",
+      "producer": "internal/component/tacacs/client.go::trySend",
+      "producer-sha": "521ecbc2921e4804",
+      "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-10.5.2-1",
       "polarity": "negative",
       "unit": "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientRefusesUnobfuscatedReply",
       "unit-sha": "5e673ef225a53fe2",
       "claim-sha": "ec13a7df1abc0263",
       "route": "revert",
       "producer": "internal/component/tacacs/client.go::trySend",
-      "producer-sha": "9936079104575840",
+      "producer-sha": "521ecbc2921e4804",
       "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-10.5.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsKeepDefinedMeaning",
+      "unit-sha": "43e683cc3c0fb6b9",
+      "claim-sha": "576f6522e2e05b79",
+      "route": "revert",
+      "producer": "internal/component/tacacs/authenticator.go::handlePass",
+      "producer-sha": "c3e748f7dee05762",
+      "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-10.5.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsNeverReinterpreted",
+      "unit-sha": "8904b0c0e6af2806",
+      "claim-sha": "f493973339d32d32",
+      "route": "revert",
+      "producer": "internal/component/tacacs/authenticator.go::handlePass",
+      "producer-sha": "c3e748f7dee05762",
+      "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-3.7-2",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907ControlCharactersRefusedInEveryField",
+      "unit-sha": "700c8fb258263cfd",
+      "claim-sha": "1d7febc780b71be8",
+      "route": "revert",
+      "producer": "internal/component/tacacs/text.go::validateText",
+      "producer-sha": "1c82eb7b52721ba9",
+      "break": "body of validateText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-3.7-2",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PrintableTextInEveryField",
+      "unit-sha": "d07c8593041f59b7",
+      "claim-sha": "e7be5d6c35352f88",
+      "route": "revert",
+      "producer": "internal/component/tacacs/text.go::validateText",
+      "producer-sha": "1c82eb7b52721ba9",
+      "break": "body of validateText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907EveryRequestCarriesMajorVersion12",
+      "unit-sha": "36baaead828810e8",
+      "claim-sha": "1eb4fc8fd4cc149b",
+      "route": "revert",
+      "producer": "internal/component/tacacs/authen.go::Version",
+      "producer-sha": "3ea82201d29a9b82",
+      "break": "body of Version replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOtherMajorVersionRefused",
+      "unit-sha": "5749639876e948c0",
+      "claim-sha": "2314f1af4eac2b4d",
+      "route": "revert",
+      "producer": "internal/component/tacacs/client.go::validateResponseHeader",
+      "producer-sha": "48e12afe17dae9cf",
+      "break": "body of validateResponseHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-4-2",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ClientSendsOddSequenceNumbers",
+      "unit-sha": "893ee084e1e2c38a",
+      "claim-sha": "596da0442f1e131d",
+      "route": "revert",
+      "producer": "internal/component/tacacs/client.go::trySend",
+      "producer-sha": "521ecbc2921e4804",
+      "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-4-2",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOddSequenceNumberRefused",
+      "unit-sha": "b4dbef67fedff3e0",
+      "claim-sha": "6f9b73395a30905b",
+      "route": "revert",
+      "producer": "internal/component/tacacs/client.go::validateResponseHeader",
+      "producer-sha": "48e12afe17dae9cf",
+      "break": "body of validateResponseHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-4-4",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyChangingSessionIDRefused",
+      "unit-sha": "891d3842b20c7398",
+      "claim-sha": "c522e2814fc1c6b4",
+      "route": "revert",
+      "producer": "internal/component/tacacs/client.go::trySend",
+      "producer-sha": "521ecbc2921e4804",
+      "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-4-4",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyKeepingSessionIDAccepted",
+      "unit-sha": "17acc0523a01b11b",
+      "claim-sha": "56de5938e23d2bf3",
+      "route": "revert",
+      "producer": "internal/component/tacacs/client.go::randomSessionID",
+      "producer-sha": "3689504f67ef7c21",
+      "break": "body of randomSessionID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-4-5",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907LengthsAreUnsignedNetworkOrder",
+      "unit-sha": "a175a6eb1adfc2ae",
+      "claim-sha": "82259a317b2dc2cd",
+      "route": "revert",
+      "producer": "internal/component/tacacs/packet.go::MarshalBinary",
+      "producer-sha": "9f21892fdbc520cb",
+      "break": "body of MarshalBinary replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907PresentFieldsFollowZeroLengthOnes",
+      "unit-sha": "829efb8d5dfdc90d",
+      "claim-sha": "6c2d1f8a3059157a",
+      "route": "revert",
+      "producer": "internal/component/tacacs/author.go::UnmarshalAuthorResponse",
+      "producer-sha": "1d17a621ff401177",
+      "break": "body of UnmarshalAuthorResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-4.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ZeroLengthFieldsAreNotPresent",
+      "unit-sha": "7d6f0d742e0cf61c",
+      "claim-sha": "11d3f28fbb1e0072",
+      "route": "revert",
+      "producer": "internal/component/tacacs/author.go::UnmarshalAuthorResponse",
+      "producer-sha": "1d17a621ff401177",
+      "break": "body of UnmarshalAuthorResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8907-4.1-1",
@@ -108,7 +273,7 @@
       "claim-sha": "ffc93c4e6405f7cd",
       "route": "revert",
       "producer": "internal/component/tacacs/client.go::trySend",
-      "producer-sha": "9936079104575840",
+      "producer-sha": "521ecbc2921e4804",
       "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +284,7 @@
       "claim-sha": "7f529efb9a84dd26",
       "route": "revert",
       "producer": "internal/component/tacacs/client.go::trySend",
-      "producer-sha": "9936079104575840",
+      "producer-sha": "521ecbc2921e4804",
       "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +295,7 @@
       "claim-sha": "e6295600da06600a",
       "route": "revert",
       "producer": "internal/component/tacacs/client.go::trySend",
-      "producer-sha": "9936079104575840",
+      "producer-sha": "521ecbc2921e4804",
       "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +306,7 @@
       "claim-sha": "d36a62c2c52f8118",
       "route": "revert",
       "producer": "internal/component/tacacs/client.go::trySend",
-      "producer-sha": "9936079104575840",
+      "producer-sha": "521ecbc2921e4804",
       "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -152,7 +317,7 @@
       "claim-sha": "f751bdebfb8608e9",
       "route": "revert",
       "producer": "internal/component/tacacs/client.go::trySend",
-      "producer-sha": "9936079104575840",
+      "producer-sha": "521ecbc2921e4804",
       "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -167,6 +332,17 @@
       "break": "body of sendReceive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8907-4.3-3",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated",
+      "unit-sha": "d72a1ed2dec35e24",
+      "claim-sha": "e5f7765a72e10910",
+      "route": "revert",
+      "producer": "internal/component/tacacs/client.go::sendReceive",
+      "producer-sha": "3d6a045a6eeca3cc",
+      "break": "body of sendReceive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8907-4.4-2",
       "polarity": "negative",
       "unit": "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions",
@@ -174,7 +350,7 @@
       "claim-sha": "cd9f5bd573cf0edf",
       "route": "revert",
       "producer": "internal/component/tacacs/client.go::trySend",
-      "producer-sha": "9936079104575840",
+      "producer-sha": "521ecbc2921e4804",
       "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -207,8 +383,19 @@
       "claim-sha": "14e7bf8350a2868c",
       "route": "revert",
       "producer": "internal/component/tacacs/client.go::trySend",
-      "producer-sha": "9936079104575840",
+      "producer-sha": "521ecbc2921e4804",
       "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-4.6-1",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907OverlongReplyComponentsRejected",
+      "unit-sha": "d0b66911771f94a5",
+      "claim-sha": "e46ad0ff69a09d9a",
+      "route": "revert",
+      "producer": "internal/component/tacacs/reply.go::validateReplyBody",
+      "producer-sha": "aa26ebb72fe8fa1f",
+      "break": "body of validateReplyBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8907-5.1-1",
@@ -240,7 +427,7 @@
       "claim-sha": "9c92f8e23a9cd201",
       "route": "revert",
       "producer": "internal/component/tacacs/client.go::trySend",
-      "producer-sha": "9936079104575840",
+      "producer-sha": "521ecbc2921e4804",
       "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -253,6 +440,28 @@
       "producer": "internal/component/tacacs/client.go::Authenticate",
       "producer-sha": "b0c23789bfe8697a",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-5.4.2.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPStartOnWireCarriesUserAndPassword",
+      "unit-sha": "43be7b51919d887f",
+      "claim-sha": "51dd0b4090b8c8b6",
+      "route": "revert",
+      "producer": "internal/component/tacacs/authen.go::NewPAPAuthenStart",
+      "producer-sha": "15000cb3e5c110af",
+      "break": "body of NewPAPAuthenStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-5.4.2.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPStartWithoutUsernameNeverSent",
+      "unit-sha": "d5926ef384db3815",
+      "claim-sha": "6528a643b224e578",
+      "route": "revert",
+      "producer": "internal/component/tacacs/authen.go::MarshalBinaryInto",
+      "producer-sha": "8fa98677a3b14d93",
+      "break": "body of MarshalBinaryInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8907-5.4.2.2-2",
@@ -275,6 +484,28 @@
       "producer": "internal/component/tacacs/authen.go::MarshalBinaryInto",
       "producer-sha": "8fa98677a3b14d93",
       "break": "body of MarshalBinaryInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-5.4.2.6-2",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907NoRequestCarriesEnableService",
+      "unit-sha": "71923df6952b618b",
+      "claim-sha": "6d14f95834f9f3d9",
+      "route": "revert",
+      "producer": "internal/component/tacacs/authenticator.go::handlePass",
+      "producer-sha": "c3e748f7dee05762",
+      "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-5.4.2.6-2",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPLoginOnWireCarriesLoginService",
+      "unit-sha": "90a2fa0ddcd57681",
+      "claim-sha": "79ebd2199332bfdd",
+      "route": "revert",
+      "producer": "internal/component/tacacs/authen.go::NewPAPAuthenStart",
+      "producer-sha": "15000cb3e5c110af",
+      "break": "body of NewPAPAuthenStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8907-5.4.2.6-2",
@@ -319,6 +550,28 @@
       "producer": "internal/component/tacacs/authenticator.go::Authenticate",
       "producer-sha": "40b2508ca0d5e457",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-6.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorUserLenCountsBytes",
+      "unit-sha": "937342d4b7c20285",
+      "claim-sha": "cd86411bb3e5031d",
+      "route": "revert",
+      "producer": "internal/component/tacacs/author.go::MarshalBinaryInto",
+      "producer-sha": "3997589e42113e1f",
+      "break": "body of MarshalBinaryInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-6.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorUserLenRefusesRuneCount",
+      "unit-sha": "ec2dbbe28f760eb6",
+      "claim-sha": "bff73623d89ae5cf",
+      "route": "revert",
+      "producer": "internal/component/tacacs/author.go::MarshalBinaryInto",
+      "producer-sha": "3997589e42113e1f",
+      "break": "body of MarshalBinaryInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8907-6.1-1",
@@ -387,6 +640,28 @@
       "break": "body of authorize replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8907-7-1",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingOtherFlagsRefused",
+      "unit-sha": "30a36ff802b62cdd",
+      "claim-sha": "f00376a4588c7f69",
+      "route": "revert",
+      "producer": "internal/component/tacacs/acct.go::MarshalBinaryInto",
+      "producer-sha": "c81aa1e00bbddb1b",
+      "break": "body of MarshalBinaryInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-7-1",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingValidFlagsWritten",
+      "unit-sha": "961c637f208f9e8d",
+      "claim-sha": "714153a2088231a6",
+      "route": "revert",
+      "producer": "internal/component/tacacs/acct.go::MarshalBinaryInto",
+      "producer-sha": "c81aa1e00bbddb1b",
+      "break": "body of MarshalBinaryInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8907-7.2-1",
       "polarity": "positive",
       "unit": "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StopRecordCarriesStopFlagOnly",
@@ -431,6 +706,28 @@
       "break": "body of CommandStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8907-8-1",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsCarryNoForeignArgument",
+      "unit-sha": "b32a352b50a1ab46",
+      "claim-sha": "f117d31b78cfde49",
+      "route": "revert",
+      "producer": "internal/component/tacacs/authenticator.go::handlePass",
+      "producer-sha": "c3e748f7dee05762",
+      "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-8-1",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsUseDictionaryArguments",
+      "unit-sha": "091a79ef2133d960",
+      "claim-sha": "d9e4542e23b44bf7",
+      "route": "revert",
+      "producer": "internal/component/tacacs/authorizer.go::splitTacacsArgs",
+      "producer-sha": "819675c57be7f0b0",
+      "break": "body of splitTacacsArgs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8907-8.1-2",
       "polarity": "negative",
       "unit": "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIgnoresLocalZone",
@@ -453,6 +750,50 @@
       "break": "body of CommandStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8907-8.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIgnoresLocalZone",
+      "unit-sha": "4a4c8c661dcd2fca",
+      "claim-sha": "5a26fcdf8a045ea5",
+      "route": "revert",
+      "producer": "internal/component/tacacs/accounting.go::commandStop",
+      "producer-sha": "ce5ff485f17be390",
+      "break": "body of commandStop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-8.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIsEpochSeconds",
+      "unit-sha": "bf14e22df4a03dfc",
+      "claim-sha": "978c3a175228049c",
+      "route": "revert",
+      "producer": "internal/component/tacacs/accounting.go::commandStop",
+      "producer-sha": "ce5ff485f17be390",
+      "break": "body of commandStop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-8.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907EveryRequestKindLeadsWithService",
+      "unit-sha": "ac682597635bbe34",
+      "claim-sha": "ecaa302fa72efe58",
+      "route": "revert",
+      "producer": "internal/component/tacacs/authenticator.go::handlePass",
+      "producer-sha": "c3e748f7dee05762",
+      "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-8.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907NoRequestKindOmitsService",
+      "unit-sha": "b545550f12dc019f",
+      "claim-sha": "85ca3a4270ef7feb",
+      "route": "revert",
+      "producer": "internal/component/tacacs/authorizer.go::splitTacacsArgs",
+      "producer-sha": "819675c57be7f0b0",
+      "break": "body of splitTacacsArgs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8907-8.2-1",
       "polarity": "positive",
       "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ServiceArgumentAlwaysFirst",
@@ -473,6 +814,28 @@
       "producer": "internal/component/tacacs/authorizer.go::splitTacacsTokens",
       "producer-sha": "bef583b61647e3ca",
       "break": "body of splitTacacsTokens replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-8.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907EveryShellRequestCarriesCmd",
+      "unit-sha": "ebb70e8180124d8e",
+      "claim-sha": "eff87eec76ec9262",
+      "route": "revert",
+      "producer": "internal/component/tacacs/authenticator.go::handlePass",
+      "producer-sha": "c3e748f7dee05762",
+      "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-8.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907ShellRequestNeverLacksCmd",
+      "unit-sha": "b6d7e3e0ab99aa9b",
+      "claim-sha": "78f5491aacb50203",
+      "route": "revert",
+      "producer": "internal/component/tacacs/authorizer.go::splitTacacsArgs",
+      "producer-sha": "819675c57be7f0b0",
+      "break": "body of splitTacacsArgs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8907-8.2-2",
