@@ -34,6 +34,8 @@ var (
 	errMupDsdRequiresAddress   = errors.New("MUP DSD requires address")
 	errMupT1stRequiresPrefix   = errors.New("MUP T1ST requires prefix")
 	errMupT2stRequiresAddress  = errors.New("MUP T2ST requires address")
+	errTeidValue               = errors.New("teid value is not a 32-bit unsigned integer")
+	errTeidBits                = errors.New("teid bit length is not an integer from 0 to 32")
 )
 
 // mupParsed holds parsed route-type fields and computed data size.
@@ -336,7 +338,10 @@ func parseT1STFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 		}
 	}
 
-	f.teid, f.teidBits = parseTEIDWithBits(spec.TEID)
+	f.teid, f.teidBits, err = parseTEIDWithBits(spec.TEID)
+	if err != nil {
+		return mupParsed{}, err
+	}
 
 	// Compute data size: prefix + TEID(4 if set) + QFI(1) + endpoint + source.
 	size := MUPPrefixLen(prefix)
@@ -364,7 +369,10 @@ func parseT2STFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 	if err != nil {
 		return mupParsed{}, fmt.Errorf("invalid T2ST endpoint %q: %w", spec.Address, err)
 	}
-	teid, bits := parseTEIDWithBits(spec.TEID)
+	teid, bits, err := parseTEIDWithBits(spec.TEID)
+	if err != nil {
+		return mupParsed{}, err
+	}
 	return mupParsed{
 		ep:       ep,
 		teid:     teid,
@@ -431,22 +439,37 @@ func writeT2STData(buf []byte, off int, f mupParsed) int {
 }
 
 // parseTEIDWithBits parses a TEID string "value/bits" into numeric TEID and bit length.
-// If no bit specifier, defaults to 32 bits. Empty string returns (0, 0).
-func parseTEIDWithBits(s string) (uint32, int) {
+// If no bit specifier, defaults to 32 bits. Empty string returns (0, 0, nil).
+//
+// A value or a bit length that does not parse is refused, never read as zero or as the
+// 32-bit default, so an operator typo cannot change the route ze advertises.
+func parseTEIDWithBits(s string) (uint32, int, error) {
 	if s == "" {
-		return 0, 0
+		return 0, 0, nil
 	}
-	parts := strings.Split(s, "/")
-	if len(parts) != 2 {
-		v, _ := strconv.ParseUint(s, 10, 32)
-		return uint32(v), 32 //nolint:gosec // validated by ParseUint with bitSize 32
-	}
-	v, _ := strconv.ParseUint(parts[0], 10, 32)
-	bits, err := strconv.Atoi(parts[1])
+	valueText, bitsText, hasBits := strings.Cut(s, "/")
+	v, err := strconv.ParseUint(valueText, 10, 32)
 	if err != nil {
-		bits = 32
+		return 0, 0, fmt.Errorf("%w: %q", errTeidValue, s)
 	}
-	return uint32(v), bits //nolint:gosec // validated by ParseUint with bitSize 32
+	if !hasBits {
+		return uint32(v), 32, nil //nolint:gosec // validated by ParseUint with bitSize 32
+	}
+	bits, err := strconv.Atoi(bitsText)
+	if err != nil {
+		return 0, 0, fmt.Errorf("%w: %q", errTeidBits, s)
+	}
+	// draft-ietf-bess-mup-safi Section 3.1.4.1: "The maximum length of TEID is 4 octets."
+	// and "The Endpoint Length MUST NOT extend beyond the TEID field." The T2ST Endpoint
+	// Length is the address bits plus these bits, so a bit length past 32 would make the
+	// Endpoint Length extend beyond the TEID field.
+	if bits < 0 {
+		return 0, 0, fmt.Errorf("%w: %q", errTeidBits, s)
+	}
+	if bits > 32 {
+		return 0, 0, fmt.Errorf("%w: %q", errTeidBits, s)
+	}
+	return uint32(v), bits, nil //nolint:gosec // validated by ParseUint with bitSize 32
 }
 
 // writeTEIDWithBits writes TEID with the specified bit length into buf at off.

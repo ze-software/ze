@@ -1,23 +1,28 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "DRAFT-IETF-BESS-MUP-SAFI-3.1-1": {
-      "note": "the tagged unit drives ParseMUP, the decode-path parser, and asserts an unknown route type is returned as a parsed MUP value and the next NLRI is reached; it never asserts the unknown route is ignored on receipt. The ingress decision is RecognizeNLRI (rfc7606.go), which no tag of this row exercises",
+      "note": "rfc_mup_ingress_test.go drives nlritype.Get(fam)+nlritype.Retain, the call typedNLRIEdit (reactor/session_validation_nlritype.go) makes at ingress. Positive TestMUPOtherRouteTypesSilentlyIgnoredAtIngress: route types 0/5/99/0xFFFF under arch 1 dropped (dropped==4), no error, ISD kept byte for byte, both AFIs; red on a recognizer that keeps them or on an error. Negative TestMUPDefinedRouteTypesSurviveIngress: types 1..4 kept whole, red on an over-broad ignore. The older ParseMUP positive (TestRFCMUPUnknownRouteTypeIsNotRejected) proves only the decode path skips the NLRI by its Length; it adds no clause. 'silently' is proven as no error from Retain; the Debug log line in typedNLRIEdit is not asserted, and the RFC 7606 Section 6 log is not a violation of silent ignore at protocol level. Revert records observed red for each unit",
       "requirement_sha": "67906b468e34c9bf",
       "tests": {
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "946ae0f68bfc34f0",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress": "946ae0f68bfc34f0",
         "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "2c05a008b471eab3"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "22f7eba5844edcf0",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress": "a6abd295ee9a4d69",
         "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "02f586692359fc91"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10": {
       "note": "asserts ParseMUP returns ErrMUPTLV for a TLV Length overrun on the decode path; nothing asserts Treat-as-withdraw, and ingress never walks TLVs, so the route is stored",
       "requirement_sha": "20d0ce7c2dfefab5",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "eb1fede070958e5a",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming#2": "eb1fede070958e5a"
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "6ad3461470a7d893",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming#2": "6ad3461470a7d893"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "5d81c00952fa1be0",
@@ -29,8 +34,8 @@
       "note": "asserts ParseMUP returns ErrMUPTruncated, which is the decode path (DecodeNLRIHex, RunCLIDecode); nothing asserts Treat-as-withdraw, and ingress (SplitMUP framing, RecognizeNLRI arch/route type) stores such a route, so the test would stay green with the MUST unmet",
       "requirement_sha": "e24f1fbf9098af39",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength": "eb1fede070958e5a",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "eb1fede070958e5a"
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength": "6ad3461470a7d893",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "6ad3461470a7d893"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength": "3d378f518f8e6810",
@@ -42,8 +47,8 @@
       "note": "asserts ParseMUP returns ErrMUPTLV for one leftover octet on the decode path; nothing asserts Treat-as-withdraw, and ingress (SplitMUP framing, RecognizeNLRI arch/route type) never validates TLVs, so the route is stored",
       "requirement_sha": "3bffe26dbac60e46",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "eb1fede070958e5a",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming#2": "eb1fede070958e5a"
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "6ad3461470a7d893",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming#2": "6ad3461470a7d893"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "5d81c00952fa1be0",
@@ -51,66 +56,85 @@
       },
       "verdict": "weak"
     },
-    "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-8": {
-      "note": "The positive drives ParseMUP (the decode path) with unknown TLV 0xF0 and asserts every mandatory field equals the TLV-less route, so a refusing decoder goes red. The negative tag sits on a truncated TLV, which is the -10 framing rule, not a violation of this row, and no {single-polarity} marker stands in for it. Ingress (SplitMUP framing, RecognizeNLRI) is never exercised, so a future ingress TLV check that refused unknown types would stay green.",
-      "requirement_sha": "70f1ba4d39ed7115",
-      "tests": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "eb1fede070958e5a",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "eb1fede070958e5a"
-      },
-      "units": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "bbdb56a990114e09",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "bbdb56a990114e09"
-      },
-      "verdict": "weak"
-    },
     "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9": {
-      "note": "asserts MUP.Bytes() reproduces the parsed NLRI with the unknown TLV; re-advertisement does not re-encode through Bytes, it forwards the NLRI stored opaque by SplitMUP/insertPoolNLRIs, so the path the row names is not exercised",
+      "note": "Propagate clause: TestMUPUnknownTLVPropagatedUnchangedAtIngress asserts the section kept by nlritype.Retain with the registered recognizer (the section typedNLRIEdit relays) equals the received T1ST with unknown TLV 0xF0, both unchanged and when a sibling unknown route type forces the rebuild; red on any re-encode that strips or rewrites the TLV. Local-processing clause: ParseMUP of the kept route yields the TEID and endpoint of the TLV-less route (and TestMUPT1STUnknownTLVIgnoredAndPropagated pins prefix, bits, TEID, QFI, endpoint, and that only a framing error refuses). Negatives: TestMUPUnknownTLVNotStrippedAtIngress pins length +5, Length octet +5, trailing TLV octets; the tlv_mup_test negative pins Bytes() is not the TLV-less form. The negatives are the complement of the positives' byte equality rather than an independent input, acceptable for a propagate-unchanged obligation. Records observed red for every unit (Retain, validateTLVs, ParseMUP)",
       "requirement_sha": "c620e18c21726490",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "eb1fede070958e5a",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "eb1fede070958e5a"
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPUnknownTLVNotStrippedAtIngress": "946ae0f68bfc34f0",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPUnknownTLVPropagatedUnchangedAtIngress": "946ae0f68bfc34f0",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "6ad3461470a7d893",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "6ad3461470a7d893",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#3": "6ad3461470a7d893"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "bbdb56a990114e09",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "bbdb56a990114e09"
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPUnknownTLVNotStrippedAtIngress": "51238897887ca798",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPUnknownTLVPropagatedUnchangedAtIngress": "87985026e384a02b",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "da27b4d90bb6d0d1",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "da27b4d90bb6d0d1",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#3": "da27b4d90bb6d0d1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3": {
-      "note": "The sentence binds the encoding of Endpoint Length, and ze's encoder (encode.go EncodeRoute, writeTEIDWithBits, parseTEIDWithBits) is driven by no tagged assertion, so an encoder that wrote address bits plus more than 32 stays green. The unit proves only receive-side refusal on the decode path: IPv4 Endpoint Length 64 parses with TEID 0x3039 and 72 is refused ErrMUPEndpointTooLong (types.go, one AFI-independent check). Ingress (SplitMUP, RecognizeNLRI) never applies the bound, so such a route is stored and forwarded.",
+      "note": "Encoder (the sender side the MUST NOT binds): TestMUPT2STEncoderKeepsEndpointLengthWithinTEID asserts EncodeNLRIHex writes Endpoint Length address bits + 0/16/32 (32 default) for IPv4 and IPv6; TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID asserts teid bits 33 and 40 (v4, v6), -8 and unreadable are refused with errTeidBits. Author observed all five negatives red on HEAD's parseTEIDWithBits (D-8 defect fixed in encode.go, re-checked at the producer: both callers propagate the error). Decode path: TestMUPT2STEndpointLengthBoundedByTEID, 64 parses, 72 refused ErrMUPEndpointTooLong. Not covered here: ingress (RecognizeNLRI) does not refuse an over-long Endpoint Length from a peer, so such a route is stored and relayed; that receive handling is the Section 3.1.4 malformed rule (3.1.4-1, a disclosed {gap}), not this sentence",
       "requirement_sha": "6f8aa7a201b2de95",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID": "eb1fede070958e5a",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID#2": "eb1fede070958e5a"
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPT2STEncoderKeepsEndpointLengthWithinTEID": "946ae0f68bfc34f0",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID": "946ae0f68bfc34f0",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID": "6ad3461470a7d893",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID#2": "6ad3461470a7d893"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPT2STEncoderKeepsEndpointLengthWithinTEID": "9b156ea648b7bdd8",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID": "621f3be132ec321a",
         "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID": "34448cf8e7194f90",
         "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID#2": "34448cf8e7194f90"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.3-1": {
-      "note": "positive checks the ipv4/mup and ipv6/mup family constants and codec round trip, not a session negotiating and exchanging MUP NLRI for both AFIs; negative asserts the codec rejects non-MUP families, which the sentence does not state",
+      "note": "TestMUPSessionNegotiatesBothAFIs proves capability.Negotiate yields ipv4/mup and ipv6/mup when BOTH sides advertise both; TestMUPSessionMissingAFIIsNotNegotiated proves RFC 4760 intersection when the peer omits one. Both assert generic multiprotocol negotiation fed hand-built capabilities, not that ze acting as PE or MUP Controller establishes a session for both AFIs: nothing ties ze's MUP configuration to offering both families, and the negative is a peer's omission, not ze violating this sentence. Ze runs no PE or controller function (Meta), so the obligation reduces to operator configuration. Missing: a test from ze's config/OPEN producer that a MUP-enabled session offers both AFIs (and refuses or flags one-AFI), or a role ruling moving the row to a {gap}. The older rfc_mup_safi_test tags check family constants and codec scope, which the sentence does not state",
       "requirement_sha": "b64f2c5f469e4df2",
       "tests": {
         "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPFamiliesCoverBothAFIs": "2c05a008b471eab3",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPRejectsNonMUPFamily": "2c05a008b471eab3"
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPRejectsNonMUPFamily": "2c05a008b471eab3",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated": "7bbb3a39e85757ed",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs": "7bbb3a39e85757ed"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPFamiliesCoverBothAFIs": "cd644f71943efb51",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPRejectsNonMUPFamily": "9fc78a1d7e8210eb"
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPRejectsNonMUPFamily": "9fc78a1d7e8210eb",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated": "b1ad325f8c4ad04c",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs": "f7616911b0dda874"
       },
       "verdict": "weak"
     },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.3.6-4": {
+      "code": {
+        "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI": "91465ffbb3b2646f"
+      },
+      "note": "Read RecognizeNLRI (rfc7606.go): it reads architecture and route type only, and typedNLRIEdit passes it the NLRI section alone. No code in internal/component/bgp reads a Prefix-SID locator or compares a DSD MP_REACH next hop with it (reactor Prefix-SID code handles RFC 8669 Section 8 egress only), so a DSD route with a mismatched next hop is stored, not treated as withdraw. The {gap} annotation and Meta row disclose it",
+      "requirement_sha": "7cdee95c209f5c36",
+      "verdict": "unimplemented"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.3.6-5": {
+      "code": {
+        "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI": "91465ffbb3b2646f"
+      },
+      "note": "Read RecognizeNLRI (rfc7606.go) and its caller typedNLRIEdit: the ingress pass judges each MUP NLRI by architecture and route type, never consults the UPDATE's path attributes, and session_validation.go has no MUP or Prefix-SID presence rule, so a DSD route arriving without a Prefix-SID attribute is stored, not treated as withdraw. The {gap} annotation and Meta row disclose it",
+      "requirement_sha": "d9443a00a9aea8b4",
+      "verdict": "unimplemented"
+    },
     "DRAFT-IETF-BESS-MUP-SAFI-3.3.7-2": {
-      "note": "asserts EncodeRoute puts a T1ST in MP_REACH_NLRI with the route's AFI and SAFI 85; the clause 'to all other BGP speakers within the SRv6 domain' is not asserted, so the unit proves one clause of the row",
+      "note": "Positives (TestMUPSessionNegotiatesBothAFIs second tag, rfc_mup_safi_test EncodeRoute tag) prove a T1ST goes out in MP_REACH_NLRI with the route's AFI and SAFI 85, and the new one that this family was negotiated; the {single-polarity: positive} argument holds for that AFI/SAFI clause (EncodeRoute has no other SAFI). The clause 'to all other BGP speakers within the SRv6 domain' is not asserted by any tag: no test drives an announcement to more than one peer, and ze runs no controller function. Missing: a reactor-level test that a locally originated T1ST reaches every established peer that negotiated the family",
       "requirement_sha": "ad623a1fdd672d27",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPAnnounceUsesRouteAFIWithMUPSAFI": "2c05a008b471eab3"
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPAnnounceUsesRouteAFIWithMUPSAFI": "2c05a008b471eab3",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs": "7bbb3a39e85757ed"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPAnnounceUsesRouteAFIWithMUPSAFI": "94220b0eb85a5c0e"
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPAnnounceUsesRouteAFIWithMUPSAFI": "94220b0eb85a5c0e",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs": "f7616911b0dda874"
       },
       "verdict": "weak"
     }

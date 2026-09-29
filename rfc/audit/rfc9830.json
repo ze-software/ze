@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC9830-2.1-2": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies. Forbidden: a length octet other than 96 for AFI 1 or other than 192 for AFI 2. Red: assert.Equal(byte(96), v4[0]) and assert.Equal(byte(192), v6[0]) on EncodeNLRIHex output, with assert.Len on the 12/24-octet body. Negative: Parse(AFIIPv6, 12-octet body) require.ErrorIs ErrSRPolicyTruncated, and SplitSRPolicy refuses a 100-bit length.",
@@ -170,6 +170,16 @@
       },
       "verdict": "weak"
     },
+    "RFC9830-2.4.2-12": {
+      "code": {
+        "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDNullSubTLV": "d781b2653f726e07",
+        "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDSubTLV": "28b0bf99d3c8bdd4",
+        "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildSRv6BindingSIDSubTLV": "5e4b79076052a458"
+      },
+      "note": "Read srpolicy/config.go: buildBindingSIDSubTLV writes type 13 length 6 (SR-MPLS) and buildBindingSIDNullSubTLV type 13 length 2; buildSRv6BindingSIDSubTLV writes an SRv6 BSID only as sub-TLV 20 (length 18). No path writes sub-TLV 13 with an 18-octet SRv6 value. The {gap} annotation and the Support remaining row disclose it",
+      "requirement_sha": "892563ceabbf007d",
+      "verdict": "unimplemented"
+    },
     "RFC9830-2.4.2-2": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV. Forbidden: two Binding SID sub-TLVs. Red: assert.Len(srpAll(repeated, subTLVBindingSID), 1) for 'binding-sid mpls 24000 binding-sid null'. Negative: none configured, none emitted (assert.Empty).",
       "requirement_sha": "e60461388f148763",
@@ -184,8 +194,8 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.2-4": {
-      "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV asserts require.Len(withBSID, 6) for SR-MPLS and require.Len(noBSID, 2) for null, both red on a wrong length. The 18-octet clause (SRv6 BSID in sub-TLV 13) has no assertion: ze has no producer for it (buildBindingSIDSubTLV, buildBindingSIDNullSubTLV in config.go), but the row carries no single-polarity or scope annotation saying so, so one of three listed cases is unproven.",
-      "requirement_sha": "2eb89040f8bd3745",
+      "note": "Row narrowed to the two clauses ze produces: 6 with an SR-MPLS BSID, 2 with none (the 18-octet SRv6 clause split to RFC9830-2.4.2-12, a {gap}). TestRFC9830BindingSIDSubTLV asserts require.Len(withBSID, 6) from a binding-sid mpls config and require.Len(noBSID, 2) from binding-sid null, through the sub-TLV the config encoder emits; a constant-length or swapped encoder fails one of them. Revert records observed red for both tags (buildBindingSIDSubTLV, buildBindingSIDNullSubTLV). The label-width defect (spec-bgp-sr-policy-rfc-defects D2) will change buildBindingSIDSubTLV and stale the positive record",
+      "requirement_sha": "2f3d1ac097d58295",
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "f1e61f246e4da117",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "f1e61f246e4da117"
@@ -194,7 +204,8 @@
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "6eaba5e67a485e4c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "6eaba5e67a485e4c"
       },
-      "verdict": "weak"
+      "upgrade_reason": "The earlier weak verdict rested only on the unproven 18-octet SRv6 clause, which the row no longer states (split to RFC9830-2.4.2-12 {gap}). Re-read the narrowed row, RFC 9830 Section 2.4.2 and the unchanged unit: both remaining clauses are asserted exactly, and each tag now carries an observed-red record",
+      "verdict": "enforced"
     },
     "RFC9830-2.4.2-6": {
       "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the Binding SID Flags unassigned bits to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under no row: RFC9830-2.4.2-5 is a {gap}, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the Binding SID Flags unassigned bits; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation. CODE DEFECT: the transmission clause is violated, buildBindingSIDSubTLV writes 0x10 (unassigned bit 3) into the Flags octet (srpolicy/config.go:385).",

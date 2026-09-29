@@ -79,7 +79,7 @@ func TestMUPT1STTLVFraming(t *testing.T) {
 
 // TestMUPT1STUnknownTLVIgnoredAndPropagated pins what happens to a TLV type ze does not know.
 //
-// VALIDATES: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-8 and -9, an unknown TLV changes no decoded
+// VALIDATES: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9, an unknown TLV changes no decoded
 // field and rides the re-encoded NLRI byte for byte.
 // PREVENTS: refusing a route over a TLV ze does not read, or dropping that TLV on
 // re-advertisement.
@@ -90,9 +90,9 @@ func TestMUPT1STUnknownTLVIgnoredAndPropagated(t *testing.T) {
 	base, _, err := ParseMUP(AFIIPv4, plain)
 	require.NoError(t, err)
 
-	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-8 positive -- a route carrying an
+	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9 positive -- a route carrying an
 	// unknown TLV type parses, and its prefix, TEID, QFI and endpoint are those of the same
-	// route without the TLV.
+	// route without the TLV, so the unknown TLV is ignored for local processing.
 	m, rest, err := ParseMUP(AFIIPv4, withUnknown)
 	require.NoError(t, err, "an unknown TLV type is ignored for local processing")
 	assert.Empty(t, rest)
@@ -102,9 +102,7 @@ func TestMUPT1STUnknownTLVIgnoredAndPropagated(t *testing.T) {
 	assert.Equal(t, base.qfi, m.qfi)
 	assert.Equal(t, base.endpoint, m.endpoint)
 
-	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-8 negative -- the unknown TLV is not
-	// refused: the parse of the route that carries it never reports an error, where a TLV
-	// that is malformed rather than unknown does.
+	// Contrast: a TLV that is malformed rather than unknown is refused.
 	_, _, err = ParseMUP(AFIIPv4, t1stNLRI(t, t1stBody+"00"+"F0"))
 	assert.ErrorIs(t, err, ErrMUPTLV, "only a framing error refuses, not an unknown type")
 

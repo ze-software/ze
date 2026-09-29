@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc9830",
+  "records": [
+    {
+      "rid": "RFC9830-2.4.2-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV",
+      "unit-sha": "106d92c42e659307",
+      "claim-sha": "315de010d18449b7",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDSubTLV",
+      "producer-sha": "ef348fa91a8bc932",
+      "break": "body of buildBindingSIDSubTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.2-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV",
+      "unit-sha": "106d92c42e659307",
+      "claim-sha": "149d9665ac529eed",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDNullSubTLV",
+      "producer-sha": "2ee62a9290331886",
+      "break": "body of buildBindingSIDNullSubTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
