@@ -1,18 +1,27 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5549-4-1": {
-      "note": "Sentence: MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair. Forbidden: sending an IPv6 next hop for IPv4 NLRI to a peer that did not advertise the tuple; red on it: require.False in TestCanUseNextHopFor_CrossFamilyNoCap and the absent-tuple assert in TestNegotiateExtendedNextHopMismatch. Unproven clauses: VPN-IPv4 NLRI (no unit drives SAFI 128), and the per-pair clause (no unit shows a tuple negotiated for IPv4/unicast does not license VPN-IPv4 or the reverse). The units test the canUseNextHopFor helper, not the UPDATE build path.",
+      "note": "Superseded row restating RFC8950-4-1; same judgement. Sentence: MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair. Now proven on next-hop-self resolution: TestRFC8950IPv6NextHopFollowsTheNegotiatedPair drives Peer.resolveNextHop with ExtNH for 1/1 only, 1/128 only and neither, asserting the IPv6 address only for the licensed pair and ErrNextHopIncompatible with no address otherwise, so the VPN-IPv4 and per-pair clauses are covered. Still unproven: (a) an explicit next hop -- resolveNextHop returns NextHopExplicit unchecked ('validated by the wire builder'), and UpdateBuilder emits MP_REACH with the given next hop for any non-unicast SAFI (message/update_build.go) with no ExtNH test, so an explicit IPv6 next hop for VPN-IPv4 without the pair negotiated has no unit that would go red; (b) a forwarded route whose IPv6 next hop is left unchanged toward a peer lacking the pair. No unit builds or inspects an UPDATE.",
       "requirement_sha": "eef7f1476d7f202a",
       "tests": {
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "f87129e8344233a1",
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "f87129e8344233a1",
+        "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "d594579e92237315",
+        "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "d594579e92237315",
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "79de3d0b159f3a42",
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "79de3d0b159f3a42"
       },
       "units": {
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "2044d66ac70676f4",
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "3840c6ca12879693",
+        "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "247c511b47d5880f",
+        "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "247c511b47d5880f",
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "7cfa7c59e93867e9",
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "7c2c903b883f0b20"
       },
@@ -47,17 +56,21 @@
       "verdict": "enforced"
     },
     "RFC5549-4-4": {
-      "note": "Same sentence as RFC5549-4-1 (MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair). Red on the IPv4/unicast case: require.False in TestCanUseNextHopFor_CrossFamilyNoCap and TestCanUseNextHopFor_NilSendCtx. Unproven: VPN-IPv4 NLRI and the per-pair clause, and only the canUseNextHopFor helper is driven. The tag prose still calls the row 'the MUST NOT', which the quoted sentence no longer says.",
+      "note": "Superseded row restating RFC8950-4-1; same judgement. Sentence: MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair. Now proven on next-hop-self resolution: TestRFC8950IPv6NextHopFollowsTheNegotiatedPair drives Peer.resolveNextHop with ExtNH for 1/1 only, 1/128 only and neither, asserting the IPv6 address only for the licensed pair and ErrNextHopIncompatible with no address otherwise, so the VPN-IPv4 and per-pair clauses are covered. Still unproven: (a) an explicit next hop -- resolveNextHop returns NextHopExplicit unchecked ('validated by the wire builder'), and UpdateBuilder emits MP_REACH with the given next hop for any non-unicast SAFI (message/update_build.go) with no ExtNH test, so an explicit IPv6 next hop for VPN-IPv4 without the pair negotiated has no unit that would go red; (b) a forwarded route whose IPv6 next hop is left unchanged toward a peer lacking the pair. No unit builds or inspects an UPDATE. The tag prose on TestCanUseNextHopFor_ExtendedNH still says 'the MUST NOT'.",
       "requirement_sha": "eef7f1476d7f202a",
       "tests": {
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "f87129e8344233a1",
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "f87129e8344233a1",
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "f87129e8344233a1"
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "f87129e8344233a1",
+        "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "d594579e92237315",
+        "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "d594579e92237315"
       },
       "units": {
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "2044d66ac70676f4",
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "3840c6ca12879693",
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "73442ab49b6d3c26"
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "73442ab49b6d3c26",
+        "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "247c511b47d5880f",
+        "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "247c511b47d5880f"
       },
       "verdict": "weak"
     },
@@ -65,7 +78,7 @@
       "note": "Forbidden: a route reflector changing the encoding of a next hop it passes along unchanged. Red on it: require.Equal(mpReach, attrs[14]) and the next-hop byte compare in TestReactorForwardRRPreservesExtendedNextHop, which reflects a 16-byte IPv6 next hop for IPv4 NLRI through the reactor forward path. Single-polarity marker on the row.",
       "requirement_sha": "0da09b4f4a31922b",
       "tests": {
-        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesExtendedNextHop": "0aacc49d3f8958ea"
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesExtendedNextHop": "d0bd8fec5ea5f7c7"
       },
       "units": {
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesExtendedNextHop": "36a17730ebd19e1b"

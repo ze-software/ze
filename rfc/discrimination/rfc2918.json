@@ -2,6 +2,28 @@
   "rfc": "rfc2918",
   "records": [
     {
+      "rid": "RFC2918-4-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored",
+      "unit-sha": "3ee62a2585337b85",
+      "claim-sha": "38986968cc01b773",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_handlers.go::routeRefreshFamilyUnadvertised",
+      "producer-sha": "19a2b3eb01a959a1",
+      "break": "body of routeRefreshFamilyUnadvertised replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2918-4-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored",
+      "unit-sha": "3ee62a2585337b85",
+      "claim-sha": "fd1ed11383c38e75",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_handlers.go::routeRefreshFamilyUnadvertised",
+      "producer-sha": "19a2b3eb01a959a1",
+      "break": "body of routeRefreshFamilyUnadvertised replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2918-4-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState",

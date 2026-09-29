@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc8277",
+  "records": [
+    {
+      "rid": "RFC8277-3.2.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go::TestLabeledVPNPropagationUnchangedNextHopKeepsLabels",
+      "unit-sha": "abeb669c838d740c",
+      "claim-sha": "dc66d35ae3a63e2b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler",
+      "producer-sha": "20edac976e6e6ae0",
+      "break": "body of mpReachNextHopHandler replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

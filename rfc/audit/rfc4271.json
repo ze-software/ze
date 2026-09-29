@@ -1,5 +1,6 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4271-10-1": {
       "note": "The units set PeerSettings.ReceiveHoldTime directly and show it reaches that peer's timers and negotiation. The operator configuration path (per-peer hold-time in config, parsePeerFromTree) is not exercised, so 'allow ... to be configurable' is proven only below the entry point.",
@@ -556,17 +557,21 @@
       "verdict": "enforced"
     },
     "RFC4271-6.3-14": {
-      "note": "Revised by RFC 7606. 'If an optional attribute is recognized, then the value MUST be checked' is shown for MED (3 octets -> exact withdrawal, 4 octets kept) only; no unit covers the value check of another recognized optional attribute (COMMUNITIES, ORIGINATOR_ID, CLUSTER_LIST, AGGREGATOR) or the attribute-discard outcome 7606 mandates for some of them.",
+      "note": "Revised by RFC 7606. 'If an optional attribute is recognized, then the value MUST be checked': RFC 4271's own optional attributes, MED (3 octets -> exact withdrawal, 4 kept) and AGGREGATOR (bad length -> discarded, prefix kept, the 'attribute MUST be discarded' clause), are both covered, plus COMMUNITIES and EXTENDED COMMUNITIES (withdraw per 7606 7.8/7.14) with valid values kept byte for byte. Observed-red records on validateCommunityAttr both polarities. ORIGINATOR_ID and CLUSTER_LIST value checks belong to the RFC 4456 / RFC 7606 per-attribute rows, not this generic RFC 4271 row.",
       "requirement_sha": "4345f16d2e0de799",
       "tests": {
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "aa6f044edd716924",
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "aa6f044edd716924",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "585a4bdf82c3828c",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "585a4bdf82c3828c"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "3fbb82b3c24c3e42",
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "3fbb82b3c24c3e42",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-6.3-16": {
       "note": "impossible prefix length and truncated NLRI (and truncated withdrawn) reset with NOTIFICATION 3/10 read off the socket after a good UPDATE was accepted on the same session; a valid prefix is announced",
@@ -606,26 +611,34 @@
       "verdict": "enforced"
     },
     "RFC4271-6.3-5": {
-      "note": "Revised by RFC 7606 3(c) to treat-as-withdraw 'unless the specification for the attribute mandates different handling'. 'Any recognized attribute' is shown for ORIGIN with 0x80 only; no unit covers another well-known or a recognized optional attribute whose flags conflict (where 7606 mandates attribute-discard, e.g. AGGREGATOR), so the per-attribute flag table is proven for one entry.",
+      "note": "Revised by RFC 7606 3(c) to treat-as-withdraw unless the attribute's specification mandates other flag handling. Flag conflicts are decided by one table (AttributeCode.FlagsConflict via validateAttributeFlags). Tagged units now cover ORIGIN (well-known), MED, AGGREGATOR and ATOMIC_AGGREGATE with conflicting Optional/Transitive bits: exact withdraw-only payload, session Established; the same attributes with specified flags keep the prefix and the value byte for byte. AGGREGATOR flags go to withdraw because RFC 7606 7.7 mandates attribute discard only for its length conditions, not for flags. Observed-red records on validateAttributeFlags both polarities.",
       "requirement_sha": "138f66b7cb2afca7",
       "tests": {
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "aa6f044edd716924",
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "aa6f044edd716924",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "585a4bdf82c3828c",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "585a4bdf82c3828c"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "3fbb82b3c24c3e42",
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "3fbb82b3c24c3e42",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-6.3-6": {
-      "note": "Revised by RFC 7606 to treat-as-withdraw. 'Any recognized attribute' with a conflicting length is shown for NEXT_HOP (3 octets) only; the per-attribute length checks for ORIGIN, LOCAL_PREF, ATOMIC_AGGREGATE, AGGREGATOR and others, each a separate expected length and some mandated attribute-discard by 7606, have no assertion in a tagged unit.",
+      "note": "Revised by RFC 7606 to per-attribute outcomes. Tagged units now cover a conflicting length for ORIGIN (withdraw, 7.1), NEXT_HOP (withdraw, 7.3), MED (withdraw), ATOMIC_AGGREGATE and AGGREGATOR (attribute discard with the prefix kept, 7.6/7.7), each against its expected length kept byte for byte, with observed-red records. Still missing: LOCAL_PREF, the one remaining RFC 4271 attribute with a length fixed by its type code (4 octets), has no length case; RFC 7606 7.5 treat-as-withdraw on iBGP is unasserted (both units run eBGP sessions), so a broken validateLocalPrefAttr stays green.",
       "requirement_sha": "1e5216d329f6dc3e",
       "tests": {
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "aa6f044edd716924",
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "aa6f044edd716924",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "585a4bdf82c3828c",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "585a4bdf82c3828c"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "3fbb82b3c24c3e42",
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "3fbb82b3c24c3e42",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
       },

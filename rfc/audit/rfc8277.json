@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC8277-2-2": {
       "note": "Forbidden: a single-label binding transmitted in any layout other than the Section 2.2 one. TestLabeledSingleLabelSection22Encoding goes red on it for LabeledUnicast.WriteTo (require.Equal on the whole encoding, and the Length-octet assertion). The second transmit producer, UpdateBuilder.BuildLabeledUnicastNLRIBytes (internal/component/bgp/message/update_build_labeled.go), which the static-route and grouped-announce paths reach through BuildLabeledUnicast and which writes labels with nlri.WriteLabelValues, is not exercised by any tagged unit, so breaking its layout turns nothing red.",
@@ -98,15 +98,17 @@
       "verdict": "weak"
     },
     "RFC8277-3.2.1-1": {
-      "note": "RA33 strict re-audit: weak. Quote covers SAFI-4 AND SAFI-128 routes. The single tagged unit builds only a SAFI 4 MP_REACH (buildMPReachSource(1, 4, ...)); no SAFI-128 (VPN) propagation with an unchanged next hop is asserted, so a VPN label rewrite stays green. The SAFI-4 half is proven (verbatim MP_REACH, label octets equal).",
+      "note": "Quote covers SAFI-4 and SAFI-128. TestLabeledPropagationUnchangedNextHopKeepsLabels pins SAFI 4 and TestLabeledVPNPropagationUnchangedNextHopKeepsLabels pins SAFI 128: next-hop-unchanged emits no op and mpReachNextHopHandler plans the MP_REACH verbatim, with the Next Hop, label entry, RD and prefix asserted byte for byte. The {single-polarity: positive} annotation holds: the RFC imposes nothing on a changed next hop. Observed-red record on mpReachNextHopHandler.",
       "requirement_sha": "6dcf241796360ebe",
       "tests": {
-        "internal/component/bgp/reactor/rfc8277_test.go::TestLabeledPropagationUnchangedNextHopKeepsLabels": "7b9b6b8e7de6262e"
+        "internal/component/bgp/reactor/rfc8277_test.go::TestLabeledPropagationUnchangedNextHopKeepsLabels": "7b9b6b8e7de6262e",
+        "internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go::TestLabeledVPNPropagationUnchangedNextHopKeepsLabels": "93003d97a3492271"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc8277_test.go::TestLabeledPropagationUnchangedNextHopKeepsLabels": "a4c572b3a1784812"
+        "internal/component/bgp/reactor/rfc8277_test.go::TestLabeledPropagationUnchangedNextHopKeepsLabels": "a4c572b3a1784812",
+        "internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go::TestLabeledVPNPropagationUnchangedNextHopKeepsLabels": "63adabba424c50c7"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc8277"

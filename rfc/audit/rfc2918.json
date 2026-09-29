@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC2918-2-1": {
       "note": "Forbidden: advertising Route Refresh with a code other than 2 or a length other than 0. TestCapabilityWriteTo (capability_test.go) only checks WriteTo writes Len() bytes and that Parse returns the same c.Code(); both sides come from RouteRefresh itself, so a Code() of 3 or a Len() carrying a payload stays green. No assertion names the literal code 2 or the zero length on the emitted bytes. The negative TestOpenRejectsMalformedKnownCapability proves receive-side refusal of length 1, a neighbouring check.",
@@ -73,17 +73,21 @@
       "verdict": "enforced"
     },
     "RFC2918-4-2": {
-      "note": "Forbidden: acting on a ROUTE-REFRESH for an <AFI, SAFI> the speaker did not advertise. The positive TestHandleRouteRefresh_NonNegotiatedFamily asserts only NoError; it installs no callback, so a receiver that delivered the request onward or re-advertised would stay green. The negative TestRouteRefreshValidLengthDelivered proves an advertised family is delivered. Also: handleRouteRefresh keys on the negotiated family set, the RFC on what the speaker advertised.",
+      "note": "Forbidden: acting on a ROUTE-REFRESH for an <AFI, SAFI> the speaker did not advertise. D-8 fix: Session.screenRouteRefresh now applies the family rule on the read path before onMessageReceived, for both call sites. TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored drives ReadAndProcess on an Established session that advertised IPv4/unicast only: positive, an IPv6/unicast refresh reaches no onMessageReceived consumer, draws no bytes on the unbuffered pipe and leaves the session Established; negative, an IPv4/unicast refresh is delivered exactly once with its body unchanged. Observed-red revert records on routeRefreshFamilyUnadvertised for both polarities. The check keys on the negotiated set, a subset of what the speaker advertised, so every unadvertised family is ignored; it additionally ignores a family advertised but not negotiated, which RFC 4760 already forbids acting on. The older positive TestHandleRouteRefresh_NonNegotiatedFamily (NoError only) adds nothing on its own.",
       "requirement_sha": "b5093eb70295d521",
       "tests": {
+        "internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored": "2c6d8ec1cf6b2ea2",
+        "internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored#2": "2c6d8ec1cf6b2ea2",
         "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_NonNegotiatedFamily": "36ad5ca29acc4eb4",
         "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "933b3c0fcb7d9bad"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored": "0ac5a1fabe484f23",
+        "internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored#2": "0ac5a1fabe484f23",
         "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_NonNegotiatedFamily": "014323bd9126baee",
         "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "0bde78dc5372e023"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2918-4-3": {
       "note": "Forbidden: not re-advertising the Adj-RIB-Out of the requested <AFI, SAFI>, or re-advertising another family. TestHandleRefresh_InternalState asserts both IPv4 routes are sent with meta replay and the IPv6 route is not, red on either. The negative TestHandleRefresh_PeerNotUp installs no updateHook and asserts only that peerUp stays false, so a send to a down peer stays green; and no tagged unit exercises the outbound route filtering policy clause.",

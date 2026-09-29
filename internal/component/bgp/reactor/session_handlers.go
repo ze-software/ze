@@ -383,6 +383,52 @@ const (
 	routeRefreshSubtypeOffset = 2
 )
 
+// screenRouteRefresh decides whether a received ROUTE-REFRESH may reach any
+// consumer. It is the one gate both call sites use: the read path before it
+// delivers the message to onMessageReceived, and handleRouteRefresh. It reports
+// ignore for a message ze MUST drop while keeping the session, and returns an
+// error after validateRouteRefreshLength has sent the NOTIFICATION a bad length
+// earns and closed the connection.
+func (s *Session) screenRouteRefresh(body []byte) (bool, error) {
+	ignore, err := s.validateRouteRefreshLength(body)
+	if err != nil {
+		return false, err
+	}
+	if ignore {
+		return true, nil
+	}
+	// RFC 2918 Section 4
+	return s.routeRefreshFamilyUnadvertised(body), nil
+}
+
+// routeRefreshFamilyUnadvertised reports whether a ROUTE-REFRESH names an
+// <AFI, SAFI> outside the families this session negotiated, a set that excludes
+// every family this speaker did not advertise in its OPEN.
+//
+// Before negotiation it answers false: handleRouteRefresh ignores such a message
+// on its own, with its own log line. A body shorter than routeRefreshBodyLen
+// never reaches here, because validateRouteRefreshLength refuses or ignores it.
+func (s *Session) routeRefreshFamilyUnadvertised(body []byte) bool {
+	if s.negotiated == nil {
+		return false
+	}
+	if len(body) < routeRefreshBodyLen {
+		return false
+	}
+	afi := capability.AFI(binary.BigEndian.Uint16(body[0:2]))
+	safi := capability.SAFI(body[3])
+	// RFC 2918 Section 4: "If a BGP speaker receives from its peer a ROUTE-REFRESH
+	// message with the <AFI, SAFI> that the speaker didn't advertise to the peer
+	// at the session establishment time via capability advertisement, the
+	// speaker shall ignore such a message."
+	if s.negotiated.SupportsFamily(capability.Family{AFI: afi, SAFI: safi}) {
+		return false
+	}
+	sessionLogger().Debug("ignoring route-refresh for non-negotiated family",
+		"peer", s.settings.Address, "afi", afi, "safi", safi)
+	return true
+}
+
 // validateRouteRefreshLength decides what the receive path owes a ROUTE-REFRESH
 // whose body is not the routeRefreshBodyLen octets RFC 2918 Section 3 defines.
 //
@@ -504,10 +550,11 @@ func routeRefreshNotificationData(body []byte) []byte {
 
 // handleRouteRefresh processes a received ROUTE-REFRESH message.
 // RFC 2918 Section 4 obliges the speaker to "ignore such a message" when the
-// <AFI, SAFI> is one it did not advertise at session establishment.
+// <AFI, SAFI> is one it did not advertise at session establishment, and
+// screenRouteRefresh applies that rule before any consumer sees the message.
 // RFC 7313 adds the Enhanced Route Refresh BoRR and EoRR markers.
 func (s *Session) handleRouteRefresh(body []byte) error {
-	ignore, err := s.validateRouteRefreshLength(body)
+	ignore, err := s.screenRouteRefresh(body)
 	if err != nil {
 		return err
 	}
@@ -536,14 +583,6 @@ func (s *Session) handleRouteRefresh(body []byte) error {
 	if !s.negotiated.RouteRefresh {
 		sessionLogger().Debug("ignoring route-refresh from peer without capability",
 			"peer", s.settings.Address)
-		return nil
-	}
-
-	// RFC 2918 Section 4: Ignore ROUTE-REFRESH for AFI/SAFI not negotiated.
-	fam := capability.Family{AFI: rr.AFI, SAFI: rr.SAFI}
-	if !s.negotiated.SupportsFamily(fam) {
-		sessionLogger().Debug("ignoring route-refresh for non-negotiated family",
-			"peer", s.settings.Address, "afi", rr.AFI, "safi", rr.SAFI)
 		return nil
 	}
 

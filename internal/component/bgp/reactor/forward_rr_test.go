@@ -47,9 +47,14 @@ func rrPeer(addr string, routerID, clusterID, remoteRID uint32, rrClient bool, c
 // rrForward reflects payload from an iBGP source peer to a single iBGP destination and returns the
 // reflected UPDATE body, or nil if the destination was not reflected to (RFC 4456 non-client rule).
 // srcIsClient / dstIsClient set RouteReflectorClient. The source's remote router id is 10.0.0.1
-// (the ORIGINATOR_ID for a reflected client route) and the destination's CLUSTER_ID is 1.2.3.2.
-func rrForward(t *testing.T, payload []byte, srcIsClient, dstIsClient bool) []byte {
+// (the ORIGINATOR_ID for a reflected client route) unless srcRouterID names another one, and the
+// destination's CLUSTER_ID is 1.2.3.2. The source's address stays 10.0.0.1 in every case.
+func rrForward(t *testing.T, payload []byte, srcIsClient, dstIsClient bool, srcRouterID ...uint32) []byte {
 	t.Helper()
+	remoteRouterID := uint32(0x0A000001) // Remote rid 10.0.0.1.
+	if len(srcRouterID) > 0 {
+		remoteRouterID = srcRouterID[0]
+	}
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 	wu := wireu.NewWireUpdate(payload, ctxID)
@@ -59,7 +64,7 @@ func rrForward(t *testing.T, payload []byte, srcIsClient, dstIsClient bool) []by
 	cache.Add(update)
 	cache.Activate(200, 1)
 
-	src := rrPeer("10.0.0.1", 0x01020301, 0, 0x0A000001 /*remote rid 10.0.0.1*/, srcIsClient, ctx, ctxID)
+	src := rrPeer("10.0.0.1", 0x01020301, 0, remoteRouterID, srcIsClient, ctx, ctxID)
 	dst := rrPeer("10.0.0.2", 0x01020302, 0x01020302 /*cluster 1.2.3.2*/, 0, dstIsClient, ctx, ctxID)
 
 	var dispatched []fwdItem
@@ -96,6 +101,13 @@ func rrForward(t *testing.T, payload []byte, srcIsClient, dstIsClient bool) []by
 		// No dispatch: the destination was not reflected to (RFC 4456 non-client rule).
 		return nil
 	}
+}
+
+// rrForwardFromRouterID is rrForward with the source peer's BGP Identifier (its remote
+// router id) chosen by the caller, while the source's address stays 10.0.0.1.
+func rrForwardFromRouterID(t *testing.T, payload []byte, srcIsClient, dstIsClient bool, srcRouterID uint32) []byte {
+	t.Helper()
+	return rrForward(t, payload, srcIsClient, dstIsClient, srcRouterID)
 }
 
 // decodeBodyAttrs parses an UPDATE body's path-attribute section into {code: value-bytes}.

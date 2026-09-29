@@ -298,6 +298,17 @@ RFC 2918
 | Reserved | 1 | 0=Query, 1=BoRR, 2=EoRR (RFC 7313) |
 | SAFI | 1 | Subsequent Address Family Identifier |
 
+### A Family This Speaker Did Not Advertise
+
+RFC 2918 Section 4 obliges the speaker to ignore a ROUTE-REFRESH whose
+<AFI, SAFI> it did not advertise at session establishment. `screenRouteRefresh`
+applies the rule on the receive path before the message is delivered to any
+plugin, using the negotiated family set, which excludes every family this
+speaker did not advertise. The ignored message draws no NOTIFICATION and the
+session stays Established.
+
+<!-- source: internal/component/bgp/reactor/session_handlers.go -- screenRouteRefresh, routeRefreshFamilyUnadvertised -->
+
 ### Reserved Field Values (RFC 7313)
 
 | Value | Name | Description |

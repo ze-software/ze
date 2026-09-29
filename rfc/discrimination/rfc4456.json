@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc4456",
+  "records": [
+    {
+      "rid": "RFC4456-8-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4456_originator_id_test.go::TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier",
+      "unit-sha": "56e685c850588f66",
+      "claim-sha": "4f61de9f5a8059fa",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRS",
+      "producer-sha": "b7341f9cfc2b8ee5",
+      "break": "body of reactorForwardRS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4456-8-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4456_originator_id_test.go::TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier",
+      "unit-sha": "56e685c850588f66",
+      "claim-sha": "a85ea1e2452d7726",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRS",
+      "producer-sha": "b7341f9cfc2b8ee5",
+      "break": "body of reactorForwardRS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

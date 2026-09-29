@@ -319,14 +319,15 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		s.noteReceivedRoute(wireUpdate)
 	}
 
-	// Validate rejectable ROUTE-REFRESH wire shape before callback delivery, so
-	// malformed peer input never reaches a plugin. Which NOTIFICATION a bad body
-	// length earns is RFC-scoped, and validateRouteRefreshLength
-	// (session_handlers.go) owns that decision for both of its call sites. A body
-	// RFC 7313 Section 5 obliges ze to ignore stops here too, without a
-	// NOTIFICATION and without ending the session.
+	// Screen a ROUTE-REFRESH before callback delivery, so malformed peer input
+	// never reaches a plugin. Which NOTIFICATION a bad body length earns is
+	// RFC-scoped, and screenRouteRefresh (session_handlers.go) owns that decision
+	// for both of its call sites. A message RFC 7313 Section 5 or RFC 2918
+	// Section 4 obliges ze to ignore stops here too, without a NOTIFICATION and
+	// without ending the session.
 	if hdr.Type == msgtype.TypeROUTEREFRESH {
-		ignore, refreshErr := s.validateRouteRefreshLength(body)
+		// RFC 2918 Section 4
+		ignore, refreshErr := s.screenRouteRefresh(body)
 		if refreshErr != nil {
 			return refreshErr, false
 		}

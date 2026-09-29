@@ -200,6 +200,28 @@
       "break": "body of firstASMismatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4271-6.3-14",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst",
+      "unit-sha": "ddf47ecc0e1db9e3",
+      "claim-sha": "2bca8d9ed6d99fde",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateCommunityAttr",
+      "producer-sha": "5f6851f4c47d3328",
+      "break": "body of validateCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-6.3-14",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst",
+      "unit-sha": "ddf47ecc0e1db9e3",
+      "claim-sha": "a5c6fcee86e83ccf",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateCommunityAttr",
+      "producer-sha": "5f6851f4c47d3328",
+      "break": "body of validateCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4271-6.3-15",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList",
@@ -264,6 +286,50 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
       "producer-sha": "29b57c597e6fde4a",
       "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-6.3-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst",
+      "unit-sha": "ddf47ecc0e1db9e3",
+      "claim-sha": "71b84c0f0d050d10",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
+      "producer-sha": "473336292a0cad0a",
+      "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-6.3-5",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst",
+      "unit-sha": "ddf47ecc0e1db9e3",
+      "claim-sha": "f6600bb66743b4ae",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
+      "producer-sha": "473336292a0cad0a",
+      "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-6.3-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst",
+      "unit-sha": "ddf47ecc0e1db9e3",
+      "claim-sha": "19731f121e60ee18",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateAggregatorAttr",
+      "producer-sha": "a7693aa88c6e45f2",
+      "break": "body of validateAggregatorAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-6.3-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst",
+      "unit-sha": "ddf47ecc0e1db9e3",
+      "claim-sha": "4219b854d5db00cb",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateAggregatorAttr",
+      "producer-sha": "a7693aa88c6e45f2",
+      "break": "body of validateAggregatorAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-6.8-1",

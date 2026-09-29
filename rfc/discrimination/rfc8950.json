@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc8950",
+  "records": [
+    {
+      "rid": "RFC8950-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair",
+      "unit-sha": "e91411d552505e48",
+      "claim-sha": "e982a50df01906fe",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer.go::canUseNextHopFor",
+      "producer-sha": "66b8a5f780bccb70",
+      "break": "body of canUseNextHopFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8950-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair",
+      "unit-sha": "e91411d552505e48",
+      "claim-sha": "c30702ff20af98ff",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer.go::canUseNextHopFor",
+      "producer-sha": "66b8a5f780bccb70",
+      "break": "body of canUseNextHopFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
