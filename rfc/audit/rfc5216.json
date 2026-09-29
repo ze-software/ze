@@ -1,31 +1,36 @@
 {
   "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5216-2.1.1-1": {
-      "note": "positive proves the peer certificate reached the authenticator (a peer omitting it would fail the handshake); the negative asserts the authenticator ClientAuth config, which is the certificate_request precondition, not a peer that omits certificate or certificate_verify",
+      "note": "Positive now reads the wire: the server flight carries certificate_request and the peer flight is certificate, client_key_exchange, certificate_verify (recorded). The negative remains TestEAPTLSAuthenticatorRequiresClientCert, the authenticator ClientAuth config, not a peer that omits certificate or certificate_verify; it and TestEAPTLSMutualAuthHandshakeSucceeds carry no discrimination record.",
       "requirement_sha": "93cfbce29401fdaf",
       "tests": {
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "90b0b7edc9557e50",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50",
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "f3e0ddb051a9c3eb"
       },
       "units": {
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "5c7e512a57e8ab7c",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b",
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "43e40a57c746c213"
       },
       "verdict": "weak"
     },
     "RFC5216-2.1.1-10": {
-      "note": "Forbidden: a peer answering a resuming server_hello with more than change_cipher_spec and finished (certificate, client_key_exchange, certificate_verify). The units assert only that the peer installs a ClientSessionCache with resumption on and none with it off; no resumed conversation is driven and no peer flight is decoded, so a peer sending a full flight on resumption passes.",
+      "note": "TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished drives a second TLS 1.2 conversation that resumes (peer.Resumed asserted) and reads the peer's answer: no plaintext handshake message, change_cipher_spec, one sealed record; a peer adding certificate, client_key_exchange or certificate_verify fails. The negative tag is a config assertion. Every tagged unit carries a record. Caveat: the ruled fix for RFC5216-2.1.2-1 refuses TLS 1.2 resumption on ze's authenticator, which removes the resumed conversation this unit drives.",
       "requirement_sha": "a4623332d55d280b",
       "tests": {
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "f3e0ddb051a9c3eb",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
       },
       "units": {
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "551832a2bf182227",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-2.1.1-2": {
       "note": "Forbidden: the answer to the Start is not an EAP-Response of Type 13, or its data is not a TLS record carrying client_hello. TestEAPTLSPeerFirstResponseCarriesClientHello fatals on Code != CodeResponse or Type != TypeTLS, and assertHandshakeRecord fails unless the TypeData holds a handshake record of type client_hello. Negative: TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging fatals if a peer whose TLS engine produced nothing sends any Response instead of errTLSClientStalled, so an EAP-TLS Response with no client_hello is refused.",
@@ -70,30 +75,34 @@
       "verdict": "wrong"
     },
     "RFC5216-2.1.1-5": {
-      "note": "Forbidden: a resumed session negotiating a ciphersuite other than the one that established it. No tagged assertion reads a resumed ConnectionState.CipherSuite against the original: the units assert only UnwrapSession nil with resumption on and set with it off, which decides whether resumption happens, not which suite it uses. crypto/tls enforces the match, but no unit drives a resumption or observes it.",
+      "note": "The new positive compares the resumed ServerHello suite with the first conversation's, but both conversations run identical configs, so a fresh negotiation picks the same suite and a server resuming under a different suite is never offered the chance: the assertion cannot fail on non-compliance. A discriminating case changes the suite preference or set between the two conversations. The negative remains a config assertion (resumption off installs a refusal).",
       "requirement_sha": "3260e6d733fefa3f",
       "tests": {
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "f3e0ddb051a9c3eb",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
       },
       "units": {
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "551832a2bf182227",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
       },
       "verdict": "weak"
     },
     "RFC5216-2.1.1-6": {
-      "note": "the units assert one installed certificate and no config without a parsable certificate; the second clause, server_hello_done last in that EAP-Request, is not asserted by any tagged unit",
+      "note": "TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone reassembles the server's first full TLS 1.2 flight from its fragments and reads it message by message: a certificate is present and server_hello_done is the last handshake message, so a flight missing either fails. The negative tag is a config refusal (unparsable certificate builds no tls.Config), which covers the certificate clause only; the ordering clause rests on the exact-output positive. Every tagged unit carries a record.",
       "requirement_sha": "a5b31546f57258ed",
       "tests": {
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone": "f3e0ddb051a9c3eb",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
       },
       "units": {
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone": "260f31cb85204b08",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-2.1.1-8": {
       "note": "Forbidden: a peer configured for EAP-TLS answering the EAP-TLS Request with anything but an EAP-TLS Response (a Nak, another type). TestRFC5216ConfiguredPeerAnswersEAPTLSWithEAPTLS fatals on Code != CodeResponse or Type != TypeTLS and on TypeData without a handshake record. Negative for the condition: TestRFC5216PeerNotConfiguredForEAPTLSDoesNotAnswerWithEAPTLS fatals if an MS-CHAPv2 peer answers with Type 13 and wantLegacyNak requires the Nak.",
@@ -109,17 +118,19 @@
       "verdict": "enforced"
     },
     "RFC5216-2.1.1-9": {
-      "note": "positive asserts ClientAuth=RequireAndVerify and one peer certificate, which is the 2.1.1-1 certificate clause, not client_key_exchange, change_cipher_spec and finished in the peer flight",
+      "note": "TestRFC5216PeerFlightAnswersTheCertificateRequest reads the peer's second flight after a non-resuming server_hello: handshake types exactly certificate, client_key_exchange, certificate_verify, then change_cipher_spec, then one sealed handshake record (finished); a flight missing client_key_exchange, change_cipher_spec or finished fails. The negative tag is a config assertion (no session cache with resumption off), so discrimination rests on the exact-output positive. Every tagged unit carries a record.",
       "requirement_sha": "aa652a71dde99132",
       "tests": {
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "f3e0ddb051a9c3eb",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
       },
       "units": {
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "43e40a57c746c213",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-2.1.2-1": {
       "note": "Forbidden: a resuming server sending certificate, server_key_exchange or certificate_request after server_hello. The units assert only ticket installation (SessionTicketsDisabled false, UnwrapSession nil) and the refusal when resumption is off; no resumed flight is driven or its handshake types read, so extra messages after server_hello pass.",
@@ -161,16 +172,18 @@
       "verdict": "enforced"
     },
     "RFC5216-2.1.3-4": {
-      "note": "Clause 1 (a no-data Response to the alert draws EAP-Failure): TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure errors on last.Code != CodeFailure, and TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure errors unless the Failure follows the alert. Clause 2 (terminate the conversation): no tagged unit feeds a packet after the EAP-Failure or asserts the session is closed, so an authenticator that keeps processing Responses after its Failure passes. The negative (no alert runs to EAP-Success) is sound.",
+      "note": "Both clauses now asserted: the no-data Response to the alert draws EAP-Failure, and three later Responses (the same one, and Identifiers at and after the Failure's) draw nothing, with Succeeded false (TestRFC5216AuthenticatorEndsTheConversationAfterItsFailure, recorded). TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure and the negative TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate carry no discrimination record.",
       "requirement_sha": "8089903a1b56451e",
       "tests": {
         "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "e222ad1f56734ddc",
         "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure": "e222ad1f56734ddc",
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216AuthenticatorEndsTheConversationAfterItsFailure": "f3e0ddb051a9c3eb",
         "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "62aa13fd49a71dab"
       },
       "units": {
         "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "63ae77044ade0c99",
         "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure": "13510c58710e62a3",
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216AuthenticatorEndsTheConversationAfterItsFailure": "098102330a6ab9e9",
         "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "3451722f3567d342"
       },
       "verdict": "weak"
@@ -360,13 +373,17 @@
       "verdict": "enforced"
     },
     "RFC5216-2.4-3": {
-      "note": "the only assertion is HandshakeComplete on both sides, which cannot fail on compression; the property is structural in crypto/tls and would read more honestly as a lower-layer annotation",
+      "note": "Now read off the wire in both polarities (both recorded): the peer's ClientHello offers [0] and the ServerHello selects 0; an injected ClientHello offering [1, 0] is answered with null compression. The property is structural in crypto/tls, which implements no compression. The older tag on TestEAPTLSMutualAuthHandshakeSucceeds asserts only HandshakeComplete, cannot fail on compression, and carries no discrimination record.",
       "requirement_sha": "89a16df9f9563eb3",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50",
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216NeitherSideNegotiatesCompression": "f3e0ddb051a9c3eb",
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerRefusesTheCompressionAPeerOffers": "f3e0ddb051a9c3eb"
       },
       "units": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b",
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216NeitherSideNegotiatesCompression": "b41be2936705ad4f",
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerRefusesTheCompressionAPeerOffers": "dad0febc8406e09b"
       },
       "verdict": "weak"
     },
@@ -432,17 +449,19 @@
       "verdict": "enforced"
     },
     "RFC5216-3-5": {
-      "note": "Reception clause enforced: TestRFC5216ReservedFlagBitsAreIgnoredOnReception sets all five reserved bits on a Start (peer fatals unless it answers with a client_hello) and on a whole client_hello (authenticator fatals on a bare ACK, i.e. a reserved bit read as M, or on a non-handshake answer). The quoted sentence also carries \"MUST set the reserved bits to zero\", and no unit tagged RFC5216-3-5 asserts the flags octet a sender emits has bits 3-7 clear; that clause is RFC5216-3-2 and its proof is not tagged here.",
+      "note": "Set clause: TestRFC5216SendersWriteZeroReservedFlagBits reads the flags octet of every EAP-TLS packet both roles sent in a full TLS 1.2 conversation and fails on any of bits 0x1f. Reception clause: all five reserved bits set on a Start and on a whole client_hello are ignored by peer and authenticator. Every tagged unit carries a record.",
       "requirement_sha": "88270eb73714c321",
       "tests": {
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216SendersWriteZeroReservedFlagBits": "f3e0ddb051a9c3eb",
         "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception": "50ee52d235cf2a36",
         "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception#2": "50ee52d235cf2a36"
       },
       "units": {
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216SendersWriteZeroReservedFlagBits": "93965daf37c42e49",
         "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception": "1615dc0d237369cf",
         "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception#2": "1615dc0d237369cf"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-3-6": {
       "note": "Forbidden: a Response whose Identifier differs from the Request it answers. TestRFC5216ResponseIdentifierMatchesTheRequest errors on res.Identifier != serverSent[i].Identifier over a full conversation; TestRFC5216ResponseIdentifierIsCopiedNotCounted fatals if Requests 0x80 then 0x05 are not answered 0x80 then 0x05, which refuses a peer that counts its own Identifiers.",
@@ -458,34 +477,38 @@
       "verdict": "enforced"
     },
     "RFC5216-5.3-1": {
-      "note": "both path-validation SHOULDs proven (server refuses untrusted client chain, peer refuses untrusted server chain, peer without anchor refuses to start); the quoted span also carries intermediate-certificate retrieval and the server SHOULD send its chain minus the root, which no tagged unit asserts",
+      "note": "New: the server's certificate list is its leaf alone, root absent (recorded). Path validation SHOULDs stay proven by the eap_tls_handshake_test.go units, which carry no discrimination record. 'the ability to retrieve intermediate certificates' is absent in ze (no AIA fetch) and still sits inside this tagged row; it needs a {gap} split under rfc-compliance.",
       "requirement_sha": "9d15c5a52d004cd6",
       "tests": {
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50",
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain": "90b0b7edc9557e50",
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart": "90b0b7edc9557e50",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "90b0b7edc9557e50"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "90b0b7edc9557e50",
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerSendsItsChainWithoutTheRoot": "f3e0ddb051a9c3eb"
       },
       "units": {
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b",
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain": "432ee039a9ba8d55",
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart": "fc011b6ca87a557b",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "ff285ebc6f33ea4c"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "ff285ebc6f33ea4c",
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerSendsItsChainWithoutTheRoot": "76173d6887437a27"
       },
       "verdict": "weak"
     },
     "RFC5216-5.4-1": {
-      "note": "the TLS 1.2 units prove the authenticator refusing a CRL-revoked client certificate and completing with an empty list; the peer half (peer acting on a CRL over TLS 1.2) has no tagged unit for this id",
+      "note": "Server half: a CRL revoking the client certificate refuses the TLS 1.2 exchange, a CRL naming nobody completes. Peer half (new, TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12): a peer CRL revoking the authenticator certificate over TLS 1.2 gives a peer error, no EAP-Success, no MSK; isolated by TestEAPTLS12CompletesWithAnUnrevokedChain, where the peer holds a CRL that revokes nothing and completes. Every tagged unit carries a record.",
       "requirement_sha": "90205fa573853cfd",
       "tests": {
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12": "f3e0ddb051a9c3eb",
         "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12CompletesWithAnUnrevokedChain": "b20b4e35d426ac54",
         "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12RefusesARevokedClientCertificate": "b20b4e35d426ac54"
       },
       "units": {
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12": "7c51ed98476eb5ad",
         "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12CompletesWithAnUnrevokedChain": "1d1e1b453e978163",
         "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12RefusesARevokedClientCertificate": "f34d73c2202cfb6f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-5.4-2": {
       "note": "Forbidden: a peer with no revocation check after authentication. TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked fatals if startServerCertRecheck (called from established.go after the exchange) starts no check or reports no verdict when the OCSP responder says revoked; TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood fatals on any verdict when it says good. The eap units prove the accepted TLS 1.2 chain is kept for the check and none is published on a refused handshake. The first unit's name claims the SA closes; it asserts only the verdict.",

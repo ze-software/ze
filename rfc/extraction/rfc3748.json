@@ -257,10 +257,7 @@
   {
    "id": "7.10",
    "sites": 11,
-   "disposition": "walked",
-   "unsourced-ids": [
-    "RFC3748-7.10-2"
-   ]
+   "disposition": "walked"
   },
   {
    "id": "7.11",
@@ -927,7 +924,7 @@
    "id": "7.10:1",
    "quote": "In order to provide keying material for use in a subsequently negotiated ciphersuite, an EAP method supporting key derivation MUST export a Master Session Key (MSK) of at least 64 octets, and an Extended Master Session Key (EMSK) of at least 64 octets.",
    "disposition": "mapped",
-   "mapped-to": "RFC3748-7.10-1"
+   "mapped-to": "RFC3748-7.10-2"
   },
   {
    "id": "7.10:2",

@@ -160,6 +160,7 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 |----|---------|---------------|
 | RFC3948-2.1-2 | wrong | `spec-ike-eap-rfc-defects` |
 | RFC5216-2.1.1-4 | wrong | `spec-ike-eap-rfc-defects` |
+| RFC5216-2.1.2-1 | weak | `spec-ike-eap-rfc-defects` (AC-4, 2026-09-29) |
 | RFC9190-1-1 | weak (R-7) | `spec-ipsec-rfc9190` |
 | RFC9190-2.1.8-2 | weak (R-7) | `spec-ipsec-rfc9190` |
 | RFC9190-2.1.8-3 | weak (R-7) | `spec-ipsec-rfc9190` |

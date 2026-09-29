@@ -324,7 +324,7 @@ func TestRFC3748PeerHasNoRetransmitTimer(t *testing.T) {
 }
 
 func TestRFC3748MSKSize(t *testing.T) {
-	// RFC requirement: RFC3748-7.10-1 positive -- a completed key-deriving method yields
+	// RFC requirement: RFC3748-7.10-2 positive -- a completed key-deriving method yields
 	// a 64-octet MSK. The peer's derived MSK is exactly 64 octets and non-zero.
 	peer := NewPeerSession(TypeMSCHAPv2, "user", "secret")
 	auth, err := NewSession(TypeMSCHAPv2, MethodConfig{Password: "secret"})
