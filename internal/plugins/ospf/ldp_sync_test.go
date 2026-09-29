@@ -363,12 +363,6 @@ func TestLDPSyncStuckRaisesAlert(t *testing.T) {
 // RFC requirement: RFC6138-4-1 negative -- the withhold is confined to non-cut-edges: a
 // not-synchronized non-cut-edge broadcast transit link IS withheld, so the cut-edge exemption is
 // meaningful rather than a blanket no-withhold.
-// RFC requirement: RFC5443-4-1 positive -- the only cost the mechanism raises is the 16-bit
-// IP link metric (effectiveP2PCost -> LSInfinity); ze originates no TE LSA, so no TE metric
-// is ever touched.
-// RFC requirement: RFC5443-4-1 negative -- the LDP-sync withhold is a pure IP-plane decision
-// confined to broadcast transit links: a cut-edge is never withheld, so the mechanism never
-// manufactures a TE-cost change or a CSPF/TE reroute.
 // RFC requirement: RFC5443-3-1 positive -- the broadcast cost-out is a whole-segment decision:
 // ldpSyncWithholdTransit keys on the segment's cut-edge status with no per-neighbor input, and
 // a cut-edge segment is advertised as a whole.
@@ -376,9 +370,9 @@ func TestLDPSyncStuckRaisesAlert(t *testing.T) {
 // withholds its transit link in its entirety (never per individual peer), so the cost-out
 // granularity is the whole link, not the peer.
 func TestLDPSyncTECostUntouched(t *testing.T) {
-	// AC-15: the mechanism raises only the IP link cost (RFC 5443 §4), never a TE cost.
-	// Ze originates no TE LSA, so the guarantee holds trivially: the only override is
-	// on the 16-bit IP link metric (effectiveP2PCost) / the transit-link withhold.
+	// AC-15: the only overrides are the 16-bit IP link metric (effectiveP2PCost) and the
+	// broadcast transit-link withhold. rfc5443_origination_test.go proves on the originated
+	// TE Link LSA that the TE metric is left unchanged (RFC 5443 section 4).
 	if got := effectiveP2PCost(ldpSyncNotSynchronized, true, 10); got != uint16(ospflsdb.LSInfinity) {
 		t.Fatalf("IP metric override = %d, want LSInfinity", got)
 	}

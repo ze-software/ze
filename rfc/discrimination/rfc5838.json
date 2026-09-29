@@ -1,0 +1,60 @@
+{
+  "rfc": "rfc5838",
+  "records": [
+    {
+      "rid": "RFC5838-2.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingPrefixNotInRouteComputation",
+      "unit-sha": "25ba44bf42bbfabf",
+      "claim-sha": "36643c220a08e43e",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/afstrategy_v6.go::v6PrefixToNetip",
+      "producer-sha": "2b84152f69d0f212",
+      "break": "body of v6PrefixToNetip replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5838-2.6-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4",
+      "unit-sha": "2512837f4ffb9df6",
+      "claim-sha": "47c77783a6a97229",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/origination_v6_nssa.go::forwardingAddressForAF",
+      "producer-sha": "6ab39d98763f8491",
+      "break": "body of forwardingAddressForAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5838-2.6-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress",
+      "unit-sha": "ceca10b1a9dad255",
+      "claim-sha": "99fb01813e8bf53e",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/origination_v6_nssa.go::forwardingAddressForAF",
+      "producer-sha": "6ab39d98763f8491",
+      "break": "body of forwardingAddressForAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5838-2.6-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4",
+      "unit-sha": "2512837f4ffb9df6",
+      "claim-sha": "5b44f50fab380e50",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/origination_v6_nssa.go::forwardingAddressForAF",
+      "producer-sha": "6ab39d98763f8491",
+      "break": "body of forwardingAddressForAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5838-2.8-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838VirtualLinkRequiresLocalGlobalAddress",
+      "unit-sha": "34a08e0d171c2b1c",
+      "claim-sha": "010ad91cf1aec554",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/virtuallink_v6.go::v6ResolveVirtualEndpointLocked",
+      "producer-sha": "cbbf31b13cd3d835",
+      "break": "body of v6ResolveVirtualEndpointLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

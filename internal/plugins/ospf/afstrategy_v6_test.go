@@ -252,8 +252,8 @@ func TestOSPFv6ComputeExternalNSSA(t *testing.T) {
 }
 
 // TestV6PrefixToNetipAFWidth pins RFC 5838 §2.7: v6PrefixToNetip decodes into a 4-byte
-// address for an IPv4 AF and a 16-byte address for an IPv6 AF.
-// RFC requirement: RFC5838-2.3-1 negative -- a prefix length wider than the instance address family (a 64-bit prefix under an IPv4 AF) is rejected, so a non-conforming prefix is skipped and never enters the route computation.
+// address for an IPv4 AF and a 16-byte address for an IPv6 AF. The route-computation side
+// of RFC 5838 section 2.3 is TestRFC5838NonConformingPrefixNotInRouteComputation.
 func TestV6PrefixToNetipAFWidth(t *testing.T) {
 	v4 := ospfv3packet.Prefix{Length: 24, Address: []byte{10, 20, 30, 0}}
 	got, ok := v6PrefixToNetip(v4, afIPv4Unicast)
@@ -331,11 +331,8 @@ func TestIPv4OverV3BuildRoutes(t *testing.T) {
 // TestV6ForwardingAddrAFWidth pins RFC 5838 §2.6: a received AS-external / NSSA forwarding
 // address is rendered at the instance address family's width. An IPv4 AF reads the IPv4
 // address from the leading 32 bits of the 128-bit field; an IPv6 AF reads the full 128 bits.
-// Origination writes the IPv4 address into the leading 4 octets and zeroes the rest
-// (origination_v6_nssa.go:29-31), so for an IPv4 AF only the leading 32 bits are significant.
-// RFC requirement: RFC5838-2.6-1 positive -- an IPv4-unicast AF renders the forwarding address as the IPv4 address held in the leading 32 bits of the 128-bit field.
-// RFC requirement: RFC5838-2.6-1 negative -- an IPv6 AF renders the full 128-bit forwarding address, so the IPv4 width is applied only for IPv4 address families.
-// RFC requirement: RFC5838-2.6-2 positive -- for an IPv4 AF only the leading 32 bits are significant; trailing octets, which origination sets to zero, do not alter the rendered IPv4 address.
+// It is the receive side. The originator's obligation (RFC 5838 section 2.6) is proven on the
+// originated NSSA-LSA in rfc5838_forwarding_test.go.
 func TestV6ForwardingAddrAFWidth(t *testing.T) {
 	// IPv4 in the leading 4 octets, remaining 12 zero -- the shape origination writes.
 	var fa [16]byte

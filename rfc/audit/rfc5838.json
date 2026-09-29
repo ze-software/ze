@@ -1,16 +1,16 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC5838-2.3-1": {
-      "note": "Forbidden behaviour: a prefix not conforming to the instance AF (e.g. length > 32 under IPv4) used in the route computation. The negative in TestV6PrefixToNetipAFWidth asserts only the converter v6PrefixToNetip returns ok=false for a 64-bit prefix under an IPv4 AF; no tagged unit feeds a non-conforming prefix through v6BuildRoutes and asserts it yields no route, so a route builder that ignored the ok flag keeps both units green. The positive (TestIPv4OverV3BuildRoutes) does go through v6BuildRoutes.",
+      "note": "Re-judged 2026-09-29. New negative TestRFC5838NonConformingPrefixNotInRouteComputation drives v6BuildRoutes on an IPv4-unicast AF with one Intra-Area-Prefix-LSA holding a /24 and a 64-bit prefix: exactly one route, the /24, so the conforming sibling proves the LSA was read (revert record on v6PrefixToNetip). Positive TestIPv4OverV3BuildRoutes has no record but is exact. Missing: the other route-computation inputs. The inter-area-prefix path and the AS-external/NSSA record path in afstrategy_v6.go each call v6PrefixToNetip with their own ok check; dropping either check stays green, since no tagged unit feeds a non-conforming inter-area or external prefix.",
       "requirement_sha": "77dae112c4211bff",
       "tests": {
-        "internal/plugins/ospf/afstrategy_v6_test.go::TestIPv4OverV3BuildRoutes": "4131d013fa9634a1",
-        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6PrefixToNetipAFWidth": "4131d013fa9634a1"
+        "internal/plugins/ospf/afstrategy_v6_test.go::TestIPv4OverV3BuildRoutes": "e735eb206dc29802",
+        "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingPrefixNotInRouteComputation": "4cb25f8913bb18cc"
       },
       "units": {
         "internal/plugins/ospf/afstrategy_v6_test.go::TestIPv4OverV3BuildRoutes": "10d1c67249c2ed0c",
-        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6PrefixToNetipAFWidth": "3f4ea899c28bd9fb"
+        "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingPrefixNotInRouteComputation": "b71d69fae5fefd50"
       },
       "verdict": "weak"
     },
@@ -39,41 +39,43 @@
       "verdict": "enforced"
     },
     "RFC5838-2.6-1": {
-      "note": "The MUST binds the originator: the Forwarding Address in AS-external and NSSA LSAs of an IPv4 AF must encode an IPv4 address. TestV6ForwardingAddrAFWidth tests v6ForwardingAddr, the RECEIVE-side renderer, and never encodes an LSA; the producer forwardingAddressForAF (origination_v6_nssa.go) is untested by these tags. The IPv4 multicast AF is not covered either.",
+      "note": "Re-judged 2026-09-29. NSSA-LSA origination is proven both ways: TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4 decodes the originated NSSA-LSA for IPv4 unicast and IPv4 multicast AFs and reads 192.0.2.7 in the leading 32 bits; TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress offers only an IPv6 address and reads no FA; revert records on forwardingAddressForAF. Missing: the AS-external-LSA clause. Ze's redistributed Type-5 (v6OriginateExternalLSA) carries no FA, but the translated Type-5 does: translateNSSAV6 (nssa.go) copies a RECEIVED Type-7's 16-byte FA through v6UsableForwardingAddress, an IPv6-only check, with no address-family test, into v6OriginateTranslatedExternal. On an IPv4 AF a peer's Type-7 with an IPv6 FA would be re-originated in Ze's own AS-external-LSA. No test covers that path; the handoff's claim that the translated FA is always set by forwardingAddressForAF holds only for Ze's own Type-7s. Probable defect, reported.",
       "requirement_sha": "6aab692a4b517197",
       "tests": {
-        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6ForwardingAddrAFWidth": "4131d013fa9634a1",
-        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6ForwardingAddrAFWidth#2": "4131d013fa9634a1"
+        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "60f823dd52fcc1f1",
+        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress": "60f823dd52fcc1f1"
       },
       "units": {
-        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6ForwardingAddrAFWidth": "7876b3d4309b0cb9",
-        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6ForwardingAddrAFWidth#2": "7876b3d4309b0cb9"
+        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "98650907f0a3cc3c",
+        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress": "3f60c0643680ca34"
       },
-      "verdict": "wrong"
+      "verdict": "weak"
     },
     "RFC5838-2.6-2": {
-      "note": "The MUST is that the originator sets the bits after the leading 32 to zero. The tagged unit asserts the receiver renders 192.0.2.7 even when trailing octets are 0xff, i.e. it proves receive-side tolerance of non-zero bits, a neighbouring property; the producer forwardingAddressForAF (origination_v6_nssa.go) is never exercised.",
+      "note": "Re-judged 2026-09-29. The positive reads all 16 bytes of the originated NSSA-LSA FA (IPv4 then 96 zero bits) for both IPv4 AFs, with a revert record on forwardingAddressForAF. The {single-polarity} annotation argues no non-zero-trailing path exists; that holds for forwardingAddressForAF but not for the translated AS-external-LSA: translateNSSAV6 copies a received Type-7's FA verbatim with no AF check, so a peer's FA with non-zero trailing bits reaches Ze's own Type-5 on an IPv4 AF. The annotation's argument is therefore incomplete and the translation path is untested.",
       "requirement_sha": "ab1696848a715e70",
       "tests": {
-        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6ForwardingAddrAFWidth": "4131d013fa9634a1"
+        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "60f823dd52fcc1f1"
       },
       "units": {
-        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6ForwardingAddrAFWidth": "7876b3d4309b0cb9"
+        "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "98650907f0a3cc3c"
       },
-      "verdict": "wrong"
+      "verdict": "weak"
     },
     "RFC5838-2.8-1": {
-      "note": "Forbidden behaviour: a virtual link formed without a global IPv6 address. The negative TestV6VirtualEndpointRequiresGlobalAddress covers only the neighbor side (neighbor advertises only fe80::2, resolution fails). No tagged unit removes THIS router's global address and asserts resolution fails, so v6ResolveVirtualEndpointLocked falling back to a link-local local source keeps both units green (the positive asserts src only when a global exists).",
+      "note": "Re-judged 2026-09-29. Positive TestV6VirtualEndpointResolvesGlobalAddress resolves global /128 LA addresses on both ends. Negatives cover both ends: the existing neighbor-side link-local-only case and new TestRFC5838VirtualLinkRequiresLocalGlobalAddress (this router advertises only fe80::1, neighbor global) which fails to resolve. v6ResolveVirtualEndpointLocked requires sok && dok and v6RouterGlobalAddr refuses non-global addresses; revert record on the resolver.",
       "requirement_sha": "b0701552f09f76a3",
       "tests": {
+        "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838VirtualLinkRequiresLocalGlobalAddress": "4cb25f8913bb18cc",
         "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointRequiresGlobalAddress": "571c66c643c8a516",
         "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointResolvesGlobalAddress": "571c66c643c8a516"
       },
       "units": {
+        "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838VirtualLinkRequiresLocalGlobalAddress": "ba63c1b97bc34aaa",
         "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointRequiresGlobalAddress": "9b40f1f425a2c135",
         "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointResolvesGlobalAddress": "8b9d91c00b1ded66"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc5838"

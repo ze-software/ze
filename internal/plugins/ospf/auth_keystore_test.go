@@ -209,7 +209,7 @@ func TestOSPFAuthReplayPerType(t *testing.T) {
 	hello := packet.Packet{Header: packet.Header{Type: packet.PacketTypeHello}, Hello: &packet.Hello{NetworkMask: [4]byte{255, 255, 255, 0}, HelloInterval: 10, DeadInterval: 40}}
 	ack := packet.Packet{Header: packet.Header{Type: packet.PacketTypeLSAck}, LSAck: &packet.LSAck{}}
 
-	// RFC requirement: RFC7474-2-6 positive -- the high-water mark is per neighbor AND per packet type: a Hello at seq 100 does not block an LS-Ack at the lower seq 5, so each packet type keeps its own mark (replayKey.pktType auth_keystore.go:42, verify :352).
+	// RFC requirement: RFC7474-2-6 positive -- the high-water mark is per packet type: a Hello at seq 100 does not block an LS-Ack at the lower seq 5 from the same neighbor, so each packet type keeps its own mark.
 	_, ok := s.verify("eth0", peer, [4]byte{}, signType(hello, 100))
 	require.True(t, ok, "Hello seq 100 accepted")
 	_, ok2 := s.verify("eth0", peer, [4]byte{}, signType(ack, 5))

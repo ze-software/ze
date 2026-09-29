@@ -167,6 +167,28 @@
       "break": "body of NSSABorderEBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC3101-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation",
+      "unit-sha": "2e51e5d5b99ba019",
+      "claim-sha": "bdc527ac16f0b2fc",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/nssa.go::translateNSSA",
+      "producer-sha": "c53483697c353abe",
+      "break": "body of translateNSSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc3101_translation_test.go::TestRFC3101TranslatedType5FollowsSourceFields",
+      "unit-sha": "05b09b98dd00cd85",
+      "claim-sha": "5ce140c08e153f45",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/nssa.go::translateNSSA",
+      "producer-sha": "c53483697c353abe",
+      "break": "body of translateNSSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3101-3.2-2",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/lsdb/nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists",

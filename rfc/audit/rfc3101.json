@@ -1,5 +1,8 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC3101-2.1-1": {
@@ -314,10 +317,10 @@
       "note": "nssa_test.go TestOSPFNSSANonCandidateDoesNotWedge asserts a lower-Router-ID candidate translates despite a reachable higher-Router-ID NSSA border router with Nt clear; section 3.1 disables a candidate when another listed border router has Nt set OR a higher router ID. The list membership (reachable over the NSSA and as an ASBR over the transit topology) is not tested; TestOSPFNSSATranslatorElection passes the candidate list in directly.",
       "requirement_sha": "21fec89cd188b4a1",
       "tests": {
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "da6f22c2f85f23d1",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANonCandidateDoesNotWedge": "da6f22c2f85f23d1",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection": "da6f22c2f85f23d1",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection#2": "da6f22c2f85f23d1"
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "f6a6f008a49c864e",
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANonCandidateDoesNotWedge": "f6a6f008a49c864e",
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection": "f6a6f008a49c864e",
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection#2": "f6a6f008a49c864e"
       },
       "units": {
         "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "384f0c6935a2fc5b",
@@ -328,19 +331,21 @@
       "verdict": "wrong"
     },
     "RFC3101-3.2-1": {
-      "note": "nssa_test.go TestOSPFNSSATranslation asserts advertising router (via the key), metric, path type, forwarding address and tag but never the network mask the row names. The negatives (withdrawn source, P=0, zero forwarding address) test section 3.2 step (1) eligibility, not field preservation.",
+      "note": "Re-judged 2026-09-29. TestOSPFNSSATranslation now asserts the network mask as well as metric, E1, tag and FA, and the advertising router through the lookup key (translator Router ID) and the network through the Link State ID. New TestRFC3101TranslatedType5FollowsSourceFields re-originates the Type-7 with a new mask, E2, metric, FA and tag (clock advanced past MinLSInterval) and reads each new value in the translated Type-5, so a translator that hardcodes, defaults or keeps stale fields goes red. Revert records on translateNSSA for both. The withdraw and P=0 negatives stay (neighbouring section 3.2 steps).",
       "requirement_sha": "017482a6ad8fbfd6",
       "tests": {
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSAPbitNotTranslated": "da6f22c2f85f23d1",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation": "da6f22c2f85f23d1",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation#2": "da6f22c2f85f23d1"
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSAPbitNotTranslated": "f6a6f008a49c864e",
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation": "f6a6f008a49c864e",
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation#2": "f6a6f008a49c864e",
+        "internal/plugins/ospf/rfc3101_translation_test.go::TestRFC3101TranslatedType5FollowsSourceFields": "ed1fcad648e40d52"
       },
       "units": {
         "internal/plugins/ospf/nssa_test.go::TestOSPFNSSAPbitNotTranslated": "00b5b56941c2e6f5",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation": "3228a2a3969a547f",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation#2": "3228a2a3969a547f"
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation": "2152f0b32a75a9cf",
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation#2": "2152f0b32a75a9cf",
+        "internal/plugins/ospf/rfc3101_translation_test.go::TestRFC3101TranslatedType5FollowsSourceFields": "a971df27e394f0dc"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3101-3.2-2": {
       "code": {

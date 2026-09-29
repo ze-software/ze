@@ -89,6 +89,7 @@ func TestOSPFNSSATranslation(t *testing.T) {
 	assert.False(t, t5.Header.Options.Has(types.OptionNP), "translated Type 5 clears the NSSA P-bit")
 	body, err := t5.DecodeExternal()
 	require.NoError(t, err)
+	assert.Equal(t, ip4Of("255.255.0.0"), body.NetworkMask, "source network mask preserved")
 	assert.Equal(t, uint32(33), body.Metric, "source metric preserved")
 	assert.False(t, body.ExternalType2, "source metric-type (E1) preserved")
 	assert.Equal(t, uint32(7), body.ExternalRouteTag, "source route tag preserved")

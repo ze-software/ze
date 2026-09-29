@@ -1,38 +1,47 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5443-2-1": {
-      "note": "Non-compliant: the originated router-LSA keeps the configured cost while LDP is not fully operational. No tagged assertion reads an originated LSA: TestLDPSyncForcesMaxMetric and TestLDPSyncRestoresAfterHoldDown assert effectiveP2PCost, whose only non-test caller is the show snapshot (ldp_sync.go:664); the advertised cost comes from applyLDPSyncOverride setting InterfaceInfo.LDPSyncMaxMetric and lsdb/origination.go:245/279 reading it. Deleting that flag assignment leaves every tag green. Broadcast links are withheld (RFC 6138 style), not costed out, and no tag covers that for this row.",
+      "note": "Re-judged 2026-09-29 by an independent judge. TestRFC5443NotOperationalLinkAdvertisedAtMaxCost builds the engine from config, runs the production applyLDPSyncOverride, originates the Router-LSA and decodes it: the p2p link is exactly 0xFFFF before session-up and again during hold-down, while the subnet stub keeps 100 (only the link is costed out). TestRFC5443OperationalLinkAdvertisedAtConfiguredCost synchronizes (session-up, hold-down fired) and reads the configured 100, so an always-max stub fails. Both have observed-red revert records on applyLDPSyncOverride. The older helper-level tags (effectiveP2PCost, show path only) stay and add nothing. The 'fully operational' definition itself is RFC5443-2-5.",
       "requirement_sha": "db5684738fd31f75",
       "tests": {
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncForcesMaxMetric": "44961c9658aac555",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "44961c9658aac555"
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncForcesMaxMetric": "9e546619d1947e81",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "9e546619d1947e81",
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "3bffe7b1a1620ca8",
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443OperationalLinkAdvertisedAtConfiguredCost": "3bffe7b1a1620ca8"
       },
       "units": {
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncForcesMaxMetric": "48f00387b467bac9",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "ec139fedd0f6a412"
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "ec139fedd0f6a412",
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "d0ddcbc7f5ff6173",
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443OperationalLinkAdvertisedAtConfiguredCost": "ed27e3c78d1df117"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5443-2-2": {
-      "note": "Non-compliant: advertising a max cost other than 0xFFFF. TestLDPSyncMaxMetricValue asserts only the constant ospflsdb.LSInfinity == 0xFFFF; no tagged assertion reads the metric the origination emits for an LDPSyncMaxMetric link. The negative (TestLDPSyncDisabledIsNoOp) proves an unmanaged interface keeps its cost, a neighbouring rule, not the value.",
+      "note": "Re-judged 2026-09-29. The positive reads exactly 0xFFFF from the originated, decoded Router-LSA. TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost configures 0xFFFE: not-synchronized reads 0xFFFF (not the configured near-max value), synchronized returns 0xFFFE, so a cost-out to any value other than LSInfinity goes red. Revert records on lsdb routerLinks, which sets LSInfinity for LDPSyncMaxMetric. The older tags (constant check, unmanaged interface) stay and prove only neighbouring facts.",
       "requirement_sha": "8ab035e1618eab7e",
       "tests": {
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncDisabledIsNoOp": "44961c9658aac555",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncMaxMetricValue": "44961c9658aac555"
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncDisabledIsNoOp": "9e546619d1947e81",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncMaxMetricValue": "9e546619d1947e81",
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost": "3bffe7b1a1620ca8",
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "3bffe7b1a1620ca8"
       },
       "units": {
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncDisabledIsNoOp": "f62d5cb141facec8",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncMaxMetricValue": "79b9dbc18c0c7c7c"
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncMaxMetricValue": "79b9dbc18c0c7c7c",
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost": "ffe3c68734b84458",
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "d0ddcbc7f5ff6173"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5443-2-5": {
       "note": "Three clauses: hello adjacency exists, a session matching the adjacency's LDP Identifier is established, all bindings exchanged. Tagged units (TestLDPSyncSubscribesSessionEvents, TestLDPSyncRestoresAfterHoldDown) drive the real ldpSyncManager: SessionUp -> hold-down, timer -> synchronized, so a machine declaring sync on SessionUp goes red. No assertion covers the hello-adjacency or the LDP-Identifier-match clause: a session-up for a session not matching the link's adjacency is never exercised.",
       "requirement_sha": "2c576a81baba359d",
       "tests": {
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "44961c9658aac555",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncSubscribesSessionEvents": "44961c9658aac555"
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "9e546619d1947e81",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncSubscribesSessionEvents": "9e546619d1947e81"
       },
       "units": {
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "ec139fedd0f6a412",
@@ -41,30 +50,30 @@
       "verdict": "weak"
     },
     "RFC5443-3-1": {
-      "note": "Non-compliant: a per-peer cost-out on a broadcast link. TestLDPSyncTECostUntouched asserts ldpSyncWithholdTransit(notSynced, managed, cutEdge=false) is true and cut-edge false; the function takes no peer input, so the whole-link granularity is structural and no assertion would go red on a per-neighbour withhold introduced in applyLDPSyncOverride. The negative/positive both test RFC 6138 cut-edge logic rather than peer granularity.",
+      "note": "Re-judged 2026-09-29 after TestLDPSyncTECostUntouched changed (the RFC5443-4-1 tags and a stale comment were removed; the 3-1 assertions are unchanged). The unit asserts only ldpSyncWithholdTransit(notSynced, managed, cutEdge) for cutEdge true and false. That function takes no peer input, so whole-link granularity is structural in the helper, and no assertion reads an originated Router-LSA for a broadcast segment with two IGP/LDP peers, one synchronized and one not. A per-neighbour withhold added in applyLDPSyncOverride or routerLinks stays green. Missing: an origination-level test through applyLDPSyncOverride with e.spf set (IsCutEdge path) and two peers on one broadcast link.",
       "requirement_sha": "064dbbac553b9cfb",
       "tests": {
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "44961c9658aac555",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "44961c9658aac555"
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "9e546619d1947e81",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "9e546619d1947e81"
       },
       "units": {
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "4394da5e89812ecf",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "4394da5e89812ecf"
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "fe06dd08554cffcf",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "fe06dd08554cffcf"
       },
       "verdict": "weak"
     },
     "RFC5443-4-1": {
-      "note": "The row forbids raising the TE link cost. TestLDPSyncTECostUntouched asserts effectiveP2PCost == LSInfinity (the IP cost override, RFC5443-2-1) and the cut-edge withhold (RFC 6138 section 4); no assertion reads any TE metric. The tag prose says ze originates no TE LSA, yet interface_cost_test.go has TestDerivedCostReachesLDPSyncAndTEMetric, so that claim needs checking. Both tags prove neighbouring rules.",
+      "note": "Re-judged 2026-09-29. Level: RFC 5443 section 4 reads lowercase 'should only be applied to the IP link cost'; under D-3 a lowercase keyword keeps the row's MUST level, so no correction is owed. TestRFC5443CostOutRaisesIPCostNotDefaultTEMetric originates both LSAs from one not-synchronized snapshot: the Router-LSA link is 0xFFFF and the TE Link LSA (teOriginateType1, decoded) keeps the TE metric defaulted from the configured IP cost, 100. TestRFC5443CostOutLeavesExplicitTEMetric covers the explicit te-metric branch (50 unchanged). Both branches of applyTELinkAttributes are covered and a TE metric raised by the cost-out goes red. The false 'Ze originates no TE LSA' tags were removed from TestLDPSyncTECostUntouched.",
       "requirement_sha": "8e556c550ab9d30c",
       "tests": {
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "44961c9658aac555",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "44961c9658aac555"
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutLeavesExplicitTEMetric": "3bffe7b1a1620ca8",
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutRaisesIPCostNotDefaultTEMetric": "3bffe7b1a1620ca8"
       },
       "units": {
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "4394da5e89812ecf",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "4394da5e89812ecf"
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutLeavesExplicitTEMetric": "1a1f4507e06d8374",
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutRaisesIPCostNotDefaultTEMetric": "f0ec778a80eae22f"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc5443"
