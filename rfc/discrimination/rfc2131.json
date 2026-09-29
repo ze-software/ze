@@ -24,6 +24,17 @@
       "break": "body of clearReservedFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2131-3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/dhcpserver/rfc2131_msgtype_test.go::TestMessageTypeInEveryReply",
+      "unit-sha": "70eea576bb17572d",
+      "claim-sha": "d187c71d5e6817c0",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/handler.go::buildReply",
+      "producer-sha": "768b422a81e3e140",
+      "break": "body of buildReply replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2131-3.2-4",
       "polarity": "positive",
       "unit": "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent",
@@ -44,6 +55,17 @@
       "producer": "internal/plugins/dhcpserver/register.go::responseAddr",
       "producer-sha": "ebd7b65ed5b8f243",
       "break": "body of responseAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2131-3.6-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/iface/dhcp/dhcp_multiiface_integration_linux_test.go::TestRFC2131ClientRunsDHCPOnEachInterfaceIndependently",
+      "unit-sha": "290d66adf9c7d18e",
+      "claim-sha": "1128014dc76805d2",
+      "route": "revert",
+      "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::handleV4Lease",
+      "producer-sha": "79bfdcf454dea457",
+      "break": "body of handleV4Lease replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2131-4.1-6",
