@@ -75,7 +75,7 @@ const logRejectInvalidBFD = "invalid bfd"
 
 func bgpBFDStrict03(ctx context.Context, _ []string) error {
 	return runZeUntilLogsRejecting03(ctx, bgpBFDStrictConfig03,
-		[]string{logBFDStarting, logBFDConfigured, logBFDRunning, "bfd session opened for peer", logBFDStrictSessionOpened},
+		[]string{logBFDStarting, logBFDConfigured, logBFDRunning, logBFDSessionOpenedForPeer, logBFDStrictSessionOpened},
 		[]string{"unknown key strict", "unknown key hold-time", logRejectInvalidBFD, "out of range"},
 		20*time.Second, map[string]string{envLogBFD: logLevelDebug, envLogBGP: logLevelInfo})
 }
@@ -194,14 +194,14 @@ bgp {
 
 func bgpBFDMultiHopPinnedShared03(ctx context.Context, _ []string) error {
 	return runZeUntilLogsRejecting03(ctx, bgpBFDMultiHopPinnedSharedConfig03,
-		[]string{logBFDStarting, logBFDConfigured, logBFDRunning, "bfd pinned session created", "bfd session opened for peer", "bfd session shared"},
+		[]string{logBFDStarting, logBFDConfigured, logBFDRunning, logBFDPinnedSessionCreated, logBFDSessionOpenedForPeer, "bfd session shared"},
 		[]string{logRejectInvalidBFD, "bfd service delivered no initial state"},
 		20*time.Second, map[string]string{envLogBFD: logLevelDebug, envLogBGP: logLevelDebug})
 }
 
 func bgpBFDStrictPinned03(ctx context.Context, _ []string) error {
 	return runZeUntilLogsRejecting03(ctx, bgpBFDStrictPinnedConfig03,
-		[]string{logBFDStarting, logBFDConfigured, logBFDRunning, "bfd session opened for peer", logBFDStrictSessionOpened},
+		[]string{logBFDStarting, logBFDConfigured, logBFDRunning, logBFDSessionOpenedForPeer, logBFDStrictSessionOpened},
 		[]string{"unknown key strict", "unknown key hold-down", logRejectInvalidBFD, "out of range",
 			"bfd service delivered no initial state"},
 		20*time.Second, map[string]string{envLogBFD: logLevelDebug, envLogBGP: logLevelDebug})

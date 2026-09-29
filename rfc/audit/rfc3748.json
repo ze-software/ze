@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-29",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -474,8 +475,8 @@
       "tests": {
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "f90912c07fd6dcda",
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748NoEMSKWithoutACompletedExport": "f90912c07fd6dcda",
-        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK": "c637f095b98aafff",
-        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange": "c637f095b98aafff",
+        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK": "82ca9b4e9bade4f2",
+        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange": "82ca9b4e9bade4f2",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation": "a4c2ccc90d93cad9",
         "internal/core/eap/rfc3748_test.go::TestRFC3748MSKSize": "36f84904ce37bb2d"
       },
@@ -512,8 +513,8 @@
       "tests": {
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKIsNeverHandedOutward": "f90912c07fd6dcda",
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt": "f90912c07fd6dcda",
-        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward": "c637f095b98aafff",
-        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived": "c637f095b98aafff",
+        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward": "82ca9b4e9bade4f2",
+        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived": "82ca9b4e9bade4f2",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation": "a4c2ccc90d93cad9"
       },
       "units": {

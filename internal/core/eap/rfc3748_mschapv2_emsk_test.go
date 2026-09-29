@@ -28,6 +28,8 @@ import (
 // It runs to the EAP-Success rather than stopping at the method's result
 // indication, because the Session stores its EMSK on the Success Ack round
 // (mschapv2Method.handleSuccessAck).
+//
+//nolint:unparam // password stays a parameter so each RFC-tagged caller names the password it derives keys from; dropping it rewrites four RFC 3748 tagged test bodies and stales their audit verdicts for no behavior change
 func mschapv2EMSKExchange(t *testing.T, password string) (sess *Session, peer *PeerSession, wire [][]byte) {
 	t.Helper()
 

@@ -165,6 +165,8 @@ func sfSetupLab(t *testing.T) (string, *packet.Conn) {
 // sfReadDHCP returns the first DHCP message of the wanted type the client sent.
 // Frames of any other kind are skipped: the lab shares the namespace it runs
 // in, so IPv4 carries more than this exchange.
+//
+//nolint:unparam // within stays a parameter so each RFC-tagged caller in the flags and multi-interface tests names its wait; dropping it rewrites RFC 2131 tagged test bodies and stales their audit verdicts for no behavior change
 func sfReadDHCP(t *testing.T, conn *packet.Conn, want dhcpv4.MessageType, within time.Duration) *dhcpv4.DHCPv4 {
 	t.Helper()
 

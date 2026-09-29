@@ -289,13 +289,13 @@ func bfdEchoMultiHopReject03(ctx context.Context, _ []string) error {
 
 func bfdIPv6DualBind03(ctx context.Context, _ []string) error {
 	return runZeUntilLogsRejecting03(ctx, bfdIPv6Config03,
-		[]string{logBFDStarting, "bfd pinned session created", "ipv6=true", logBFDRunning},
+		[]string{logBFDStarting, logBFDPinnedSessionCreated, "ipv6=true", logBFDRunning},
 		nil, 8*time.Second,
 		map[string]string{envLogBFD: logLevelDebug, "ze.bfd.test-parallel": valueTrue})
 }
 
 func bfdTransportStage203(ctx context.Context, _ []string) error {
-	return runZeUntilLogs03(ctx, bfdStage2Config03, []string{logBFDStarting, logBFDConfigured, "bfd loop started", "bfd pinned session created", "mode=single-hop", "mode=multi-hop"}, map[string]string{envLogBFD: logLevelDebug})
+	return runZeUntilLogs03(ctx, bfdStage2Config03, []string{logBFDStarting, logBFDConfigured, "bfd loop started", logBFDPinnedSessionCreated, "mode=single-hop", "mode=multi-hop"}, map[string]string{envLogBFD: logLevelDebug})
 }
 
 func runZeUntilLogs03(ctx context.Context, config string, required []string, extraEnv map[string]string) error {

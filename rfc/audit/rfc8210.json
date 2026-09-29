@@ -1,5 +1,8 @@
 {
   "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8210-10-1": {
@@ -8,8 +11,8 @@
       "tests": {
         "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource": "bc6fefeb87099bc9",
         "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource#2": "bc6fefeb87099bc9",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied#2": "0b4790a735f3fe8a"
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied#2": "f4affe67e61b8df8"
       },
       "units": {
         "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource": "2ac661a9b04f6422",
@@ -37,8 +40,8 @@
       "requirement_sha": "d8dc4e038ef44ea3",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestIsFatalError": "c5beca1060fa5391",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession#2": "0b4790a735f3fe8a",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession#2": "f4affe67e61b8df8",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestHandlePDUVersionDowngrade": "9de8363060757013"
       },
       "units": {
@@ -87,8 +90,8 @@
         "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestWriteResetQueryZeroesReservedOverGarbage": "d7a1a5261ccc5a89",
         "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteResetQuery": "c5beca1060fa5391",
         "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteSerialQuery": "c5beca1060fa5391",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "0b4790a735f3fe8a"
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "f4affe67e61b8df8"
       },
       "units": {
         "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "72798b2cc2c5cc7d",
@@ -156,8 +159,8 @@
       "note": "Forbidden: a startup Serial Notify erroring the session or being adopted, including one of unexpected version. TestRTRStartupSerialNotifyOfAnyVersionIsIgnored over net.Pipe: a v99 Serial Notify (Session ID 0xBEEF, serial 999) before the Cache Response draws no byte (EOF), readLoop returns nil, and the session ends with the Cache Response's Session ID 7 and the EOD serial 5; negative: a v99 Cache Response in the same window fails with errRtrUnsupportedProtocol and an Error Report code 4, so the exemption is Serial Notify's alone. Removing the Serial Notify exemption from handlePDU's version check reds the positive. TestSerialNotifyIgnoredDuringStartup keeps the same-version pair.",
       "requirement_sha": "5d8fd30bd7892694",
       "tests": {
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRStartupSerialNotifyOfAnyVersionIsIgnored": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRStartupSerialNotifyOfAnyVersionIsIgnored#2": "0b4790a735f3fe8a",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRStartupSerialNotifyOfAnyVersionIsIgnored": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRStartupSerialNotifyOfAnyVersionIsIgnored#2": "f4affe67e61b8df8",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestSerialNotifyIgnoredDuringStartup": "9de8363060757013",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestSerialNotifyIgnoredDuringStartup#2": "9de8363060757013"
       },
@@ -188,8 +191,8 @@
       "note": "TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess: a cacheGroup whose only cache refuses every connection returns 600s (rtrIntervalRetryDefault) from poll; negative: after one successful sync whose EOD sets Retry 30, a failed poll waits 30s, so the default governs only before the first success. Run repeats poll, which is the periodic retry.",
       "requirement_sha": "6551cca3bf2d226a",
       "tests": {
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess#2": "0b4790a735f3fe8a"
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess#2": "f4affe67e61b8df8"
       },
       "units": {
         "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess": "a2aacfe791e1720b",
@@ -227,7 +230,7 @@
       "note": "Forbidden: accepting an unrecognized-version PDU, terminating without a report, or answering an unknown-version Error Report. TestRTRUnknownNegotiationVersion: v99 PDU yields errRtrUnsupportedProtocol plus Error Report code 4 then EOF; v2 completes. New negative TestRTRUnknownVersionErrorReportIsNotAnswered: a v99 Error Report with code 0 and code 4 fails the sync and the cache's io.ReadFull of one byte ends in io.EOF, so any reply byte goes red (the exception clause, guarded by handlePDU's Error Report exemption and readLoop's hdr.Type != pduErrorRpt).",
       "requirement_sha": "c2e34e481c7b7121",
       "tests": {
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRUnknownVersionErrorReportIsNotAnswered": "0b4790a735f3fe8a",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRUnknownVersionErrorReportIsNotAnswered": "f4affe67e61b8df8",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion": "9de8363060757013",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion#2": "9de8363060757013"
       },
@@ -268,11 +271,11 @@
       "tests": {
         "internal/component/bgp/plugins/rpki/resync_rfc8210_test.go::TestRFC8210ResetQueryFallback": "2d07978113bb370e",
         "internal/component/bgp/plugins/rpki/resync_rfc8210_test.go::TestRFC8210ResetQueryFallback#2": "2d07978113bb370e",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#2": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#3": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#4": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#5": "0b4790a735f3fe8a"
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#2": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#3": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#4": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#5": "f4affe67e61b8df8"
       },
       "units": {
         "internal/component/bgp/plugins/rpki/resync_rfc8210_test.go::TestRFC8210ResetQueryFallback": "169bd3f47fd3330a",
@@ -289,8 +292,8 @@
       "note": "Judges the MUST only. TestRTRCacheResetReloadsTheWholeSet runs a one-session cacheGroup (no more-preferred cache) against a scripted cache: wire sequence Reset, Serial, Reset after the Cache Reset, the new load's VRP validates Valid and the old one NotFound (replaced, not merged). Negative: the same Serial Query answered with data keeps Serial Queries and merges the delta (old VRP still Valid). TestCacheResetTriggersResetQuery prose corrected to the single-session state it asserts.",
       "requirement_sha": "d6a8cd3857fb271e",
       "tests": {
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "0b4790a735f3fe8a",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "f4affe67e61b8df8",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "9de8363060757013",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "9de8363060757013"
       },

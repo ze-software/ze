@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC6810-5.1-1": {
       "note": "Forbidden: accepting a Prefix PDU whose Max Length is below its Prefix Length. TestParseIPv4PrefixMaxLenLessThanPrefixLen (prefix 24, max 16, otherwise valid) fails unless parseIPv4Prefix errors with \"invalid\"; the check sits in parsePrefixPDU, which the IPv6 parser shares. Positive: max 24 over prefix 8 yields a VRP with MaxLength 24.",
@@ -20,9 +21,9 @@
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810ReservedPrefixOctetsIgnored": "8c11ef49583ba7c6",
         "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810ReservedPrefixOctetsIgnored#2": "8c11ef49583ba7c6",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#3": "0b4790a735f3fe8a"
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#3": "f4affe67e61b8df8"
       },
       "units": {
         "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810ReservedPrefixOctetsIgnored": "3cc16e24c1841a65",
@@ -38,8 +39,8 @@
       "requirement_sha": "07837f0e5c3e77ff",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810DefaultPollCadenceIsHourly": "8c11ef49583ba7c6",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly#2": "0b4790a735f3fe8a"
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly#2": "f4affe67e61b8df8"
       },
       "units": {
         "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810DefaultPollCadenceIsHourly": "2fbc18510004eb9d",
@@ -52,8 +53,8 @@
       "note": "Same units as RFC8210-8.3-1: TestRTRCacheResetReloadsTheWholeSet, one-session group, Cache Reset makes the next wire query a Reset Query and its load replaces the old set; negative: data in answer to the Serial Query keeps Serial Queries and merges.",
       "requirement_sha": "ffe9f790aa8a5991",
       "tests": {
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "0b4790a735f3fe8a",
-        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "0b4790a735f3fe8a",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "f4affe67e61b8df8",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "f4affe67e61b8df8",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "9de8363060757013",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "9de8363060757013"
       },

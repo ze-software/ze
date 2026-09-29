@@ -450,6 +450,8 @@ func writePeerUp(buf []byte, off int, pu *PeerUp) int {
 
 // writePeerDown writes a complete Peer Down message into buf at off.
 // Returns total bytes written.
+//
+//nolint:unparam // buffer-first wire contract write(buf, off) int (ai/rules/performance.md): off says how far the caller's pooled buffer is already filled, and it is what the skip-and-backfill start position is taken from. writeTLVs, writePeerUp and WriteCommonHeader take the same pair. sender.go passes 0 because it sends one BMP message per buffer
 func writePeerDown(buf []byte, off int, pd *PeerDown) int {
 	start := off
 	off += CommonHeaderSize
@@ -480,6 +482,8 @@ func writeRouteMonitoring(buf []byte, off int, rm *RouteMonitoring) int {
 
 // writeStatisticsReport writes a complete Statistics Report into buf at off.
 // Returns total bytes written.
+//
+//nolint:unparam // buffer-first wire contract write(buf, off) int (ai/rules/performance.md): off says how far the caller's pooled buffer is already filled, and it is what the skip-and-backfill start position is taken from. writeTLVs, writePeerUp and WriteCommonHeader take the same pair. sender.go passes 0 because it sends one BMP message per buffer
 func writeStatisticsReport(buf []byte, off int, sr *statisticsReport) int {
 	start := off
 	off += CommonHeaderSize
@@ -503,6 +507,8 @@ func writeStatisticsReport(buf []byte, off int, sr *statisticsReport) int {
 
 // writeRouteMirroring writes a complete Route Mirroring message into buf at off.
 // Returns total bytes written.
+//
+//nolint:unparam // buffer-first wire contract write(buf, off) int (ai/rules/performance.md): off says how far the caller's pooled buffer is already filled, and it is what the skip-and-backfill start position is taken from. writeTLVs, writePeerUp and WriteCommonHeader take the same pair. sender.go passes 0 because it sends one BMP message per buffer
 func writeRouteMirroring(buf []byte, off int, rm *routeMirroring) int {
 	start := off
 	off += CommonHeaderSize

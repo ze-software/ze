@@ -162,6 +162,8 @@ func writeSampledHeader(buf []byte, off int, frameLength, stripped uint32, heade
 // calls it, the caller MUST cap dstASPath/communities to the remaining datagram
 // space (see EncodeFlowSample's flowSampleHeaderSize bound) before invoking it,
 // since the writes here are not individually bounds-checked.
+//
+//nolint:unparam // buffer-first record writer write(buf, off) int (ai/rules/performance.md), the same pair writeSampledHeader and writeIfCounters take: a flow record lands after the flow_sample header at a non-zero offset. Only the tests call it until the AS-path enrichment path is wired, and they write at 0
 func writeExtendedGateway(buf []byte, off int, nextHop netip.Addr, agentAS, srcAS, srcPeerAS uint32, dstASPath, communities []uint32, localPref uint32) int {
 	// Record data_format
 	binary.BigEndian.PutUint32(buf[off:], DataFormatExtendedGateway)

@@ -170,6 +170,8 @@ func replyEmptySync(t *testing.T) func(net.Conn) {
 }
 
 // requireSynced waits until want cache servers have completed a sync.
+//
+//nolint:unparam // want stays a parameter so each RFC-tagged caller names the count it waits for; dropping it rewrites three RFC 8210 tagged test bodies and stales their audit verdicts for no behavior change
 func requireSynced(t *testing.T, rp *rPKIPlugin, want int) {
 	t.Helper()
 	require.Eventually(t, func() bool {

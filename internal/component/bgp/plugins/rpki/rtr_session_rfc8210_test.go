@@ -102,7 +102,7 @@ func takeQueries(t *testing.T, queries <-chan byte, count int) []byte {
 
 // startCacheGroup runs a cache group holding one session to the cache on port, so no cache is
 // more preferred than that one. The group stops when the test ends.
-func startCacheGroup(t *testing.T, port uint16, roas *ROACache) *RTRSession {
+func startCacheGroup(t *testing.T, port uint16, roas *ROACache) {
 	t.Helper()
 	stop := make(chan struct{})
 	s := newTestRTRSession(t, "127.0.0.1", port, 100, "", roas, newASPACache(), stop)
@@ -113,7 +113,6 @@ func startCacheGroup(t *testing.T, port uint16, roas *ROACache) *RTRSession {
 		s.close()
 		<-done
 	})
-	return s
 }
 
 // setDataDeadline gives the session's published data a lease that ends at deadline, current for
