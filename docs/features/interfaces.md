@@ -61,6 +61,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | DNS from DHCP to `/tmp/resolv.conf` | have | |
 | | Hostname in DHCPv4 (option 12) | have | |
 | | Client-ID in DHCPv4 (option 61) | have | |
+| | DHCPv4 flags bits 1 to 15 sent as zero, even when the server's OFFER or ACK sets them (RFC 2131 section 2) | have | |
 | | NTP servers from DHCP (option 42) | have | |
 | | DHCPv6 proper Renew (not re-solicit) | missing | medium |
 | | DHCP relay | missing | lower |

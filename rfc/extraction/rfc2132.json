@@ -4,8 +4,9 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc2132.txt",
   "source-sha": "671b4cd5878737e5",
-  "signed-off": "2026-09-21",
-  "reviewer": "claude",
+  "signed-off": "2026-09-29",
+  "reviewer": "claude (independent judge of the services dhcpserver package)",
+  "resign-reason": "Walk redone at site 2:3 on 2026-09-29: the sentence binds options defined after RFC 2132, an obligation on later option authors, so it is excluded as binds-another-role and RFC2132-2-1 is retired (rfc/corrections/rfc2132.md). Re-read against rfc/full/rfc2132.txt section 2; Ze emits only options RFC 2132 defines (buildReply, appendPXEOptions). The section 2 sentence on constant-length fields is now RFC2132-2-5, listed under unsourced-ids because its keyword is lowercase.",
   "sections": [
     {
       "id": "front",
@@ -32,7 +33,8 @@
       "sites": 3,
       "disposition": "walked",
       "unsourced-ids": [
-        "RFC2132-2-4"
+        "RFC2132-2-4",
+        "RFC2132-2-5"
       ]
     },
     {
@@ -600,8 +602,9 @@
     {
       "id": "2:3",
       "quote": "Any options defined subsequent to this document MUST contain a length octet even if the length is fixed or zero.",
-      "disposition": "mapped",
-      "mapped-to": "RFC2132-2-1"
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "binds the authors of option definitions published after RFC 2132, which Ze does not write; Ze sends only options RFC 2132 itself defines (buildReply, appendPXEOptions in internal/plugins/dhcpserver/handler.go). Row RFC2132-2-1 is retired (rfc/corrections/rfc2132.md)"
     },
     {
       "id": "3.3:1",

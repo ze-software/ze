@@ -1,18 +1,22 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC4578-2.1-2": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: accepting an option 93 whose Len is odd, or zero. TestParsePXEArch: 'too long' (Len 3) and 'too short' (Len 1) want 0, so the odd clause is enforced, and 'UEFI x64' (Len 2) is the positive. The 'greater than zero' clause has no case: no row carries an option 93 with Len 0 (the 'missing' row omits the option entirely), so a parser that accepted a zero-length option stays green. No even length above 2 is accepted either.",
+      "note": "both earlier gaps closed. positive: lengths 2 and 4 accepted through the handler, type 7 selects the UEFI bootfile (TestRFC4578ClientArchLengthEvenAndPositive) plus TestParsePXEArch Len 2. negative: odd (Len 3, Len 1 in TestParsePXEArch) and now zero: a Len 0 option 93 followed by Pad and code 7 is refused and the BIOS bootfile served, so a parser taking the following octets as a type goes red",
       "requirement_sha": "79c641e9e3619102",
       "tests": {
-        "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch": "31da40ad0d82bf37",
-        "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch#2": "31da40ad0d82bf37"
+        "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch": "3c71d2e2f2b59688",
+        "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch#2": "3c71d2e2f2b59688",
+        "internal/plugins/dhcpserver/rfc4578_arch_test.go::TestRFC4578ClientArchLengthEvenAndPositive": "6e1ce314050e039d",
+        "internal/plugins/dhcpserver/rfc4578_arch_test.go::TestRFC4578ClientArchLengthEvenAndPositive#2": "6e1ce314050e039d"
       },
       "units": {
         "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch": "3df25d100736f8a5",
-        "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch#2": "3df25d100736f8a5"
+        "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch#2": "3df25d100736f8a5",
+        "internal/plugins/dhcpserver/rfc4578_arch_test.go::TestRFC4578ClientArchLengthEvenAndPositive": "c71cc7c5e26a3022",
+        "internal/plugins/dhcpserver/rfc4578_arch_test.go::TestRFC4578ClientArchLengthEvenAndPositive#2": "c71cc7c5e26a3022"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc4578"

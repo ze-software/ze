@@ -1,22 +1,12 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
-    "RFC2132-2-1": {
-      "note": "The sentence binds options defined subsequent to RFC 2132 (an obligation on later option authors, like RFC 7606 section 8). TestEveryEmittedOptionHasLengthOctet walks the reply by length octet over codes 53/54/1/3/6/15/51/58/59, all defined in RFC 2132 itself; buildReply/appendPXEOptions (internal/plugins/dhcpserver/handler.go) emit no later-defined option. The test proves the general section 2 TLV format, which is not this row's obligation; the row reads not-applicable and the tag has no row stating what it proves",
-      "requirement_sha": "b8995331d7a73eea",
-      "tests": {
-        "internal/plugins/dhcpserver/handler_test.go::TestEveryEmittedOptionHasLengthOctet": "31da40ad0d82bf37"
-      },
-      "units": {
-        "internal/plugins/dhcpserver/handler_test.go::TestEveryEmittedOptionHasLengthOctet": "2bc3369763c98fbf"
-      },
-      "verdict": "wrong"
-    },
     "RFC2132-2-2": {
       "note": "TestASCIIOptionParsingTolerantOfTrailingNull feeds option 60 and 77 values with a trailing NUL to isPXEClient/isIPXE (the only ze receivers of ASCII option data) and asserts they are still recognized; an exact-equality matcher without NUL deletion fails it",
       "requirement_sha": "3598302baed95a6e",
       "tests": {
-        "internal/plugins/dhcpserver/handler_test.go::TestASCIIOptionParsingTolerantOfTrailingNull": "31da40ad0d82bf37"
+        "internal/plugins/dhcpserver/handler_test.go::TestASCIIOptionParsingTolerantOfTrailingNull": "3c71d2e2f2b59688"
       },
       "units": {
         "internal/plugins/dhcpserver/handler_test.go::TestASCIIOptionParsingTolerantOfTrailingNull": "113f4af5cd40ab57"
@@ -27,10 +17,21 @@
       "note": "TestASCIIOptionParsingTolerantOfTrailingNull asserts option 60 and 77 values without a trailing NUL are recognized by isPXEClient/isIPXE; a receiver requiring the NUL fails it",
       "requirement_sha": "eb7238d9df0e9835",
       "tests": {
-        "internal/plugins/dhcpserver/handler_test.go::TestASCIIOptionParsingTolerantOfTrailingNull": "31da40ad0d82bf37"
+        "internal/plugins/dhcpserver/handler_test.go::TestASCIIOptionParsingTolerantOfTrailingNull": "3c71d2e2f2b59688"
       },
       "units": {
         "internal/plugins/dhcpserver/handler_test.go::TestASCIIOptionParsingTolerantOfTrailingNull": "113f4af5cd40ab57"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2132-2-5": {
+      "note": "single-polarity positive is valid: safeAppendOption writes the length octet on its only write path and no input selects an omission. TestEveryEmittedOptionHasLengthOctet walks the OFFER by length octets to End and now pins the constant length of 53 (1) and 54, 1, 51, 58, 59 (4), so an omitted or wrong length octet goes red",
+      "requirement_sha": "bbe4bf6f83184297",
+      "tests": {
+        "internal/plugins/dhcpserver/handler_test.go::TestEveryEmittedOptionHasLengthOctet": "3c71d2e2f2b59688"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/handler_test.go::TestEveryEmittedOptionHasLengthOctet": "dac7924d0c204eeb"
       },
       "verdict": "enforced"
     },
@@ -38,7 +39,7 @@
       "note": "TestOptionSubnetMaskBeforeRouter asserts option 1's first byte offset precedes option 3's in a real OFFER from handle(); a reordering of buildReply fails it. single-polarity annotated (no path emits them reversed)",
       "requirement_sha": "deee6609a8fd3c9f",
       "tests": {
-        "internal/plugins/dhcpserver/handler_test.go::TestOptionSubnetMaskBeforeRouter": "31da40ad0d82bf37"
+        "internal/plugins/dhcpserver/handler_test.go::TestOptionSubnetMaskBeforeRouter": "3c71d2e2f2b59688"
       },
       "units": {
         "internal/plugins/dhcpserver/handler_test.go::TestOptionSubnetMaskBeforeRouter": "c37b696173b02e9d"
@@ -49,7 +50,7 @@
       "note": "TestEmittedIPListOptionLengthsMultipleOfFour asserts the emitted router option length is a non-zero multiple of 4 and exactly 4 for the single configured router; a truncated encoding fails it. single-polarity annotated",
       "requirement_sha": "0274e8f4d55624af",
       "tests": {
-        "internal/plugins/dhcpserver/handler_test.go::TestEmittedIPListOptionLengthsMultipleOfFour": "31da40ad0d82bf37"
+        "internal/plugins/dhcpserver/handler_test.go::TestEmittedIPListOptionLengthsMultipleOfFour": "3c71d2e2f2b59688"
       },
       "units": {
         "internal/plugins/dhcpserver/handler_test.go::TestEmittedIPListOptionLengthsMultipleOfFour": "5fad7524f4a41bf2"
@@ -60,7 +61,7 @@
       "note": "TestEmittedIPListOptionLengthsMultipleOfFour asserts the emitted DNS option length is a non-zero multiple of 4 and exactly 8 for two configured servers. single-polarity annotated",
       "requirement_sha": "2f33701f1cb27942",
       "tests": {
-        "internal/plugins/dhcpserver/handler_test.go::TestEmittedIPListOptionLengthsMultipleOfFour": "31da40ad0d82bf37"
+        "internal/plugins/dhcpserver/handler_test.go::TestEmittedIPListOptionLengthsMultipleOfFour": "3c71d2e2f2b59688"
       },
       "units": {
         "internal/plugins/dhcpserver/handler_test.go::TestEmittedIPListOptionLengthsMultipleOfFour": "5fad7524f4a41bf2"
@@ -71,7 +72,7 @@
       "note": "TestIgnoresClientVendorSpecificOption43 asserts the OFFER for a DISCOVER carrying client option 43 is byte-identical to the OFFER without it, through handle(); any action on or rejection of option 43 fails it",
       "requirement_sha": "4d6f556a84c2243a",
       "tests": {
-        "internal/plugins/dhcpserver/handler_test.go::TestIgnoresClientVendorSpecificOption43": "31da40ad0d82bf37"
+        "internal/plugins/dhcpserver/handler_test.go::TestIgnoresClientVendorSpecificOption43": "3c71d2e2f2b59688"
       },
       "units": {
         "internal/plugins/dhcpserver/handler_test.go::TestIgnoresClientVendorSpecificOption43": "4991674ba9617d98"
@@ -82,7 +83,7 @@
       "note": "TestIgnoresUnknownVendorClass (PXE enabled) asserts an unrecognized vendor class 'MSFT 5.0' yields an OFFER byte-identical to one without option 60 and no option 66/67; class-driven handling fails it",
       "requirement_sha": "8f6e56cbffaab954",
       "tests": {
-        "internal/plugins/dhcpserver/handler_test.go::TestIgnoresUnknownVendorClass": "31da40ad0d82bf37"
+        "internal/plugins/dhcpserver/handler_test.go::TestIgnoresUnknownVendorClass": "3c71d2e2f2b59688"
       },
       "units": {
         "internal/plugins/dhcpserver/handler_test.go::TestIgnoresUnknownVendorClass": "6ba076dac16452c3"

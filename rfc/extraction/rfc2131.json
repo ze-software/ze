@@ -422,10 +422,8 @@
     {
       "id": "4.1:9",
       "quote": "The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "the same interpretation-order sentence the previous site states; site 4.1:8 maps it",
-      "mapped-to": "RFC2131-4.1-7"
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.1-15"
     },
     {
       "id": "4.1:10",

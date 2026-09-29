@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc2132",
+  "records": [
+    {
+      "rid": "RFC2132-2-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/dhcpserver/handler_test.go::TestEveryEmittedOptionHasLengthOctet",
+      "unit-sha": "3d0e610bfc29d31d",
+      "claim-sha": "257e60160841de25",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/handler.go::safeAppendOption",
+      "producer-sha": "6465741358bf025e",
+      "break": "body of safeAppendOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

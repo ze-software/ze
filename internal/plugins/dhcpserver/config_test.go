@@ -486,6 +486,14 @@ func TestParsePXEConfigInvalid(t *testing.T) {
 			data: `{"service":{"dhcp-server":{"pxe":{"enabled":"true","tftp-server":"192.168.1.1","bootfile-bios":"ipxe.pxe","bootfile-uefi":"ipxe.efi","boot-script-url":"/install/boot/boot.ipxe"}}}}`,
 		},
 		{
+			name: "bootfile-bios exceeds DHCP option length",
+			data: `{"service":{"dhcp-server":{"pxe":{"enabled":"true","tftp-server":"192.168.1.1","bootfile-bios":"` + strings.Repeat("b", 256) + `","bootfile-uefi":"ipxe.efi"}}}}`,
+		},
+		{
+			name: "bootfile-uefi exceeds DHCP option length",
+			data: `{"service":{"dhcp-server":{"pxe":{"enabled":"true","tftp-server":"192.168.1.1","bootfile-bios":"ipxe.pxe","bootfile-uefi":"` + strings.Repeat("u", 256) + `"}}}}`,
+		},
+		{
 			name: "boot-script-url exceeds DHCP option length",
 			data: `{"service":{"dhcp-server":{"pxe":{"enabled":"true","tftp-server":"192.168.1.1","bootfile-bios":"ipxe.pxe","bootfile-uefi":"ipxe.efi","boot-script-url":"http://192.168.1.1/` + strings.Repeat("a", 240) + `"}}}}`,
 		},

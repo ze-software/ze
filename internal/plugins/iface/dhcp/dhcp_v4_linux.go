@@ -141,7 +141,9 @@ func (c *DHCPClient) renewV4(lease *nclient4.Lease) (*nclient4.Lease, bool) {
 
 	ctx, ctxCancel := c.stoppableContext()
 	defer ctxCancel()
-	renewed, err := client.Renew(ctx, lease)
+	// RFC 2131 Section 2: the renewal copies the ACK's flags word, so its
+	// reserved bits are cleared here as for acquisition.
+	renewed, err := client.Renew(ctx, lease, clearReservedFlags)
 	if err != nil {
 		logger.Warn("iface dhcp v4: renewal failed",
 			"iface", c.ifaceName, "err", err)
@@ -294,11 +296,29 @@ func (c *DHCPClient) v4Payload(ack *dhcpv4.DHCPv4) iface.DHCPPayload {
 	}
 }
 
+// flagsBroadcast is bit 0, the most significant, of the flags field: the only
+// bit RFC 2131 Section 2 defines.
+const flagsBroadcast = 0x8000
+
+// clearReservedFlags zeroes flags bits 1 to 15 of a message the client sends.
+// The vendored dhcpv4.NewRequestFromOffer and NewRenewFromAck fill the flags
+// word from the server's OFFER or ACK (WithReply), so a server that sets a
+// reserved bit would otherwise have it sent back. nclient4 applies the caller's
+// modifiers after its own, so this runs last.
+func clearReservedFlags(d *dhcpv4.DHCPv4) {
+	// RFC 2131 Section 2: "The remaining bits of the flags field are reserved
+	// for future use. They MUST be set to zero by clients and ignored by
+	// servers and relay agents."
+	d.Flags &= flagsBroadcast
+}
+
 // v4RequestModifiers builds dhcpv4 packet modifiers from the client config.
-// Adds hostname (option 12) and client-id (option 61) when configured.
+// Adds hostname (option 12) and client-id (option 61) when configured, and
+// always clears the reserved flags bits.
 // RFC 2132 Section 3.14 (hostname), Section 9.14 (client-id).
 func (c *DHCPClient) v4RequestModifiers() []dhcpv4.Modifier {
-	var mods []dhcpv4.Modifier
+	// RFC 2131 Section 2
+	mods := []dhcpv4.Modifier{clearReservedFlags}
 	if c.config.Hostname != "" {
 		mods = append(mods, dhcpv4.WithOption(dhcpv4.OptHostName(c.config.Hostname)))
 	}

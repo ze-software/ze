@@ -412,11 +412,19 @@ func parsePXEConfig(dhcpMap map[string]any) (pxeConfig, error) {
 		pxe.TFTPServer = addr
 	}
 
+	// Each bootfile is sent in option 67, whose one length octet counts at most
+	// 255 octets of data (RFC 2132 Section 2).
 	if v, ok := pxeMap["bootfile-bios"].(string); ok {
+		if len(v) > 255 {
+			return pxe, fmt.Errorf("pxe bootfile-bios: length %d exceeds DHCP option maximum 255", len(v))
+		}
 		pxe.BootfileBIOS = v
 	}
 
 	if v, ok := pxeMap["bootfile-uefi"].(string); ok {
+		if len(v) > 255 {
+			return pxe, fmt.Errorf("pxe bootfile-uefi: length %d exceeds DHCP option maximum 255", len(v))
+		}
 		pxe.BootfileUEFI = v
 	}
 

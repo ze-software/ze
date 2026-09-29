@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -206,22 +207,29 @@ func TestV4RequestModifiersHostname(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	mods := client.v4RequestModifiers()
-	assert.Len(t, mods, 2, "should have hostname and client-id modifiers")
+	msg, err := dhcpv4.New(client.v4RequestModifiers()...)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-router", msg.HostName(), "hostname option 12")
+	assert.Equal(t, []byte("ze:01"), msg.Options.Get(dhcpv4.OptionClientIdentifier), "client-id option 61")
 }
 
 func TestV4RequestModifiersEmpty(t *testing.T) {
 	t.Parallel()
 
-	// VALIDATES: no modifiers when config has no hostname/client-id.
-	// PREVENTS: nil/empty modifier accidentally injected.
+	// VALIDATES: no hostname or client-id option when config has neither, and
+	// the reserved flags bits are cleared while BROADCAST is kept.
+	// PREVENTS: an empty option injected, and a reserved flags bit copied from
+	// a server's OFFER or ACK into the message the client sends.
 
 	bus := stubEventBus{}
 	client, err := newDHCPClient("eth0", "default", bus, true, false, dHCPConfig{})
 	require.NoError(t, err)
 
-	mods := client.v4RequestModifiers()
-	assert.Empty(t, mods, "should have no modifiers with empty config")
+	msg, err := dhcpv4.New(dhcpv4.PrependModifiers(client.v4RequestModifiers(), func(d *dhcpv4.DHCPv4) { d.Flags = 0xffff })...)
+	require.NoError(t, err)
+	assert.False(t, msg.Options.Has(dhcpv4.OptionHostName), "no hostname option")
+	assert.False(t, msg.Options.Has(dhcpv4.OptionClientIdentifier), "no client-id option")
+	assert.Equal(t, uint16(0x8000), msg.Flags, "reserved flags bits cleared, BROADCAST kept")
 }
 
 func TestSleepOrStopWithClosedChannel(t *testing.T) {

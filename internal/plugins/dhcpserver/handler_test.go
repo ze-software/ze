@@ -1410,13 +1410,19 @@ func TestEveryEmittedOptionHasLengthOctet(t *testing.T) {
 		i += 2 + l
 	}
 
-	// RFC requirement: RFC2132-2-1 positive -- the length-octet-driven walk recovers every expected option and terminates exactly on the End marker, proving each option carried a length octet.
+	// RFC requirement: RFC2132-2-5 positive -- the options whose length is a constant (53 of length 1; 54, 1, 51, 58 and 59 of length 4) each carry that length in a length octet, and the length-octet-driven walk recovers every option and ends exactly on the End marker.
 	if !reachedEnd {
 		t.Error("options field did not terminate on an End (255) marker via length-octet walk")
 	}
 	for _, code := range []byte{optMessageType, optServerID, optSubnetMask, optRouter, optDNS, optDomainName, optLeaseTime, optT1, optT2} {
 		if !seen[code] {
 			t.Errorf("length-octet walk did not recover expected option code %d", code)
+		}
+	}
+	fixed := map[byte]int{optMessageType: 1, optServerID: 4, optSubnetMask: 4, optLeaseTime: 4, optT1: 4, optT2: 4}
+	for code, size := range fixed {
+		if got := len(getResponseOption(offer, code)); got != size {
+			t.Errorf("fixed-size option %d carries length %d, want %d", code, got, size)
 		}
 	}
 }

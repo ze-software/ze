@@ -66,8 +66,13 @@ address index alone leaks the address out of the pool forever.
 
 **An option write must be bounds-checked.** Many DNS servers or a long domain
 name overflow the response buffer. The option length field is one byte as well,
-so a domain name longer than 255 bytes truncates silently. Both are rejected at
-config parse time and guarded at write time.
+so a value longer than 255 bytes would carry a length octet that disagrees with
+its data, and the client would read the rest of the value as options (RFC 2131
+section 4.1: every option is entirely contained in its field). The DNS server
+count, the domain name, both PXE bootfile names and the boot script URL are
+rejected at config parse time. At write time, `safeAppendOption` omits an
+option whose data is longer than 255 bytes or does not fit before the End
+option.
 
 **Every configured address must be refused unless it is IPv4.** This server
 speaks RFC 2131, and the reply builder narrows each address it sends to four

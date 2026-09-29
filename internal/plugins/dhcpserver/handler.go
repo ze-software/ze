@@ -353,7 +353,19 @@ func (h *dhcpHandler) buildNak(req []byte) []byte {
 	return resp
 }
 
+// safeAppendOption writes one option at buf[off:] and returns the new offset.
+// An option that cannot be written whole is omitted, and off is returned
+// unchanged. Config validation refuses a value longer than 255 octets, so the
+// first guard is the second check of that pair.
 func safeAppendOption(buf []byte, off, limit int, code byte, data []byte) int {
+	// RFC 2132 Section 2: "The length octet is followed by "length" octets of
+	// data." One octet cannot count more than 255, so longer data would carry a
+	// length octet that disagrees with it.
+	// RFC 2131 Section 4.1: "Any individual option in the 'options', 'sname' and
+	// 'file' fields MUST be entirely contained in that field."
+	if len(data) > 255 {
+		return off
+	}
 	need := 2 + len(data)
 	if off+need > limit {
 		return off

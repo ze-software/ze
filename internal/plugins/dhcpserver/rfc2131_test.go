@@ -387,7 +387,8 @@ func TestUnidentifiableClientRejected(t *testing.T) {
 
 	pkt := buildMsg(msgDiscover, net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x09}, 0x2139, netip.Addr{}, 0, nil)
 	pkt[2] = 0 // hlen = 0: no hardware address to identify the client by
-	// RFC requirement: RFC2131-4.2-2 negative -- a request declaring a zero-length chaddr carries no identity the server can use, and is dropped rather than bound to an empty identifier.
+	// RFC 2131 says nothing of a zero-length chaddr, so this is ze's policy, not
+	// the Section 4.2 rule; TestRFC2131ChaddrContentsIdentifyTheClient proves that.
 	if resp := h.handle(pkt); resp != nil {
 		t.Errorf("expected no reply to a request with hlen = 0, got message type %d", getResponseMsgType(resp))
 	}
