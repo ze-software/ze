@@ -559,8 +559,10 @@ func (inst *instance) encodeLocked(p AdvertParams) error {
 		}
 		hdr := buildIPv4Header(inst.txBuf, inst.v4Src.As4(), packet.MulticastV4.As4())
 		n := adv.WriteTo(inst.txBuf, hdr)
-		// RFC 9568 Section 5.2.8: v3/IPv4 checksum is message-only (no pseudo-header);
-		// a v4 src makes FillChecksum select the message-only path.
+		// FillChecksum picks the form from the version: v2 is message-only
+		// (RFC 3768 Section 5.3.7); v3/IPv4 carries the RFC 5798 pseudo-header
+		// form for interop, not the RFC 9568 Section 5.2.8 message-only form
+		// (see FillChecksum for why).
 		packet.FillChecksum(inst.txBuf, hdr, n, inst.v4Src, packet.MulticastV4)
 		inst.txLen = hdr + n
 	} else {

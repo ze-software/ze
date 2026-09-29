@@ -9,6 +9,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -25,17 +26,21 @@
       "verdict": "enforced"
     },
     "RFC9568-5.1.1.3-2": {
-      "note": "RA10 re-audit: the check clause is enforced (golden accepts TTL 255; N4 feeds TTL 64 and requires ErrTTL). The 'MUST discard the packet' clause is not: the discard is the return after recordRxError in instance.onPacket (instance.go:669-671), and no tagged unit asserts the FSM sees nothing; removing that return leaves every tagged assertion green (same hole as RFC9568-7.1-6)",
+      "note": "vrrp judge 2026-09-29 (independent): TestInstanceRxDiscardsBadTTLTypeAndCountZero drives instance.onPacket: an IPv4 advert at TTL 255 records nothing and reaches the FSM as AdvertReceived; at TTL 0, 64, 254 it records exactly ttl and posts no FSM event. Only meta.TTL differs. Both the check and the discard are proven.",
       "requirement_sha": "52d299ddca5d731a",
       "tests": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
-        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e"
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "22bea7e98f350d61",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "22bea7e98f350d61"
       },
       "units": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
-        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97"
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "5a7167ebc11033f3",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "5a7167ebc11033f3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9568-5.1.2.3-1": {
       "note": "TestIntegrationOpenInstanceSocketOptions/v6 reads IPV6_MULTICAST_HOPS back from the tx and NA sockets and requires 255; runs only under integration && linux with CAP_NET_RAW/ADMIN, as the row's marker discloses",
@@ -49,30 +54,38 @@
       "verdict": "enforced"
     },
     "RFC9568-5.1.2.3-2": {
-      "note": "RA10 re-audit: the check clause is enforced (v6 golden accepts hop limit 255; TestDecodeV3IPv6ChecksumAndHopLimit feeds 64 and requires ErrTTL). The 'MUST discard the packet' clause is not: no tagged unit asserts that a Decode error keeps the advert from the FSM (the return at instance.go:671), so removing it stays green (same hole as RFC9568-7.1-6)",
+      "note": "vrrp judge 2026-09-29 (independent): Same unit, IPv6: Hop Limit 255 reaches the FSM; 0, 64, 254 record exactly ttl and never reach it.",
       "requirement_sha": "b4162b884272a4bf",
       "tests": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "19a4c15f930f948e",
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "19a4c15f930f948e"
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "19a4c15f930f948e",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "22bea7e98f350d61",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "22bea7e98f350d61"
       },
       "units": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "2a54600c4cbf442d",
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "2e3e761c5e3df207"
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "2e3e761c5e3df207",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "5a7167ebc11033f3",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "5a7167ebc11033f3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9568-5.2.2-1": {
-      "note": "RA10 re-audit: TestValidationOrder 3<4 requires ErrType for type 2 and the golden accepts type 1, so the type is checked. The 'MUST be discarded' clause has no assertion: no tagged unit shows a type-2 packet never reaches the FSM (the return at instance.go:671 is untested; same hole as RFC9568-7.1-6)",
+      "note": "vrrp judge 2026-09-29 (independent): Same unit: Type 1 reaches the FSM; Type 0, 2, 15 with a refilled checksum record exactly type and never reach it.",
       "requirement_sha": "775ed90fb517a858",
       "tests": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
-        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "19a4c15f930f948e"
+        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "19a4c15f930f948e",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "22bea7e98f350d61",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "22bea7e98f350d61"
       },
       "units": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
-        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc"
+        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "5a7167ebc11033f3",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "5a7167ebc11033f3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9568-5.2.4-1": {
       "note": "vrrp judge 2026-09-29 re-read after a tag was added to TestEffectivePriorityWithTracking (body unchanged): TestOwnerAutoDetection requires EffectivePriority 255 for the owner configured at 120 and the configured 100 for a non-owner; TestEffectivePriorityWithTracking keeps the owner at 255 under any decrement",
@@ -105,17 +118,21 @@
       "verdict": "enforced"
     },
     "RFC9568-5.2.5-1": {
-      "note": "RA10 re-audit: N5 count-zero requires ErrCountZero on an exact-length count-0 advert and the golden accepts count 2, so the count is checked. The 'MUST be ignored' clause has no assertion: no tagged unit shows the count-0 advert never reaches the FSM (the return at instance.go:671 is untested; same hole as RFC9568-7.1-6)",
+      "note": "vrrp judge 2026-09-29 (independent): Same unit: a non-zero Count reaches the FSM; an exact-length Count 0 advert (checksum recomputed) records exactly count-zero and never reaches it.",
       "requirement_sha": "c7286c4391bb00eb",
       "tests": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
-        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e"
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "22bea7e98f350d61",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "22bea7e98f350d61"
       },
       "units": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
-        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97"
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "5a7167ebc11033f3",
+        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "5a7167ebc11033f3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9568-5.2.6-1": {
       "note": "TestEncodeGoldenV3IPv4 requires the Reserve nibble 0 on transmission and exact golden bytes; TestDecodeV3ReserveIgnoredOnReceive sets all Reserve bits, re-checksums, and requires acceptance with the interval unchanged",
@@ -131,13 +148,17 @@
       "verdict": "enforced"
     },
     "RFC9568-5.2.8-1": {
-      "note": "row quotes Section 7.1 'It MUST verify the VRRP checksum.', which covers both families; the tagged units prove only IPv6 (golden accepts, corrupted v6 checksum -> ErrChecksum). The IPv4 negative exists (TestNegativeReferenceBugs N1b both-sums-fail-rejected) but is not tagged to this row. RA10: for IPv4, Decode dual-accepts the RFC 5798 pseudo-header sum as well as the RFC 9568 Section 5.2.8 message-only sum, so an advert whose RFC 9568 checksum is wrong is accepted when the legacy sum matches (documented interop deviation, docs/features/rfc-status.md RFC 5798 row)",
+      "note": "vrrp judge 2026-09-29 (independent): Tests now prove verification for both families: IPv4 message-only sum accepted and flagged, IPv6 accepted; an IPv4 sum valid under no form and an IPv6 flipped bit each ErrChecksum. Not conformant: verifyReceived also accepts an IPv4 advert whose RFC 9568 Section 5.2.8 checksum is wrong when the RFC 5798 pseudo-header sum matches (deliberate interop deviation). The deviation is disclosed on rfc5798's Support row, not on rfc9568's, and a deviation is never counted conformant. Needs the same owner ruling as RFC9568-7.2-1.",
       "requirement_sha": "8dd6734b9174d6f3",
       "tests": {
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeVerifiesChecksumBothFamilies": "ea8c73c193bdd188",
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeVerifiesChecksumBothFamilies#2": "ea8c73c193bdd188",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "19a4c15f930f948e",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "19a4c15f930f948e"
       },
       "units": {
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeVerifiesChecksumBothFamilies": "fe720ee3358d499f",
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeVerifiesChecksumBothFamilies#2": "fe720ee3358d499f",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "2a54600c4cbf442d",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "2e3e761c5e3df207"
       },
@@ -269,15 +290,19 @@
       "verdict": "enforced"
     },
     "RFC9568-6.4.2-7": {
-      "note": "RA-FIX re-read 2026-09-27 against the quote re-taken from erratum 7949. TestFSMMasterDownPromotion asserts the promotion emits SendAdvert, InstallVIPs, AnnounceFailover, StartAdvertTimer, EmitStateChange in that order and ends in Master; TestFSMStaleTimerGenerationIgnored binds promotion to the live timer. No tagged unit asserts what the sentence requires of each step: the gratuitous ARP carrying the virtual IPv4 address with target link-layer address the Virtual Router MAC (erratum 7949), the join of the Solicited-Node multicast address, the unsolicited NA with R set, S clear, O set, target the virtual IPv6 address and TLL the Virtual Router MAC, one announcement per associated address, or the Adver_Timer set to Advertisement_Interval (StartAdvertTimer's interval is not read). The frame builders (transport/garp.go buildGARP, transport/na.go BuildNA) carry those fields, but their tests are not tagged on this row.",
+      "note": "vrrp judge 2026-09-29 (independent): Proven: the exact promotion action list with StartAdvertTimer{1s}; GARP per IPv4 VIP with the Virtual Router IPv4 address and target link-layer address the Virtual Router MAC (erratum 7949); NA per IPv6 VIP with R=1 S=0 O=1, Target, TLL the Virtual Router MAC. Missing: the 'Compute and join the Solicited-Node multicast address' clause has no assertion (kernel joins on address add, but no tagged unit asserts the install that triggers it or reads the membership).",
       "requirement_sha": "d1f67294e25cfe8e",
       "tests": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMMasterDownPromotion": "b2b7454fac310168",
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "b2b7454fac310168"
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestPromotionSetsAdverTimerToOwnInterval": "529420a351d8b685",
+        "internal/plugins/vrrp/transport/rfc_announce_verdict_test.go::TestAnnounceMasterFramesPerAddress": "ae6af29a2a8c28fc"
       },
       "units": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMMasterDownPromotion": "681303d0683131ce",
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "7c0fe29c87ffeb1d"
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "7c0fe29c87ffeb1d",
+        "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestPromotionSetsAdverTimerToOwnInterval": "04feb1c234946c3b",
+        "internal/plugins/vrrp/transport/rfc_announce_verdict_test.go::TestAnnounceMasterFramesPerAddress": "07ea4c4b0ec8e9cb"
       },
       "verdict": "weak"
     },
@@ -512,28 +537,36 @@
       "verdict": "enforced"
     },
     "RFC9568-7.1-3": {
-      "note": "the tagged negative (N2) appends an 8-byte trailer, a packet that still CONTAINS the complete VRRP packet, and is rejected by ze's exact-length rule rather than by this one. A packet missing part of its IPvX address list is the violating input; the truncated case in TestValidationOrder 1<2 is untagged and cuts the fixed header, not the address list",
+      "note": "vrrp judge 2026-09-29 (independent): TestDecodeV3DiscardsIncompletePacket: IPv4 and IPv6 goldens accepted; 7 octets ErrTruncated; IPv4 Count 2 with one address, Count 3 over two, IPv6 with 1.5 addresses (checksums recomputed) each ErrLength. Residual: the older N2 tag feeds a longer packet that still contains the complete packet, so that tag's claim is mis-aimed; it does not weaken the new proof.",
       "requirement_sha": "8af54b0ce13a5102",
       "tests": {
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeV3DiscardsIncompletePacket": "ea8c73c193bdd188",
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeV3DiscardsIncompletePacket#2": "ea8c73c193bdd188",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
         "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e"
       },
       "units": {
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeV3DiscardsIncompletePacket": "4748ad08afe559e7",
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeV3DiscardsIncompletePacket#2": "4748ad08afe559e7",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
         "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9568-7.1-4": {
-      "note": "RA-FIX re-read 2026-09-27 against the quote re-taken from erratum 8298, which leaves only the VRID check at MUST. Decode (packet/validate.go) returns ErrUnknownVRID when the lookup does not resolve the VRID: TestValidationOrder 4<5 is the negative, TestDecodeGoldenV3IPv4 resolves a configured VRID. The clause 'on the receiving interface' is not asserted: instance.lookup compares the VRID with its own instance, and interface scoping rests on the per-instance socket the transport binds, which no tagged unit exercises. An advert for a VRID configured on another interface is never fed to a tagged unit.",
+      "note": "vrrp judge 2026-09-29 (independent): TestRxAdvertScopedToReceivingInterface (guest) proves kernel delivery is scoped to the receiving interface for VRRPv3 and that Decode refuses the unconfigured VRID, but it decodes with a test-supplied lookup. The production binding of VRID to the receiving instance (instance.lookup via engine dispatchRx) is exercised only by the VRRPv2 TestRxVRIDCheckedOnTheReceivingInterface, tagged RFC3768-7.1-4, so a lookup that accepted any VRID stays green for this row. A VRRPv3 case of that unit tagged here closes it.",
       "requirement_sha": "307bb7d3b23264a0",
       "tests": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
-        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "19a4c15f930f948e"
+        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "19a4c15f930f948e",
+        "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "c2435b5ed03adf55",
+        "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "c2435b5ed03adf55"
       },
       "units": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
-        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc"
+        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc",
+        "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "6fa56b37b31d61ca",
+        "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "6fa56b37b31d61ca"
       },
       "verdict": "weak"
     },
@@ -579,25 +612,31 @@
       "verdict": "wrong"
     },
     "RFC9568-7.2-2": {
-      "note": "the tagged unit in packet_test.go asserts only VirtualMAC's derivation (00-00-5E-00-01/02-{VRID}), not that a transmitted frame carries it as source MAC; the wire proof exists in the untagged TestIntegrationAdvertOnPeerVeth (transport_integration_linux_test.go, L2 src == vmac)",
+      "note": "vrrp judge 2026-09-29 (independent): TestTxAdvertV4OnWire and TestTxAdvertV6OnWire (guest) compare the captured source MAC with the literal Virtual Router MACs for both families. Single-polarity positive per the row annotation.",
       "requirement_sha": "dece13f552a8e9a9",
       "tests": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "3fd728ced10544ca"
+        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "3fd728ced10544ca",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "b607a8e27c4c0698",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "b607a8e27c4c0698"
       },
       "units": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "815ed7ee56089d0e"
+        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "815ed7ee56089d0e",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "1f44542460923595",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "743f9108e7f1c010"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9568-7.2-3": {
-      "note": "IPv4 half enforced: TestSendAdvertUsesParentPrimaryV4Source reads the source from the frame and TestSendAdvertNoPrimaryV4SkipsAndCounts refuses to send with no primary. IPv6 half has only the negative TestSendAdvertNoLinkLocalSkipsAndCounts; no tagged unit asserts the IPv6 source is the link-local (the untagged TestIntegrationAdvertV6OnWire does)",
+      "note": "vrrp judge 2026-09-29 (independent): IPv6 half now enforced (TestTxAdvertV6OnWire source equals the macvlan link-local; TestSendAdvertNoLinkLocalSkipsAndCounts negative). IPv4 half: the tagged TestSendAdvertUsesParentPrimaryV4Source stubs one IPv4 address, so primary versus secondary is never distinguished for this row; TestTxAdvertV4OnWire already checks the VRRPv3 source against a lower secondary but is tagged only to RFC3768-7.2-3.",
       "requirement_sha": "8448170ff7887018",
       "tests": {
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "b607a8e27c4c0698",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoLinkLocalSkipsAndCounts": "74ad900f2e06c8d5",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoPrimaryV4SkipsAndCounts": "74ad900f2e06c8d5",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "74ad900f2e06c8d5"
       },
       "units": {
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "743f9108e7f1c010",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoLinkLocalSkipsAndCounts": "a2a42810b4b4a5d6",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoPrimaryV4SkipsAndCounts": "d010337619277e96",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "71d8d585b800743e"
@@ -605,15 +644,19 @@
       "verdict": "weak"
     },
     "RFC9568-7.2-4": {
-      "note": "TestSendAdvertV3IPv4HeaderTTLProtoDst asserts protocol 112 and dst 224.0.0.18 for IPv4 only; the IPv6 next header 112 and ff02::12 destination are asserted only by the untagged TestIntegrationAdvertV6OnWire",
+      "note": "vrrp judge 2026-09-29 (independent): TestTxAdvertV4OnWire and TestTxAdvertV6OnWire compare the captured protocol/next header and destination with the literals 112, 224.0.0.18 and ff02::12. Single-polarity positive per the row annotation.",
       "requirement_sha": "12f257e971ced6da",
       "tests": {
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "b607a8e27c4c0698",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "b607a8e27c4c0698",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "74ad900f2e06c8d5"
       },
       "units": {
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "1f44542460923595",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "743f9108e7f1c010",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "ed1d6c271e3fed5c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9568-8.1.2-1": {
       "note": "vrrp judge 2026-09-29 (independent, continuation 3): Both halves proven. Owner: TestOwnerFilterWiredOnPromotionForEveryFamily (ipv4-v3) drives an owner to setOwnerFilter with the parent and exactly the owned IPv4 address before install, and the same group as non-owner names none (records observed red on doInstallVIPs); TestVRRPOwnerAnswersWithVirtualMACOnly (QEMU guest) captures the parent's physical-MAC ARP reply without the filter and after withdrawal, and only the Virtual Router MAC with it (records on ownerARPReplyTerm, ownerFilterTables). Non-owner: TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly captures the physical MAC without applyDataplaneSysctls and only the virtual MAC with it.",
