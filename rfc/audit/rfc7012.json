@@ -1,16 +1,18 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC7012-4-1": {
-      "note": "TestIPFIXFlowTemplate checks the E bit on all 11 fields (so ids stay <= 32767) but pins exact IE ids for only fields 0, 4 and 9. A template that emitted IE id 0 in any other field stays green, so the 'range of 1-32767' lower bound is not asserted for the emitted template. Single-polarity marker.",
+      "note": "Single-polarity row. TestRFC7012EmittedIEIdentifiersInRange walks every field specifier of all three emitted templates (counter, IPv4 flow, IPv6 flow) and requires the IE identifier word to be neither 0 nor above 32767, so a template referencing IE 0 in any field goes red (recorded).",
       "requirement_sha": "eaa3a43563fba7bf",
       "tests": {
-        "internal/plugins/flowexport/ipfix/flow_template_test.go::TestIPFIXFlowTemplate": "0a51ff851038eff5"
+        "internal/plugins/flowexport/ipfix/flow_template_test.go::TestIPFIXFlowTemplate": "0a51ff851038eff5",
+        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7012EmittedIEIdentifiersInRange": "a52a12ad5bf1fd57"
       },
       "units": {
-        "internal/plugins/flowexport/ipfix/flow_template_test.go::TestIPFIXFlowTemplate": "8482e23ae37ecd23"
+        "internal/plugins/flowexport/ipfix/flow_template_test.go::TestIPFIXFlowTemplate": "8482e23ae37ecd23",
+        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7012EmittedIEIdentifiersInRange": "e4afed8c731ccc4e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc7012"

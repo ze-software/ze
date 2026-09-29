@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC7011-10.3.2-2": {
       "note": "Forbidden: an IPFIX UDP datagram sent without a valid UDP checksum. TestRFC7011UDPChecksumEnabledOnSenderSocket (Linux) reads the socket NewSender dials and asserts SO_NO_CHECK clear for IPv4 and UDP_NO_CHECK6_TX clear for IPv6, red if either is set, so the kernel writes the checksum. Single-polarity marker: NewSender never sets either option.",
@@ -61,30 +61,36 @@
       "verdict": "enforced"
     },
     "RFC7011-3.4.1-1": {
-      "note": "TestRFC7011TemplateIDAbove255 asserts each builder writes its own constant (256, 257, 258) and that each is >= 256, which proves the range. The quoted sentence also requires the Template ID be unique within the Transport Session and Observation Domain, and no assertion checks the three IDs are distinct: setting FlowTemplateID to 256 keeps the test green.",
+      "note": "Single-polarity row. TestRFC7011TemplateIDsUniqueInSession reads the Template ID of all three Template Sets one Transport Session carries (counter, IPv4 flow, IPv6 flow) and requires each >= 256 and all three distinct, so setting FlowTemplateID to 256 goes red (recorded). The exporter emits no other Template.",
       "requirement_sha": "c8c69648254189bc",
       "tests": {
+        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011TemplateIDsUniqueInSession": "a52a12ad5bf1fd57",
         "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011TemplateIDAbove255": "1e121054ccd5ea2a"
       },
       "units": {
+        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011TemplateIDsUniqueInSession": "3f33a6573c64643c",
         "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011TemplateIDAbove255": "2b037c09082060c2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7011-6.1.1-1": {
-      "note": "TestRFC7011IntegralNetworkByteOrder, TestRFC7011IntegralNeverLittleEndian and TestIPFIXFlowData (flow_data_test.go) prove big-endian integral encoding on the per-flow path (WriteFlowDataSet) only. The counter Data Record path, data.go::writeCounterRecord, encodes the unsigned32 interface indexes and unsigned64 total counts and carries no tagged unit, so a little-endian regression there stays green.",
+      "note": "Both Data Record paths now proven. Per-flow path: the three existing units (recorded). Counter path writeCounterRecord: TestRFC7011CounterRecordIntegralsNetworkByteOrder compares the whole record to the big-endian concatenation of ingressInterface, octetTotalCount, packetTotalCount, egressInterface and the two dateTimeSeconds, each built from distinct octets; TestRFC7011CounterRecordIntegralsNeverLittleEndian requires no byte-reversed field (both recorded, writeCounterRecord).",
       "requirement_sha": "0595711242bc3bb2",
       "tests": {
         "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IntegralNetworkByteOrder": "49e03ede36d04954",
         "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IntegralNeverLittleEndian": "49e03ede36d04954",
-        "internal/plugins/flowexport/ipfix/flow_data_test.go::TestIPFIXFlowData": "b257f38e5c551214"
+        "internal/plugins/flowexport/ipfix/flow_data_test.go::TestIPFIXFlowData": "b257f38e5c551214",
+        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNetworkByteOrder": "a52a12ad5bf1fd57",
+        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNeverLittleEndian": "a52a12ad5bf1fd57"
       },
       "units": {
         "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IntegralNetworkByteOrder": "8d8fcbd94e108e09",
         "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IntegralNeverLittleEndian": "03a780b25c8da618",
-        "internal/plugins/flowexport/ipfix/flow_data_test.go::TestIPFIXFlowData": "5acac2d3797049aa"
+        "internal/plugins/flowexport/ipfix/flow_data_test.go::TestIPFIXFlowData": "5acac2d3797049aa",
+        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNetworkByteOrder": "c45cd60ec1fb4062",
+        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNeverLittleEndian": "3eb937d917ef0be2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7011-6.1.2-1": {
       "note": "Forbidden: an ipv4Address or ipv6Address not written as 4 or 16 octets in network byte order. TestRFC7011AddressOctetsNetworkByteOrder asserts the IPv4 record opens with 0a010203 0a040506 and the IPv6 record with the 16-octet source then destination in network order, and that each Set payload is the record size; TestRFC7011IPv4NeverWidenedToSixteenOctets asserts an IPv4 flow is neither encoded at the IPv6 width nor carries an IPv4-mapped 16-octet form. Ze exports no macAddress IE, so that clause has no producer.",
@@ -111,43 +117,53 @@
       "verdict": "enforced"
     },
     "RFC7011-8-1": {
-      "note": "Forbidden: a UDP Exporting Process that does not periodically retransmit EACH active Template at regular intervals. TestRFC7011TemplateRetransmittedAtInterval uses a countingEncoder on the counter path and asserts templateCalls goes 1 to 2 once, at +600 s; the negative asserts no resend at +2 s. 'Each active Template' is not asserted (the flow4/flow6 Templates 257/258 are never counted) and 'periodically ... at regular intervals' is one observed resend, not a second interval. An exporter that resent the counter Template once, or never resent the flow Templates, stays green.",
+      "note": "TestRFC7011EachActiveTemplateRetransmittedEveryInterval counts the counter Template and the flow Templates separately over seven half-interval exports (0..1800 s) and requires exactly one send per elapsed 600 s interval, four in all, so a single resend, no resend, or a flow Template never refreshed goes red (recorded). The same exact count forbids a resend at a half interval. The old negative (no resend at +2 s) tests over-sending, not this MUST, and carries no record; the new unit carries both directions. The flow count is of EncodeFlowTemplate calls; that one call sends both 257 and 258 is shown by the 8.2-1 rollback unit, which reads three Template messages.",
       "requirement_sha": "24edda6c621b7b5d",
       "tests": {
         "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateNotRetransmittedBeforeInterval": "9a9f62bba8b4a49a",
-        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRetransmittedAtInterval": "9a9f62bba8b4a49a"
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRetransmittedAtInterval": "9a9f62bba8b4a49a",
+        "internal/plugins/flowexport/template_refresh_rfc7011_test.go::TestRFC7011EachActiveTemplateRetransmittedEveryInterval": "30cf331c7f3ccf14"
       },
       "units": {
         "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateNotRetransmittedBeforeInterval": "c6cee6dcffd7ee50",
-        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRetransmittedAtInterval": "65b8b4e746c278f7"
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRetransmittedAtInterval": "65b8b4e746c278f7",
+        "internal/plugins/flowexport/template_refresh_rfc7011_test.go::TestRFC7011EachActiveTemplateRetransmittedEveryInterval": "8089928d08617d7d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7011-8-2": {
-      "note": "TestRFC7011TemplateRefreshConfigurable proves only that template-refresh parses into CollectorConfig.TemplateRefresh and passes Validate; TestRFC7011TemplateRefreshRangeRejected proves out-of-range values are refused, which is validation, not a violation of configurability. No unit shows the configured value drives the retransmit decision in exporter.go (refreshInterval from cs.cfg.TemplateRefresh): an exporter hardcoding 600 s keeps every tagged unit green.",
+      "note": "TestRFC7011ConfiguredRefreshDrivesRetransmit sets template-refresh 30 s and requires counter and flow resends at 30 s and not at 29 s; TestRFC7011ConfiguredRefreshOverridesDefault sets 900 s and requires no resend at 600 or 899 s, so an exporter hard-coding 600 s goes red (both recorded). The config parse into CollectorConfig.TemplateRefresh is the existing TestRFC7011TemplateRefreshConfigurable.",
       "requirement_sha": "d8a3941caf7e374b",
       "tests": {
         "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshConfigurable": "9a9f62bba8b4a49a",
-        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected": "9a9f62bba8b4a49a"
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected": "9a9f62bba8b4a49a",
+        "internal/plugins/flowexport/template_refresh_rfc7011_test.go::TestRFC7011ConfiguredRefreshDrivesRetransmit": "30cf331c7f3ccf14",
+        "internal/plugins/flowexport/template_refresh_rfc7011_test.go::TestRFC7011ConfiguredRefreshOverridesDefault": "30cf331c7f3ccf14"
       },
       "units": {
         "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshConfigurable": "d81b4418df553d83",
-        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected": "89f1ec40f3dd15b3"
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected": "89f1ec40f3dd15b3",
+        "internal/plugins/flowexport/template_refresh_rfc7011_test.go::TestRFC7011ConfiguredRefreshDrivesRetransmit": "d408e2b61c03cb9c",
+        "internal/plugins/flowexport/template_refresh_rfc7011_test.go::TestRFC7011ConfiguredRefreshOverridesDefault": "b77550278df04535"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7011-8.2-1": {
-      "note": "Forbidden: Template management actions whose Export Time does not sequence them, i.e. a Template sent with an Export Time earlier than one already sent. TestRFC7011TemplateExportTimeIsSendTime asserts the flow Template's Export Time lies within the send second (red on a zero or constant time) and TestRFC7011TemplateExportTimeNeverRegresses asserts it does not decrease over three rounds. Both read the real clock, so removing the max(now, templateExportTime) clamp in flow_adapter.go that keeps the sequence monotonic across a backward clock step leaves both green; and the counter Template path (adapter.go, its own clamp) carries no tagged unit. The exporter sends no Template Withdrawals.",
+      "note": "Counter Template: TestRFC7011CounterTemplateExportTimeIsSendTime pins its Export Time to the send second. Ordering: TestRFC7011TemplateRefreshAfterClockRollbackKeepsOrder steps the clock back with synctest and requires the refreshed counter 256 and flow 257, 258 Templates to carry an Export Time not before the earlier action, so removing either max(now, templateExportTime) clamp goes red (both recorded). The exporter sends no Template Withdrawals.",
       "requirement_sha": "3e23ca523de43b7a",
       "tests": {
         "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeIsSendTime": "49e03ede36d04954",
-        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeNeverRegresses": "49e03ede36d04954"
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeNeverRegresses": "49e03ede36d04954",
+        "internal/plugins/flowexport/ipfix/template_time_rfc7011_test.go::TestRFC7011CounterTemplateExportTimeIsSendTime": "9084a6347b09df46",
+        "internal/plugins/flowexport/ipfix/template_time_rfc7011_test.go::TestRFC7011TemplateRefreshAfterClockRollbackKeepsOrder": "9084a6347b09df46"
       },
       "units": {
         "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeIsSendTime": "05c0fe2d20e400e7",
-        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeNeverRegresses": "847aa1512992b6f3"
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeNeverRegresses": "847aa1512992b6f3",
+        "internal/plugins/flowexport/ipfix/template_time_rfc7011_test.go::TestRFC7011CounterTemplateExportTimeIsSendTime": "dba482d8b76ec5fa",
+        "internal/plugins/flowexport/ipfix/template_time_rfc7011_test.go::TestRFC7011TemplateRefreshAfterClockRollbackKeepsOrder": "570ae1e57aef611f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc7011"

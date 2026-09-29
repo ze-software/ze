@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc7012",
+  "records": [
+    {
+      "rid": "RFC7012-4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7012EmittedIEIdentifiersInRange",
+      "unit-sha": "d6cb74e2370796c5",
+      "claim-sha": "2e6c610056b3e354",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/ipfix/flow_template.go::buildFlowTemplate",
+      "producer-sha": "ae7c47dfedbd99bf",
+      "break": "body of buildFlowTemplate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

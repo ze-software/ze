@@ -21,3 +21,17 @@ requirement id, corrected text, level and citation. The MUST that sits beside it
 counter is always available or always unavailable within a session, is SFLOW-V5-x-32.
 
 Retired 2026-09-27: `SFLOW-V5-x-8` states an obligation sFlow v5 does not carry. Read §5 and the whole text: sFlow v5 writes its datagram in XDR notation and imports XDR by reference, "The format of the sFlow datagram is specified using the XDR standard [32]". The 4-byte count prefix and the zero padding are RFC 4506 §4.10 and §4.13. RFC 4506 has no summary in rfc/short, so under owner decision D-10 the row is retired, and a journal row asks for it to be enrolled. Its one tag, on TestSFlowSampledHeader in internal/plugins/flowexport/sflow/flow_test.go, was removed; the comment now names RFC 4506 and the test stays.
+
+Correction 2026-09-28: `SFLOW-V5-x-7` once claimed "4-byte alignment, big-endian" under a heading the document does not have. §5 states only "The format of the sFlow datagram is specified using the XDR standard [32]", which the row now quotes; the alignment and padding rules are RFC 4506 §4.10 and §4.13 (see the `SFLOW-V5-x-8` retirement), so no new row. Same id and level (D-3).
+
+Correction 2026-09-28: `SFLOW-V5-x-9` once claimed per-agent and per-source sequence numbers that are "unsigned 32-bit, wrapping". §5 states no wrap; the row now quotes the datagram sequence_number definition, and the per-source counts are `SFLOW-V5-x-28` and `SFLOW-V5-x-29`. No new row; same id and level.
+
+Correction 2026-09-28: `SFLOW-V5-x-10` once claimed flow_sample "MUST include the actual sampling_rate used by the agent". §5 defines the field as sFlowPacketSamplingRate, which the row now quotes; "the actual sampling rate" is §4.3's sentence, already `SFLOW-V5-x-24`. No new row; same id and level.
+
+Correction 2026-09-28: `SFLOW-V5-x-12` once claimed a "2^30-1" threshold. §5 states only "If ifIndex numbers may be >= 2^24 then the expanded must be used", which the row now quotes. No new row; same id and level.
+
+Correction 2026-09-28: `SFLOW-V5-x-14` once claimed samples "at the configured polling interval". §4.3 defines sFlowCPInterval as "The maximum number of seconds between successive samples", which the row now quotes, so the interval is a maximum. No new row; same id and level.
+
+Correction 2026-09-28: `SFLOW-V5-x-20` once claimed a skip counter initialized in "[1, 2*N-1]". §3.1 states no range; the row now quotes the random skip-counter sentence and its Total_Packets/Total_Samples condition. No new row; same id and level.
+
+Correction 2026-09-28: `SFLOW-V5-x-24` once claimed the actual rate "MUST be reported in each flow sample". §4.3 states the MAY adjustment and "When read, the agent must return the actual sampling rate", which the row now quotes; the flow_sample field is `SFLOW-V5-x-10`. No new row; same id and level.

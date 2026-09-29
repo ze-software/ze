@@ -4,6 +4,17 @@
     {
       "rid": "SFLOW-V5-x-10",
       "polarity": "positive",
+      "unit": "internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go::TestSFlowV5SamplingRateIsTheSourceRate",
+      "unit-sha": "c792c72ca33b4bf0",
+      "claim-sha": "d2f2ee6adef702ed",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/sflow/flow.go::writeFlowSample",
+      "producer-sha": "fb7ecabc5cb11f60",
+      "break": "body of writeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "SFLOW-V5-x-10",
+      "polarity": "positive",
       "unit": "internal/plugins/flowexport/sflow/flow_test.go::TestSFlowFlowSample",
       "unit-sha": "058e6268be0448e8",
       "claim-sha": "694a52b3a6d7c172",
@@ -22,6 +33,17 @@
       "producer": "internal/plugins/flowexport/sflow/counter.go::writeCounterSample",
       "producer-sha": "521594d4f3179ebd",
       "break": "body of writeCounterSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "SFLOW-V5-x-16",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go::TestSFlowV5UnknownEgressInterfaceIsZero",
+      "unit-sha": "95c873b34eba5856",
+      "claim-sha": "524b9abb42b59119",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/sflow/flow.go::writeFlowSample",
+      "producer-sha": "fb7ecabc5cb11f60",
+      "break": "body of writeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "SFLOW-V5-x-25",
@@ -92,6 +114,17 @@
     {
       "rid": "SFLOW-V5-x-28",
       "polarity": "positive",
+      "unit": "internal/plugins/flowexport/sflow/sequence_rfc_sflow_v5_test.go::TestSFlowV5FlowSequencePerSourceID",
+      "unit-sha": "26e99b49f25944fa",
+      "claim-sha": "ce1d769a46ac53a2",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample",
+      "producer-sha": "867f774adfa95509",
+      "break": "body of EncodeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "SFLOW-V5-x-28",
+      "polarity": "positive",
       "unit": "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolAndSequenceResetTogether",
       "unit-sha": "f0e56407411cfb27",
       "claim-sha": "6f4fdb514b77f6ec",
@@ -110,6 +143,17 @@
       "producer": "internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample",
       "producer-sha": "867f774adfa95509",
       "break": "body of EncodeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "SFLOW-V5-x-29",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowexport/sflow/sequence_rfc_sflow_v5_test.go::TestSFlowV5SequenceResetOnAnyCounterGoingBack",
+      "unit-sha": "ac2c97da4cab7441",
+      "claim-sha": "9907f8098ba52c90",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/sflow/adapter.go::countersWentBackwards",
+      "producer-sha": "f15a181fb119bded",
+      "break": "body of countersWentBackwards replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "SFLOW-V5-x-30",
@@ -156,6 +200,17 @@
       "break": "body of EncodeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "SFLOW-V5-x-31",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowexport/sflow/subagent_rfc_sflow_v5_test.go::TestSFlowV5DataSourceKeepsOneSubAgent",
+      "unit-sha": "ebaabce768ed7790",
+      "claim-sha": "cef02bc00eb5f05b",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/sflow/flow_adapter.go::newSFlowFlowEncoder",
+      "producer-sha": "28dc7cfee52c7663",
+      "break": "body of newSFlowFlowEncoder replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "SFLOW-V5-x-33",
       "polarity": "positive",
       "unit": "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleCarriesPacketHeader",
@@ -176,6 +231,17 @@
       "producer": "internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample",
       "producer-sha": "867f774adfa95509",
       "break": "body of EncodeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "SFLOW-V5-x-7",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go::TestSFlowV5FlowDatagramIsXDR",
+      "unit-sha": "20d5073c1965d23b",
+      "claim-sha": "79217345376ef7dd",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/sflow/flow.go::writeSampledHeader",
+      "producer-sha": "190d5e203df18a09",
+      "break": "body of writeSampledHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
