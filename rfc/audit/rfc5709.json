@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-27",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -33,7 +34,7 @@
       "note": "(a) forbidden: sending an HMAC-SHA packet whose Authentication Type is not Cryptographic Authentication (2); (b) TestEngineSignPacketCrypto asserts the on-wire AuType of eng.signPacket output equals AuTypeCryptographic; negative TestOSPFAuthStoreSignVerify asserts a non-crypto AuType packet is refused under crypto config",
       "requirement_sha": "fd5a822b2c2eb0b6",
       "tests": {
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthStoreSignVerify": "4c80cc2db69348dc",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthStoreSignVerify": "9456809df1e1c7b9",
         "internal/plugins/ospf/auth_wiring_test.go::TestEngineSignPacketCrypto": "f06f71d9d878a2de"
       },
       "units": {
@@ -60,7 +61,7 @@
       "note": "(a) forbidden: a sender that sets the 32-bit sequence number other than per RFC 2328 App D, i.e. that lets it decrease between packets; (b) none: TestOSPFAuthSignVerifyCrypto only proves a caller-supplied 42 is written at offset 4, and the negative TestOSPFAuthReplay proves the receiver's replay check, a neighbouring receive-side rule; no tagged unit asserts the engine emits non-decreasing sequence numbers across successive packets Re-read 2026-09-27 (DF-OSPF-B): the AuType 2 equal sequence is now accepted per RFC 2328 D.4.3; the tag asserts only 5 < 11 dropped, and 10 < stored 11 dropped.",
       "requirement_sha": "6e5f4cce4281c3d1",
       "tests": {
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "4c80cc2db69348dc",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "9456809df1e1c7b9",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16"
       },
       "units": {
@@ -99,7 +100,7 @@
       "note": "(a) forbidden: the interface reverting to an unauthenticated condition when its last key expires, on generation or on acceptance; (b) TestSignKeyNoRevertWhenAllExpired asserts signKey still returns AuTypeCryptographic with key 2 after every send-lifetime expired, covering generation at the store level only; no tagged unit asserts that after the last key's accept-lifetime expires an unauthenticated (AuType 0) packet is still refused, and none drives it through eng.signPacket to the wire",
       "requirement_sha": "d956b5bbb03da403",
       "tests": {
-        "internal/plugins/ospf/auth_keystore_test.go::TestSignKeyNoRevertWhenAllExpired": "4c80cc2db69348dc"
+        "internal/plugins/ospf/auth_keystore_test.go::TestSignKeyNoRevertWhenAllExpired": "9456809df1e1c7b9"
       },
       "units": {
         "internal/plugins/ospf/auth_keystore_test.go::TestSignKeyNoRevertWhenAllExpired": "f04c8b1a61e8a3cd"
