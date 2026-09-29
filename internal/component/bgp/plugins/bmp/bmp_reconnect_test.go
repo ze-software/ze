@@ -460,11 +460,6 @@ func TestPrimingPrecedesConcurrentRouteMonitoring(t *testing.T) {
 	t.Fatal("no Peer Up in the first 50 messages of the session")
 }
 
-// RFC requirement: RFC7854-x-16 positive -- a Peer Up is sent for every
-// established BGP peer on each new BMP session, including the peers that came
-// up while the collector was disconnected.
-// RFC requirement: RFC7854-x-17 positive -- the initial RIB dump (Route
-// Monitoring) follows those Peer Ups on the same session.
 func TestConcurrentDumpsStayAddressedToTheirOwnCollector(t *testing.T) {
 	// VALIDATES: two collectors requesting a dump at the same moment each get
 	// their own, and neither gets the other's.

@@ -11,6 +11,17 @@
       "producer": "internal/component/bgp/plugins/bmp/sender.go::writeStatisticsReport",
       "producer-sha": "9f2f0931683b5058",
       "break": "body of writeStatisticsReport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8671-x-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB",
+      "unit-sha": "cce1aea9448fc683",
+      "claim-sha": "9568d85e005d6005",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::primeSender",
+      "producer-sha": "b22371a2367b3591",
+      "break": "body of primeSender replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

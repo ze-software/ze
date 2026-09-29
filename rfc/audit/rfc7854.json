@@ -1,5 +1,6 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7854-3.2-1": {
       "note": "nextReconnectWait doubles and caps at reconnectMax; a refused dial is not retried before the base wait even when the port reopens early",
@@ -141,8 +142,8 @@
       "note": "live shutdown Termination carries exactly one two-octet Reason; absent, empty, short and long Reason TLVs fail decode and end the session",
       "requirement_sha": "db7b336be90a3b4e",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854SenderTerminationCarriesReason": "87d9b392b28e4114",
-        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854TerminationRequiresTwoByteReason": "87d9b392b28e4114"
+        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854SenderTerminationCarriesReason": "4c8de7d703105fd1",
+        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854TerminationRequiresTwoByteReason": "4c8de7d703105fd1"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854SenderTerminationCarriesReason": "2c962093f1686a33",
@@ -154,8 +155,8 @@
       "note": "transmitted Route Mirroring ends with the BGP Message TLV; Information then BGP Message is accepted, BGP Message then Information ends the session",
       "requirement_sha": "bc13864f8037ae80",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithPDUAccepted": "87d9b392b28e4114",
-        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854MirrorBGPMessageNotLastEndsSession": "87d9b392b28e4114",
+        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithPDUAccepted": "4c8de7d703105fd1",
+        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854MirrorBGPMessageNotLastEndsSession": "4c8de7d703105fd1",
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RouteMirroringBGPMessageTLVLast": "038516cab017d625"
       },
       "units": {
@@ -169,8 +170,8 @@
       "note": "Errored PDU with a BGP Message TLV is accepted; Errored PDU without one ends the session",
       "requirement_sha": "518f7e55bcccfdf2",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithPDUAccepted": "87d9b392b28e4114",
-        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithoutPDUEndsSession": "87d9b392b28e4114"
+        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithPDUAccepted": "4c8de7d703105fd1",
+        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithoutPDUEndsSession": "4c8de7d703105fd1"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithPDUAccepted": "3bbc3dde4867b1af",
@@ -195,7 +196,7 @@
       "note": "a transmitted report carries one statistic; an empty report is refused before it reaches the collector",
       "requirement_sha": "8004323dfce1f0b5",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854SenderRefusesEmptyStatistics": "87d9b392b28e4114",
+        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854SenderRefusesEmptyStatistics": "4c8de7d703105fd1",
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854StatsReportCarriesAStatistic": "038516cab017d625"
       },
       "units": {
@@ -270,19 +271,21 @@
       "verdict": "enforced"
     },
     "RFC7854-x-1": {
-      "note": "every tagged unit (header_test decode table, session_test TestBMPMalformedHeaderDrops) proves the RECEIVER accepts 3 and drops 2; the quote is a sender obligation (set to '3' for all messages) and no tagged unit reads the Version octet off a message Ze transmitted",
+      "note": "Re-judged 2026-09-29. rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength builds all seven types through the writers the sender calls (writeRouteMonitoring, writeStatisticsReport, writePeerDown, writePeerUp, writeInitiation, writeTermination, writeRouteMirroring) into a 0xA5-patterned buffer and requires octet 0 == 3 on each, so a writer that emits another version or leaves the octet unset goes red. The sentence binds the sender and no input can make it send another version; the negatives (header_test decode table #2, session_test TestBMPMalformedHeaderDrops) are the receiver refusing a version-2 header, the same rule read at the other end. The old decode-table positive stays tagged and proves only decode.",
       "requirement_sha": "15b90abeff3d45d1",
       "tests": {
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode": "49dfad3eed97ec32",
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode#2": "49dfad3eed97ec32",
+        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "8a330a29c2d73330",
         "internal/component/bgp/plugins/bmp/session_test.go::TestBMPMalformedHeaderDrops": "3c92f5bc82c93a53"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode": "0af7d40ff45810dc",
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode#2": "0af7d40ff45810dc",
+        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "0da122bdda46515a",
         "internal/component/bgp/plugins/bmp/session_test.go::TestBMPMalformedHeaderDrops": "bb9c68add4058f2b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7854-x-10": {
       "note": "TestBMPSenderPeerDown round-trips a Reason byte the caller chose (5), so it cannot fail on a wrong cause; TestHandleSenderStatePeerDown pins reason 2 ('no notification message was sent') for an event whose close reason is 'notification'. No unit ties a Reason to the cause that closed the session, and the producer peerDownFor (bmp_events.go) never emits reason 4, so an unexpected transport termination (which Section 4.9 assigns to reason 4) is reported as a local close",
@@ -335,80 +338,96 @@
       "verdict": "enforced"
     },
     "RFC7854-x-16": {
-      "note": "both tags sit above TestConcurrentDumpsStayAddressedToTheirOwnCollector, which tests Loc-RIB dump isolation between two collectors and asserts nothing about Peer Up; the tag prose describes the next function, TestSenderReconnectReplaysInitiationPeerUpAndDump",
+      "note": "Re-judged 2026-09-29. The wrong tags on TestConcurrentDumpsStayAddressedToTheirOwnCollector are gone. rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers primes a new collector (primeSender) over one Established peer and one peer that exchanged OPENs and sent an UPDATE but never reported Up; it counts Peer Ups per address on the collector's bytes: exactly 1 for the Established peer, 0 for the other, and the first message is the Peer Up. A producer that announced every peer with cached OPENs, or none, goes red.",
       "requirement_sha": "55b9ac733d60f375",
       "tests": {
-        "internal/component/bgp/plugins/bmp/bmp_reconnect_test.go::TestConcurrentDumpsStayAddressedToTheirOwnCollector": "b9890ceca9779b49"
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers": "cb0d93469e3bcca9",
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers#2": "cb0d93469e3bcca9"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/bmp_reconnect_test.go::TestConcurrentDumpsStayAddressedToTheirOwnCollector": "ffce9aa2c543cc6b"
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers": "b70c239ed27fa05c",
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers#2": "b70c239ed27fa05c"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC7854-x-17": {
-      "note": "tag sits above TestConcurrentDumpsStayAddressedToTheirOwnCollector, which counts Loc-RIB routes and EORs per collector and asserts no ordering against Peer Up; the quote is the Adj-RIBs-In dump, which rfc7854_replay_test TestRFC7854AdjReplayEndsEachFamily orders (tagged 3.3-1)",
+      "note": "Re-judged 2026-09-29. rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp reads the same two-peer session in order: no Route Monitoring before the Peer Up, the Established peer's received route (exact UPDATE body announceBody(1)) arrives as a pre-policy Route Monitoring (L clear, the default pre-policy selection), and nothing is dumped for the peer that never reached Established. Order, content and scope of the Adj-RIB-In dump are each asserted.",
       "requirement_sha": "80e43f66d7f245b7",
       "tests": {
-        "internal/component/bgp/plugins/bmp/bmp_reconnect_test.go::TestConcurrentDumpsStayAddressedToTheirOwnCollector": "b9890ceca9779b49"
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp": "cb0d93469e3bcca9",
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp#2": "cb0d93469e3bcca9"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/bmp_reconnect_test.go::TestConcurrentDumpsStayAddressedToTheirOwnCollector": "ffce9aa2c543cc6b"
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp": "664fe9fd6cc44840",
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp#2": "664fe9fd6cc44840"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC7854-x-18": {
-      "note": "sysDescr clause holds both polarities (sender Initiation carries a non-empty sysDescr; a receiver refuses an Initiation with sysName alone), but the sysName clause of the same quote has no assertion in these units: TestRFC7854InitiationCarriesSysDescr skips every TLV but sysDescr and no unit feeds an Initiation missing sysName",
+      "note": "Re-judged 2026-09-29. Both clauses now hold both polarities. Sender: rfc7854_test.go TestRFC7854InitiationCarriesSysDescr and the new rfc7854_session_opening_test.go::TestRFC7854InitiationCarriesSysName decode the Initiation sendInitiation writes and require exactly one sysName (type 2) and a sysDescr (type 1). Receiver: TestRFC7854InitiationMissingSysDescrEndsSession and TestBMPInitiationMissingSysNameEndsSession (tag added) each send an Initiation missing one TLV and require the session closed (decodeInitiation checks each independently); TestRFC7854InitiationEmptyIdentityValuesAccepted keeps presence, not length, as the test.",
       "requirement_sha": "f8527623bb343db3",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationEmptyIdentityValuesAccepted": "87d9b392b28e4114",
-        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationMissingSysDescrEndsSession": "87d9b392b28e4114",
+        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestBMPInitiationMissingSysNameEndsSession": "4c8de7d703105fd1",
+        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationEmptyIdentityValuesAccepted": "4c8de7d703105fd1",
+        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationMissingSysDescrEndsSession": "4c8de7d703105fd1",
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854InitiationCarriesSysName": "cb0d93469e3bcca9",
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854InitiationCarriesSysDescr": "038516cab017d625"
       },
       "units": {
+        "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestBMPInitiationMissingSysNameEndsSession": "83fa456a0adaf430",
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationEmptyIdentityValuesAccepted": "f403704c666ada9b",
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationMissingSysDescrEndsSession": "d8d4924844f39cab",
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854InitiationCarriesSysName": "7ef7e26733142ba2",
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854InitiationCarriesSysDescr": "8e048c2e1a68a080"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7854-x-2": {
-      "note": "Version and Type are pinned on encode (buf[0]==3, buf[5]==type) and a 3-octet buffer is refused, but the Message Length clause (length of the message including headers, data and encapsulated messages) has no assertion on a transmitted message: TestBMPCommonHeaderEncode writes a caller-given Length 48 and never reads buf[1..4], and the decode table only parses Length, so a sender that wrote a wrong total stays green",
+      "note": "Re-judged 2026-09-29. TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength reads the transmitted octets of all seven types: octet 0 == 3 (so never the reserved 0), octets 1-4 == the whole message computed independently from the case's own inputs (common header + per-peer header where present + data) and equal to the octets the writer produced, and octet 5 == the type. Each clause of the quoted definition is asserted on a sent message. The tagged negative (header_test, a 3-octet buffer refused) is thin, but the clauses are sender field definitions with no input to refuse; the positive discriminates every one.",
       "requirement_sha": "9ec42d818168c14a",
       "tests": {
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode": "49dfad3eed97ec32",
-        "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderEncode": "49dfad3eed97ec32"
+        "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderEncode": "49dfad3eed97ec32",
+        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "8a330a29c2d73330"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode": "0af7d40ff45810dc",
-        "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderEncode": "58873163e11ae6ce"
+        "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderEncode": "58873163e11ae6ce",
+        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "0da122bdda46515a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7854-x-3": {
-      "note": "TestHasPeerHeader pins hasPeerHeader for all seven types, but hasPeerHeader (header.go) has no non-test caller: no encoder or decoder consults it, so a transmitted Peer Up, Route Monitoring or Stats Report that lost its per-peer header after the common header would leave both units green",
+      "note": "Re-judged 2026-09-29. rfc7854_wire_header_test.go::TestRFC7854PerPeerHeaderFollowsTheCommonHeader writes all seven types and decodes a per-peer header at octet 6 of Route Monitoring, Statistics Report, Peer Down, Peer Up and Route Mirroring, requiring it to equal the header the writer was given (4-octet AS 4200000001); for Initiation and Termination it requires the first TLV (type 1, length 2) at octet 6 and a message too short to hold a per-peer header, which is the 'most' of the sentence. The older TestHasPeerHeader tags stay: hasPeerHeader has no non-test caller, so those two tags prove a helper table only.",
       "requirement_sha": "7a60dc9c971fd4d3",
       "tests": {
         "internal/component/bgp/plugins/bmp/header_test.go::TestHasPeerHeader": "49dfad3eed97ec32",
-        "internal/component/bgp/plugins/bmp/header_test.go::TestHasPeerHeader#2": "49dfad3eed97ec32"
+        "internal/component/bgp/plugins/bmp/header_test.go::TestHasPeerHeader#2": "49dfad3eed97ec32",
+        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854PerPeerHeaderFollowsTheCommonHeader": "8a330a29c2d73330",
+        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854PerPeerHeaderFollowsTheCommonHeader#2": "8a330a29c2d73330"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/header_test.go::TestHasPeerHeader": "0a9e2a964cdf4c55",
-        "internal/component/bgp/plugins/bmp/header_test.go::TestHasPeerHeader#2": "0a9e2a964cdf4c55"
+        "internal/component/bgp/plugins/bmp/header_test.go::TestHasPeerHeader#2": "0a9e2a964cdf4c55",
+        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854PerPeerHeaderFollowsTheCommonHeader": "699083b0b7f42abf",
+        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854PerPeerHeaderFollowsTheCommonHeader#2": "699083b0b7f42abf"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7854-x-4": {
-      "note": "both units use 16-bit ASNs (65001, 65002) and never read bytes 26..27 raw: a 16-bit field at offset 28 decodes 00 00 FD E9 as 65001 and round-trips 65002, so neither unit fails if the padding or the 4-octet width is lost; needs an AS above 65535 and a raw-byte assertion on the encoded header",
+      "note": "Re-judged 2026-09-29. rfc7854_wire_header_test.go::TestRFC7854PeerASIsFourOctetsWithTheShortASZeroPadded writes a Peer Down (writePeerHeader) into a patterned buffer and reads per-peer octets 26-29 raw: 65001 must be 00 00 FD E9 (the 16 most significant bits zero) and 4200000001 must be FA 56 EA 01, so a 2-octet field, a lost padding or a misplaced AS goes red. {single-polarity: positive} holds: the field is a fixed 4-octet encode with no shorter variant to refuse.",
       "requirement_sha": "4b3f05b4fcce9a20",
       "tests": {
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPPeerHeaderDecode": "49dfad3eed97ec32",
-        "internal/component/bgp/plugins/bmp/header_test.go::TestBMPPeerHeaderEncode": "49dfad3eed97ec32"
+        "internal/component/bgp/plugins/bmp/header_test.go::TestBMPPeerHeaderEncode": "49dfad3eed97ec32",
+        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854PeerASIsFourOctetsWithTheShortASZeroPadded": "8a330a29c2d73330"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPPeerHeaderDecode": "1acfbf2d5394c14b",
-        "internal/component/bgp/plugins/bmp/header_test.go::TestBMPPeerHeaderEncode": "e0c40f2ef5f0a53a"
+        "internal/component/bgp/plugins/bmp/header_test.go::TestBMPPeerHeaderEncode": "e0c40f2ef5f0a53a",
+        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854PeerASIsFourOctetsWithTheShortASZeroPadded": "d44922be8fc24982"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7854-x-5": {
       "note": "IPv4 lands in octets 12..15 with 0..11 zero; the IPv6 negative keeps its full address",

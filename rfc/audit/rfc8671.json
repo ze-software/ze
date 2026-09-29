@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC8671-4-1": {
       "note": "Re-read 2026-09-27. Transmit clause: TestRFC8671ReservedPeerFlagsTransmittedAsZero fails if peerHeaderFromEvent, locRIBPeerHeader or the byte writePeerHeader puts on the wire carries a reserved bit. Receipt clause: TestRFC8671ReservedPeerFlagsIgnoredOnReceipt fails if a header with every reserved bit set is refused or changes a defined flag, over two bases.",
@@ -80,13 +80,15 @@
       "verdict": "enforced"
     },
     "RFC8671-x-3": {
-      "note": "Re-read 2026-09-27 against \u00a76.3 (Peer Up/Down state independent of which RIBs are monitored). Forbidden: a Peer Up whose content or presence depends on Adj-RIB-In vs Adj-RIB-Out monitoring. The only tagged unit, TestBMPPeerUpRoundTrip, round-trips a hand-built PeerUp through writePeerUp/DecodeMsg; it never drives the producer (bmp.go openCache path) nor compares Peer Ups under different monitoring, so the independence is asserted by the marker prose, not by a test.",
+      "note": "Re-judged 2026-09-29. The Peer Up half is now proven through the producer: rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB primes one collector per route-monitoring policy (pre-policy, post-policy, all) over the same Established peer and requires exactly one Peer Up with identical per-peer header, OPENs and transport fields. Missing: the sentence names Peer Up AND Down notifications, and no tagged unit shows a Peer Down whose presence or content is the same under each policy, so a Peer Down suppressed or altered for one monitored RIB stays green.",
       "requirement_sha": "5be0d12471a734fa",
       "tests": {
-        "internal/component/bgp/plugins/bmp/msg_test.go::TestBMPPeerUpRoundTrip": "3f21c748e8e703fe"
+        "internal/component/bgp/plugins/bmp/msg_test.go::TestBMPPeerUpRoundTrip": "3f21c748e8e703fe",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB": "134d1ccbf4e2ad58"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/msg_test.go::TestBMPPeerUpRoundTrip": "09b701b3bf81d357"
+        "internal/component/bgp/plugins/bmp/msg_test.go::TestBMPPeerUpRoundTrip": "09b701b3bf81d357",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB": "e748948bd94d543a"
       },
       "verdict": "weak"
     }

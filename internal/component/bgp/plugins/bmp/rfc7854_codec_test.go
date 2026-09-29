@@ -25,6 +25,7 @@ func TestRFC7854InitiationMissingSysDescrEndsSession(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7854-x-18 negative -- a sysDescr alone cannot replace the mandatory sysName.
 // Both identity TLVs are required independently; a description cannot replace a name.
 func TestBMPInitiationMissingSysNameEndsSession(t *testing.T) {
 	var buf [128]byte

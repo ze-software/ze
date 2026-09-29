@@ -1,16 +1,18 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC9069-4.2-1": {
-      "note": "Forbidden: a locally sourced route conveyed under a peer type other than 3. internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType drives oneBestChange, a BGP-learned route (protocol bgp, AS_PATH 65001), not a locally sourced one, so no assertion shows a locally sourced route (static, redistributed, aggregate) reaching the collector under type 3. The negative ::TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType proves a neighbouring rule (non-local routes are not type 3), which the sentence does not forbid.",
-      "requirement_sha": "6cdb79aa32b0e12b",
+      "note": "Re-judged 2026-09-29. The positive is now the locally sourced case: rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType sends a best change with an empty AS_PATH and requires Peer Type 3 on the Peer Up and on the Route Monitoring carrying 10.20.30.0/24. Missing: the tagged negative rfc9069_test.go::TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType asserts that a monitored peer's (not locally sourced) route carries type 0, which guards the neighbouring rule that type 3 is not stamped on every message; it does not violate this requirement. Either a negative in which a locally sourced route is offered under another type, or a {single-polarity} argument in place of that tag, is owed.",
+      "requirement_sha": "e14cd4fc7725ff05",
       "tests": {
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType": "04358eb8400ea702",
-        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType": "04358eb8400ea702"
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType": "04358eb8400ea702",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType": "134d1ccbf4e2ad58"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType": "77e479748bdf19c7",
-        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType": "168afb911be1b7c9"
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType": "168afb911be1b7c9",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType": "ebeb81b1f7e76f34"
       },
       "verdict": "weak"
     },
@@ -28,13 +30,15 @@
       "verdict": "enforced"
     },
     "RFC9069-5.2-1": {
-      "note": "Forbidden: a Sent OPEN that is not a BGP OPEN, lacks the 4-octet ASN or a needed capability, or carries a capability not used for Loc-RIB monitoring. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities asserts type OPEN, ASN4 == own ASN, one Multiprotocol per dumpFamilies and len(families)==len(dumpFamilies). The 'Only include capabilities if they will be used' clause is asserted for Multiprotocol only: an extra non-MP capability (Route Refresh, ADD-PATH, Graceful Restart) in the fabricated OPEN stays green.",
+      "note": "Re-judged 2026-09-29. rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesNoCapabilityBeyondASN4AndTheDumpFamilies now covers the 'only include' clause over every capability code (exactly one ASN4, Multiprotocol set == dumpFamilies, any other code fails). Missing, the 'all necessary capabilities to represent the Loc-RIB Route Monitoring messages' clause: buildLocRIBUpdateBody (bmp_locrib.go) encodes an IPv4 NLRI with an IPv6 next hop in MP_REACH_NLRI AFI 1, which needs the Extended Next Hop capability (RFC 8950), and fabricateLocRIBOpen never includes it; the test pins the OPEN to what fabricateLocRIBOpen does, so it cannot fail on that omission. No unit ties the OPEN to the encodings the Route Monitoring actually uses.",
       "requirement_sha": "7b21af20b10bac12",
       "tests": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "6c7c67660027ad63"
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "6c7c67660027ad63",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesNoCapabilityBeyondASN4AndTheDumpFamilies": "134d1ccbf4e2ad58"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "164e730b6f344d09"
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "164e730b6f344d09",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesNoCapabilityBeyondASN4AndTheDumpFamilies": "945687e0e819982e"
       },
       "verdict": "weak"
     },
@@ -76,30 +80,45 @@
       "verdict": "enforced"
     },
     "RFC9069-6.1.1-1": {
-      "note": "Forbidden: a receiver that does not know which peer carries which address family. internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies and ::TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone each drive one peer per router and read the first peer recorded for the router address. No case has two peers on one router advertising different families, so an association keyed on the router rather than the peer stays green.",
-      "requirement_sha": "27b88c9759f04ed8",
+      "note": "Re-judged 2026-09-29. rfc9069_verdict_test.go::TestReceiverKeepsEachPeersAddressFamiliesApart sends two Peer Ups on ONE router, IPv4 unicast for BGP ID 10.0.0.1 and IPv6 unicast for 10.0.0.2, and reads back through the peers command that each peer holds exactly its own family, so a router-keyed or merged association goes red. With TestReceiverRecordsThePeerUpAddressFamilies (positive) and TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone (no MP capability records no family, not a default), both polarities of processing the capabilities per peer hold.",
+      "requirement_sha": "b2ca77bfe76964e1",
       "tests": {
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone": "04358eb8400ea702",
-        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies": "04358eb8400ea702"
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies": "04358eb8400ea702",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestReceiverKeepsEachPeersAddressFamiliesApart": "134d1ccbf4e2ad58"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone": "cef0cb7eb915d31a",
-        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies": "605ab38739f5fb2e"
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies": "605ab38739f5fb2e",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestReceiverKeepsEachPeersAddressFamiliesApart": "f1f1c6512a581a99"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
+    },
+    "RFC9069-6.1.1-2": {
+      "note": "First verdict 2026-09-29. rfc9069_verdict_test.go::TestLocRIBPeerUpOpenIndicatesTheAddressFamilies drives one best change, reads the Loc-RIB Peer Up off the collector end of the pipe (Peer Type 3), and requires both the sent and the received OPEN to carry Multiprotocol capabilities equal to dumpFamilies, the families the emulated peer's Route Monitoring and End-of-RIB carry. {single-polarity: positive} holds: ze has one emulated peer and every producer of its Peer Up passes the one fabricateLocRIBOpen result, so no input yields a Loc-RIB Peer Up to refuse.",
+      "requirement_sha": "c59781badb35a221",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBPeerUpOpenIndicatesTheAddressFamilies": "134d1ccbf4e2ad58"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBPeerUpOpenIndicatesTheAddressFamilies": "42e6a3c0eda0d611"
+      },
+      "verdict": "enforced"
     },
     "RFC9069-6.1.3-1": {
-      "note": "Forbidden: a change that alters the session's behavior without a Peer Down / Peer Up sequence. internal/component/bgp/plugins/bmp/rfc9069_test.go::TestBehaviorChangeBouncesThePeersOfALocRIBSession asserts PeerDown then PeerUp for a monitored BGP peer on a route-monitoring-policy change. No tagged unit asserts the Loc-RIB emulated peer is bounced by a change that alters it (the loc-rib reload rails the row names carry no 6.1.3-1 tag), and the row prose names TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession / TestRFC8671UnrelatedBGPChangeBouncesNothing, which are not the tagged units. The negative ::TestAConfigurationThatAltersNoBehaviorBouncesNothing guards over-bouncing, which the sentence does not forbid.",
-      "requirement_sha": "8479b016ada2c878",
+      "note": "Re-judged 2026-09-29. rfc9069_verdict_test.go::TestBehaviorChangeBouncesTheLocRIBEmulatedPeer applies a route-monitoring-policy change through applySenderConfig on a session with the Loc-RIB Peer Up sent, and requires the Peer Type 3 messages to be exactly [Peer Down, Peer Up]; TestBehaviorChangeBouncesThePeersOfALocRIBSession requires the monitored BGP peer's Peer Down then Peer Up; TestAConfigurationThatAltersNoBehaviorBouncesNothing requires no bounce on a reload that moves no behavior leaf. Row prose now names these units. Table names: ze has the one fixed name 'global', so no rename input exists.",
+      "requirement_sha": "68d0851c52687085",
       "tests": {
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestAConfigurationThatAltersNoBehaviorBouncesNothing": "04358eb8400ea702",
-        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestBehaviorChangeBouncesThePeersOfALocRIBSession": "04358eb8400ea702"
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestBehaviorChangeBouncesThePeersOfALocRIBSession": "04358eb8400ea702",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestBehaviorChangeBouncesTheLocRIBEmulatedPeer": "134d1ccbf4e2ad58"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestAConfigurationThatAltersNoBehaviorBouncesNothing": "64581dcdd7e8cac6",
-        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestBehaviorChangeBouncesThePeersOfALocRIBSession": "2e4e25f2ab1dcfed"
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestBehaviorChangeBouncesThePeersOfALocRIBSession": "2e4e25f2ab1dcfed",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestBehaviorChangeBouncesTheLocRIBEmulatedPeer": "78b73adb46bc88a3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9069-x-1": {
       "note": "Forbidden: a reserved (non-F) per-peer flag bit transmitted as 1 on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Flags != 0 is Errorf, red on any set bit. Single-polarity marker: no producer sets a flag, so no negative input exists. The row claims only the transmit half; the 'ignored on receipt' clause of the same sentence is not quoted and has no row.",
@@ -135,15 +154,17 @@
       "verdict": "enforced"
     },
     "RFC9069-x-4": {
-      "note": "Forbidden: initial synchronization of the Loc-RIB not delivered as Route Monitoring. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump asserts only that startLocRIB emits one replay-request with a distinct token. No assertion reads the dump off the collector socket as Route Monitoring messages, so a plugin that dropped or mis-encoded replay batches stays green.",
+      "note": "Re-judged 2026-09-29. rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring subscribes a stand-in RIB that answers startLocRIB's replay-request with one best change carrying the request's token, and requires the collector to read the Loc-RIB Peer Up then a Peer Type 3 Route Monitoring carrying 10.20.30.0/24: no request, a dropped or mis-scoped replay batch, or a dump not encoded as Route Monitoring each go red. {single-polarity: positive} holds: there is no non-conformant sync input to refuse.",
       "requirement_sha": "edb522b575152ae8",
       "tests": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "6c7c67660027ad63"
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "6c7c67660027ad63",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring": "134d1ccbf4e2ad58"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "2681d339da8f1c51"
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "2681d339da8f1c51",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring": "aef303af6ceb3340"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9069-x-5": {
       "note": "Forbidden: a non-zero Peer Address on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Address != [16]byte{} is Errorf. Single-polarity marker.",

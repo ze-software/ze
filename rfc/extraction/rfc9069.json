@@ -396,8 +396,8 @@
       "id": "6.1.1:2",
       "quote": "Each emulated peer instance MUST send a Peer Up with the OPEN message indicating the address family capabilities.",
       "disposition": "mapped",
-      "mapped-to": "RFC9069-5.2-1",
-      "reason": "The same requirement row, which cites both sections. Every producer of a Loc-RIB Peer Up -- ensureLocRIBPeerUp and primeLocRIBPeerUp (internal/component/bgp/plugins/bmp/bmp_locrib.go) -- passes one fabricateLocRIBOpen result, and that OPEN carries one capability.Multiprotocol per family of dumpFamilies."
+      "mapped-to": "RFC9069-6.1.1-2",
+      "reason": "Split out of RFC9069-5.2-1 on 2026-09-28, whose quote is the section 5.2 sentence only. Every producer of a Loc-RIB Peer Up -- ensureLocRIBPeerUp and primeLocRIBPeerUp (internal/component/bgp/plugins/bmp/bmp_locrib.go) -- passes one fabricateLocRIBOpen result, and that OPEN carries one capability.Multiprotocol per family of dumpFamilies."
     },
     {
       "id": "6.1.1:3",
