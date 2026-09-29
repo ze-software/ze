@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC9687-4.3-1": {
       "note": "Forbidden behaviour: a SendHoldTimer not started by the OpenConfirm KeepAliveMsg, or started before it. TestRFC9687SendHoldTimerArmedOnEstablished asserts p.armed() true once Event 26 made the session Established; TestRFC9687SendHoldTimerNotArmedBeforeEstablished asserts sendHoldDeadline zero while still in OpenConfirm. The 'if the SendHoldTime is non-zero' clause has no violating input: sendHoldDuration (session_write.go) returns the configured value when positive and otherwise max(sendHoldTimerMin, 2*ReceiveHoldTime), so the effective SendHoldTime is never zero.",
@@ -15,19 +15,21 @@
       "verdict": "enforced"
     },
     "RFC9687-4.3-10": {
-      "note": "Forbidden behaviour: a SendHoldTimer left armed after any transition out of Established. The tagged units cover two transitions, the Event 29 expiry (armed() false after) and CloseWithNotification(Cease) (TestRFC9687TeardownStopsTheSendHoldTimer). 'Any transition' also covers a HoldTimer expiry, a received NOTIFICATION and a TCP failure; no tagged unit drives those, so a path that bypassed closeConn would stay green.",
+      "note": "Forbidden: a SendHoldTimer left armed after a transition out of Established. Tagged units drive four transitions over the real Run loop and assert armed() false after: Event 29 expiry, local Cease (TestRFC9687TeardownStopsTheSendHoldTimer), a NOTIFICATION received from the peer and a peer TCP close (TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer), each with armed() true as precondition. The stop lives in closeConn and in Run's deferred stopSendHoldTimer, which every exit path shares; HoldTimer expiry and a ze-sent error NOTIFICATION are not driven but reach the same two stop sites.",
       "requirement_sha": "0354590c6557e9a7",
       "tests": {
+        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "c0faef65febf2aca",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687TeardownStopsTheSendHoldTimer": "1c6abec57f3d0efd"
       },
       "units": {
+        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "ae87532b2b40a28d",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687TeardownStopsTheSendHoldTimer": "5be88dd1ee980e68"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9687-4.3-2": {
       "note": "Forbidden behaviour: Event 29 without a local log naming Send Hold Timer Expired, or that log without the expiry. TestRFC9687SendHoldExpiryRunsTheEvent29ActionList asserts the log contains 'send hold timer expired' after the expiry; TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact asserts NotContains one nanosecond short of it.",
@@ -43,13 +45,17 @@
       "verdict": "enforced"
     },
     "RFC9687-4.3-3": {
-      "note": "Forbidden behaviour: BGP resources kept after Event 29. The tagged units assert only that the KeepaliveTimer stopped (IsKeepaliveTimerRunning false after, true before). 'All BGP resources' also covers the HoldTimer and the routes learned over the connection; no tagged assertion goes red if the HoldTimer stays armed or the learned routes stay installed.",
+      "note": "Forbidden: BGP resources kept after Event 29. TestRFC9687Event29ReleasesHoldTimerAndConnection asserts HoldTimer and KeepaliveTimer stopped (and the connection gone) after SendHoldTimer_Expires, all held one nanosecond short; the connection half is really the separate 'drops the TCP connection' item. Missing: the routes learned over the connection, released through Peer state and the RIB plugin; no tagged unit goes red if they stay installed after Event 29.",
       "requirement_sha": "83340d1ef8b36846",
       "tests": {
+        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "c0faef65febf2aca",
+        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "c0faef65febf2aca",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd"
       },
       "units": {
+        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "fc3f1c5978108b49",
+        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "fc3f1c5978108b49",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b"
       },
@@ -108,13 +114,15 @@
       "verdict": "enforced"
     },
     "RFC9687-4.3-8": {
-      "note": "Forbidden behaviour: a BGP message sent without restarting the SendHoldTimer. TestRFC9687SendRestartsTheSendHoldTimer proves the restart for one send path only, Session.SendRawMessage; resetSendHoldTimer is called from about fifteen send sites in session_write.go and forward_pool.go (writeMessage, the forward pool, the update writers), and a site that stopped calling it leaves both tagged units green. The negative (silence does not restart) is sound.",
+      "note": "Forbidden: a BGP message sent without restarting the SendHoldTimer. TestRFC9687SendRestartsTheSendHoldTimer (SendRawMessage) and TestRFC9687EveryWriterRestartsTheSendHoldTimer (writeMessage/writeMessageWithin, SendUpdate, sendWithdraw, sendRawUpdateBody) each prove the restart by surviving 1.2x SendHoldTime with one send in the middle; the silence negative is sound. Still undriven writers that carry their own resetSendHoldTimer call: the forward pool (forward_pool.go fwdBatchHandler, session_write.go flushFwdDirty), SendAnnounce and SendUpdateHeld; dropping the restart from any of them leaves every tagged unit green.",
       "requirement_sha": "e84a6c54182b7346",
       "tests": {
+        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "c0faef65febf2aca",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "1c6abec57f3d0efd",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "1c6abec57f3d0efd"
       },
       "units": {
+        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "e82cfcf39bfc5c7d",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "ef727ea44a115c14",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "7581328442f256ff"
       },

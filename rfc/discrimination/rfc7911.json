@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc7911",
+  "records": [
+    {
+      "rid": "RFC7911-5-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc7911_test.go::TestRFC7911AddPathStateAppliesPerFamily",
+      "unit-sha": "e9c09c4d141494b6",
+      "claim-sha": "e34ca0475abffbf6",
+      "route": "revert",
+      "producer": "internal/core/bgp/context/context.go::AddPathFor",
+      "producer-sha": "f0cc512f6675e24a",
+      "break": "body of AddPathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7911-5-5",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc7911_test.go::TestRFC7911AddPathStateAppliesPerFamily",
+      "unit-sha": "e9c09c4d141494b6",
+      "claim-sha": "feac7a4b8a167aff",
+      "route": "revert",
+      "producer": "internal/core/bgp/context/context.go::AddPathFor",
+      "producer-sha": "f0cc512f6675e24a",
+      "break": "body of AddPathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

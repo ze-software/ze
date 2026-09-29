@@ -2,6 +2,17 @@
   "rfc": "rfc4724",
   "records": [
     {
+      "rid": "RFC4724-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc4724_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes",
+      "unit-sha": "3336b2e9ee4c1a2a",
+      "claim-sha": "245380e386268e1e",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer.go::waitPeerUpBarrier",
+      "producer-sha": "6f1b7429290ffca9",
+      "break": "body of waitPeerUpBarrier replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4724-4-4",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry",
@@ -22,6 +33,17 @@
       "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
       "producer-sha": "36d383b432a0939a",
       "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4.2-9",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc4724_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes",
+      "unit-sha": "3336b2e9ee4c1a2a",
+      "claim-sha": "39796e1cdabd4e6c",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer.go::waitPeerUpBarrier",
+      "producer-sha": "6f1b7429290ffca9",
+      "break": "body of waitPeerUpBarrier replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

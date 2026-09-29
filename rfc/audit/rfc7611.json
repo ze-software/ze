@@ -1,18 +1,22 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC7611-2.2-1": {
-      "note": "Forbidden: keeping ACCEPT_OWN on a route received in a family with no Route Distinguisher. TestACCEPTOwnFamilyBoundary drives s.enforceRFC7606 with an IPv4 route in the body NLRI and asserts the COMMUNITY attribute shrinks to the single 65001:100 value (red if either ACCEPT_OWN copy stays), and that a SAFI 128 MP_REACH route keeps it. The other input class the sentence covers, a non-RD family carried in MP_REACH_NLRI (IPv6 unicast, labeled unicast, flowspec), has no case: discardNonVPNAcceptOwn sets nonRD in the `default:` arm of its SAFI switch, and deleting that arm leaves the test green. The route whose only community is ACCEPT_OWN (kept == 0, attribute dropped) is also untested.",
+      "note": "Forbidden: keeping ACCEPT_OWN on a route in a family with no RD. TestACCEPTOwnFamilyBoundary covers IPv4 in the body NLRI; TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach drives enforceRFC7606 with IPv6 unicast and IPv4 labeled unicast in MP_REACH_NLRI and asserts the COMMUNITY attribute shrinks to exactly 65001:100 (or disappears when ACCEPT_OWN was the only value) with MP_REACH byte-identical; negative VPN-IPv6 (RD present) keeps both copies. Red on a non-RD MP family keeping ACCEPT_OWN or an RD family losing it.",
       "requirement_sha": "40551716bc61b191",
       "tests": {
+        "internal/component/bgp/reactor/reactor_b_rfc7611_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach": "e0442639e52779a5",
+        "internal/component/bgp/reactor/reactor_b_rfc7611_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach#2": "e0442639e52779a5",
         "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnFamilyBoundary": "d5d815e033ccfd90",
         "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnFamilyBoundary#2": "d5d815e033ccfd90"
       },
       "units": {
+        "internal/component/bgp/reactor/reactor_b_rfc7611_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach": "184aa4bb3c891061",
+        "internal/component/bgp/reactor/reactor_b_rfc7611_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach#2": "184aa4bb3c891061",
         "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnFamilyBoundary": "4ab71e01f42857c8",
         "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnFamilyBoundary#2": "4ab71e01f42857c8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7611-2.3-2": {
       "note": "Forbidden: accepting, because it carries ACCEPT_OWN, a route whose ORIGINATOR_ID or NEXT_HOP is this router, while ACCEPT_OWN is disabled (ze has no ACCEPT_OWN config, so always). TestACCEPTOwnDoesNotEnableAcceptanceImplicitly asserts LoopIngress returns accepted == false for ORIGINATOR_ID == RouterID with ACCEPT_OWN attached (red on any ACCEPT_OWN exemption) and accepted == true for another originator. NEXT_HOP half: LoopIngress holds no own-NEXT_HOP refusal, so ACCEPT_OWN has no refusal to bypass there; the only acceptance the community could change is the ORIGINATOR_ID one the test asserts.",

@@ -1,18 +1,22 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC5492-3-1": {
-      "note": "Forbidden: an Unsupported Capability NOTIFICATION that omits the capability that caused it, or lists one that did not. Positive TestBuildUnsupportedCapabilityData asserts the builder's exact bytes, but only at the builder: a send path that passed other data would stay green. Negative TestSessionAcceptsRequiredCapability proves that no NOTIFICATION is sent when the required capability is present, a neighbouring rule about when to send, not about the message's contents. TestOpenUnknownCapabilityDoesNotHideMissingRequired asserts the sent Data equals exactly {2,7,RouteRefresh,0} (cause listed, unknown 254 not listed) but carries no 3-1 tag.",
+      "note": "Forbidden: an Unsupported Capability NOTIFICATION that omits a causing capability or lists one that did not cause it. TestRFC5492UnsupportedCapabilityDataListsTheCausingSet drives handleOpen on a session requiring Route Refresh and Extended Message and reads the wire: none sent -> one 2/7 NOTIFICATION with Data exactly 02 00 06 00; Route Refresh plus unknown 254 sent -> Data exactly 06 00 (sent and unknown capabilities excluded); both sent -> no NOTIFICATION, OpenConfirm.",
       "requirement_sha": "701c0995c59ceebb",
       "tests": {
+        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
+        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
         "internal/component/bgp/reactor/session_test.go::TestSessionAcceptsRequiredCapability": "933b3c0fcb7d9bad",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityData": "ac1b8bb6f2a0be51"
       },
       "units": {
+        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "c77bf0fcbe60e220",
+        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "c77bf0fcbe60e220",
         "internal/component/bgp/reactor/session_test.go::TestSessionAcceptsRequiredCapability": "24f0040111395614",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityData": "bbd9fec0afd6bd13"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5492-3-2": {
       "note": "Forbidden: failing on a capability the speaker does not support or recognize. Positive TestParseUnknownCapability asserts Parse preserves code 254 with no error, parser level. Negative TestParseRejectsMalformedKnownCapabilityLength proves malformed known capabilities are rejected, a neighbouring rule, not a violation of this one. The session-level proof that an unknown capability is ignored is TestOpenIgnoresUnknownCapability, tagged 3-3/3-4/5-2 but not 3-2.",
@@ -74,19 +78,23 @@
       "verdict": "weak"
     },
     "RFC5492-5-1": {
-      "note": "Forbidden: Data that does not list the set of capabilities that caused the NOTIFICATION. Positives TestBuildUnsupportedCapabilityDataCodes and _MultipleCodes assert builder bytes only, not the Data of a sent message. Negative TestBuildUnsupportedCapabilityDataCodes_Empty (nil Data for no causes) is not a violating input. The wire-level assertion is in TestOpenUnknownCapabilityDoesNotHideMissingRequired, untagged for 5-1. Tag prose also claims the code-only encoding {65,0} is 'exactly as in an OPEN message', which is false for capabilities that carry a value (ASN4 is 65,4,<asn> in OPEN); that encoding sentence carries no 2119 keyword and is not this row.",
+      "note": "Forbidden: Data that does not list the set of capabilities that caused the NOTIFICATION. TestRFC5492UnsupportedCapabilityDataListsTheCausingSet asserts the sent NOTIFICATION's Data octets exactly: both missing -> 02 00 06 00 (the whole set), one missing -> 06 00 only (the causing set, not the required set). Builder-level units remain as supporting evidence.",
       "requirement_sha": "9bc3c195e5857c2d",
       "tests": {
+        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
+        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
         "internal/component/bgp/reactor/session_test.go::TestBuildUnsupportedCapabilityDataCodes": "933b3c0fcb7d9bad",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_Empty": "ac1b8bb6f2a0be51",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_MultipleCodes": "ac1b8bb6f2a0be51"
       },
       "units": {
+        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "c77bf0fcbe60e220",
+        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "c77bf0fcbe60e220",
         "internal/component/bgp/reactor/session_test.go::TestBuildUnsupportedCapabilityDataCodes": "aa9265b2087c9bf9",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_Empty": "8bc8182d4b9a945a",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_MultipleCodes": "ab4bea63254fbb32"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5492-5-2": {
       "note": "Clause 1 (Unsupported Capability MUST NOT be used for a capability not understood): TestOpenIgnoresUnknownCapability asserts only a KEEPALIVE is written for an OPEN with code 254. Clause 2 (such capabilities MUST be ignored): the same unit asserts the following Route Refresh TLV is negotiated and the session reaches Established. Single-polarity marker present.",

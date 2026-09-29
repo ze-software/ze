@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc7313",
+  "records": [
+    {
+      "rid": "RFC7313-5-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength",
+      "unit-sha": "534b0c18560045de",
+      "claim-sha": "8ccd967f2ed7b3da",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_handlers.go::validateRouteRefreshLength",
+      "producer-sha": "e70f302491486b10",
+      "break": "body of validateRouteRefreshLength replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7313-5-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc7313_test.go::TestRouteRefreshUnknownSubtypeNeverDelivered",
+      "unit-sha": "2f946ea90cbc886e",
+      "claim-sha": "9ffce23af0de80c5",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_handlers.go::routeRefreshSubtypeUnknown",
+      "producer-sha": "e9dacbb8a3d807f7",
+      "break": "body of routeRefreshSubtypeUnknown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7313-5-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc7313_test.go::TestRouteRefreshUnknownSubtypeNeverDelivered",
+      "unit-sha": "2f946ea90cbc886e",
+      "claim-sha": "721340ce2df1341f",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_handlers.go::routeRefreshSubtypeUnknown",
+      "producer-sha": "e9dacbb8a3d807f7",
+      "break": "body of routeRefreshSubtypeUnknown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7313-5-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength",
+      "unit-sha": "534b0c18560045de",
+      "claim-sha": "7c5becc27415890e",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_handlers.go::routeRefreshSubtypeUnknown",
+      "producer-sha": "e9dacbb8a3d807f7",
+      "break": "body of routeRefreshSubtypeUnknown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

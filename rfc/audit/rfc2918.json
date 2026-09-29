@@ -2,17 +2,19 @@
   "audited": "2026-09-29",
   "requirements": {
     "RFC2918-2-1": {
-      "note": "Forbidden: advertising Route Refresh with a code other than 2 or a length other than 0. TestCapabilityWriteTo (capability_test.go) only checks WriteTo writes Len() bytes and that Parse returns the same c.Code(); both sides come from RouteRefresh itself, so a Code() of 3 or a Len() carrying a payload stays green. No assertion names the literal code 2 or the zero length on the emitted bytes. The negative TestOpenRejectsMalformedKnownCapability proves receive-side refusal of length 1, a neighbouring check.",
+      "note": "Forbidden: advertising Route Refresh with a code other than 2 or a length other than 0. TestRFC2918RouteRefreshCapabilityOctetsInSentOpen walks the octets sendOpen writes and asserts exactly one TLV with code 2 and an empty value, and none when not configured; red on another code, a payload, or a duplicate. Negative TestOpenRejectsMalformedKnownCapability: a received code 2 with length 1 (a violation of this definition by the peer) is refused with OPEN Message Error before negotiation. TestCapabilityWriteTo remains a self-consistency check only.",
       "requirement_sha": "bb2659c612dc6645",
       "tests": {
+        "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestRFC2918RouteRefreshCapabilityOctetsInSentOpen": "8cb84a3ecc21b2cc",
         "internal/component/bgp/reactor/session_handlers_test.go::TestOpenRejectsMalformedKnownCapability": "36ad5ca29acc4eb4",
         "internal/core/bgp/capability/capability_test.go::TestCapabilityWriteTo": "b3428c78168b854d"
       },
       "units": {
+        "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestRFC2918RouteRefreshCapabilityOctetsInSentOpen": "54f0c133096aefc1",
         "internal/component/bgp/reactor/session_handlers_test.go::TestOpenRejectsMalformedKnownCapability": "67908494b5038760",
         "internal/core/bgp/capability/capability_test.go::TestCapabilityWriteTo": "38dac687429f1885"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2918-3-1": {
       "note": "Forbidden: a ROUTE-REFRESH carrying a type other than 5. TestRouteRefreshType asserts r.Type() == msgtype.MessageType(5), red if the send-side type changes. TestParseHeaderAllTypes asserts header type byte 5 decodes to TypeROUTEREFRESH and bytes 1..4 decode to the other types, red if the receive mapping moves.",
@@ -43,17 +45,19 @@
       "verdict": "enforced"
     },
     "RFC2918-3-4": {
-      "note": "Forbidden: a sender setting the Reserved octet non-zero, or a receiver acting on it. Receiver clause: TestRFC2918ReservedOctetIgnoredOnReceive asserts, for octets 0x00/0x01/0x02/0xAA/0xFF, one onMessageReceived and one onRefreshRecv, Established state and no NOTIFICATION, red if a non-zero octet is refused; TestRFC2918ReservedOctetDoesNotExemptTheMessage asserts a 5-octet body is still refused. Sender clause of the quoted sentence ('Should be set to 0 by the sender'): no tagged unit of this row asserts the sent octet is 0 (TestRouteRefreshPack asserts body[2] == 0 but is tagged RFC2918-3-2 only).",
+      "note": "Forbidden: a sender writing a non-zero Reserved octet, or a receiver acting on it. Sender: TestRFC2918SentRequestReservedOctetIsZero reads the four body octets written by both request producers (sendRouteRefresh, SoftClearPeer) and asserts exactly 00 01 00 01. Receiver: TestRFC2918ReservedOctetIgnoredOnReceive asserts delivery, Established and no NOTIFICATION for octets 00/01/02/AA/FF; TestRFC2918ReservedOctetDoesNotExemptTheMessage asserts a 5-octet body is still refused. The sender half is single-polarity by nature (no violating input exists for an emitter).",
       "requirement_sha": "cd4c55554fb5f84e",
       "tests": {
+        "internal/component/bgp/reactor/reactor_b_rfc2918_test.go::TestRFC2918SentRequestReservedOctetIsZero": "808d5a26b55d68e9",
         "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetDoesNotExemptTheMessage": "cae94db0eba23b03",
         "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetIgnoredOnReceive": "cae94db0eba23b03"
       },
       "units": {
+        "internal/component/bgp/reactor/reactor_b_rfc2918_test.go::TestRFC2918SentRequestReservedOctetIsZero": "9b0a8247bdcb2ad0",
         "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetDoesNotExemptTheMessage": "7f67b93b46ae7e65",
         "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetIgnoredOnReceive": "c3bb43d68138be87"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2918-4-1": {
       "note": "Forbidden: sending ROUTE-REFRESH to a peer that did not advertise the capability. TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability (both subtests) and TestRFC2918SoftClearPeerSkipsPeerWithoutCapability assert require.Empty(conn.written()) and RefreshSent == 0, red if either send entry skips the gate. The positives assert the message reaches the wire for a capable peer.",

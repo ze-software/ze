@@ -9,7 +9,7 @@
       "claim-sha": "a245ea6a0ec4cf16",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/filter/loop.go::LoopIngress",
-      "producer-sha": "3d7d83d30c08e517",
+      "producer-sha": "7eaf23f9a5dc95c3",
       "break": "body of LoopIngress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -20,8 +20,30 @@
       "claim-sha": "968777c593297aa2",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/filter/loop.go::LoopIngress",
-      "producer-sha": "3d7d83d30c08e517",
+      "producer-sha": "7eaf23f9a5dc95c3",
       "break": "body of LoopIngress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7611-2.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc7611_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach",
+      "unit-sha": "dab40c1dc76d82e1",
+      "claim-sha": "c9a2d11d195b6134",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_accept_own.go::discardNonVPNAcceptOwn",
+      "producer-sha": "7baf24eac5bc9867",
+      "break": "body of discardNonVPNAcceptOwn replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7611-2.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc7611_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach",
+      "unit-sha": "dab40c1dc76d82e1",
+      "claim-sha": "a767404eef3d685e",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_accept_own.go::discardNonVPNAcceptOwn",
+      "producer-sha": "7baf24eac5bc9867",
+      "break": "body of discardNonVPNAcceptOwn replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

@@ -320,8 +320,12 @@ session stays Established.
 The redefinition is scoped to the capability. RFC 7313 Sections 4 and 5 apply
 only when the speaker has received the Enhanced Route Refresh Capability
 (code 70) from the peer. Without it the octet is RFC 2918's Reserved field.
-Section 3 says the receiver ignores that field, so `handleRouteRefresh` returns
-before it reads the octet.
+Section 3 says the receiver ignores that field, so no code reads the octet.
+With it, a 4-octet message whose subtype is not 0, 1 or 2 is ignored before
+any plugin sees it, and the speaker logs an error (RFC 7313 Section 5).
+
+<!-- source: internal/component/bgp/reactor/session_handlers.go -- routeRefreshSubtypeUnknown -->
+
 
 ### A Body That Is Not 4 Octets
 

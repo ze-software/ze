@@ -261,7 +261,7 @@ func TestRouteRefreshBadLengthByMessageSubtype(t *testing.T) {
 // PREVENTS: a length check placed ahead of the subtype read, which would answer an
 // unassigned subtype with Error Code 7 and tear the session down. The malformed cases
 // are the load-bearing ones: a 4-octet body reaches the same verdict through the
-// subtype branch of handleRouteRefresh, so it alone would not show the ordering.
+// subtype check of screenRouteRefresh, so it alone would not show the ordering.
 //
 // RFC requirement: RFC7313-5-3 positive -- a Message Subtype other than 0, 1 or 2 is
 // ignored: nothing is written back and the session stays Established.
@@ -273,9 +273,9 @@ func TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength(t *testing.T) {
 		body      []byte
 		delivered int
 	}{
-		// A 4-octet body is well formed, so it is delivered and then ignored by subtype.
-		{"unassigned_subtype_well_formed", []byte{0x00, 0x01, 0x05, 0x01}, 1},
-		{"reserved_subtype_255_well_formed", []byte{0x00, 0x01, 0xFF, 0x01}, 1},
+		// A 4-octet body is well formed and is ignored by subtype, before delivery.
+		{"unassigned_subtype_well_formed", []byte{0x00, 0x01, 0x05, 0x01}, 0},
+		{"reserved_subtype_255_well_formed", []byte{0x00, 0x01, 0xFF, 0x01}, 0},
 		{"unassigned_subtype_too_short", []byte{0x00, 0x01, 0x05}, 0},
 		{"unassigned_subtype_too_long", []byte{0x00, 0x01, 0x05, 0x01, 0xFF}, 0},
 		{"reserved_subtype_255_too_long", []byte{0x00, 0x01, 0xFF, 0x01, 0xFF}, 0},

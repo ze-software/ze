@@ -88,6 +88,28 @@
       "producer": "internal/component/bgp/reactor/config.go::parsePeerFromTree",
       "producer-sha": "2da70d4b66fff4a1",
       "break": "body of parsePeerFromTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestBFDStrictCapabilityInSentOpen",
+      "unit-sha": "bad3841d3bad6556",
+      "claim-sha": "6ac62c7e130db953",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
+      "producer-sha": "ba1931134eb7f3c9",
+      "break": "body of buildOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestBFDStrictCapabilityInSentOpen",
+      "unit-sha": "bad3841d3bad6556",
+      "claim-sha": "3346812a7f83cf2d",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
+      "producer-sha": "ba1931134eb7f3c9",
+      "break": "body of buildOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

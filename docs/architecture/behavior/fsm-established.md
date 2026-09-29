@@ -162,11 +162,15 @@ grants no reprieve to a CPU-congested daemon.
   <AFI, SAFI> outside the negotiated families, which includes every family
   this speaker did not advertise, is ignored (RFC 2918 Section 4): it
   reaches no plugin and draws no NOTIFICATION. The Message Subtype
-  octet is read only when Enhanced Route Refresh (RFC 7313, capability
-  70) was negotiated. Without it the octet is RFC 2918's Reserved field,
-  and the receiver ignores it. No FSM event is fired.
+  octet is read only when the peer sent Enhanced Route Refresh (RFC 7313,
+  capability 70). A Message Subtype other than 0, 1 or 2 is then ignored
+  at any body length (RFC 7313 Section 5): it reaches no plugin, draws no
+  NOTIFICATION, and logs an error. Without capability 70 the octet is
+  RFC 2918's Reserved field, and the receiver ignores it. No FSM event is
+  fired.
   <!-- source: internal/component/bgp/reactor/session_handlers.go — handleRouteRefresh -->
   <!-- source: internal/component/bgp/reactor/session_handlers.go — screenRouteRefresh -->
+  <!-- source: internal/component/bgp/reactor/session_handlers.go — routeRefreshSubtypeUnknown -->
 - **On receive NOTIFICATION:** `handleNotification` stops all timers,
   fires `EventNotifMsg`, closes the connection. No response
   NOTIFICATION.

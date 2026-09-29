@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC4724-3-2": {
       "note": "the sentence carries two obligations: zero on send and ignored on receive. TestGracefulRestartEncodeReservedBits proves only the sender half (WriteTo masks); no tagged unit parses a Restart Flags nibble with reserved bits set and asserts they are ignored (parseGracefulRestart does ignore them)",
@@ -41,7 +41,7 @@
       "verdict": "enforced"
     },
     "RFC4724-4-1": {
-      "note": "the positives are strong (sendInitialRoutes puts one marker per negotiated family on the wire, including a silent family and a no-MP session). The only negative (TestIsEndOfRIBAnyFamily) tests the EoR detector's format discrimination, a neighbouring rule, so no tagged unit violates this requirement; TestInitialSyncEORWaitsForPeerUpBarrier's no-marker-before-barrier assertion could carry it",
+      "note": "Positives: sendInitialRoutes puts one End-of-RIB per negotiated family on the wire, including a silent family and a no-MP session. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: while a plugin producing the initial update has not acknowledged peer-up, sendInitialRoutes is observed waiting and nothing is on the wire (EORSent 0); after the acknowledgement exactly the IPv4 unicast marker is written. Red on a marker sent ahead of the initial update or not sent after it. TestIsEndOfRIBAnyFamily is a neighbouring detector rule.",
       "requirement_sha": "3b50556b505890d9",
       "tests": {
         "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
@@ -51,6 +51,7 @@
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess": "02487edfbf589113",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker": "02487edfbf589113",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails": "02487edfbf589113",
+        "internal/component/bgp/reactor/reactor_b_rfc4724_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "e72eb4d8a404ce48",
         "internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB": "f04334a58fd00e7c"
       },
       "units": {
@@ -61,9 +62,10 @@
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess": "bb281df1bb3cb7e8",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker": "f55af084daac0b0e",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails": "e2d1e536367f28dc",
+        "internal/component/bgp/reactor/reactor_b_rfc4724_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "3d544c29b0d3f7a9",
         "internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB": "dc3b6dc2d2cdd55f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4724-4-2": {
       "note": "the tagged units call grStateManager.onSessionDown with wasNotification injected as true/false. In production handleStructuredState/handleStateEvent (gr.go) derive wasNotification from reason == \"notification\", and the only session-down producer (peer_run.go via notifyPeerClosed) sends \"session closed\" or \"connection lost\", so the NOTIFICATION branch is unreachable and routes are retained after a NOTIFICATION teardown. The tests stay green against that defect",
@@ -228,19 +230,21 @@
       "verdict": "weak"
     },
     "RFC4724-4.2-9": {
-      "note": "the positive TestInitialSyncEORReachesTheSilentFamilyToo proves the send; TestBuildEOR_IPv4Unicast proves encoding only; the negative tests EoR detection, a neighbouring rule",
+      "note": "Positive TestInitialSyncEORReachesTheSilentFamilyToo proves the marker is sent including for a family with no routes. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: no End-of-RIB before the initial update for IPv4 unicast completes (plugin barrier held, sendInitialRoutes observed waiting, wire empty), then exactly that marker once it does. TestBuildEOR_IPv4Unicast proves encoding only.",
       "requirement_sha": "29d7f4477d6938f6",
       "tests": {
         "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
         "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "02487edfbf589113"
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "02487edfbf589113",
+        "internal/component/bgp/reactor/reactor_b_rfc4724_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "e72eb4d8a404ce48"
       },
       "units": {
         "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",
         "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "e93ddad02f874260",
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "a98aad1ea25261e2"
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "a98aad1ea25261e2",
+        "internal/component/bgp/reactor/reactor_b_rfc4724_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "3d544c29b0d3f7a9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc4724"

@@ -20,7 +20,7 @@
       "claim-sha": "77d4d43e34b1e05f",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/config.go::parsePeerSettings",
-      "producer-sha": "f662d12c5c54639d",
+      "producer-sha": "d0d930a4927bc616",
       "break": "body of parsePeerSettings replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -132,6 +132,28 @@
       "producer": "internal/component/bgp/config/resolve.go::ResolveBGPTree",
       "producer-sha": "7f64166a642fa608",
       "break": "body of ResolveBGPTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-4.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc7705_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP",
+      "unit-sha": "4069f2ac44296f7e",
+      "claim-sha": "1c42722c80740a2b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_as_migration.go::isIBGPWith",
+      "producer-sha": "015180dd93c516f4",
+      "break": "body of isIBGPWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-4.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc7705_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP",
+      "unit-sha": "4069f2ac44296f7e",
+      "claim-sha": "46fdd1a3f96c053b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_as_migration.go::isIBGPWith",
+      "producer-sha": "015180dd93c516f4",
+      "break": "body of isIBGPWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7705-4.2-2",

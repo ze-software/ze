@@ -397,8 +397,48 @@ func (s *Session) screenRouteRefresh(body []byte) (bool, error) {
 	if ignore {
 		return true, nil
 	}
+	// RFC 7313 Section 5
+	if s.routeRefreshSubtypeUnknown(body) {
+		return true, nil
+	}
 	// RFC 2918 Section 4
 	return s.routeRefreshFamilyUnadvertised(body), nil
+}
+
+// routeRefreshSubtypeUnknown reports whether a well-formed ROUTE-REFRESH carries
+// a Message Subtype RFC 7313 does not assign, from a peer that sent capability
+// 70. It logs the error RFC 7313 Section 5 asks for before it answers true.
+//
+// A peer that did not send capability 70 is still speaking RFC 2918, where the
+// third octet is Reserved and "ignored by the receiver", so its value never
+// decides anything and the answer is false. A body of another length never
+// reaches here: validateRouteRefreshLength refuses or ignores it first.
+func (s *Session) routeRefreshSubtypeUnknown(body []byte) bool {
+	// RFC 7313 Section 5: "The error handling specified in this section is
+	// applicable only when a BGP speaker has received the 'Enhanced Route
+	// Refresh Capability' from a peer."
+	if s.negotiated == nil {
+		return false
+	}
+	if !s.negotiated.PeerAdvertised(capability.CodeEnhancedRouteRefresh) {
+		return false
+	}
+	subtype := message.RouteRefreshSubtype(body[routeRefreshSubtypeOffset])
+	switch subtype {
+	case message.RouteRefreshNormal, message.RouteRefreshBoRR, message.RouteRefreshEoRR:
+		return false
+	default:
+		// RFC 7313 Section 5: "When the BGP speaker receives a ROUTE-REFRESH
+		// message with a 'Message Subtype' field other than 0, 1, or 2, it MUST
+		// ignore the received ROUTE-REFRESH message. It SHOULD log an error for
+		// further analysis."
+		sessionLogger().Error("ignoring route-refresh with unknown subtype",
+			"peer", s.settings.Address,
+			"subtype", uint8(subtype),
+			"body-octets", len(body),
+		)
+		return true
+	}
 }
 
 // routeRefreshFamilyUnadvertised reports whether a ROUTE-REFRESH names an
@@ -565,8 +605,7 @@ func (s *Session) handleRouteRefresh(body []byte) error {
 		s.onRefreshRecv()
 	}
 
-	rr, err := message.UnpackRouteRefresh(body)
-	if err != nil {
+	if _, err := message.UnpackRouteRefresh(body); err != nil {
 		return fmt.Errorf("unpack ROUTE-REFRESH: %w", err)
 	}
 
@@ -600,20 +639,8 @@ func (s *Session) handleRouteRefresh(body []byte) error {
 		return nil
 	}
 
-	// RFC 7313 Section 5: "When the BGP speaker receives a ROUTE-REFRESH message
-	// with a 'Message Subtype' field other than 0, 1, or 2, it MUST ignore
-	// the received ROUTE-REFRESH message."
-	if rr.Subtype > 2 && rr.Subtype != 255 {
-		sessionLogger().Debug("ignoring unknown route-refresh subtype", "peer", s.settings.Address, "subtype", rr.Subtype)
-		return nil
-	}
-
-	// Subtype 255 is reserved - also ignore
-	if rr.Subtype == 255 {
-		sessionLogger().Debug("ignoring reserved route-refresh subtype", "peer", s.settings.Address, "subtype", 255)
-		return nil
-	}
-
+	// A subtype other than 0, 1 or 2 never reaches here: screenRouteRefresh
+	// ignored it above, before the read path delivered it to any consumer.
 	// Valid subtypes 0, 1, 2 are handled via onMessageReceived callback
 	// which already forwarded the message to the API before this handler runs.
 	// No additional action needed here - the API processes refresh/borr/eorr events.

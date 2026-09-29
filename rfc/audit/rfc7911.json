@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC7911-2-1": {
       "note": "Sentence obliges the ADVERTISING speaker to assign Path Identifiers so that (Prefix, Path Identifier) uniquely identifies a path advertised to a neighbor; forbidden behaviour: ze advertising two different paths for one prefix to one neighbor under the same identifier. The only tagged unit, rib/storage TestPeerRIB_AddPath, inserts two RECEIVED NLRI with distinct ids into the Adj-RIB-In and asserts Len()==2: it proves receive-side keying, a neighbouring rule, and never looks at an identifier ze assigns. The assignment producer is the reactor forward path-id generator (forward_path_id.go); units that do prove this sentence (TestForwardPathIDReleaseReturnsValues, the churn and growth-probe tests, TestForwardPathIDsDifferForCollidingSources) are tagged RFC7911-2-2 instead, quoting this sentence in their prose.",
@@ -158,21 +158,25 @@
       "verdict": "weak"
     },
     "RFC7911-5-5": {
-      "note": "Sentence: the peer SHALL act accordingly in processing an UPDATE related to a particular <AFI, SAFI>. Forbidden: parsing a negotiated family's NLRI without the Path Identifier (or a non-negotiated one with it). TestEnforceRFC7606_MPAddPathLargePathIDAccepted and _IPv4BodyAddPathLargePathIDAccepted assert RFC7606ActionNone with ADD-PATH negotiated for that family and SessionReset for the same bytes on a session with no ADD-PATH at all. The per-<AFI, SAFI> clause is not isolated: the contrast session negotiates ADD-PATH for no family, so a receiver that applied one family's ADD-PATH state to every family stays green; no case sends a non-negotiated family's NLRI on a session that negotiated ADD-PATH for another family.",
+      "note": "Forbidden: applying one <AFI, SAFI>'s ADD-PATH state to another. TestRFC7911AddPathStateAppliesPerFamily negotiates ADD-PATH for exactly one of IPv4/IPv6 unicast and asserts the exact RFC 7606 action per family: path-id encoding accepted only for the ADD-PATH family, plain encoding accepted only for the other, each wrong pairing SessionReset, on both orientations. Buffers are chosen so the misread is structurally fatal (path-id octet 0x21/0x81 as prefix length), isolating the per-family parse choice.",
       "requirement_sha": "fd396f7cd202829b",
       "tests": {
+        "internal/component/bgp/reactor/reactor_b_rfc7911_test.go::TestRFC7911AddPathStateAppliesPerFamily": "75b4ff7b6ed1bd04",
+        "internal/component/bgp/reactor/reactor_b_rfc7911_test.go::TestRFC7911AddPathStateAppliesPerFamily#2": "75b4ff7b6ed1bd04",
         "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted": "8d5eb17dbb438d04",
         "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted#2": "8d5eb17dbb438d04",
         "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted": "8d5eb17dbb438d04",
         "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted#2": "8d5eb17dbb438d04"
       },
       "units": {
+        "internal/component/bgp/reactor/reactor_b_rfc7911_test.go::TestRFC7911AddPathStateAppliesPerFamily": "da5d88f2c8b20920",
+        "internal/component/bgp/reactor/reactor_b_rfc7911_test.go::TestRFC7911AddPathStateAppliesPerFamily#2": "da5d88f2c8b20920",
         "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted": "b1a86e67ee138224",
         "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted#2": "b1a86e67ee138224",
         "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted": "968617fdd0387cf2",
         "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted#2": "968617fdd0387cf2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc7911"

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -45,17 +45,21 @@
       "verdict": "weak"
     },
     "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1": {
-      "note": "Forbidden: a speaker with strict-mode enabled sending an OPEN without capability 74. TestBFDSettingsStrictParse asserts only that parsePeerFromTree puts capability.BFDStrictMode in PeerSettings.Capabilities (peerAdvertisesBFDStrict walks that slice); no tagged assertion reads the OPEN message sendOpen builds, so a sendOpen that dropped or mis-encoded code 74 stays green. Negatives (TestBFDSettingsStrictDisabledAdvertisesNothing) likewise read the settings slice.",
+      "note": "Forbidden: a strict-mode speaker sending an OPEN without capability 74. TestBFDStrictCapabilityInSentOpen builds peers from configuration and counts code-74 TLVs in the octets sendOpen writes: exactly one with bfd strict, zero with strict under a disabled bfd block and with a bfd block without strict. Red if sendOpen drops or duplicates 74 or emits it without strict-mode enabled. The settings-level units remain as supporting evidence.",
       "requirement_sha": "6c434a02c89a91bc",
       "tests": {
         "internal/component/bgp/reactor/config_bfd_strict_test.go::TestBFDSettingsStrictDisabledAdvertisesNothing": "7309aa741867a1b8",
-        "internal/component/bgp/reactor/config_bfd_strict_test.go::TestBFDSettingsStrictParse": "7309aa741867a1b8"
+        "internal/component/bgp/reactor/config_bfd_strict_test.go::TestBFDSettingsStrictParse": "7309aa741867a1b8",
+        "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestBFDStrictCapabilityInSentOpen": "8cb84a3ecc21b2cc",
+        "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestBFDStrictCapabilityInSentOpen#2": "8cb84a3ecc21b2cc"
       },
       "units": {
         "internal/component/bgp/reactor/config_bfd_strict_test.go::TestBFDSettingsStrictDisabledAdvertisesNothing": "8671c2e45df495f5",
-        "internal/component/bgp/reactor/config_bfd_strict_test.go::TestBFDSettingsStrictParse": "b288a1bf90a70006"
+        "internal/component/bgp/reactor/config_bfd_strict_test.go::TestBFDSettingsStrictParse": "b288a1bf90a70006",
+        "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestBFDStrictCapabilityInSentOpen": "27b2a2fe7d20ef5f",
+        "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestBFDStrictCapabilityInSentOpen#2": "27b2a2fe7d20ef5f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "draft-ietf-idr-bgp-bfd-strict-mode"

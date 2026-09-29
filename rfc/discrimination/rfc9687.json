@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc9687",
+  "records": [
+    {
+      "rid": "RFC9687-4.3-10",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer",
+      "unit-sha": "90f2d4e1b2658ea4",
+      "claim-sha": "bc18d7cb9fb5028f",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_write.go::stopSendHoldTimerLocked",
+      "producer-sha": "55d74fbf4080236e",
+      "break": "body of stopSendHoldTimerLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9687-4.3-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection",
+      "unit-sha": "85ccb6ff75a2bd00",
+      "claim-sha": "7b759cd420af5a40",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",
+      "producer-sha": "51555b2450550293",
+      "break": "body of sendHoldTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9687-4.3-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection",
+      "unit-sha": "85ccb6ff75a2bd00",
+      "claim-sha": "fd8e9f2aef23bf9e",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",
+      "producer-sha": "51555b2450550293",
+      "break": "body of sendHoldTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9687-4.3-8",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer",
+      "unit-sha": "d0cb71eaaa801a81",
+      "claim-sha": "471a013e16aa4cd9",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_write.go::resetSendHoldTimer",
+      "producer-sha": "62768f1e461bc74f",
+      "break": "body of resetSendHoldTimer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
