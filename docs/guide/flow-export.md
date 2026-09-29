@@ -43,7 +43,7 @@ configure several collectors at once (for example one sFlow and one IPFIX).
 | `template-refresh` | 600 | Template refresh interval in seconds, NetFlow v9 / IPFIX (1-86400) |
 | `sub-agent-id` | 0 | sFlow sub-agent identifier. Every sflow collector exports every interface, so all sflow collectors MUST name the same value |
 | `observation-domain` | 0 | IPFIX / NetFlow v9 observation domain ID |
-| `agent-address` | - | sFlow agent address (the device's own stable IP, for example a loopback). Mandatory for `sflow`. `0.0.0.0` and `::` are refused, and all sflow collectors MUST name the same address |
+| `agent-address` | - | sFlow agent address (the device's own stable IP, for example a loopback). Mandatory for `sflow`. `0.0.0.0` and `::` are refused, and all sflow collectors MUST name the same address. Ze compares the parsed addresses, so `2001:db8::1` and `2001:DB8:0::1` are one address |
 | `source-address` | - | Local source IP for the collector's UDP socket |
 | `max-datagram-size` | 464 | Maximum UDP payload bytes, including protocol padding (464-1400) |
 <!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- collector -->

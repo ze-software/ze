@@ -135,7 +135,8 @@ module ze-flowexport-conf {
                 description "sFlow agent address, which is the device's own stable IP address. Ze writes it into the sFlow
                     v5 datagram header, so a collector identifies the exporter by one address whichever interface
                     the datagram left. It is mandatory on an sflow collector, 0.0.0.0 and :: are refused, and all
-                    sflow collectors must name the same address, because Ze is one sFlow agent. A netflow9 or ipfix
+                    sflow collectors must name the same address, because Ze is one sFlow agent. Two spellings
+                    of one address, such as 2001:db8::1 and 2001:DB8:0::1, are the same address. A netflow9 or ipfix
                     collector does not read the leaf.";
                 ze:help "sFlow agent address (device's own stable IP, e.g. loopback)";
             }

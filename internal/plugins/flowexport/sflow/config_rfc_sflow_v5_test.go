@@ -58,7 +58,7 @@ func TestSFlowV5OneSubAgentPerDataSource(t *testing.T) {
 // 192.0.2.1 into every datagram header while the exported interfaces change
 // (one interface, then three, then a different one).
 // RFC requirement: SFLOW-V5-x-2 negative -- an agent address that cannot be a
-// unique, reachable key for the agent is refused: agent-address left out,
+// unique key for the agent is refused: agent-address left out,
 // 0.0.0.0, ::, and two sflow collectors naming two agent addresses.
 func TestSFlowV5AgentAddressIsTheAgentKey(t *testing.T) {
 	if err := validate(sflowCollector("a", "192.0.2.1", 0)); err != nil {
@@ -101,5 +101,24 @@ func TestSFlowV5AgentAddressIsTheAgentKey(t *testing.T) {
 		if got := [4]byte(dg[8:12]); got != want {
 			t.Errorf("round %d: agent address %v, want 192.0.2.1", round, got)
 		}
+	}
+}
+
+// RFC requirement: SFLOW-V5-x-2 positive -- two sflow collectors that spell one
+// agent address two ways (2001:db8::1 as 2001:DB8:0::1 and in full form) are
+// accepted as one agent, while 2001:db8::1 and 2001:db8::2 are refused as two
+// agents, naming agent-address.
+func TestSFlowV5AgentAddressSpellingsNameOneAgent(t *testing.T) {
+	for _, spelling := range []string{"2001:DB8:0::1", "2001:0db8:0000:0000:0000:0000:0000:0001"} {
+		if err := validate(sflowCollector("a", "2001:db8::1", 0), sflowCollector("b", spelling, 0)); err != nil {
+			t.Errorf("2001:db8::1 and %s are one agent address, refused: %v", spelling, err)
+		}
+	}
+	err := validate(sflowCollector("a", "2001:db8::1", 0), sflowCollector("b", "2001:db8::2", 0))
+	if err == nil {
+		t.Fatal("2001:db8::1 and 2001:db8::2 accepted as one agent, want refusal")
+	}
+	if !strings.Contains(err.Error(), "agent-address") {
+		t.Fatalf("refusal does not name agent-address: %v", err)
 	}
 }

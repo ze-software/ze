@@ -37,17 +37,23 @@ func agentAddress(cfg flowexport.CollectorConfig) netip.Addr {
 // the sub-agent id must be the same on all of them.
 func validateSFlowCollectors(collectors []flowexport.CollectorConfig) error {
 	var errs []error
+	agents := make([]netip.Addr, len(collectors))
 	for i := range collectors {
-		if err := validateAgentAddress(collectors[i].AgentAddress); err != nil {
+		addr, err := parseAgentAddress(collectors[i].AgentAddress)
+		if err != nil {
 			errs = append(errs, fmt.Errorf("collector %q: %w", collectors[i].Name, err))
+			continue
 		}
+		agents[i] = addr
 	}
 	first := &collectors[0]
 	for i := 1; i < len(collectors); i++ {
 		c := &collectors[i]
 		// sFlow v5 Section 4.3: "A manager should be able to use the
 		// sFlowAgentAddress as a unique key that will identify this agent".
-		if c.AgentAddress != first.AgentAddress {
+		// The parsed addresses are compared, because one address has many
+		// spellings: 2001:db8::1 and 2001:DB8:0::1 name one agent.
+		if differentAgents(agents[0], agents[i]) {
 			errs = append(errs, fmt.Errorf("collector %q: agent-address %q differs from %q on collector %q: Ze is one sFlow agent",
 				c.Name, c.AgentAddress, first.AgentAddress, first.Name))
 		}
@@ -61,19 +67,33 @@ func validateSFlowCollectors(collectors []flowexport.CollectorConfig) error {
 	return errors.Join(errs...)
 }
 
-// validateAgentAddress refuses an agent address that cannot identify the agent.
-func validateAgentAddress(agent string) error {
-	// sFlow v5 Section 4.3: "The sFlowAgent address must provide SNMP
-	// connectivity to the agent."
+// differentAgents reports whether two parsed agent addresses name two agents.
+// A zero Addr stands for an address parseAgentAddress already refused. It
+// differs from nothing, so one bad address is reported once.
+func differentAgents(a, b netip.Addr) bool {
+	if !a.IsValid() {
+		return false
+	}
+	if !b.IsValid() {
+		return false
+	}
+	return a != b
+}
+
+// parseAgentAddress parses an agent address and refuses one that cannot
+// identify the agent.
+func parseAgentAddress(agent string) (netip.Addr, error) {
+	// sFlow v5 Section 4.3: "A manager should be able to use the
+	// sFlowAgentAddress as a unique key that will identify this agent".
 	if agent == "" {
-		return errors.New("agent-address is required for sflow: it is the agent's identity in every datagram")
+		return netip.Addr{}, errors.New("agent-address is required for sflow: it is the agent's identity in every datagram")
 	}
 	addr, err := netip.ParseAddr(agent)
 	if err != nil {
-		return fmt.Errorf("agent-address %q: %w", agent, err)
+		return netip.Addr{}, fmt.Errorf("agent-address %q: %w", agent, err)
 	}
 	if addr.IsUnspecified() {
-		return fmt.Errorf("agent-address %q is unspecified: it cannot identify or reach the agent", agent)
+		return netip.Addr{}, fmt.Errorf("agent-address %q is unspecified: it cannot identify the agent", agent)
 	}
-	return nil
+	return addr, nil
 }

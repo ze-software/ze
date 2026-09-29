@@ -152,7 +152,7 @@
       "claim-sha": "e02c094937872231",
       "route": "revert",
       "producer": "internal/plugins/flowexport/sflow/register.go::validateSFlowCollectors",
-      "producer-sha": "7451c0d682523566",
+      "producer-sha": "0e6aaee4a5bfe447",
       "break": "body of validateSFlowCollectors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -160,11 +160,22 @@
       "polarity": "negative",
       "unit": "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey",
       "unit-sha": "f9c6aa12aa54b0a6",
-      "claim-sha": "c018bca6c4d716e7",
+      "claim-sha": "fbe4782aed590019",
       "route": "revert",
-      "producer": "internal/plugins/flowexport/sflow/register.go::validateSFlowCollectors",
-      "producer-sha": "7451c0d682523566",
-      "break": "body of validateSFlowCollectors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/flowexport/sflow/register.go::parseAgentAddress",
+      "producer-sha": "0199bcd1ca90f52f",
+      "break": "body of parseAgentAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "SFLOW-V5-x-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressSpellingsNameOneAgent",
+      "unit-sha": "c9cd95408f21d60e",
+      "claim-sha": "8b5576b00b23b0c0",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/sflow/register.go::differentAgents",
+      "producer-sha": "6e7123569196cb75",
+      "break": "body of differentAgents replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "SFLOW-V5-x-2",
@@ -372,7 +383,7 @@
       "claim-sha": "d629627189a0ccd7",
       "route": "revert",
       "producer": "internal/plugins/flowexport/sflow/register.go::validateSFlowCollectors",
-      "producer-sha": "7451c0d682523566",
+      "producer-sha": "0e6aaee4a5bfe447",
       "break": "body of validateSFlowCollectors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -383,7 +394,7 @@
       "claim-sha": "3035886490240917",
       "route": "revert",
       "producer": "internal/plugins/flowexport/sflow/register.go::validateSFlowCollectors",
-      "producer-sha": "7451c0d682523566",
+      "producer-sha": "0e6aaee4a5bfe447",
       "break": "body of validateSFlowCollectors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

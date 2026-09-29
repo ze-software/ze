@@ -1,10 +1,27 @@
 {
   "audited": "2026-09-29",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
+    "SFLOW-V5-4.3-1": {
+      "code": {
+        "internal/plugins/flowexport/sflow/register.go::parseAgentAddress": "93a213ce24047667"
+      },
+      "note": "Unconditional MUST of the sFlowAgentAddress DESCRIPTION (4.3), binding the sFlow agent Ze is. parseAgentAddress checks only that the configured agent-address parses and is specified; no Go code in the tree implements an SNMP agent (grep: snmp appears only in ifIndex/ifTable comments), so nothing answers SNMP at the address. {gap} annotation and Meta Support coverage disclose it.",
+      "requirement_sha": "a9f4a822d361bfa4",
+      "verdict": "unimplemented"
+    },
+    "SFLOW-V5-4.3-2": {
+      "code": {
+        "internal/plugins/flowexport/sflow/register.go::validateSFlowCollectors": "9eb9e7066b409ce4"
+      },
+      "note": "SHOULD: on a multi-homed agent the address should be the loopback address. validateSFlowCollectors checks a specified address, equal on every sflow collector, and nothing checks it belongs to a loopback interface; only docs/guide/flow-export.md recommends one. {gap} annotation and Meta Support coverage disclose it.",
+      "requirement_sha": "c0d687e1764f334f",
+      "verdict": "unimplemented"
+    },
     "SFLOW-V5-x-1": {
       "note": "single-polarity: the header's first field decodes big-endian to 5, the only datagram_version the XDR union defines; WriteDatagramHeader writes a constant, so any other value fails the assertion",
       "requirement_sha": "c92c8d3043731588",
@@ -96,19 +113,21 @@
       "verdict": "enforced"
     },
     "SFLOW-V5-x-2": {
-      "note": "Two of four clauses proven. Invariance: TestSFlowV5AgentAddressIsTheAgentKey drives the real counter encoder over three interface sets and requires 192.0.2.1 in every header. Unique key: the same unit requires Config.Validate to refuse two sflow collectors naming two agent addresses (validateSFlowCollectors, recorded +/-). Not proven: the SNMP-connectivity 'must' -- Ze runs no SNMP agent, and refusing a missing, 0.0.0.0 or :: address is a proxy that cannot show SNMP reachability; the multi-homed loopback SHOULD is an operator choice no unit observes. The negative also compares addresses as strings, so equal IPv6 spellings (2001:db8::1 vs 2001:DB8::1) are refused as two agents (unverified whether the config path canonicalizes first).",
-      "requirement_sha": "1d400a7bcb34ee21",
+      "note": "Row narrowed to its last two sentences (invariance, unique key); SNMP and loopback moved to gap rows SFLOW-V5-4.3-1/4.3-2. Invariance: TestSFlowV5AgentAddressIsTheAgentKey drives the factory-built counter encoder over three interface sets and requires 192.0.2.1 in every header; TestSFlowDatagramHeaderIPv4 pins the header bytes. No code path derives the address from interfaces, so invariance has no reject path (positive only). Unique key: Config.Validate refuses a missing, 0.0.0.0, :: or second agent address, naming agent-address (parseAgentAddress, differentAgents); TestSFlowV5AgentAddressSpellingsNameOneAgent accepts two spellings of 2001:db8::1 and refuses ::1 vs ::2, which fails if the compare returns to strings (D-8 fixed). All units recorded (revert).",
+      "requirement_sha": "11aaa58d0973777b",
       "tests": {
-        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey": "9966aabfc7a78dea",
-        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey#2": "9966aabfc7a78dea",
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey": "c2cd21e69892f0da",
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey#2": "c2cd21e69892f0da",
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressSpellingsNameOneAgent": "c2cd21e69892f0da",
         "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowDatagramHeaderIPv4": "3fd871610d6c96e0"
       },
       "units": {
-        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey": "3b0962b9298d1561",
-        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey#2": "3b0962b9298d1561",
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey": "910296257f50054b",
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey#2": "910296257f50054b",
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressSpellingsNameOneAgent": "aaa915183529a8af",
         "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowDatagramHeaderIPv4": "b838c197299a0e36"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "SFLOW-V5-x-25": {
       "note": "positive: one sample yields exactly one datagram sent at once; negative: three samples yield three datagrams, the sender count advancing by one each, and no datagram carries more than one flow_sample",
@@ -212,8 +231,8 @@
       "note": "Only-one-sub-agent: TestSFlowV5OneSubAgentPerDataSource requires Config.Validate to accept two sflow collectors with sub-agent-id 7 and to refuse 7 and 8, naming sub-agent-id (validateSFlowCollectors; every sflow collector exports every data source); TestSFlowV5DataSourceKeepsOneSubAgent shows one collector's counter and flow factories use its single sub-agent. Constant-association: the sflow_v5_test.go negative keeps ifIndex 3 on one sub-agent over five datagrams. All units recorded.",
       "requirement_sha": "e1783aa52b81cf35",
       "tests": {
-        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5OneSubAgentPerDataSource": "9966aabfc7a78dea",
-        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5OneSubAgentPerDataSource#2": "9966aabfc7a78dea",
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5OneSubAgentPerDataSource": "c2cd21e69892f0da",
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5OneSubAgentPerDataSource#2": "c2cd21e69892f0da",
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5DataSourcesCarryTheirSubAgent": "3b99215d0d627c33",
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SubAgentBindingConstantForSession": "3b99215d0d627c33",
         "internal/plugins/flowexport/sflow/subagent_rfc_sflow_v5_test.go::TestSFlowV5DataSourceKeepsOneSubAgent": "315e39ecc463c856"

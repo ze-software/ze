@@ -118,10 +118,11 @@
       "id": "4.3",
       "sites": 18,
       "disposition": "walked",
-      "reason": "Definitions. The SFLOW-MIB module itself: 18 sites, 3 mapped to SFLOW-V5-x-39, x-40 and x-41, and 15 excluded, of which 2 repeat a sentence already mapped and 13 bind an SNMP agent or an SNMP management station. Ze configures sFlow through YANG and ships no SFLOW-MIB, so those 13 bind a configuration interface Ze does not implement. Two ids are declared unsourced here, both stated at SHOULD level in an OBJECT-TYPE DESCRIPTION that the MUST-level scan does not raise. x-2 rests on the sFlowAgentAddress DESCRIPTION: 'In the case of a multi-homed agent, this should be the loopback address of the agent.', 'The address should be an invariant that does not change as interfaces are reconfigured, enabled, disabled, added or removed.' and 'A manager should be able to use the sFlowAgentAddress as a unique key that will identify this agent over extended periods of time so that a history can be maintained.'. x-5 rests on the sFlowRcvrMaximumDatagramSize DESCRIPTION, 'The maximum number of data bytes that can be sent in a single sample datagram. The manager should set this value to avoid fragmentation of the sFlow datagrams.', with DEFVAL { 1400 }.",
+      "reason": "Definitions. The SFLOW-MIB module itself: 18 sites, 4 mapped to SFLOW-V5-x-39, x-40, x-41 and SFLOW-V5-4.3-1, and 14 excluded, of which 2 repeat a sentence already mapped and 12 bind an SNMP agent or an SNMP management station. Ze configures sFlow through YANG and ships no SFLOW-MIB, so those 12 bind a configuration interface Ze does not implement. SFLOW-V5-4.3-1 is the sFlowAgentAddress sentence 'The sFlowAgent address must provide SNMP connectivity to the agent.', which binds the sFlow agent Ze is, so it is a gap row rather than an exclusion. Three ids are declared unsourced here, all stated at SHOULD level in an OBJECT-TYPE DESCRIPTION that the MUST-level scan does not raise. SFLOW-V5-4.3-2 rests on the sFlowAgentAddress DESCRIPTION sentence 'In the case of a multi-homed agent, this should be the loopback address of the agent.'. x-2 rests on the same DESCRIPTION: 'The address should be an invariant that does not change as interfaces are reconfigured, enabled, disabled, added or removed.' and 'A manager should be able to use the sFlowAgentAddress as a unique key that will identify this agent over extended periods of time so that a history can be maintained.'. x-5 rests on the sFlowRcvrMaximumDatagramSize DESCRIPTION, 'The maximum number of data bytes that can be sent in a single sample datagram. The manager should set this value to avoid fragmentation of the sFlow datagrams.', with DEFVAL { 1400 }.",
       "unsourced-ids": [
         "SFLOW-V5-x-2",
-        "SFLOW-V5-x-5"
+        "SFLOW-V5-x-5",
+        "SFLOW-V5-4.3-2"
       ]
     },
     {
@@ -449,9 +450,8 @@
     {
       "id": "4.3:8",
       "quote": "The sFlowAgent address must provide SNMP connectivity to the agent.",
-      "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-4.3-1"
     },
     {
       "id": "4.3:9",
