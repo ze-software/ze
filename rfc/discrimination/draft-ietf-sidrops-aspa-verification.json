@@ -24,6 +24,28 @@
       "break": "body of checkPair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard",
+      "unit-sha": "ebb4b0462402041c",
+      "claim-sha": "1640e2df77f0b79a",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::verifyASPA",
+      "producer-sha": "37dc2af41a25064c",
+      "break": "body of verifyASPA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rpki/aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard",
+      "unit-sha": "ebb4b0462402041c",
+      "claim-sha": "797725f8f282beb5",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::verifyASPA",
+      "producer-sha": "37dc2af41a25064c",
+      "break": "body of verifyASPA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rpki/compressed_aspa_test.go::TestASPACompressedUpdatePrependsValid",

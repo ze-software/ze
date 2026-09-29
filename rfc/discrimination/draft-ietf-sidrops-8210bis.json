@@ -1,0 +1,60 @@
+{
+  "rfc": "draft-ietf-sidrops-8210bis",
+  "records": [
+    {
+      "rid": "DRAFT-IETF-SIDROPS-8210BIS-5.12-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestASPAEmptyAnnouncementDrawsErrorReport9",
+      "unit-sha": "9d48130d6b64406b",
+      "claim-sha": "7fe982c3df641d0c",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_pdu.go::parseASPAPDU",
+      "producer-sha": "b9045da80e13f13a",
+      "break": "body of parseASPAPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-SIDROPS-8210BIS-5.12-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestASPAEmptyAnnouncementDrawsErrorReport9",
+      "unit-sha": "9d48130d6b64406b",
+      "claim-sha": "c28e7eb1202bcdc4",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_pdu.go::parseASPAPDU",
+      "producer-sha": "b9045da80e13f13a",
+      "break": "body of parseASPAPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-SIDROPS-8210BIS-5.12-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestASPAProviderListOfZeroOrMoreUniqueAscending",
+      "unit-sha": "a4ddcc740b0739a5",
+      "claim-sha": "b5c9dd84a24d1a7a",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_pdu.go::parseASPAPDU",
+      "producer-sha": "b9045da80e13f13a",
+      "break": "body of parseASPAPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-SIDROPS-8210BIS-5.12-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestASPAProviderListOfZeroOrMoreUniqueAscending",
+      "unit-sha": "a4ddcc740b0739a5",
+      "claim-sha": "575ffa31d6869f8b",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_pdu.go::parseASPAPDU",
+      "producer-sha": "b9045da80e13f13a",
+      "break": "body of parseASPAPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-SIDROPS-8210BIS-7-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRUnknownVersionErrorReportIsNotAnswered",
+      "unit-sha": "b1e76e9b34df6479",
+      "claim-sha": "ca83778f527f11ea",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::readLoop",
+      "producer-sha": "b8981167f4db1e5d",
+      "break": "body of readLoop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

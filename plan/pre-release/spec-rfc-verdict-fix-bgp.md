@@ -177,9 +177,9 @@ Copied verbatim from the parent. A row leaves this table when its re-judged verd
 
 | ID | Verdict | Unit | What the test fails to prove |
 |----|---------|------|------------------------------|
-| DRAFT-IETF-SIDROPS-8210BIS-5.12-1 | weak | `TestParseASPAPDU`, `TestParseASPAPDUMalformed` (`internal/component/bgp/plugins/rpki/rtr_pdu_test.go`) | that the router answers with an Error Report PDU carrying Error Code 9; both units stop at the parser sentinel `errASPAProviderList` |
-| DRAFT-IETF-SIDROPS-8210BIS-5.12-3 | weak | `TestParseASPAPDU`, `TestParseASPAPDUUnsorted` (`rtr_pdu_test.go`) | "zero or more" providers: only the untagged `TestParseASPAPDUWithdraw` drives a withdrawal with none |
-| DRAFT-IETF-SIDROPS-8210BIS-7-2 | weak | `TestRTRUnknownNegotiationVersion` (`rtr_session_test.go`) | the exception: an Error Report with an unrecognized version draws no Error Report back |
+| DRAFT-IETF-SIDROPS-8210BIS-5.12-1 | enforced (independent re-judge, 2026-09-29) | `TestASPAEmptyAnnouncementDrawsErrorReport9` (`internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go`), beside `TestParseASPAPDU`, `TestParseASPAPDUMalformed` | was: the Error Report with Error Code 9 was not asserted. Now over TCP: a one-provider announcement syncs with no byte sent back and is attested; a zero-provider announcement draws an Error Report, code 9, encapsulating the PDU, and publishes nothing. Observed-red records in `rfc/discrimination/draft-ietf-sidrops-8210bis.json` |
+| DRAFT-IETF-SIDROPS-8210BIS-5.12-3 | enforced (independent re-judge, 2026-09-29) | `TestASPAProviderListOfZeroOrMoreUniqueAscending` (`rtr_session_rfc8210_test.go`), beside `TestParseASPAPDU`, `TestParseASPAPDUUnsorted` | was: "zero or more" had no tagged assertion. Now a zero-provider withdrawal is accepted and applied, a unique ascending list is accepted, and a repeated or descending list fails with `errASPAProviderList` and publishes nothing |
+| DRAFT-IETF-SIDROPS-8210BIS-7-2 | enforced (independent re-judge, 2026-09-29) | `TestRTRUnknownVersionErrorReportIsNotAnswered` (`rtr_session_rfc8210_test.go`), beside `TestRTRUnknownNegotiationVersion` | was: the Error Report exception was not asserted. Now a version 99 Error Report with code 0 or 4 fails the sync and the cache reads EOF with no byte before it |
 
 ### Split-needed rows
 
@@ -307,6 +307,7 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | RFC9830-4.2.1-2 | weak | `spec-bgp-sr-policy-rfc-defects` |
 | RFC9830-2.4.2-6 | weak | `spec-bgp-sr-policy-rfc-defects` (D1: its quote is the row text verbatim, though the spec says "no row names it") |
+| RFC9830-4.2.1-7 | weak | `spec-bgp-sr-policy-rfc-defects` AC-5 (§4.2.1 receive validation: attribute 23 has no validator) |
 
 - RFC9494-4.3-2 has no verdict in `rfc/audit/rfc9494.json` and RFC9494-4.3-3 is `enforced`, so neither is a blocked verdict; the graceful-restart spec still owns both defects.
 - RFC9252-5-2 is `unimplemented`, not weak or wrong.

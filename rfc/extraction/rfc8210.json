@@ -4,8 +4,9 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc8210.txt",
   "source-sha": "d55f8b529fb430bf",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-09-28",
   "reviewer": "claude",
+  "resign-reason": "Section 7 was re-walked on 2026-09-28 for spec-rfc-verdict-fix-bgp: row RFC8210-7-8 was retired as a duplicate of RFC8210-5.2-1 (rfc/corrections/rfc8210.md), so site 7:5 moved from mapped to excluded duplicate-of RFC8210-5.2-1 and site 7:6 names that row too. Sections 6, 9.1 and 9.2 list the new unsourced SHOULD and MAY rows RFC8210-6-6, RFC8210-9.1-5 and RFC8210-9.2-12. No other site changed.",
   "sections": [
     {
       "id": "front",
@@ -108,7 +109,10 @@
     {
       "id": "6",
       "sites": 2,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8210-6-6"
+      ]
     },
     {
       "id": "7",
@@ -148,7 +152,10 @@
     {
       "id": "9.1",
       "sites": 2,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8210-9.1-5"
+      ]
     },
     {
       "id": "9.2",
@@ -156,6 +163,7 @@
       "disposition": "walked",
       "unsourced-ids": [
         "RFC8210-9.2-10",
+        "RFC8210-9.2-12",
         "RFC8210-9.2-3",
         "RFC8210-9.2-6"
       ]
@@ -383,16 +391,18 @@
     {
       "id": "7:5",
       "quote": "The router MUST ignore any Serial Notify PDUs it might receive from the cache during this initial startup period, regardless of the Protocol Version field in the Serial Notify PDU.",
-      "disposition": "mapped",
-      "mapped-to": "RFC8210-7-8"
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the Section 5.2 obligation mapped at site 5.2:1: a router ignores a Serial Notify received during the initial startup period, even one for an unexpected protocol version",
+      "mapped-to": "RFC8210-5.2-1"
     },
     {
       "id": "7:6",
       "quote": "Routers, however, MUST handle such notifications (by ignoring them) for backwards compatibility with caches serving protocol version 0.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "restates the ignore-Serial-Notify-before-negotiation obligation already mapped at site 7:5, adding only the backwards-compatibility reason",
-      "mapped-to": "RFC8210-7-8"
+      "reason": "restates the ignore-Serial-Notify-before-negotiation obligation mapped at site 5.2:1, adding only the backwards-compatibility reason",
+      "mapped-to": "RFC8210-5.2-1"
     },
     {
       "id": "7:7",

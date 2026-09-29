@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc6811",
+  "records": [
+    {
+      "rid": "RFC6811-2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/validate_rfc6811_state_test.go::TestRouteStateIsSetFromTheLookup",
+      "unit-sha": "8ca42e21cea0ac80",
+      "claim-sha": "1a05ce92db99a10c",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rpki.go::validateNLRIs",
+      "producer-sha": "e4eccc0770d8b089",
+      "break": "body of validateNLRIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6811-2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rpki/validate_rfc6811_state_test.go::TestRouteStateIsSetFromTheLookup",
+      "unit-sha": "8ca42e21cea0ac80",
+      "claim-sha": "72ce62a05dc56119",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rpki.go::validateNLRIs",
+      "producer-sha": "e4eccc0770d8b089",
+      "break": "body of validateNLRIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

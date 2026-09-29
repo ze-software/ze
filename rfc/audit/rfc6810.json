@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC6810-5.1-1": {
       "note": "Forbidden: accepting a Prefix PDU whose Max Length is below its Prefix Length. TestParseIPv4PrefixMaxLenLessThanPrefixLen (prefix 24, max 16, otherwise valid) fails unless parseIPv4Prefix errors with \"invalid\"; the check sits in parsePrefixPDU, which the IPv6 parser shares. Positive: max 24 over prefix 8 yields a VRP with MaxLength 24.",
@@ -15,41 +15,55 @@
       "verdict": "enforced"
     },
     "RFC6810-5.1-3": {
-      "note": "The row covers every zero/reserved field of every PDU. TestRFC6810ReservedPrefixOctetsIgnored proves it for the IPv4 Prefix PDU only: an all-ones header zero field, reserved flag bits and zero octet still authorize the route, and clearing the announce bit withdraws it (so only reserved bits are ignored). No unit sends a nonzero reserved field in the other PDUs a router receives (Serial Notify, Cache Response, End of Data, Cache Reset, IPv6 Prefix), so a receiver that rejects those stays green. Same judgement as RFC8210-5-1.",
+      "note": "Receipt of unspecified-content fields proven for every router-received PDU that has one: IPv4 Prefix (TestRFC6810ReservedPrefixOctetsIgnored), IPv6 Prefix header zero field, reserved flags and zero octet all ones still authorize 2001:db8::/32, and Cache Reset octets 2-3 0xFFFF still reset (TestRTRReservedOctetsIgnoredOnReceipt). Serial Notify, Cache Response and End of Data carry Session ID there, not a reserved field. Negative: the same 0xFFFF in a Cache Response is read as Session ID.",
       "requirement_sha": "75ef2c8da16bedaf",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810ReservedPrefixOctetsIgnored": "8c11ef49583ba7c6",
-        "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810ReservedPrefixOctetsIgnored#2": "8c11ef49583ba7c6"
+        "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810ReservedPrefixOctetsIgnored#2": "8c11ef49583ba7c6",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "0b4790a735f3fe8a",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "0b4790a735f3fe8a",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#3": "0b4790a735f3fe8a"
       },
       "units": {
         "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810ReservedPrefixOctetsIgnored": "3cc16e24c1841a65",
-        "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810ReservedPrefixOctetsIgnored#2": "3cc16e24c1841a65"
+        "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810ReservedPrefixOctetsIgnored#2": "3cc16e24c1841a65",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "ddcab4be31777bdf",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "ddcab4be31777bdf",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#3": "ddcab4be31777bdf"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC6810-6.1-1": {
-      "note": "{single-polarity: positive} carried on the row. TestRFC6810DefaultPollCadenceIsHourly asserts only that pollDelay(true) and pollDelay(false) return at most one hour on a fresh session. It does not drive Run, so a loop that ignored pollDelay and never re-queried would stay green, and nothing asserts that a v0 End of Data (which carries no timing parameters) leaves those intervals within the hour.",
+      "note": "Single-polarity positive (row annotation). TestRTRPollsAtLeastHourly: after an End of Data with zero interval fields, pollDelay(true) and pollDelay(false) are both at most one hour; the running cacheGroup queries again when the wait ends (Reset then Serial on the wire with a 1s wait), so the loop does re-query. TestRFC6810DefaultPollCadenceIsHourly keeps the fresh-session defaults.",
       "requirement_sha": "07837f0e5c3e77ff",
       "tests": {
-        "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810DefaultPollCadenceIsHourly": "8c11ef49583ba7c6"
+        "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810DefaultPollCadenceIsHourly": "8c11ef49583ba7c6",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly": "0b4790a735f3fe8a",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly#2": "0b4790a735f3fe8a"
       },
       "units": {
-        "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810DefaultPollCadenceIsHourly": "2fbc18510004eb9d"
+        "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810DefaultPollCadenceIsHourly": "2fbc18510004eb9d",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly": "205120082a6289d1",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly#2": "205120082a6289d1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC6810-6.3-1": {
-      "note": "Forbidden: after a Cache Reset with no more-preferred cache, not issuing a Reset Query or not taking a whole new load. TestCacheResetTriggersResetQuery calls handlePDU directly and asserts only that s.serial becomes 0 and the sync ends; no tagged unit observes the Reset Query on the wire or the old set replaced by a full load. The negative (Serial Notify keeps the serial) holds. Same judgement as RFC8210-8.3-1.",
+      "note": "Same units as RFC8210-8.3-1: TestRTRCacheResetReloadsTheWholeSet, one-session group, Cache Reset makes the next wire query a Reset Query and its load replaces the old set; negative: data in answer to the Serial Query keeps Serial Queries and merges.",
       "requirement_sha": "ffe9f790aa8a5991",
       "tests": {
-        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "85f26ae7b3bd4a1a",
-        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "85f26ae7b3bd4a1a"
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "0b4790a735f3fe8a",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "0b4790a735f3fe8a",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "9de8363060757013",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "9de8363060757013"
       },
       "units": {
-        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "7bb270d513e8b8c6",
-        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "7bb270d513e8b8c6"
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "36d27e409e1c2fef",
+        "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "36d27e409e1c2fef",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "cb81b414628b3cf1",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "cb81b414628b3cf1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC6810-6.4-1": {
       "note": "Forbidden: stopping, or sending anything but a Reset Query, after No Data Available with no other cache. TestRFC6810NoDataAvailableRepeatsResetQuery runs one live cache that answers two queries with Error Report code 2 and asserts three consecutive received queries are pduResetQuery, each within 4s (t.Fatal on silence, assert.Equal on a Serial Query). Negative: once the cache supplies a load the route validates and the next query is pduSerialQuery, so the reset mode ends at the usable load.",
@@ -65,15 +79,17 @@
       "verdict": "enforced"
     },
     "RFC6810-7-1": {
-      "note": "{single-polarity: positive} carried on the row. TestParseRPKIConfigDefaults asserts only that a parsed cache-server with no port defaults to 323; no tagged unit drives an unprotected TCP RTR session from config to show ze implements the transport on that port. Same judgement as RFC8210-9-1.",
+      "note": "Single-polarity positive (row annotation). Same unit as RFC8210-9-1: TestRTRUnprotectedTCPFromConfig drives a config-parsed trusted-network cache (default port 323) over plain TCP to a completed sync with the VRP used.",
       "requirement_sha": "de4bab7f792829e2",
       "tests": {
-        "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "b46576524b72d4df"
+        "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "b46576524b72d4df",
+        "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "f672dfc40b2bbd83"
       },
       "units": {
-        "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "364aa036558bee53"
+        "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "364aa036558bee53",
+        "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "dfe4758e6f392037"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc6810"

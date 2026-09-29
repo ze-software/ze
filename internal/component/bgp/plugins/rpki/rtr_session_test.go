@@ -301,9 +301,9 @@ func TestCacheResetTriggersResetQuery(t *testing.T) {
 	t.Run("cache reset clears serial for a reset query", func(t *testing.T) {
 		// RFC requirement: RFC6810-6.3-1 positive -- a Cache Reset PDU ends the current sync and
 		// clears the serial to 0, so the next connectAndSync sends a Reset Query.
-		// RFC requirement: RFC8210-8.3-1 positive -- with no more-preferred cache to fall back to
-		// (ze runs every configured cache in parallel), the Cache Reset drives this same session back
-		// to serial 0, which is exactly the Reset Query that fetches an entire new load.
+		// RFC requirement: RFC8210-8.3-1 positive -- on one session, outside any cache group, a Cache
+		// Reset ends the sync with errRtrCacheResetReceivedWillDo and clears the serial to 0, the state
+		// in which the session's next query is a Reset Query.
 		s := newSession()
 		s.serial = 42 // pretend a prior incremental sync
 
@@ -424,8 +424,6 @@ func TestSerialNotifyIgnoredDuringStartup(t *testing.T) {
 		// RFC requirement: RFC8210-5.2-1 positive -- a Serial Notify received before the Cache Response
 		// (state still "idle", the initial startup period) is ignored: no error, sync not complete, and
 		// neither the Session ID it carries nor the serial in its body is adopted.
-		// RFC requirement: RFC8210-7-8 positive -- the same PDU received before version negotiation has
-		// completed is handled by ignoring it, so it neither aborts nor perturbs negotiation.
 		s := newSession()
 		require.Equal(t, sessionIdle, s.state, "startup window: no Cache Response seen")
 
@@ -451,8 +449,6 @@ func TestSerialNotifyIgnoredDuringStartup(t *testing.T) {
 		// Response arriving in the same startup window IS processed (Session ID adopted, state moves to
 		// establish). An implementation that dropped every startup PDU would pass the positive case and
 		// fail here, so the pair pins "ignore Serial Notify" rather than "ignore everything".
-		// RFC requirement: RFC8210-7-8 negative -- likewise, handling Serial Notify by ignoring it does
-		// not extend to the PDU that carries the negotiated Session ID.
 		s := newSession()
 
 		done, err := s.handlePDU(rTRHeader{Version: rtrVersionMax, Type: pduCacheResp, SessionID: 0xBEEF, Length: pduHeaderLen}, make([]byte, pduHeaderLen))

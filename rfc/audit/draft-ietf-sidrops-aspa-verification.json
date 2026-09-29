@@ -1,18 +1,22 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1": {
-      "note": "Forbidden: AS 0 beside other providers in a SPAS changing the verification outcome, either by invalidating a real authorization or by acting as a wildcard. TestASPAZeroDoesNotAuthorizeOrInvalidate asserts SPAS {0,200} verifies Valid (red if AS 0 invalidates) and SPAS {0} alone verifies Invalid (the AS0 ASPA case, red if an AS0-only SPAS is a wildcard). No assertion covers the wildcard case of the quoted sentence: a mixed SPAS {0, 999} for an unlisted provider must still verify Invalid, and an implementation treating a mixed AS 0 as a wildcard stays green.",
+      "note": "Forbidden: AS 0 beside other providers changing the verification outcome. TestASPAZeroDoesNotAuthorizeOrInvalidate: {0,200} Valid, {0} alone Invalid. TestASPAZeroBesideProvidersIsNoWildcard: {0,200} = {200} = Valid (AS 0 does not invalidate) and {0,999} = {999} = Invalid for a path whose provider 200 is unlisted (AS 0 is no wildcard).",
       "requirement_sha": "d55f8f05bafd195c",
       "tests": {
         "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate": "5ab96eda55fb7b07",
-        "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate#2": "5ab96eda55fb7b07"
+        "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate#2": "5ab96eda55fb7b07",
+        "internal/component/bgp/plugins/rpki/aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard": "9e3164ba99cd9f6a",
+        "internal/component/bgp/plugins/rpki/aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard#2": "9e3164ba99cd9f6a"
       },
       "units": {
         "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate": "ff102393b4854d9e",
-        "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate#2": "ff102393b4854d9e"
+        "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate#2": "ff102393b4854d9e",
+        "internal/component/bgp/plugins/rpki/aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard": "7b6676da86907295",
+        "internal/component/bgp/plugins/rpki/aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard#2": "7b6676da86907295"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1": {
       "note": "Forbidden: a COMPRESSED_AS_PATH that keeps consecutive duplicates, removes non-consecutive ones, or reverses origin and neighbor. TestASPACompressedUpdatePrependsValid asserts state valid and accepted for prepends within a segment, across a segment boundary and on a single AS, red if a duplicate survives as an unauthorized self-hop; with 100 as neighbor and 300 as origin, a reversed order also turns it Invalid. TestASPACompressedUpdatePreservesHops asserts invalid and rejected for the separated repeat [100 200 300 200], red if non-consecutive ASNs are dropped.",
