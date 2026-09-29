@@ -203,7 +203,9 @@ func TestRFC3748MD5ChallengeRequestDrawsAResponse(t *testing.T) {
 // test above: the peer answers the MD5-Challenge Request because of what that
 // Request is, not because it answers every Request.
 //
-// RFC requirement: RFC3748-5.4-1 negative -- an Identity Requery arriving after
+// It carries no RFC3748-5.4-1 tag, because the discard is the Section 2.1 rule;
+// the row's negative is TestRFC3748MD5ChallengeAnswersOnlyARequestThatCarriesOne.
+// An Identity Requery arriving after
 // the peer has answered the MD5-Challenge Request draws no Response at all, so
 // the Response above is the Section 5.4 rule acting rather than the peer
 // answering whatever arrives.
@@ -275,7 +277,9 @@ func TestRFC3748MD5ChallengeSupportedByBothRoles(t *testing.T) {
 // TestRFC3748MD5ChallengeIsTheConfiguredMethod is the discrimination for the
 // test above: MD5-Challenge runs because the operator configured it.
 //
-// RFC requirement: RFC3748-5.4-2 negative -- a peer configured for EAP-MSCHAPv2
+// It carries no RFC3748-5.4-2 tag, because dispatch on the configured method is
+// not the support obligation; the row's negative is
+// TestRFC3748MD5ChallengeServerRefusesAWrongValue. A peer configured for EAP-MSCHAPv2
 // answers the same MD5-Challenge Request with a legacy Nak naming Type 26 and
 // never with a Type-4 Response, so the support above is the configured method
 // running rather than any peer answering any Type-4 Request.

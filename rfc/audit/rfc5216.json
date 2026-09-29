@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC5216-2.1.1-1": {
       "note": "positive proves the peer certificate reached the authenticator (a peer omitting it would fail the handshake); the negative asserts the authenticator ClientAuth config, which is the certificate_request precondition, not a peer that omits certificate or certificate_verify",
@@ -319,39 +319,45 @@
       "verdict": "enforced"
     },
     "RFC5216-2.3-1": {
-      "note": "MSK = first 64 octets of the TLS 1.2 export under the literal label, control label differs; EMSK = Key_Material(64,127) is derived by exportEAPTLSKeys but no tagged unit asserts it",
+      "note": "Single-polarity positive (row marker). In the tls12-rfc5216 case, with the literal label 'client EAP encryption' written in the test and the 128-octet export read from the TLS session, the authenticator MSK equals octets 0-63 and the EMSK octets 64-127; the EMSK equals the peer's. The MSK label control stays on the rfc5216 MSK-label unit.",
       "requirement_sha": "d3491a145ec72315",
       "tests": {
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50",
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "f90912c07fd6dcda",
         "internal/core/eap/rfc5216_msk_label_test.go::TestRFC5216MSKIsTheExportUnderTheRFCLabel": "3990b6e26fb0e890"
       },
       "units": {
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b",
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "f08a1541b2d84638",
         "internal/core/eap/rfc5216_msk_label_test.go::TestRFC5216MSKIsTheExportUnderTheRFCLabel": "e482c403b597818e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-2.4-1": {
-      "note": "Forbidden: a peer offering a version below TLS 1.0. The tagged assertion reads the NEGOTIATED ps.Version >= TLS10, not the offer, and it cannot go red: crypto/tls has no version below TLS 1.0. What Ze installs for the layer below, the peer tls.Config MinVersion TLS 1.2, is asserted by no tagged unit, so lowering it passes. The single-polarity marker is sound; the positive proves nothing Ze controls.",
+      "note": "Single-polarity positive (row marker). TestRFC5216BothRolesInstallAVersionFloor reads the tls.Config the peer's real tlsClientConfig builds: MinVersion TLS 1.2, so crypto/tls offers nothing below TLS 1.0. Lowering the floor goes red. The legacy negotiated-version tag still cannot fail on its own.",
       "requirement_sha": "3f2b411fe539e697",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50",
+        "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "5138149787127b3e"
       },
       "units": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b",
+        "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "82bff1fc3fc5db6a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-2.4-2": {
-      "note": "Forbidden: a server offering a version below TLS 1.0. The tagged assertion reads the negotiated ss.Version >= TLS10, which crypto/tls cannot violate, so it cannot go red. The authenticator MinVersion TLS 1.2 assertion lives in TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry, which is not tagged for this row.",
+      "note": "Single-polarity positive (row marker). The same unit reads the tls.Config newTLSMethod installs on the authenticator built by NewSession(TypeTLS): MinVersion TLS 1.2. Lowering it goes red.",
       "requirement_sha": "017cf68000dadaf9",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50",
+        "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "5138149787127b3e"
       },
       "units": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b",
+        "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "82bff1fc3fc5db6a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-2.4-3": {
       "note": "the only assertion is HandshakeComplete on both sides, which cannot fail on compression; the property is structural in crypto/tls and would read more honestly as a lower-layer annotation",

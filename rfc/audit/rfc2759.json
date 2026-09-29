@@ -1,83 +1,107 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC2759-x-1": {
-      "note": "The unit proves only the authenticator rejecting a Response whose FIRST Reserved octet is 1 (bad[21]=0x01, res.Err==nil fails); octets 22-28 are never set, so a check of td[21] alone stays green, and the obligation on the sender (Ze peer building the Response, peer.go) has no assertion at all. Positive only asserts a valid Response is accepted.",
+      "note": "Sender: the Response Value ze's peer emits has 8 zero Reserved octets (td[21:29]). Receiver: each of the 8 Reserved octets set to 1, each on a fresh copy of the authenticator at the Challenge, is refused through mschapv2Method.Process, so a check of the first octet only goes red.",
       "requirement_sha": "19a1b76c694f295d",
       "tests": {
         "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "f08fabdb1765636f",
-        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f"
+        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "023dc89d6ebe0a7b",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "023dc89d6ebe0a7b"
       },
       "units": {
         "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "414e01d9f5d7715b",
-        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b"
+        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "07ae87e11ccb7ba8",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "07ae87e11ccb7ba8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2759-x-10": {
-      "note": "The row is the Section 9.2 vector: a 0-to-256-unicode-char password, clientPass as UTF-16LE (63 00 6C 00 ...). The unit asserts a different known answer (ntPasswordHash(\"Password\")), which does go red on a UTF-8 encoder, but the 9.2 bytes are never asserted, the 256-character bound has no assertion, and the negative computes md4Sum over raw bytes against a constant, so it exercises no Ze producer.",
+      "note": "Positive: ntPasswordHash(\"clientPass\") equals the Section 9.2 PasswordHash vector and the MD4 of the exact 9.2 unicode octets. Negative: ntPasswordHash(\"\u00e9\") is the MD4 of E9 00, not of the UTF-8 C3 A9, exercising the producer. The 0-to-256-unicode-char label is a parameter type with no behaviour to assert.",
       "requirement_sha": "69da8fa59cbe7e91",
       "tests": {
         "internal/core/eap/mschapv2_test.go::TestNtPasswordHash": "e9ded5ee76d0ba58",
-        "internal/core/eap/mschapv2_test.go::TestNtPasswordHash#2": "e9ded5ee76d0ba58"
+        "internal/core/eap/mschapv2_test.go::TestNtPasswordHash#2": "e9ded5ee76d0ba58",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector": "023dc89d6ebe0a7b",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector#2": "023dc89d6ebe0a7b"
       },
       "units": {
         "internal/core/eap/mschapv2_test.go::TestNtPasswordHash": "454f054bac0ff10a",
-        "internal/core/eap/mschapv2_test.go::TestNtPasswordHash#2": "454f054bac0ff10a"
+        "internal/core/eap/mschapv2_test.go::TestNtPasswordHash#2": "454f054bac0ff10a",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector": "969273ecc59765df",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector#2": "969273ecc59765df"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2759-x-12": {
-      "note": "The quote is the 9.1.3 flow: Failure (E=691 R=0), then the authenticator disconnects. Asserted: OpCode Failure, E= is 691, no success, no MSK, EAP-Failure follows the ack and nothing after it; the negative shows a verified NT-Response draws Success and no E=691. The R=0 field is never read (failureField \"R=\" absent), so a Failure advertising R=1 stays green.",
+      "note": "Positive: a wrong password draws an MS-CHAPv2 Failure whose E= is 691 and R= is 0 (both fields read), and the peer's answer draws EAP-Failure (the disconnect). Negative: a verified NT-Response ends in EAP-Success, so the Failure is the verdict, not a constant.",
       "requirement_sha": "aff45259ce2b526f",
       "tests": {
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759FailureInvitesNoRetry": "023dc89d6ebe0a7b",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759FailureInvitesNoRetry#2": "023dc89d6ebe0a7b",
         "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759AuthenticatorAcceptsMatchingNTResponse": "6fbd0fd95c351d96",
         "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759AuthenticatorRefusesWithErrorCode691": "6fbd0fd95c351d96"
       },
       "units": {
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759FailureInvitesNoRetry": "584b1823e1e46abe",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759FailureInvitesNoRetry#2": "584b1823e1e46abe",
         "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759AuthenticatorAcceptsMatchingNTResponse": "36d240c2173f8e81",
         "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759AuthenticatorRefusesWithErrorCode691": "f1ee5b23c07020d4"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2759-x-2": {
-      "note": "The forbidden behaviour is a Response whose Flags octet is non-zero. The unit asserts the authenticator REJECTS such a Response (bad[53]=0x01, res.Err==nil fails), a receive-side check the sentence does not state; no assertion goes red if Ze peer emits a non-zero Flags octet (peer.go MS-CHAPv2 Response builder).",
+      "note": "Sender: the Flags octet ze's peer emits is 0 (td[53]). Receiver: Flags 1 on a fresh authenticator copy is refused through Process.",
       "requirement_sha": "20cb4974db9bb488",
       "tests": {
         "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "f08fabdb1765636f",
-        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f"
+        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "023dc89d6ebe0a7b",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "023dc89d6ebe0a7b"
       },
       "units": {
         "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "414e01d9f5d7715b",
-        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b"
+        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "07ae87e11ccb7ba8",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "07ae87e11ccb7ba8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2759-x-3": {
-      "note": "The quote is the 49-octet sub-format (16 Peer-Challenge, 8 Reserved, 24 NT-Response, 1 Flags). The unit asserts only Value-Size: 49 accepted, 50 rejected (res.Err==nil fails). Field offsets are exercised only implicitly through the test helper that builds the valid Response, and the layout Ze peer emits is not asserted in this unit.",
+      "note": "The layout ze's peer emits is read field by field: Value-Size 49, octets 0-15 equal the peer's Peer-Challenge, octets 24-47 the NT-Response over the authenticator's real Start challenge, Name after the 49 octets. Negative: Value-Size 48 and 50 each refused on a fresh copy.",
       "requirement_sha": "3fde78ac00f0df11",
       "tests": {
         "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "f08fabdb1765636f",
-        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f"
+        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "023dc89d6ebe0a7b",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "023dc89d6ebe0a7b"
       },
       "units": {
         "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "414e01d9f5d7715b",
-        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b"
+        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "07ae87e11ccb7ba8",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "07ae87e11ccb7ba8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2759-x-4": {
-      "note": "The unit asserts stripDomain(\"DOMAIN\\\\User\")==\"User\" and that challengeHash/verifyNTResponse over the unstripped name differ. It calls stripDomain directly: removing the stripDomain call from handleResponse (eap_mschapv2.go:167) or from the peer (peer.go:273) leaves every assertion green, so the NT-Response computation on the real path is not proven to use the bare user name.",
+      "note": "Real path both roles: with Name DOMAIN\\user the peer sends the full Name and an NT-Response equal to the one over the bare 'user', and the authenticator accepts it; the same Response with the NT-Response computed over the domain-qualified Name is refused through Process. Removing stripDomain from either side goes red.",
       "requirement_sha": "02f4794e4a13dbac",
       "tests": {
         "internal/core/eap/mschapv2_test.go::TestChallengeHashExcludesDomainPrefix": "e9ded5ee76d0ba58",
-        "internal/core/eap/mschapv2_test.go::TestChallengeHashExcludesDomainPrefix#2": "e9ded5ee76d0ba58"
+        "internal/core/eap/mschapv2_test.go::TestChallengeHashExcludesDomainPrefix#2": "e9ded5ee76d0ba58",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName": "023dc89d6ebe0a7b",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName#2": "023dc89d6ebe0a7b"
       },
       "units": {
         "internal/core/eap/mschapv2_test.go::TestChallengeHashExcludesDomainPrefix": "51422ef2bf7858ab",
-        "internal/core/eap/mschapv2_test.go::TestChallengeHashExcludesDomainPrefix#2": "51422ef2bf7858ab"
+        "internal/core/eap/mschapv2_test.go::TestChallengeHashExcludesDomainPrefix#2": "51422ef2bf7858ab",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName": "47d95975b41d25ae",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName#2": "47d95975b41d25ae"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2759-x-5": {
       "note": "{single-polarity: positive} carried on the row. Forbidden behaviour: lowercase a-f in the S= authenticator response. TestMSCHAPv2SuccessUppercaseHex forces hex letters (0xab bytes, guarded by ContainsAny \"ABCDEF\" so it is not vacuous) and fails on strings.ContainsAny(sHex,\"abcdef\") and on sHex!=ToUpper(sHex); dropping strings.ToUpper in sendSuccess turns it red.",
@@ -117,28 +141,32 @@
       "verdict": "enforced"
     },
     "RFC2759-x-8": {
-      "note": "Clauses: 16-octet Value; the SHOULD on standard randomness guidelines. TestMSCHAPv2AuthChallengeRandom16 fails if the Challenge Value-Size (TypeData[4]) is not 16, the challenge is all-zero, or two sessions draw the same value. No assertion pins the source: rand.Read in mschapv2Method.Start could be replaced by a math/rand or time-seeded generator and every assertion stays green, so the randomness clause the {single-polarity} marker claims assertable is not asserted (the peer side, RFC2759-x-9, substitutes crypto/rand.Reader; this unit does not).",
+      "note": "Row re-levelled MUST->SHOULD (only keyword in the span is SHOULD; correction 2026-09-28 in rfc/corrections/rfc2759.md). Single-polarity positive: with crypto/rand.Reader substituted, the Challenge from mschapv2Method.Start carries Value-Size 16 and exactly the substituted octets, so a math/rand or time-seeded source goes red.",
       "requirement_sha": "8771a5d9ef574e84",
       "tests": {
-        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2AuthChallengeRandom16": "f08fabdb1765636f"
+        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2AuthChallengeRandom16": "f08fabdb1765636f",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759AuthenticatorChallengeComesFromCryptoRand": "023dc89d6ebe0a7b"
       },
       "units": {
-        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2AuthChallengeRandom16": "2436afafa1bfacc8"
+        "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2AuthChallengeRandom16": "2436afafa1bfacc8",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759AuthenticatorChallengeComesFromCryptoRand": "b7e87708d2bae5f7"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2759-x-9": {
-      "note": "Clauses: the Peer-Challenge is a 16-octet random number; it is generated by the peer and used in the calculation of the NT-Response; the standard randomness guidelines SHOULD be observed. Asserted: the peer draws its 16 octets from crypto/rand.Reader (reader substituted, peerChallenge != marker fails), puts them at Response offset 5 (td[5:21] != marker fails), and two sessions differ. The used-in-the-NT-Response clause has no assertion in either tagged unit: a peer computing NT-Response without its Peer-Challenge stays green. Re-judged after the blind reader's enforced: the quoted span carries that clause, and no tagged assertion reaches it.",
+      "note": "Row re-levelled MUST->SHOULD (same correction). The source clause is on the crypto/rand.Reader substitution unit; the used-in-NT-Response clause now on TestRFC2759PeerChallengeEntersTheNTResponse: the wire NT-Response equals the one over the sent Peer-Challenge, and flipping one Peer-Challenge octet makes the authenticator refuse it.",
       "requirement_sha": "b35159574d13d7a6",
       "tests": {
         "internal/core/eap/peer_test.go::TestMSCHAPv2PeerChallengeRandom16": "0826b1125d3c6177",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerChallengeEntersTheNTResponse": "023dc89d6ebe0a7b",
         "internal/core/eap/rfc2759_peer_challenge_test.go::TestRFC2759PeerChallengeComesFromCryptoRand": "c59064ad278415f3"
       },
       "units": {
         "internal/core/eap/peer_test.go::TestMSCHAPv2PeerChallengeRandom16": "4f013d5dbcad8886",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerChallengeEntersTheNTResponse": "a360a8be76cc878b",
         "internal/core/eap/rfc2759_peer_challenge_test.go::TestRFC2759PeerChallengeComesFromCryptoRand": "501409090308a85d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc2759"

@@ -127,10 +127,11 @@ func TestRFC3748SuccessFailureFormat(t *testing.T) {
 		}
 	}
 
-	// RFC requirement: RFC3748-4.2-2 negative -- a Request/Response is NOT a 4-octet
-	// packet: with Length 4 there is no room for the mandatory Type field, so the
-	// decoder rejects it. This pins the Type field as present for Codes 1-2 and absent
-	// for Codes 3-4.
+	// A Request/Response is NOT a 4-octet packet: with Length 4 there is no room
+	// for the mandatory Type field, so the decoder rejects it. This pins the Type
+	// field as present for Codes 1-2 and absent for Codes 3-4. It is a neighboring
+	// rule, so it carries no RFC3748-4.2-2 tag: the row's negative is
+	// TestRFC3748SuccessAndFailureCarryNoData.
 	if _, err := DecodePacket([]byte{CodeRequest, 3, 0, 4}); err == nil {
 		t.Fatal("Request of length 4 accepted; Request/Response must carry a Type field")
 	}
@@ -217,8 +218,10 @@ func TestRFC3748AuthenticatorRequiresValidResponse(t *testing.T) {
 		t.Fatalf("valid Identity Response did not yield a method Request: %v", next)
 	}
 
-	// RFC requirement: RFC3748-2-2 negative -- a packet that is not a Response (Code !=
-	// Response) never produces a new method Request; the authenticator returns Failure.
+	// A packet that is not a Response (Code != Response) never produces a new
+	// method Request; the authenticator returns Failure. It carries no
+	// RFC3748-2-2 tag, because RFC 3748 does not ask for that Failure: the row's
+	// negative is TestRFC3748NoNewRequestBeforeAValidResponse.
 	auth2, err := NewSession(TypeMSCHAPv2, MethodConfig{Password: "pw"})
 	if err != nil {
 		t.Fatal(err)

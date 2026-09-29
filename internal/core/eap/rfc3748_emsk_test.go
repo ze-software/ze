@@ -149,6 +149,15 @@ func TestRFC3748EAPTLSExportsASixtyFourOctetEMSK(t *testing.T) {
 			if err != nil {
 				t.Fatalf("the TLS session refused the 128-octet export, so this test cannot judge the split: %v", err)
 			}
+			// RFC requirement: RFC5216-2.3-1 positive -- RFC 5216 Section 2.3:
+			// "Key_Material = TLS-PRF-128(master_secret, "client EAP encryption",
+			// client.random || server.random) MSK = Key_Material(0,63) EMSK =
+			// Key_Material(64,127)". In the tls12-rfc5216 case the authenticator's
+			// MSK is octets 0 to 63 and its EMSK octets 64 to 127 of the 128-octet
+			// export under that literal label, read from the TLS session itself.
+			if [64]byte(material[:64]) != sess.MSK() {
+				t.Fatalf("MSK = %x,\n  want %x (octets 0 to 63 of the export under %q)", sess.MSK(), material[:64], tc.label)
+			}
 			if [64]byte(material[64:]) != sess.emsk {
 				t.Fatalf("EMSK = %x,\n  want %x (octets 64 to 127 of the export under %q)", sess.emsk, material[64:], tc.label)
 			}
