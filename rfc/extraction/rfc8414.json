@@ -341,7 +341,7 @@
       "id": "6.1:4",
       "quote": "To protect against information disclosure and tampering, confidentiality protection MUST be applied using TLS with a ciphersuite that provides confidentiality and integrity protection.",
       "disposition": "mapped",
-      "mapped-to": "RFC8414-3.3-1"
+      "mapped-to": "RFC8414-6.1-4"
     },
     {
       "id": "6.2:1",

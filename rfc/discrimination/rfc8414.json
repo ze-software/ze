@@ -2,6 +2,28 @@
   "rfc": "rfc8414",
   "records": [
     {
+      "rid": "RFC8414-2-1",
+      "polarity": "positive",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment",
+      "unit-sha": "061895c4abcf4382",
+      "claim-sha": "4bade9c646e95103",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+      "producer-sha": "9c3c0b8747d3dbfb",
+      "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-2-1",
+      "polarity": "negative",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment",
+      "unit-sha": "061895c4abcf4382",
+      "claim-sha": "f5170ab4bdc8f922",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::asMetadataURL",
+      "producer-sha": "40613bae2cd4d34e",
+      "break": "body of asMetadataURL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8414-3.1-1",
       "polarity": "positive",
       "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequestIsGETAtWellKnownPath",
@@ -44,6 +66,28 @@
       "producer": "internal/component/mcp/as_metadata.go::asMetadataURL",
       "producer-sha": "40613bae2cd4d34e",
       "break": "body of asMetadataURL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare",
+      "unit-sha": "8069662a1c1f4a07",
+      "claim-sha": "5ad46f90724fcf33",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+      "producer-sha": "9c3c0b8747d3dbfb",
+      "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare",
+      "unit-sha": "8069662a1c1f4a07",
+      "claim-sha": "cc030634f9488b12",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+      "producer-sha": "9c3c0b8747d3dbfb",
+      "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8414-4-1",
@@ -154,6 +198,28 @@
       "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
       "producer-sha": "9c3c0b8747d3dbfb",
       "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-6.1-4",
+      "polarity": "positive",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite",
+      "unit-sha": "efd513927db825d0",
+      "claim-sha": "ba033ea84f78be31",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+      "producer-sha": "9c3c0b8747d3dbfb",
+      "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-6.1-4",
+      "polarity": "negative",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite",
+      "unit-sha": "efd513927db825d0",
+      "claim-sha": "702e2d59929e7469",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::oauthHTTPClient",
+      "producer-sha": "bdca43531f655a82",
+      "break": "body of oauthHTTPClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

@@ -1,19 +1,28 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8414-2-1": {
-      "note": "The sentence makes issuer REQUIRED and defines it as a URL that uses https and has no query or fragment. Presence: TestFetchASMetadata_MissingIssuer goes red if a document without issuer is accepted (err must contain 'missing issuer'); TestFetchASMetadata positive decodes it. The https, no-query and no-fragment clauses have no assertion in a 2-1-tagged unit: asMetadataURL/oauthHTTPSURL enforce them, and TestRFC8414MetadataRequiresHTTPS (tagged 3.3-1) and TestConfiguredIssuerQueryRejectedBeforeMetadataFetch (untagged) cover https and query, but no unit covers an issuer with a fragment.",
+      "note": "Every clause of the \u00a72 issuer definition in both polarities in TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment: + an https issuer with no query or fragment is fetched and its issuer returned; - an http issuer (oauthHTTPSURL scheme check), ?tenant=a and a bare ? (asMetadataURL RawQuery/ForceQuery), and #frag (oauthHTTPSURL) each give zero metadata with no request reaching the AS, each input violating one clause only; a document with no issuer gives zero metadata (fetchASMetadata missing-issuer). The as_metadata_test.go units keep their presence tags. Records are whole-function panic breaks of fetchASMetadata (+) and asMetadataURL (-).",
       "requirement_sha": "94d05f9e2042f41a",
       "tests": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment": "2f4d742cea5bceef",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment#2": "2f4d742cea5bceef",
         "internal/component/mcp/as_metadata_test.go::TestFetchASMetadata_MissingIssuer": "a6b0bf070bf83906",
         "internal/component/mcp/as_metadata_test.go::TestFetchASMetadata_Success": "a6b0bf070bf83906"
       },
       "units": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment": "a13c3ca86dab7bfa",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment#2": "a13c3ca86dab7bfa",
         "internal/component/mcp/as_metadata_test.go::TestFetchASMetadata_MissingIssuer": "e4ccda5c227a0782",
         "internal/component/mcp/as_metadata_test.go::TestFetchASMetadata_Success": "e9b576f93c3a099d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8414-2-7": {
       "note": "Forbidden: a jwks_uri that does not use https. TestRFC8414JWKSMetadataSecurity 'HTTP keys' subtest serves jwks_uri on http and asserts NewStreamable returns an error, no server, and plainHits==0; 'redirect to HTTP' asserts the same for an https jwks_uri redirecting to http. Positive 'labeled keys' verifies a token with the key fetched over https.",
@@ -32,8 +41,8 @@
       "note": "Consumer view of the response envelope. 200: 'created' (201) case must return error and zero metadata. application/json: 'HTML' and 'absent type' cases red if accepted; charset parameter accepted. JSON object: 'array' case red if accepted. Positive: 200 application/json object yields issuer and jwks_uri. The 'subset of Section 2 values' clause constrains the server; \u00a73.2 says 'Other claims MAY also be returned', so no consumer input violates it.",
       "requirement_sha": "7f448a6aab76af3b",
       "tests": {
-        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataHTTPResponse": "61104ab130a18819",
-        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataHTTPResponse#2": "61104ab130a18819"
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataHTTPResponse": "2f4d742cea5bceef",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataHTTPResponse#2": "2f4d742cea5bceef"
       },
       "units": {
         "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataHTTPResponse": "15029d5b2e1825cb",
@@ -45,8 +54,8 @@
       "note": "Quote is the \u00a73 sentence 'This path MUST use the https scheme.' Forbidden: fetching the metadata path over http. TestRFC8414MetadataRequiresHTTPS asserts fetchASMetadata errs and returns zero metadata for an http issuer and for an https-to-http redirect, and plainHits==0; positive decodes metadata from a trusted https server. The \u00a76.1 confidentiality clause the old row text also named is not in this quote (reported as split needed).",
       "requirement_sha": "b520f47eb54e1c10",
       "tests": {
-        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequiresHTTPS": "61104ab130a18819",
-        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequiresHTTPS#2": "61104ab130a18819"
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequiresHTTPS": "2f4d742cea5bceef",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequiresHTTPS#2": "2f4d742cea5bceef"
       },
       "units": {
         "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequiresHTTPS": "0093ccb644d32b03",
@@ -58,8 +67,8 @@
       "note": "Clause 1 (issuer MUST be identical): TestRFC8414MetadataIssuerIdentity asserts slash, dot-path and NFC aliases of the configured issuer return an error and zero metadata, and the identical (JSON-escaped) issuer is accepted; TestNewStreamable_OAuth_RejectsIssuerMismatch-style unit asserts 'does not match configured'. Clause 2 (data MUST NOT be used): TestOAuthRejectsIssuerAliases asserts keyRequests==0, so the mismatched document's jwks_uri is never fetched, and no server is returned.",
       "requirement_sha": "3d6bb0158b73e67d",
       "tests": {
-        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity": "61104ab130a18819",
-        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity#2": "61104ab130a18819",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity": "2f4d742cea5bceef",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity#2": "2f4d742cea5bceef",
         "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_AcceptsValidToken": "8035c109889da094",
         "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsIssuerMismatch": "8035c109889da094",
         "internal/component/mcp/oauth_e2e_test.go::TestOAuthRejectsIssuerAliases": "8035c109889da094"
@@ -74,24 +83,28 @@
       "verdict": "enforced"
     },
     "RFC8414-4-1": {
-      "note": "Quote: comparisons between JSON strings and other Unicode strings MUST be performed as specified below (unescape, no normalization, code-point equality). The 4-1-tagged units (TestRFC8414IssuerCompareUnescapesJSON, TestRFC8414IssuerCompareNotOnJSONText) prove only step 1 and only on the JWT iss path (verifyJWT). The RFC 8414 metadata issuer comparison in fetchASMetadata, which \u00a74 names ('the member names in the metadata response ... issuer'), is exercised with JSON escapes by TestRFC8414MetadataIssuerIdentity, which is tagged 3.3-2/4-2/4-3 but not 4-1. Steps 2 and 3 are proven only under the 4-2 and 4-3 rows.",
-      "requirement_sha": "afc614cc2701b333",
+      "note": "Row now quotes the lead-in plus step 1 (remove JSON-applied escaping). Metadata path: TestRFC8414MetadataIssuerUnescapedBeforeCompare + matches a document issuer written with escaped solidi and a u0062 escape against the unescaped configured https://host/ab, which goes red if fetchASMetadata compared JSON text; - refuses a configured issuer holding the literal escape, which goes red if the configured side were also unescaped. That negative's configured value is not the full raw JSON text (its solidi are unescaped), so on the metadata path the text-compare violation is caught by the positive alone. JWT path: TestRFC8414IssuerCompareUnescapesJSON / TestRFC8414IssuerCompareNotOnJSONText isolate it exactly (expected issuer equal to the raw JSON text is refused with errJWTIssuerMismatch). Steps 2 and 3 stay on 4-2 and 4-3.",
+      "requirement_sha": "ce737695e61b6971",
       "tests": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare": "2f4d742cea5bceef",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare#2": "2f4d742cea5bceef",
         "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNotOnJSONText": "18e93e5bd1969dca",
         "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareUnescapesJSON": "18e93e5bd1969dca"
       },
       "units": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare": "0031ac2f4fec9f97",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare#2": "0031ac2f4fec9f97",
         "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNotOnJSONText": "b7fb969414b3da0c",
         "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareUnescapesJSON": "6b3721d6e0a191d1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8414-4-2": {
       "note": "Forbidden: applying Unicode normalization to either string. TestRFC8414IssuerCompareNoNormalizationRejects asserts errJWTIssuerMismatch for NFC iss vs NFD expected and the reverse; TestRFC8414MetadataIssuerIdentity asserts an NFC metadata issuer against the NFD configured one returns error and zero metadata. Positives: identical NFD strings accepted on both the JWT and metadata paths.",
       "requirement_sha": "df6fb39f1bb1b6fe",
       "tests": {
-        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity": "61104ab130a18819",
-        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity#2": "61104ab130a18819",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity": "2f4d742cea5bceef",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity#2": "2f4d742cea5bceef",
         "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNoNormalizationAccepts": "18e93e5bd1969dca",
         "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNoNormalizationRejects": "18e93e5bd1969dca"
       },
@@ -100,6 +113,19 @@
         "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity#2": "93bb9c8813eeb775",
         "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNoNormalizationAccepts": "4a62d5cfff044f1c",
         "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNoNormalizationRejects": "a3db3e51029160d8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8414-6.1-4": {
+      "note": "\u00a76.1 confidentiality sentence, whole-stack: TestRFC8414MetadataFetchUsesConfidentialIntegritySuite + the fetch negotiates TLS with a suite in tls.CipherSuites and not in tls.InsecureCipherSuites; - a cleartext server behind an https issuer (nil client, the production path of buildAuthForMode) and a TLS 1.2 server offering only TLS_RSA_WITH_RC4_128_SHA each give zero metadata with neither handler reached. The suite refusal is performed by Go's crypto/tls default client suite list, which Ze keeps by never setting TLSClientConfig in oauthHTTPClient; the RC4 case uses the httptest client (to isolate this from the 6.1-3 certificate check), so a caller passing a custom insecure transport is not exercised. Records are whole-function panic breaks of fetchASMetadata (+) and oauthHTTPClient (-).",
+      "requirement_sha": "f506cc6de11a805d",
+      "tests": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite": "2f4d742cea5bceef",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite#2": "2f4d742cea5bceef"
+      },
+      "units": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite": "2e71360d03ee6ac8",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite#2": "2e71360d03ee6ac8"
       },
       "verdict": "enforced"
     }

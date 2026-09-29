@@ -147,8 +147,11 @@ func TestRFC9728RegisteredSuffix(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC9728-3.1-2 positive — an HTTP GET at the metadata URL is answered 200 with the document.
-// RFC requirement: RFC9728-3.1-2 negative — POST and PUT at the metadata URL are refused with 405 and Allow: GET, OPTIONS, so the document is obtainable through GET only.
+// TestRFC9728MetadataQueriedWithGET pins the publisher's method handling: a
+// GET at the metadata URL returns the document, and POST and PUT are refused
+// with 405 and Allow: GET, OPTIONS. RFC 9728 Section 3.1 obliges the client
+// that queries the document to use GET; Ze fills no such client role, so this
+// test carries no requirement tag.
 func TestRFC9728MetadataQueriedWithGET(t *testing.T) {
 	s := newMetadataServer(t, OAuthConfig{Audience: "https://mcp.example/"})
 	decodeMetadata(t, requestMetadata(t, s, http.MethodGet, OAuthMetadataPath))
@@ -308,5 +311,139 @@ func TestRFC9728ChallengeDiscovery(t *testing.T) {
 	}
 	if returned != resource {
 		t.Fatalf("discovered resource = %q, requested %q", returned, resource)
+	}
+}
+
+// Goal: prove the query clause of RFC 9728 Section 3: the well-known string
+// goes between the host and the query component, with or without a path.
+// Method: build one server for an identifier with a path and a query, one for
+// an identifier with a query only, and request the RFC location and each
+// misplaced one.
+// RFC requirement: RFC9728-3-2 positive -- for https://mcp.example/mcp?tenant=a the document is served at /.well-known/oauth-protected-resource/mcp?tenant=a, and for the query-only https://mcp.example?tenant=a at /.well-known/oauth-protected-resource?tenant=a; resourceMetadataURL advertises each location and each document carries its identifier.
+// RFC requirement: RFC9728-3-2 negative -- no document is served with the query dropped, with the suffix after the path, or, for the query-only identifier, at the bare suffix or after the query.
+func TestRFC9728WellKnownInsertedBeforeQuery(t *testing.T) {
+	cases := []struct {
+		resource string
+		location string
+		wrong    []string
+	}{
+		{
+			resource: "https://mcp.example/mcp?tenant=a",
+			location: "/.well-known/oauth-protected-resource/mcp?tenant=a",
+			wrong: []string{
+				"/.well-known/oauth-protected-resource/mcp",
+				"/mcp/.well-known/oauth-protected-resource?tenant=a",
+				"/.well-known/oauth-protected-resource?tenant=a",
+			},
+		},
+		{
+			resource: "https://mcp.example?tenant=a",
+			location: "/.well-known/oauth-protected-resource?tenant=a",
+			wrong: []string{
+				"/.well-known/oauth-protected-resource",
+				"/?tenant=a/.well-known/oauth-protected-resource",
+			},
+		},
+	}
+	for _, c := range cases {
+		s := newMetadataServer(t, OAuthConfig{Audience: c.resource})
+		if got := resourceMetadataURL(s.cfg.OAuth); got != "https://mcp.example"+c.location {
+			t.Fatalf("%s: resourceMetadataURL = %q, want %q", c.resource, got, "https://mcp.example"+c.location)
+		}
+		doc := decodeMetadata(t, requestMetadata(t, s, http.MethodGet, c.location))
+		var returned string
+		if err := json.Unmarshal(doc["resource"], &returned); err != nil {
+			t.Fatalf("%s: resource decode: %v", c.resource, err)
+		}
+		if returned != c.resource {
+			t.Fatalf("resource = %q, want %q", returned, c.resource)
+		}
+		for _, wrong := range c.wrong {
+			if w := requestMetadata(t, s, http.MethodGet, wrong); w.Code == http.StatusOK {
+				t.Fatalf("%s: document served at %s", c.resource, wrong)
+			}
+		}
+	}
+}
+
+// Goal: prove RFC 9728 Section 2 authorization_servers holds RFC 8414 issuer
+// identifiers: a JSON array whose members are the issuer Ze validated.
+// Method: read the published member from a server built against the test AS,
+// then build servers whose authorization-server is not an issuer identifier.
+// RFC requirement: RFC9728-2-2 positive -- authorization_servers is a JSON array of strings holding exactly the configured issuer, an https URL with no query and no fragment.
+// RFC requirement: RFC9728-2-2 negative -- an authorization-server that is not an RFC 8414 issuer identifier (http, with a query, with a fragment) is refused by NewStreamable, so no document lists it.
+func TestRFC9728AuthorizationServersAreIssuerIdentifiers(t *testing.T) {
+	s := newMetadataServer(t, OAuthConfig{Audience: "https://mcp.example/mcp"})
+	issuer := s.cfg.OAuth.AuthorizationServer
+	doc := decodeMetadata(t, requestMetadata(t, s, http.MethodGet, "/.well-known/oauth-protected-resource/mcp"))
+	var servers []string
+	if err := json.Unmarshal(doc["authorization_servers"], &servers); err != nil {
+		t.Fatalf("authorization_servers is not a JSON array of strings: %v; %s", err, doc["authorization_servers"])
+	}
+	if len(servers) != 1 || servers[0] != issuer {
+		t.Fatalf("authorization_servers = %q, want [%q]", servers, issuer)
+	}
+	u, err := url.Parse(servers[0])
+	if err != nil || u.Scheme != "https" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
+		t.Fatalf("authorization server %q is not an issuer identifier: %v", servers[0], err)
+	}
+
+	as := newTestAS(t)
+	for _, bad := range []string{
+		"http://" + strings.TrimPrefix(as.Issuer(), "https://"),
+		as.Issuer() + "?tenant=a",
+		as.Issuer() + "#frag",
+	} {
+		srv, err := NewStreamable(StreamableConfig{AuthMode: AuthOAuth, OAuth: OAuthConfig{
+			AuthorizationServer: bad,
+			Audience:            "https://mcp.example/mcp",
+		}})
+		if err == nil {
+			srv.Close()
+			t.Fatalf("authorization-server %q accepted", bad)
+		}
+	}
+}
+
+// Goal: prove the resource_metadata parameter RFC 9728 Section 5.1 defines
+// is the URL of this resource's metadata, on a Bearer challenge.
+// Method: send an unauthenticated MCP request to a server whose metadata
+// resource differs from its audience, parse the challenge, and fetch it.
+// RFC requirement: RFC9728-5.1-1 positive -- the 401 carries WWW-Authenticate: Bearer with resource_metadata equal to https://mcp.example/.well-known/oauth-protected-resource/api, the whole metadata URL of the metadata resource, and a GET at that URL returns the document for https://mcp.example/api.
+func TestRFC9728ChallengeNamesMetadataURL(t *testing.T) {
+	s := newMetadataServer(t, OAuthConfig{
+		Audience:         "https://mcp.example/",
+		MetadataResource: "https://mcp.example/api",
+	})
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+		metaBlock(ProtocolVersion, capsNone) + `}}`
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "https://mcp.example"+Endpoint, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
+	req.Header.Set("Mcp-Method", "tools/list")
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated status = %d, want 401", w.Code)
+	}
+	challenge := w.Header().Get("WWW-Authenticate")
+	if !strings.HasPrefix(challenge, "Bearer ") {
+		t.Fatalf("challenge scheme is not Bearer: %q", challenge)
+	}
+	_, quoted, found := strings.Cut(challenge, `resource_metadata="`)
+	if !found {
+		t.Fatalf("challenge has no resource_metadata: %q", challenge)
+	}
+	location, _, closed := strings.Cut(quoted, `"`)
+	if !closed {
+		t.Fatalf("unterminated resource_metadata: %q", challenge)
+	}
+	want := "https://mcp.example/.well-known/oauth-protected-resource/api"
+	if location != want {
+		t.Fatalf("resource_metadata = %q, want %q", location, want)
+	}
+	doc := decodeMetadata(t, requestMetadata(t, s, http.MethodGet, location))
+	if got := string(doc["resource"]); got != `"https://mcp.example/api"` {
+		t.Fatalf("document at resource_metadata carries resource %s", got)
 	}
 }

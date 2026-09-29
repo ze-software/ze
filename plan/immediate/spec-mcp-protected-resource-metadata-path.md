@@ -103,6 +103,8 @@ keeps the path spelled as given.
 | AC-2 | identifier `https://host/` or `https://host` | metadata at `/.well-known/oauth-protected-resource` |
 | AC-3 | identifier `https://host/a/?q` | metadata at `/.well-known/oauth-protected-resource/a/?q` |
 | AC-4 | the `wrong` verdict of RFC9728-3.1-3, after this spec's producer fix | the verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-services.md` (parent P-3, 2026-09-28) |
+| AC-5 | the `weak` verdict of RFC9728-3-2, after this spec's producer fix | the verdict reaches `enforced`: `TestRFC9728WellKnownInsertedBeforeQuery` already proves the query clause, and a tagged test also proves that identifier `https://host/mcp/` is served at the well-known URL formed from it; an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Same trailing-slash defect as RFC9728-3.1-3. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-services.md` (parent P-3, 2026-09-29) |
+| AC-6 | the `weak` verdict of RFC9728-3.3-1, after this spec's producer fix | the verdict reaches `enforced`: a tagged test proves that for identifier `https://host/mcp/` the returned `resource` equals the identifier the metadata URL was formed from; an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Same trailing-slash defect as RFC9728-3.1-3. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-services.md` (parent P-3, 2026-09-29) |
 
 ## 🧪 TDD Test Plan
 

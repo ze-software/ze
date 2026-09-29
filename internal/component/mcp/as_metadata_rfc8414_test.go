@@ -9,6 +9,7 @@ package mcp
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
@@ -406,5 +407,147 @@ func TestRFC8414MetadataIssuerIdentity(t *testing.T) {
 		if err == nil || md != (asMetadata{}) {
 			t.Fatalf("issuer alias %q accepted: %+v, %v", issuer, md, err)
 		}
+	}
+}
+
+// Goal: prove every clause of the RFC 8414 Section 2 issuer definition on the
+// fetch path: present, https, no query, no fragment.
+// Method: fetch against one trusted TLS server with a valid issuer, then with
+// each non-conforming issuer, and count the requests the server received.
+// RFC requirement: RFC8414-2-1 positive -- an https issuer with no query and no fragment is fetched and its document's issuer is returned.
+// RFC requirement: RFC8414-2-1 negative -- an http issuer, an issuer with a query, one with an empty query, and one with a fragment are each refused with zero metadata and no request sent; a document with no issuer returns zero metadata.
+func TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment(t *testing.T) {
+	as := &recordingAS{docPath: asMetadataWellKnownPath}
+	srv := httptest.NewTLSServer(as)
+	defer srv.Close()
+	as.issuer = srv.URL
+
+	md, err := fetchASMetadata(fetchCtx(t), srv.Client(), srv.URL)
+	if err != nil || md.Issuer != srv.URL {
+		t.Fatalf("conforming issuer %q refused: %+v, %v", srv.URL, md, err)
+	}
+	fetched := len(as.seen())
+
+	httpIssuer := "http://" + strings.TrimPrefix(srv.URL, "https://")
+	for _, issuer := range []string{httpIssuer, srv.URL + "?tenant=a", srv.URL + "?", srv.URL + "#frag"} {
+		md, err := fetchASMetadata(fetchCtx(t), srv.Client(), issuer)
+		if err == nil || md != (asMetadata{}) {
+			t.Fatalf("issuer %q accepted: %+v, %v", issuer, md, err)
+		}
+	}
+	if got := len(as.seen()); got != fetched {
+		t.Fatalf("a refused issuer reached the server: %v", as.seen()[fetched:])
+	}
+
+	as.issuer = ""
+	if md, err := fetchASMetadata(fetchCtx(t), srv.Client(), srv.URL); err == nil || md != (asMetadata{}) {
+		t.Fatalf("document without issuer accepted: %+v, %v", md, err)
+	}
+}
+
+// rawMetadataServer serves body verbatim as the metadata document, so a test
+// controls the JSON escaping of every member.
+func rawMetadataServer(t *testing.T, body func(origin string) string) *httptest.Server {
+	t.Helper()
+	var origin string
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte(body(origin))); err != nil {
+			t.Errorf("write metadata: %v", err)
+		}
+	}))
+	origin = srv.URL
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// Goal: prove step 1 of RFC 8414 Section 4 on the metadata issuer comparison:
+// JSON escaping is removed before the document issuer is compared.
+// Method: the AS writes its issuer with escaped solidi and writes its last
+// letter as the six-character escape backslash-u-0062; the configured issuer
+// is either the unescaped code points or that raw JSON text.
+// RFC requirement: RFC8414-4-1 positive -- a document issuer whose solidi are written \/ and whose final b is written as the escape backslash-u-0062 matches the configured issuer https://<host>/ab and the metadata is returned.
+// RFC requirement: RFC8414-4-1 negative -- a configured issuer spelled as the raw JSON text, https://<host>/a followed by backslash-u-0062, does not match that document and returns zero metadata.
+func TestRFC8414MetadataIssuerUnescapedBeforeCompare(t *testing.T) {
+	escapedB := "\\" + "u0062"
+	srv := rawMetadataServer(t, func(origin string) string {
+		escaped := strings.ReplaceAll(origin, "/", `\/`)
+		return `{"issuer":"` + escaped + `\/a` + escapedB + `","jwks_uri":"https:\/\/as.example\/jwks"}`
+	})
+
+	md, err := fetchASMetadata(fetchCtx(t), srv.Client(), srv.URL+"/ab")
+	if err != nil || md.Issuer != srv.URL+"/ab" {
+		t.Fatalf("escaped issuer not matched after unescaping: %+v, %v", md, err)
+	}
+
+	md, err = fetchASMetadata(fetchCtx(t), srv.Client(), srv.URL+"/a"+escapedB)
+	if err == nil || md != (asMetadata{}) {
+		t.Fatalf("issuer compared on the JSON text: %+v, %v", md, err)
+	}
+}
+
+// Goal: prove the RFC 8414 Section 6.1 confidentiality sentence on the fetch
+// path: the metadata travels under TLS with a suite that gives confidentiality
+// and integrity, and never without one.
+// Method: record the suite a trusted server negotiates, then offer the client
+// a cleartext server and a server whose only suite is RC4, a suite Go lists
+// in tls.InsecureCipherSuites.
+// RFC requirement: RFC8414-6.1-4 positive -- the fetch negotiates TLS, and the suite is one tls.CipherSuites lists and tls.InsecureCipherSuites does not.
+// RFC requirement: RFC8414-6.1-4 negative -- a cleartext server behind an https issuer and a TLS server offering only TLS_RSA_WITH_RC4_128_SHA each return zero metadata, and neither handler is reached.
+func TestRFC8414MetadataFetchUsesConfidentialIntegritySuite(t *testing.T) {
+	secure := make(map[uint16]bool)
+	for _, suite := range tls.CipherSuites() {
+		secure[suite.ID] = true
+	}
+	for _, suite := range tls.InsecureCipherSuites() {
+		secure[suite.ID] = false
+	}
+
+	var negotiated atomic.Int64
+	negotiated.Store(-1)
+	as := &recordingAS{docPath: asMetadataWellKnownPath}
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.TLS != nil {
+			negotiated.Store(int64(r.TLS.CipherSuite))
+		}
+		as.ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+	as.issuer = srv.URL
+	md, err := fetchASMetadata(fetchCtx(t), srv.Client(), srv.URL)
+	if err != nil || md.Issuer != srv.URL {
+		t.Fatalf("fetch over TLS: %+v, %v", md, err)
+	}
+	suite := negotiated.Load()
+	if suite < 0 {
+		t.Fatal("metadata request arrived without TLS")
+	}
+	if !secure[uint16(suite)] {
+		t.Fatalf("negotiated suite %s is not a confidentiality and integrity suite", tls.CipherSuiteName(uint16(suite)))
+	}
+
+	plainAS := &recordingAS{docPath: asMetadataWellKnownPath}
+	plain := httptest.NewServer(plainAS)
+	defer plain.Close()
+	plainIssuer := "https://" + strings.TrimPrefix(plain.URL, "http://")
+	plainAS.issuer = plainIssuer
+	if md, err := fetchASMetadata(fetchCtx(t), nil, plainIssuer); err == nil || md != (asMetadata{}) {
+		t.Fatalf("cleartext metadata accepted: %+v, %v", md, err)
+	}
+
+	weakAS := &recordingAS{docPath: asMetadataWellKnownPath}
+	weak := httptest.NewUnstartedServer(weakAS)
+	weak.TLS = &tls.Config{ //nolint:gosec // the server offers only RC4 to prove the client refuses it
+		CipherSuites: []uint16{tls.TLS_RSA_WITH_RC4_128_SHA},
+		MaxVersion:   tls.VersionTLS12,
+	}
+	weak.StartTLS()
+	defer weak.Close()
+	weakAS.issuer = weak.URL
+	if md, err := fetchASMetadata(fetchCtx(t), weak.Client(), weak.URL); err == nil || md != (asMetadata{}) {
+		t.Fatalf("RC4-only metadata accepted: %+v, %v", md, err)
+	}
+	if len(plainAS.seen()) != 0 || len(weakAS.seen()) != 0 {
+		t.Fatalf("a refused server was reached: cleartext %v, RC4 %v", plainAS.seen(), weakAS.seen())
 	}
 }
