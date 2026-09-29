@@ -92,6 +92,17 @@
     {
       "rid": "RFC5176-2.3-5",
       "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed",
+      "unit-sha": "5463cad5d45adb7c",
+      "claim-sha": "909d5b457fee042f",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
+      "producer-sha": "25f21c3d571409ff",
+      "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-2.3-5",
+      "polarity": "positive",
       "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed",
       "unit-sha": "274039c0fd0cd29e",
       "claim-sha": "f29abd222fdf7748",
@@ -114,6 +125,39 @@
     {
       "rid": "RFC5176-2.3-6",
       "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoANAKMakesNoPartialChange",
+      "unit-sha": "e214bf8f77ea6ca6",
+      "claim-sha": "6af995633e0ad5ef",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
+      "producer-sha": "25f21c3d571409ff",
+      "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-2.3-6",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatCannotTerminateIsNAKed",
+      "unit-sha": "1b79172016a7663b",
+      "claim-sha": "c5c8fa890e3e1c3a",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
+      "producer-sha": "a6462873c26640c4",
+      "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-2.3-6",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatTerminatesIsACKed",
+      "unit-sha": "0f090199215eac03",
+      "claim-sha": "bd80a8b60cb55fb1",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
+      "producer-sha": "a6462873c26640c4",
+      "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-2.3-6",
+      "polarity": "positive",
       "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed",
       "unit-sha": "b336c6d1aaada62d",
       "claim-sha": "027876badb2fcdbf",
@@ -132,6 +176,28 @@
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
       "producer-sha": "25f21c3d571409ff",
       "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-2.3-7",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAMatchingOneSessionIsACKed",
+      "unit-sha": "10af4f4b83f801fc",
+      "claim-sha": "20a6b6d90778cfef",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
+      "producer-sha": "25f21c3d571409ff",
+      "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-2.3-7",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAMatchingSeveralSessionsIsNAKed",
+      "unit-sha": "d2bcbfe382f40966",
+      "claim-sha": "55d68338a773f3b8",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::oneSession",
+      "producer-sha": "e4e2644e7cdfd24e",
+      "break": "body of oneSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5176-2.3-7",
@@ -200,6 +266,50 @@
       "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5176-3.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds",
+      "unit-sha": "4e56466b04916916",
+      "claim-sha": "9a92e397df5dc36d",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
+      "producer-sha": "25f21c3d571409ff",
+      "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-3.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed",
+      "unit-sha": "3d088b7102125c9c",
+      "claim-sha": "40ae128da8fc816e",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::oneSession",
+      "producer-sha": "e4e2644e7cdfd24e",
+      "break": "body of oneSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-3.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176NAKForARequestWithoutStateCarriesNone",
+      "unit-sha": "4c3793dd18e10e37",
+      "claim-sha": "acf5bd7fe51797bf",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::sendResponse",
+      "producer-sha": "a77a23e9d2186708",
+      "break": "body of sendResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-3.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176StateReturnedUnmodifiedInANAK",
+      "unit-sha": "e889bff8517c177e",
+      "claim-sha": "ec8897441f22c088",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::sendResponse",
+      "producer-sha": "a77a23e9d2186708",
+      "break": "body of sendResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5176-3.3-2",
       "polarity": "positive",
       "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified",
@@ -242,6 +352,17 @@
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
       "producer-sha": "f936b9c89a351afe",
       "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-3.5-3",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5",
+      "unit-sha": "7d0bb075396ffc9b",
+      "claim-sha": "fafebd511c2f363e",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::sendResponse",
+      "producer-sha": "a77a23e9d2186708",
+      "break": "body of sendResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5176-3.5-5",

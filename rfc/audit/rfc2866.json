@@ -1,33 +1,37 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC2866-3-2": {
-      "note": "Forbidden behaviour: an Accounting-Request whose Request Authenticator field does not hold MD5(Code+Identifier+Length+16 zero octets+attributes+secret). TestRFC2866AccountingRequestAuthFormula compares AccountingRequestAuth against an independent MD5 reference, and TestRFC2866AccountingRequestAuthRejectsTampering shows the secret, an attribute byte and the Code feed it; both call the helper directly. No tagged unit reads the Authenticator field of a request ze actually sends, so a client that stopped applying the helper (radius/client.go) or applied it before the final Length was set stays green.",
+      "note": "TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator reads the Accounting-Request datagram SendToServers put on the wire and asserts its 16 authenticator octets equal an independent MD5(Code+ID+Length+16 zeros+attributes+secret) over that datagram, and differ from the random authenticator in the Packet. Exact equality over the sent octets fails on any formula or ordering deviation in client.go. The tampering negative stays helper-level (shows secret, attribute and Code feed the hash); the wire positive is what discriminates.",
       "requirement_sha": "ee70c9b69e182919",
       "tests": {
         "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthFormula": "fe96fc203c6b8529",
-        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthRejectsTampering": "fe96fc203c6b8529"
+        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthRejectsTampering": "fe96fc203c6b8529",
+        "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator": "673a0e65f53e1495"
       },
       "units": {
         "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthFormula": "a8286329bd93c739",
-        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthRejectsTampering": "5b86cbd8a1446b1b"
+        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthRejectsTampering": "5b86cbd8a1446b1b",
+        "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator": "16be81b4832a27a4"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2866-3-3": {
-      "note": "Clause 1, identical contents keep the Identifier: TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier goes red on a changed Identifier. Clause 2, an updated Acct-Delay-Time requires a new Identifier AND a new Request Authenticator: TestRFC2866AccountingRetransmitTakesANewIdentifier asserts only distinct Identifiers, and its mock server (startRecordingAcctServer) never checks the request authenticator, so a retransmit that kept the old authenticator bytes stays green. The negative TestRFC2866AccountingDistinctRequestsDifferIdentifier proves the neighbouring RFC2866-4.1-4 rule, not a violation of this one.",
+      "note": "Clause 1: TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier goes red on a changed Identifier for identical contents. Clause 2: TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator forces a retransmit whose Acct-Delay-Time moves 0->1 and asserts a new Identifier, a new Request Authenticator, and each authenticator equal to the Section 3 MD5 of its own datagram. The two clauses are opposite polarities of one rule, so a client that always or never changes the ID goes red. TestRFC2866AccountingDistinctRequestsDifferIdentifier is mislabeled: it proves RFC2866-4.1-4.",
       "requirement_sha": "57c04f27af1ae359",
       "tests": {
         "internal/component/radius/acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier": "ae1d9577fbc531d6",
         "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingDistinctRequestsDifferIdentifier": "fe96fc203c6b8529",
-        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier": "fe96fc203c6b8529"
+        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier": "fe96fc203c6b8529",
+        "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator": "673a0e65f53e1495"
       },
       "units": {
         "internal/component/radius/acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier": "669b15d0733a6a70",
         "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingDistinctRequestsDifferIdentifier": "afc28b9ebd1ff1e0",
-        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier": "a7918eae49989a9a"
+        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier": "a7918eae49989a9a",
+        "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator": "5ebf368a13c2f644"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2866-3-5": {
       "note": "Forbidden behaviour: accepting a datagram shorter than its Length field. TestRFC2866ShortPacketSilentlyDiscarded overstates the Length by 8 and fails if the exchange completes; TestRFC2866HonestLengthIsAccepted shows the same server with an honest Length completes, isolating the length claim.",
@@ -90,17 +94,21 @@
       "verdict": "enforced"
     },
     "RFC2866-4.1-4": {
-      "note": "Two triggers: a changed Attributes field, and a valid reply received for the previous request. TestRFC2866IdentifierChangesForANewRequest sends a second record that differs in attributes AND follows a valid reply, so a client that changed the Identifier on only one of the triggers stays green; neither trigger is isolated. The negative TestRFC2866IdentifierCounterCoversTheWholeSpace proves NextID never repeats, a property of the counter, not a violating input.",
+      "note": "Triggers now isolated: the Acct-Delay-Time retransmit (no reply received, attributes changed) asserts a new Identifier; TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes sends two records with byte-identical attribute fields, the second after a valid reply, and asserts distinct Identifiers. The rule is one-directional (MUST change on either trigger), so the two positives carry it; the NextID counter negative is a counter property, not a violating input.",
       "requirement_sha": "dcb1d7f4e8205c4b",
       "tests": {
         "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierChangesForANewRequest": "534d93087739be78",
-        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierCounterCoversTheWholeSpace": "534d93087739be78"
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierCounterCoversTheWholeSpace": "534d93087739be78",
+        "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator": "673a0e65f53e1495",
+        "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes": "673a0e65f53e1495"
       },
       "units": {
         "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierChangesForANewRequest": "e9166933ae908595",
-        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierCounterCoversTheWholeSpace": "9fccf2d0268a27a2"
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierCounterCoversTheWholeSpace": "9fccf2d0268a27a2",
+        "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator": "5ebf368a13c2f644",
+        "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes": "35dc7b69e8b6ac4e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2866-4.2-1": {
       "note": "The sentence binds the producer of an Accounting-Response, the accounting server: its Response Authenticator MUST contain the correct response. Ze is only the accounting client and sends no Accounting-Response. TestRFC2866AccountingResponseAuthenticatorAccepted and TestRFC2866AccountingResponseAuthenticatorForgeryDiscarded prove the neighbouring client rule, that ze verifies the authenticator and discards a forged reply (RFC 2865 Section 3 style), not this obligation.",

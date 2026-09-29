@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC2869-2.1-1": {
       "note": "Forbidden: a second interim generation for the session entering the retransmission queue while one is outstanding. TestRFC2869InterimLoopKeepsOneGenerationOutstanding ticks at 10ms against a stalled server with a 300ms retransmission budget and fatals if more than 12 datagrams arrive in 1s (per-tick dispatch gives about 100, two outstanding generations about 20); TestRFC2869InterimLoopSendsOnItsInterval fatals below 2 sends, so the bound is not vacuous.",
@@ -28,30 +28,38 @@
       "verdict": "enforced"
     },
     "RFC2869-5.14-1": {
-      "note": "Access-Accept clause enforced: TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded fatals if Client.Exchange returns an Access-Accept whose Message-Authenticator is signed with another secret, and the positive delivers a correctly signed one. The sentence equally covers Access-Reject and Access-Challenge, and no tagged unit sends either with a wrong Message-Authenticator, so a client that checks only Access-Accept stays green.",
+      "note": "All three reply codes now driven through Client.Exchange: Access-Accept (existing pair) and, new, Access-Reject and Access-Challenge whose Response Authenticator verifies (asserted) and whose Message-Authenticator is HMAC-MD5 under another secret are discarded (Exchange errors, no packet); correctly signed Reject and Challenge are delivered with their Reply-Message.",
       "requirement_sha": "b337a88c75c92aa0",
       "tests": {
+        "internal/component/radius/rfc2869_message_authenticator_codes_test.go::TestRFC2869RejectAndChallengeWithValidMessageAuthenticatorAreDelivered": "00bd20939f2ff10d",
+        "internal/component/radius/rfc2869_message_authenticator_codes_test.go::TestRFC2869RejectAndChallengeWithWrongMessageAuthenticatorAreDiscarded": "00bd20939f2ff10d",
         "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithValidMessageAuthenticatorIsAccepted": "e371dc7e94d0922d",
         "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded": "e371dc7e94d0922d"
       },
       "units": {
+        "internal/component/radius/rfc2869_message_authenticator_codes_test.go::TestRFC2869RejectAndChallengeWithValidMessageAuthenticatorAreDelivered": "5a6a5316a308dcfc",
+        "internal/component/radius/rfc2869_message_authenticator_codes_test.go::TestRFC2869RejectAndChallengeWithWrongMessageAuthenticatorAreDiscarded": "727ab97b35670f19",
         "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithValidMessageAuthenticatorIsAccepted": "123aedd78dc31eaa",
         "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded": "f4ec9fd5d4538a46"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2869-5.19-1": {
-      "note": "The negative counts the four credential types in every Access-Request buildAuthAttrs builds (pap, chap-md5, mschapv2, none) and fails on more than one; the positive shows PAP and CHAP carry their credential. No input produces an EAP-Message, so the combination of EAP-Message with another credential, the one the RADIUS client can build (radius/client.go oneCredentialType), has no tagged assertion.",
+      "note": "The EAP combinations are now driven at the client every Access-Request leaves through: EAP-Message beside User-Password and beside CHAP-Password are refused by Client.Exchange with no datagram on the wire; EAP-only is sent. The L2TP builder pair covers PAP and CHAP-MD5 carrying exactly their own credential. ARAP-Password cannot be emitted: ze declares no ARAP attribute. User-Password beside CHAP-Password is not driven at the client guard, only proven absent from the builders' output.",
       "requirement_sha": "4cd8d7ba61bbaf17",
       "tests": {
         "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesOneKindOfCredential": "b4e757fe4cae524f",
-        "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod": "b4e757fe4cae524f"
+        "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod": "b4e757fe4cae524f",
+        "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused": "f95fe286b5fd89f7",
+        "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPOnlyAccessRequestIsSent": "f95fe286b5fd89f7"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesOneKindOfCredential": "e723a29e122314af",
-        "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod": "b7ff0603a2599077"
+        "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod": "b7ff0603a2599077",
+        "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused": "dd41a91fe899b80f",
+        "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPOnlyAccessRequestIsSent": "2904fd580e736595"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2869-x-2": {
       "note": "Clause 1 forbidden: a Gigawords value other than the wrap count; TestBuildAcctPacketGigawords asserts Acct-Input-Gigawords 2 and Acct-Output-Gigawords 3 for 0x200000064 and 0x3000000C8 octets on a Stop. Clause 2 forbidden: Gigawords in a record other than Stop or Interim-Update; TestRFC2869GigawordsAbsentOnStart errors if an Accounting-Start built from >4GB counters carries either attribute. The NAS emits only Start, Interim-Update and Stop (authradius), so Start is the only other status it can send.",

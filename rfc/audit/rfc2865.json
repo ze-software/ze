@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2865-1.1-2": {
@@ -32,32 +32,38 @@
       "verdict": "weak"
     },
     "RFC2865-2.5-1": {
-      "note": "The quote obliges the same Request Authenticator, ID and source port on a retransmission to the same server. TestClientRetransmit only asserts attempts >= 2 and an Accept; the mock builds each reply from the latest datagram, so a client that changed ID and Request Authenticator together, or changed source port, still passes. No tagged assertion compares the attempts' Identifier, Request Authenticator or source port.",
+      "note": "TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort drives a real retransmit through Client.Exchange (first datagram unanswered), asserts the attribute octets unchanged first, then byte-compares the Identifier, all 16 Request Authenticator octets and the source addr:port of every retransmit against the first. A client that re-encoded with a new ID or authenticator, or opened a new socket, goes red. The {single-polarity: positive} annotation holds: a same-ID MUST has no inbound input to refuse. TestClientRetransmit remains a floor assertion.",
       "requirement_sha": "5c737904eded8aeb",
       "tests": {
-        "internal/component/radius/client_test.go::TestClientRetransmit": "112d7f170f64c378"
+        "internal/component/radius/client_test.go::TestClientRetransmit": "112d7f170f64c378",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort": "4d524a15dfa67b83"
       },
       "units": {
-        "internal/component/radius/client_test.go::TestClientRetransmit": "d4a339688c942372"
+        "internal/component/radius/client_test.go::TestClientRetransmit": "d4a339688c942372",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort": "b289415e37c4c5ad"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2865-3-1": {
-      "note": "Min clause: a decoder accepting a 19-octet datagram fails TestDecodeTooShort (Decode error expected). Max clause: TestDecodeTooLong feeds 4097 zero octets whose Length field is 0, so a decoder with no 4096 bound still errors on Length < 20 and the test stays green; no tagged unit drives a datagram or Length field above 4096 with an otherwise valid Length. TestDecodeBadLength proves the Length-beyond-datagram rule (RFC2865-3-7), not this bound.",
+      "note": "Positive: Decode accepts 20- and 4096-octet packets (16 attributes kept) and EncodeTo writes exactly 4096 with Length 4096. Negative: Decode refuses 19 octets, refuses a 4097-octet packet whose Length field says 4097 and whose attributes are all valid (so only the maximum can refuse it), and EncodeTo refuses attributes making 4097 octets. Both bounds now discriminated at both edges.",
       "requirement_sha": "ebf1bb0b278dac85",
       "tests": {
         "internal/component/radius/packet_test.go::TestDecodeBadLength": "8d639d23d04e7dff",
         "internal/component/radius/packet_test.go::TestDecodeTooLong": "8d639d23d04e7dff",
         "internal/component/radius/packet_test.go::TestDecodeTooShort": "8d639d23d04e7dff",
-        "internal/component/radius/packet_test.go::TestPacketRoundTrip": "8d639d23d04e7dff"
+        "internal/component/radius/packet_test.go::TestPacketRoundTrip": "8d639d23d04e7dff",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOfTheMinimumAndMaximumLengthIsAccepted": "4d524a15dfa67b83",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOutsideTheLengthBoundsIsRefused": "4d524a15dfa67b83"
       },
       "units": {
         "internal/component/radius/packet_test.go::TestDecodeBadLength": "9fcdb8433915aec3",
         "internal/component/radius/packet_test.go::TestDecodeTooLong": "65492f6f2bd6e14c",
         "internal/component/radius/packet_test.go::TestDecodeTooShort": "86f81e2df0468603",
-        "internal/component/radius/packet_test.go::TestPacketRoundTrip": "d5a61de5c2dd8a4e"
+        "internal/component/radius/packet_test.go::TestPacketRoundTrip": "d5a61de5c2dd8a4e",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOfTheMinimumAndMaximumLengthIsAccepted": "0fee4c2adc0f2a04",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOutsideTheLengthBoundsIsRefused": "e46abcd5f76d240d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2865-3-2": {
       "note": "Forbidden: a Request Authenticator that is not 16 random octets, or one drawn from a predictable source. TestRFC2865RequestAuthenticatorRandom substitutes crypto/rand.Reader and asserts the authenticator equals the substituted octets byte for byte (a counter or constant goes red), and asserts two successive values differ; the width is the [AuthenticatorLen]byte type. Single-polarity marker on the row covers the missing negative.",
@@ -158,21 +164,25 @@
       "verdict": "weak"
     },
     "RFC2865-4.4-1": {
-      "note": "Forbidden: a NAS without challenge/response support treating an Access-Challenge as anything but a reject. The admin PAP path is covered (ErrAuthRejected, and the AAA chain stops). The row binds the L2TP PAP and CHAP paths too, and no tagged unit sends an Access-Challenge to the authradius handler; that package has no Access-Challenge test at all.",
+      "note": "The L2TP half is now proven at authradius handler.go doRADIUS: an Access-Challenge (State + Reply-Message) to PAP and CHAP-MD5 subscriber logins is refused with exactly one answer to PPP, and the same logins with an Access-Accept (Framed-User) are admitted, so the refusal is specific to the Challenge code. The admin PAP half was already enforced (ErrAuthRejected, chain stops).",
       "requirement_sha": "1b4d7075e742011f",
       "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject": "27b57e98237de761",
+        "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessChallengeIsTreatedAsReject": "27b57e98237de761",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection": "ae06d1fa559aa47c",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection#2": "ae06d1fa559aa47c",
         "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeDoesNotFallThroughToTheNextBackend": "a3f1d9fa74292a7a",
         "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeIsTreatedAsAccessReject": "a3f1d9fa74292a7a"
       },
       "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject": "3670cfd0a3806924",
+        "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessChallengeIsTreatedAsReject": "59a345f50172c176",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection": "75bdb47ffa846320",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection#2": "75bdb47ffa846320",
         "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeDoesNotFallThroughToTheNextBackend": "4e5bed20a9284efc",
         "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeIsTreatedAsAccessReject": "0e8a7a1034a4954a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2865-5-1": {
       "note": "Forbidden: an Access-Request without User-Name when the name is available. The admin (radius TestRFC2865AccessRequestUserName) and L2TP (authradius buildAuthAttrs test) units assert User-Name present with the right value; the negative TestRFC2865AccessRequestOmitsAnUnavailableUserName covers the if-available condition.",
@@ -190,30 +200,38 @@
       "verdict": "enforced"
     },
     "RFC2865-5-2": {
-      "note": "Forbidden: an attribute Length octet that does not count Type, Length and Value. TestRFC2865AttributeLengthBound encodes a 253-octet value and asserts only that Decode returns 253 octets: an encoder writing Length = len(Value) and a decoder reading it the same way round-trip identically and stay green. No assertion reads the Length octet on the wire (it must be 255 for a 253-octet value). The 254-octet refusal is a bound check that holds under either reading.",
+      "note": "Positive reads the Length octets EncodeTo writes on the wire (3, 8, 255 for 1/6/253-octet values, walking exactly to the packet end) and Decode reads Length 8 as \"netops\". Negative: a Filter-Id \"netops\" with Length octet 6 (value-only count) is refused; a decoder counting only the Value would accept it and go red. The old round-trip units stay floor assertions.",
       "requirement_sha": "ee5e3df093593c6b",
       "tests": {
         "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound": "9e5b9d00bb0a5c97",
-        "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound#2": "9e5b9d00bb0a5c97"
+        "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound#2": "9e5b9d00bb0a5c97",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865AttributeLengthOctetCountsTypeLengthAndValue": "4d524a15dfa67b83",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865AttributeLengthOctetThatOmitsTheHeaderIsRefused": "4d524a15dfa67b83"
       },
       "units": {
         "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound": "49b95d65b9eaaf18",
-        "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound#2": "49b95d65b9eaaf18"
+        "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound#2": "49b95d65b9eaaf18",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865AttributeLengthOctetCountsTypeLengthAndValue": "f633daa5ac9d666f",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865AttributeLengthOctetThatOmitsTheHeaderIsRefused": "3e66171bc06c578c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2865-5-6": {
-      "note": "Forbidden: acting on a response carrying an attribute with an invalid length. TestResponseWithAnInvalidAttributeLengthIsDiscarded drives only Length 1 (below the header). An attribute whose Length runs past the packet Length is not driven by any tagged unit, and no unit asserts the client-level outcome (reject or discard) for Access-Reject or Access-Challenge.",
+      "note": "Negative drives Access-Accept, Access-Reject and Access-Challenge each with Length 1 and with a Length 5 past the packet end, re-signed so the Response Authenticator verifies (asserted) and only the length is wrong; Client.Exchange returns an error with no packet (silent discard). Positive delivers Reject and Challenge with valid lengths and their Reply-Message. All three codes and both invalid-length shapes covered.",
       "requirement_sha": "84ef9a95c6061d53",
       "tests": {
         "internal/component/radius/rfc2865_walk_test.go::TestResponseWithAnInvalidAttributeLengthIsDiscarded": "a3f1d9fa74292a7a",
-        "internal/component/radius/rfc2865_walk_test.go::TestResponseWithValidAttributeLengthsIsDelivered": "a3f1d9fa74292a7a"
+        "internal/component/radius/rfc2865_walk_test.go::TestResponseWithValidAttributeLengthsIsDelivered": "a3f1d9fa74292a7a",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RejectAndChallengeWithValidAttributeLengthsAreDelivered": "4d524a15dfa67b83",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865ReplyWithAnInvalidAttributeLengthIsDiscarded": "4d524a15dfa67b83"
       },
       "units": {
         "internal/component/radius/rfc2865_walk_test.go::TestResponseWithAnInvalidAttributeLengthIsDiscarded": "28cfe003c702b6b7",
-        "internal/component/radius/rfc2865_walk_test.go::TestResponseWithValidAttributeLengthsIsDelivered": "516bc3baa735ff7b"
+        "internal/component/radius/rfc2865_walk_test.go::TestResponseWithValidAttributeLengthsIsDelivered": "516bc3baa735ff7b",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RejectAndChallengeWithValidAttributeLengthsAreDelivered": "405025f85d435b47",
+        "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865ReplyWithAnInvalidAttributeLengthIsDiscarded": "b5213862ddd4b7ac"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2865-5-7": {
       "note": "Forbidden: failing on an embedded null. TestAttributeValueWithAnEmbeddedNullRoundTrips asserts the value with a null round-trips whole (red on truncation); TestAnEmbeddedNullDoesNotEndTheAttributeWalk asserts the following attribute is still decoded.",

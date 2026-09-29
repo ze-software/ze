@@ -2,6 +2,17 @@
   "rfc": "rfc2866",
   "records": [
     {
+      "rid": "RFC2866-3-2",
+      "polarity": "positive",
+      "unit": "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator",
+      "unit-sha": "53710834c790d13a",
+      "claim-sha": "87e7e30fc6dac362",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::encodeRequest",
+      "producer-sha": "1683398c8195b350",
+      "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2866-3-3",
       "polarity": "positive",
       "unit": "internal/component/radius/acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier",
@@ -24,6 +35,17 @@
       "break": "body of setAcctDelayTime replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2866-3-3",
+      "polarity": "positive",
+      "unit": "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator",
+      "unit-sha": "26d91feb49443923",
+      "claim-sha": "a2318e58e4be7fd0",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::Exchange",
+      "producer-sha": "c7a365b14dccaa30",
+      "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2866-4.1-1",
       "polarity": "positive",
       "unit": "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestSessionEventDrivesAddressAndPortID",
@@ -44,6 +66,28 @@
       "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionDown",
       "producer-sha": "c2aae0ffb58cef8d",
       "break": "body of onSessionDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2866-4.1-4",
+      "polarity": "positive",
+      "unit": "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator",
+      "unit-sha": "26d91feb49443923",
+      "claim-sha": "219b339b713ad13e",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::Exchange",
+      "producer-sha": "c7a365b14dccaa30",
+      "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2866-4.1-4",
+      "polarity": "positive",
+      "unit": "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes",
+      "unit-sha": "9659e937271549fb",
+      "claim-sha": "0d453a428d281ab5",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::SendToServers",
+      "producer-sha": "daa7962242fce297",
+      "break": "body of SendToServers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2866-5.5-2",

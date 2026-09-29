@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc2869",
+  "records": [
+    {
+      "rid": "RFC2869-5.14-1",
+      "polarity": "positive",
+      "unit": "internal/component/radius/rfc2869_message_authenticator_codes_test.go::TestRFC2869RejectAndChallengeWithValidMessageAuthenticatorAreDelivered",
+      "unit-sha": "f582afbb4eb98d35",
+      "claim-sha": "6042b18065ec5b0d",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::verifyResponseMessageAuthenticator",
+      "producer-sha": "ae7274a02dfc345d",
+      "break": "body of verifyResponseMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2869-5.14-1",
+      "polarity": "negative",
+      "unit": "internal/component/radius/rfc2869_message_authenticator_codes_test.go::TestRFC2869RejectAndChallengeWithWrongMessageAuthenticatorAreDiscarded",
+      "unit-sha": "a56580f5e321ea78",
+      "claim-sha": "aa6fd93d1a581a13",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::verifyResponseMessageAuthenticator",
+      "producer-sha": "ae7274a02dfc345d",
+      "break": "body of verifyResponseMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2869-5.19-1",
+      "polarity": "negative",
+      "unit": "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused",
+      "unit-sha": "3f7c1099db5a6a92",
+      "claim-sha": "d719a37b4a999f69",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::oneCredentialType",
+      "producer-sha": "63edc854432edf23",
+      "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2869-5.19-1",
+      "polarity": "positive",
+      "unit": "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPOnlyAccessRequestIsSent",
+      "unit-sha": "e4d66a170a2ac1ae",
+      "claim-sha": "b14c1993f57e0caf",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::oneCredentialType",
+      "producer-sha": "63edc854432edf23",
+      "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
