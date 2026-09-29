@@ -1,3 +1,8 @@
+// VALIDATES: RFC 2516 discovery frame parsing and the Build* frame
+// constructors: header fields, tag lists and echoed tags.
+// PREVENTS: a malformed frame parsed as valid, or a built frame that drops
+// or alters a tag the RFC requires it to carry.
+
 package pppoe_test
 
 import (
@@ -172,7 +177,6 @@ func TestBuildPADO(t *testing.T) {
 
 // RFC requirement: RFC2516-5.2-1 positive -- BuildPADS echoes the Host-Uniq from the PADR unchanged in the PADS.
 // RFC requirement: RFC2516-5.4-1 positive -- the PADS carries exactly one Service-Name tag echoed from the PADR.
-// RFC requirement: RFC2516-5.4-2 negative -- a PADR whose Service-Name the AC does serve is answered with a PADS carrying the allocated SESSION_ID, 42, rather than the 0x0000 the refusal reply owes. The test body asserts the SESSION_ID only; the absence of the Service-Name-Error tag on this reply is not checked here.
 func TestBuildPADS(t *testing.T) {
 	padr := buildDiscFrame(discACMAC, discClientMAC, pppoe.CodePADR, []pppoe.Tag{
 		{Type: pppoe.TagServiceName, Value: []byte("internet")},
@@ -210,12 +214,15 @@ func TestBuildPADS(t *testing.T) {
 	}
 
 	huTag := pkt.FindTag(pppoe.TagHostUniq)
-	if huTag == nil || len(huTag.Value) != 2 {
-		t.Errorf("Host-Uniq not echoed")
+	if huTag == nil {
+		t.Fatal("Host-Uniq not echoed")
+	}
+	if !bytes.Equal(huTag.Value, []byte{0x01, 0x02}) {
+		t.Errorf("Host-Uniq = %x, want the PADR's 0102 unmodified", huTag.Value)
 	}
 }
 
-// RFC requirement: RFC2516-x-6 positive -- BuildPADT addresses the PADT to the peer's unicast MAC (the destination is unicast, never broadcast).
+// RFC requirement: RFC2516-5.5-3 positive -- BuildPADT writes CODE 0xa7, the SESSION_ID it is given, and the peer's unicast MAC as DESTINATION_ADDR.
 func TestBuildPADT(t *testing.T) {
 	var buf [pppoe.EthMaxLen]byte
 	frame := pppoe.BuildPADT(buf[:], discACMAC, discClientMAC, 100, "ze-ac")
@@ -238,8 +245,6 @@ func TestBuildPADT(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2516-5.2-4 positive -- when the requested Service-Name is served, MatchServiceName returns true, so handlePADI (server.go:62) proceeds to send a PADO.
-// RFC requirement: RFC2516-5.2-4 negative -- when the requested Service-Name cannot be served, MatchServiceName returns false, so handlePADI (server.go:62) returns without sending a PADO.
 func TestServiceNameFilter(t *testing.T) {
 	tests := []struct {
 		name    string

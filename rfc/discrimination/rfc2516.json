@@ -68,6 +68,39 @@
       "break": "body of BuildPADI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2516-5.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
+      "unit-sha": "166dee9546cc15d8",
+      "claim-sha": "031f3374a37d3544",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADS",
+      "producer-sha": "9d60507b72ee62d4",
+      "break": "body of BuildPADS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADS",
+      "unit-sha": "6956e2e402efad14",
+      "claim-sha": "273531e98050a5e1",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADS",
+      "producer-sha": "9d60507b72ee62d4",
+      "break": "body of BuildPADS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516PADOCarriesACNameAndServiceNames",
+      "unit-sha": "71cde4293e431219",
+      "claim-sha": "7b20f5675c162e17",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADO",
+      "producer-sha": "7a22cb254e8c485f",
+      "break": "body of BuildPADO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2516-5.2-2",
       "polarity": "positive",
       "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestPADOAlwaysCarriesServiceName",
@@ -88,6 +121,28 @@
       "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADO",
       "producer-sha": "7a22cb254e8c485f",
       "break": "body of BuildPADO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.2-4",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516UnservedServiceNameIsRefused",
+      "unit-sha": "2b851e8bc29d3139",
+      "claim-sha": "83d4be0659b13afa",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/server.go::handlePADI",
+      "producer-sha": "4f54524722d773c6",
+      "break": "body of handlePADI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.2-4",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516UnservedServiceNameIsRefused",
+      "unit-sha": "2b851e8bc29d3139",
+      "claim-sha": "85415edeba043805",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/server.go::handlePADI",
+      "producer-sha": "4f54524722d773c6",
+      "break": "body of handlePADI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2516-5.2-6",
@@ -130,7 +185,7 @@
       "claim-sha": "acf2b52e148b2fc3",
       "route": "revert",
       "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
-      "producer-sha": "20dd04f0482d9752",
+      "producer-sha": "153cc5bb411d0861",
       "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -147,13 +202,24 @@
     {
       "rid": "RFC2516-5.4-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADS",
-      "unit-sha": "89d721b42050ca78",
-      "claim-sha": "c73e0b7bc4323444",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
+      "unit-sha": "166dee9546cc15d8",
+      "claim-sha": "8da9f5169a684cfe",
       "route": "revert",
-      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADS",
-      "producer-sha": "9d60507b72ee62d4",
-      "break": "body of BuildPADS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
+      "producer-sha": "153cc5bb411d0861",
+      "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.4-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516UnservedServiceNameIsRefused",
+      "unit-sha": "2b851e8bc29d3139",
+      "claim-sha": "010012ba96968af4",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
+      "producer-sha": "153cc5bb411d0861",
+      "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2516-5.4-2",
@@ -163,7 +229,18 @@
       "claim-sha": "3bf30c684a26560a",
       "route": "revert",
       "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
-      "producer-sha": "20dd04f0482d9752",
+      "producer-sha": "153cc5bb411d0861",
+      "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.4-3",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
+      "unit-sha": "166dee9546cc15d8",
+      "claim-sha": "38aed1d1a8abd984",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
+      "producer-sha": "153cc5bb411d0861",
       "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -174,7 +251,7 @@
       "claim-sha": "7a26879ac0c2e532",
       "route": "revert",
       "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
-      "producer-sha": "20dd04f0482d9752",
+      "producer-sha": "153cc5bb411d0861",
       "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -187,6 +264,17 @@
       "producer": "internal/component/l2tp/pppoeclient/dialer.go::tryReadPADS",
       "producer-sha": "790eaa650e556b90",
       "break": "body of tryReadPADS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.5-3",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADT",
+      "unit-sha": "f81b84bfc651e7bf",
+      "claim-sha": "857622c0a0ca62b3",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADT",
+      "producer-sha": "dfae5e58d085b25a",
+      "break": "body of BuildPADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2516-5.5-3",
@@ -209,6 +297,28 @@
       "producer": "internal/component/l2tp/pppoe/server.go::handlePADT",
       "producer-sha": "33a6a147fcf2b0ae",
       "break": "body of handlePADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-7-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
+      "unit-sha": "166dee9546cc15d8",
+      "claim-sha": "3fa6780463f60e55",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/server.go::createTransport",
+      "producer-sha": "2df556f60abe123f",
+      "break": "body of createTransport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-7-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516PADRReplayKeepsTheSessionID",
+      "unit-sha": "86d9cf7cb17263e9",
+      "claim-sha": "ead3a93ed11e4e39",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/session.go::matchLiveCookie",
+      "producer-sha": "49fe2d4ad1d53852",
+      "break": "body of matchLiveCookie replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2516-7-3",
@@ -297,6 +407,83 @@
       "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADSError",
       "producer-sha": "83b4062b1bac8da6",
       "break": "body of BuildPADSError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-4",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516NoSentFrameCarriesEndOfList",
+      "unit-sha": "f028ef526b35ddc8",
+      "claim-sha": "553f56bf76320642",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADO",
+      "producer-sha": "7a22cb254e8c485f",
+      "break": "body of BuildPADO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-4",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516NoSentFrameCarriesEndOfList",
+      "unit-sha": "f028ef526b35ddc8",
+      "claim-sha": "7b29df774bf61a39",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::parseTags",
+      "producer-sha": "04c7030897d90c50",
+      "break": "body of parseTags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-5",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID",
+      "unit-sha": "125f5bfaff591e98",
+      "claim-sha": "3bffc046ecbc336b",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADSError",
+      "producer-sha": "83b4062b1bac8da6",
+      "break": "body of BuildPADSError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-5",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID",
+      "unit-sha": "125f5bfaff591e98",
+      "claim-sha": "cdda2b7d85c163d1",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADSError",
+      "producer-sha": "83b4062b1bac8da6",
+      "break": "body of BuildPADSError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-6",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
+      "unit-sha": "166dee9546cc15d8",
+      "claim-sha": "6ba990e13ecbab9d",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/server.go::createTransport",
+      "producer-sha": "2df556f60abe123f",
+      "break": "body of createTransport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-6",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516SessionNeverBoundToANonUnicastPeer",
+      "unit-sha": "e3ffc49e1919aa11",
+      "claim-sha": "3353537f0e266be2",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::ParseDiscovery",
+      "producer-sha": "4f37b570278b8732",
+      "break": "body of ParseDiscovery replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-7",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516BuildersWriteTheSendersMAC",
+      "unit-sha": "ebc1ace185b72c82",
+      "claim-sha": "b3f99d433f12b426",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::NewBuilder",
+      "producer-sha": "74354f59e3cfedea",
+      "break": "body of NewBuilder replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

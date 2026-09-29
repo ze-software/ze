@@ -9,8 +9,9 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
-// RFC requirement: RFC2516-7-1 positive -- handlePADT tears a session down only when the PADT's SESSION_ID and source MAC both match the stored session; the session-data (0x8864) pairing is enforced by the kernel pppox socket bound to (sid, MAC) in pppoeCreate (kernel_linux.go:91).
-// RFC requirement: RFC2516-7-1 negative -- a PADT whose source MAC does not match the session's MAC is rejected: the session is left intact.
+// VALIDATES: handlePADT tears a session down only when the PADT's
+// SESSION_ID and source MAC both match the stored session.
+// PREVENTS: a PADT from another host ending a session it does not own.
 func TestHandlePADTVerifiesMACAndSID(t *testing.T) {
 	mac := net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x01}
 

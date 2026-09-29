@@ -52,6 +52,16 @@ type InterfaceServer struct {
 	// because the non-Linux stub in socket_other.go always returns an
 	// error and so cannot tell a test whether a send was attempted.
 	sendFrameFn func(frame []byte)
+
+	// pppoeCreateFn and devPPPSetupFn, when set, replace the kernel session
+	// setup handlePADR performs for an admitted session: pppoeCreate, which
+	// connects the AF_PPPOX socket to (SESSION_ID, peer MAC), and
+	// ppp.DevPPPSetup. Production code never sets them, so the zero value
+	// (nil) keeps the real kernel calls. A test sets them to observe which
+	// SESSION_ID and peer MAC the session stage is bound to, which an
+	// unprivileged test cannot create a real socket for.
+	pppoeCreateFn func(ifName string, sid uint16, remoteMAC [EthALen]byte) (int, error)
+	devPPPSetupFn func(pppoxFD int) (chanFD, unitFD, unitNum int, err error)
 }
 
 // HandleDiscovery dispatches a parsed discovery packet to the
@@ -253,7 +263,14 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		return
 	}
 
-	pppoxFD, err := pppoeCreate(s.ifName, sid, pkt.SrcMAC)
+	// RFC 2516 Section 4: "For PPP session traffic, this field MUST contain
+	// the peer's unicast address as determined from the Discovery stage."
+	// RFC 2516 Section 6: "The SESSION_ID MUST NOT change for that PPPoE
+	// session and MUST be the value assigned in the Discovery stage."
+	// The session socket is bound once, here, to the SID the PADS below
+	// carries and to the PADR's unicast source (ParseDiscovery refuses a
+	// broadcast or multicast source).
+	pppoxFD, err := s.createTransport(sid, pkt.SrcMAC)
 	if err != nil {
 		s.logger.Error("pppoe: kernel socket failed", "sid", sid, "error", err)
 		closePPPoxFD(s.sessions.Remove(sid))
@@ -261,7 +278,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	}
 	sess.PppoxFD = pppoxFD
 
-	chanFD, unitFD, unitNum, err := ppp.DevPPPSetup(pppoxFD)
+	chanFD, unitFD, unitNum, err := s.setupPPPChannel(pppoxFD)
 	if err != nil {
 		s.logger.Error("pppoe: devPPPSetup failed", "sid", sid, "error", err)
 		closePPPoxFD(s.sessions.Remove(sid))
@@ -392,6 +409,24 @@ func (s *InterfaceServer) handleSessionDown(sid uint16) {
 		s.sendFrame(frame)
 	}
 	closePPPoxFD(s.sessions.Remove(sid))
+}
+
+// createTransport opens the session-stage socket for an admitted session,
+// through pppoeCreateFn when a test set it.
+func (s *InterfaceServer) createTransport(sid uint16, remoteMAC [EthALen]byte) (int, error) {
+	if s.pppoeCreateFn != nil {
+		return s.pppoeCreateFn(s.ifName, sid, remoteMAC)
+	}
+	return pppoeCreate(s.ifName, sid, remoteMAC)
+}
+
+// setupPPPChannel attaches the session socket to a PPP channel and unit,
+// through devPPPSetupFn when a test set it.
+func (s *InterfaceServer) setupPPPChannel(pppoxFD int) (chanFD, unitFD, unitNum int, err error) {
+	if s.devPPPSetupFn != nil {
+		return s.devPPPSetupFn(pppoxFD)
+	}
+	return ppp.DevPPPSetup(pppoxFD)
 }
 
 func (s *InterfaceServer) sendFrame(frame []byte) {
