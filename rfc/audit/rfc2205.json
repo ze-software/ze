@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC2205-2-1": {
       "note": "Reverse-path clause: TestRFC2205ResvSentToPreviousHop asserts the egress RESV goes to the PATH's previous hop, one hop only. 'Upstream to all the sender hosts included in the sender selection': no tagged unit follows the RESV hop by hop to the sender or covers a sender selection with more than one sender. The negative (no relay without path state) proves a neighbouring rule.",
@@ -28,21 +28,23 @@
       "verdict": "weak"
     },
     "RFC2205-3-1": {
-      "note": "Quote: must recognize the following classes (NULL, SESSION, RSVP_HOP, TIME_VALUES, STYLE, FLOWSPEC, FILTER_SPEC, SENDER_TEMPLATE, SENDER_TSPEC, ADSPEC, ERROR_SPEC, POLICY_DATA, INTEGRITY, SCOPE, RESV_CONFIRM). Tagged units assert recognition of NULL, INTEGRITY, POLICY_DATA, ADSPEC, SCOPE, RESV_CONFIRM and the PATH/RESV mandatory set; ERROR_SPEC is in no 3-1 tagged unit, so classifying it unknown stays green here.",
+      "note": "Rejudged 2026-09-29 (routing child). The missing ERROR_SPEC is now proven: TestRFC2205ErrorSpecClassRecognized decodes a PathErr with no unknown object and the error node, code and value intact. Other listed classes are covered by TestRFC2205KnownClassesRecognized and the NULL tests; negative TestRFC2205UnlistedClassNotRecognized. Class numbers are compared through the package constants, as for every other class in this row.",
       "requirement_sha": "7d4829cbbc8e983c",
       "tests": {
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205ErrorSpecClassRecognized": "8cea1a3ca4572fd1",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectNotRejected": "8d0e9940256c124f",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectRecognized": "8d0e9940256c124f",
         "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205KnownClassesRecognized": "12691630c6e2e34c",
         "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205UnlistedClassNotRecognized": "12691630c6e2e34c"
       },
       "units": {
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205ErrorSpecClassRecognized": "73c1403f82248f17",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectNotRejected": "98be3b3f9ca2881a",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectRecognized": "30892bfebd817b46",
         "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205KnownClassesRecognized": "e97155f0e98847e3",
         "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205UnlistedClassNotRecognized": "a73323d3f842bdb5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2205-3-12": {
       "note": "RA33 strict re-audit: weak. Forbidden: a PathTear routed differently from its PATH. TestRFC2205PathTearRoutedLikePath compares only Source, Destination and NextHop of the relayed PathTear's PathRoute with the PATH's; PathRoute also carries TableID, IfIndex and Lookup (transport.go), so a PathTear handed a different table, interface or loose-hop lookup than its PATH stays green. Only a transit relay is exercised: a PathTear the ingress originates at teardown is in no tagged unit. The negative (not via Send, source not the transit) proves a neighbouring addressing rule.",
@@ -119,28 +121,32 @@
       "verdict": "enforced"
     },
     "RFC2205-3.1-1": {
-      "note": "RA33 strict re-audit: weak. Forbidden: a header sent or accepted with Vers other than 1. Receive: TestRSVPDecodeHeaderBadVersion rejects Vers 2 only (DecodeHeader compares to rsvpVersion). Send: TestRSVPHeaderRoundTrip asserts decoded.Version == hdr.Version where hdr.Version is rsvpVersion itself, never the literal 1; with rsvpVersion changed to 3 the round trip stays green and the Vers-2 negative still rejects, so a node sending version 3 turns nothing red.",
+      "note": "Rejudged 2026-09-29 (routing child). Send: TestRFC2205EmittedVersionIsOne reads the literal 1 in the Vers nibble of a PATH and a RESV the builders encode, and DecodeHeader accepts 0x10; a wrong rsvpVersion now goes red. Receive negative TestRSVPDecodeHeaderBadVersion rejects Vers 2. Both polarities hold.",
       "requirement_sha": "ba592ac3d76f6cc7",
       "tests": {
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EmittedVersionIsOne": "8cea1a3ca4572fd1",
         "internal/plugins/rsvpte/wire_test.go::TestRSVPDecodeHeaderBadVersion": "edeb000ca6bd1f57",
         "internal/plugins/rsvpte/wire_test.go::TestRSVPHeaderRoundTrip": "edeb000ca6bd1f57"
       },
       "units": {
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EmittedVersionIsOne": "4ea4647b508c6227",
         "internal/plugins/rsvpte/wire_test.go::TestRSVPDecodeHeaderBadVersion": "be9f05986782b47f",
         "internal/plugins/rsvpte/wire_test.go::TestRSVPHeaderRoundTrip": "5e35fdddc4b09470"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2205-3.1-2": {
-      "note": "Quote: unused fields sent as zero and ignored on receipt. Send clause: TestRSVPReservedByteZeroOnSend asserts raw[5] == 0 on a built PATH. Receive clause ('ignored on receipt'): no tagged unit feeds a nonzero reserved octet and asserts the message is still accepted, so a decoder that rejected it would stay green. Re-judged 2026-09-27 by QF-2 after the row's citation moved to the appendix the sentence is in; the text is unchanged and the tagged units were re-read. Weak stands.",
+      "note": "Rejudged 2026-09-29 (routing child). Single-polarity row, both clauses covered: send, TestRSVPReservedByteZeroOnSend (raw[5]==0) plus the Flags nibble sent zero in TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt; receive, the same unit feeds Reserved 0xA5 and all four Flags bits set, re-checksummed, and the egress still installs state and answers with a RESV. Covers the common-header unused fields only.",
       "requirement_sha": "f002ecbce4098c46",
       "tests": {
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt": "8cea1a3ca4572fd1",
         "internal/plugins/rsvpte/wire_test.go::TestRSVPReservedByteZeroOnSend": "edeb000ca6bd1f57"
       },
       "units": {
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt": "29173b4975b4c11f",
         "internal/plugins/rsvpte/wire_test.go::TestRSVPReservedByteZeroOnSend": "87b69b9f6ada5045"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2205-3.1.2-1": {
       "note": "Forbidden: an object Length not a multiple of 4, sent or accepted. Send: TestRSVPObjectLengthMultipleOfFour errors on objLen%4 != 0 over every object of a built PATH, RESV and PathErr. Receive: TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected requires errBadObjLen for a Length-6 object. The positive tag's prose ('Decode does not enforce %4') is stale.",
@@ -196,21 +202,25 @@
       "verdict": "weak"
     },
     "RFC2205-4-4": {
-      "note": "RA33 strict re-audit: weak. Quote obliges verifying the construction of EACH RSVP message received. Tagged negatives cover a PATH without SESSION (errObjectAbsent) and RESV object-order violations (wire_rfc3209_test.go); no tagged unit feeds a malformed PathTear, ResvTear, PathErr, ResvErr or ResvConf, so dropping construction checks for those types stays green. Re-judged 2026-09-27 by QF-2 after the row's citation moved to the appendix the sentence is in; the text is unchanged and the tagged units were re-read. Weak stands.",
+      "note": "Rejudged 2026-09-29 (routing child). Each message type is now covered: TestRFC2205EachMessageTypeConstructionAccepted decodes a conformant PathTear, ResvTear, PathErr, ResvErr and ResvConf; TestRFC2205EachMessageTypeMalformedRefused omits each unbracketed BNF object in turn, asserts DecodeMessage refuses it (errObjectAbsent except STYLE), and that a transit with matching path state sends nothing and keeps its state. PATH and RESV are covered by the existing units.",
       "requirement_sha": "84a28efb33078d5d",
       "tests": {
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeConstructionAccepted": "8cea1a3ca4572fd1",
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeMalformedRefused": "8cea1a3ca4572fd1",
         "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205MissingRequiredObjectRefused": "12691630c6e2e34c",
         "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205WellFormedMessageVerified": "12691630c6e2e34c",
         "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder": "f41b8974aa28db4d",
         "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder#2": "f41b8974aa28db4d"
       },
       "units": {
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeConstructionAccepted": "807d41ecd40846b5",
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeMalformedRefused": "50245a4f974498e7",
         "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205MissingRequiredObjectRefused": "a3c4af8ec1c20b2a",
         "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205WellFormedMessageVerified": "8190f845d9165b4e",
         "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder": "6cb7cfbd88cd0ef8",
         "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder#2": "6cb7cfbd88cd0ef8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2205-x-1": {
       "note": "RA33 strict re-audit: weak (agrees with blind reader). Forbidden: Path, PathTear or ResvConf leaving without Router Alert. TestIntegrationRSVPPathCarriage proves only that Transport.SendPath writes option 94040000 for a hand-built ResvConf the test passes it. The engine's own ResvConf emission (confirmation.go originate and handleResvConf relay, both e.transport.SendPath) is in no tagged unit: TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier's scenario emits no ResvConf and never asserts seen[MsgTypeResvConf], so its ResvConf switch arm is vacuous and switching ResvConf to Send stays green.",

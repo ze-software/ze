@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4090-3.2-1": {
@@ -16,30 +16,38 @@
       "verdict": "enforced"
     },
     "RFC4090-4.1-1": {
-      "note": "TestEncodeDecodeFastReroute compares the header with the package constants ClassFastReroute, CTypeFastReroute and objHdrLen+frrBodyLen, never the literals 205, 1 and 24; a wrong constant passes encode and decode alike. The constants are correct today (wire.go)",
+      "note": "Rejudged 2026-09-29 (routing child). TestRFC4090FastRerouteClassAndCTypeLiterals compares the encoded header with the literals 24/205/1 over a 0xFF buffer and decodes a raw 205/1 object as FAST_REROUTE; TestRFC4090FastRerouteOtherCTypeNotRecognized reads 205/2 as an unknown C-Type, not FAST_REROUTE.",
       "requirement_sha": "c6d707821c4fef27",
       "tests": {
         "internal/plugins/rsvpte/frr_test.go::TestEncodeDecodeFastReroute": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestFastRerouteShortBody": "52858b98606905a5"
+        "internal/plugins/rsvpte/frr_test.go::TestFastRerouteShortBody": "52858b98606905a5",
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteClassAndCTypeLiterals": "8cea1a3ca4572fd1",
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteOtherCTypeNotRecognized": "8cea1a3ca4572fd1"
       },
       "units": {
         "internal/plugins/rsvpte/frr_test.go::TestEncodeDecodeFastReroute": "e88bba6f123afc3b",
-        "internal/plugins/rsvpte/frr_test.go::TestFastRerouteShortBody": "ac66d3e95478bf35"
+        "internal/plugins/rsvpte/frr_test.go::TestFastRerouteShortBody": "ac66d3e95478bf35",
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteClassAndCTypeLiterals": "56db9a3c2570ea6a",
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteOtherCTypeNotRecognized": "cd2a1399db72331a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4090-4.1-2": {
-      "note": "the facility clause is proven on the built PATH (TestBuildPathIncludesFastReroute); the one-to-one clause is tagged on TestFastRerouteOneToOneMethodFlag, which calls protectionRequest.fastReroute() alone, so no PATH is shown to include a FAST_REROUTE object for a one-to-one request, and the negative is a second conforming case rather than a violating input",
+      "note": "Rejudged 2026-09-29 (routing child). Both clauses on the built PATH: TestRFC4090OneToOneRequestInPath (FAST_REROUTE present, 0x01 set) and TestBuildPathIncludesFastReroute for facility; TestRFC4090RequestNeverNamesOtherMethod shows each request leaves the other method's flag clear and the facility request sets 0x02.",
       "requirement_sha": "5187a2282474adb8",
       "tests": {
         "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestFastRerouteOneToOneMethodFlag": "52858b98606905a5"
+        "internal/plugins/rsvpte/frr_test.go::TestFastRerouteOneToOneMethodFlag": "52858b98606905a5",
+        "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090OneToOneRequestInPath": "93792adbdebf6c7b",
+        "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090RequestNeverNamesOtherMethod": "93792adbdebf6c7b"
       },
       "units": {
         "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "8afb37c101daf9db",
-        "internal/plugins/rsvpte/frr_test.go::TestFastRerouteOneToOneMethodFlag": "314edf9664b0c651"
+        "internal/plugins/rsvpte/frr_test.go::TestFastRerouteOneToOneMethodFlag": "314edf9664b0c651",
+        "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090OneToOneRequestInPath": "225af3a9396bfd6f",
+        "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090RequestNeverNamesOtherMethod": "d9974b394c13c61d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4090-4.1-3": {
       "note": "a transit relays the received FAST_REROUTE unchanged field for field, and inserts none when the head-end sent only the SESSION_ATTRIBUTE flag",
@@ -81,19 +89,21 @@
       "verdict": "enforced"
     },
     "RFC4090-4.3-2": {
-      "note": "the set clause is proven through sessionAttr/buildPath; the 'otherwise, this flag should be cleared' clause is tagged on TestSessionAttributeEmptyName, a codec round-trip of flags the test itself chose, so no head-end producer is exercised with node protection not desired",
+      "note": "Rejudged 2026-09-29 (routing child). The 'otherwise cleared' clause is now driven through buildPath: TestRFC4090NodeDesiredClearedWhenNotDesired builds a protected PATH without node protection and reads SESSION_ATTRIBUTE 0x01 set, 0x10 clear. The set clause stays proven on the built PATH.",
       "requirement_sha": "a82ed308ec17af1d",
       "tests": {
         "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "52858b98606905a5",
         "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeEmptyName": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeProtectionFlags": "52858b98606905a5"
+        "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeProtectionFlags": "52858b98606905a5",
+        "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090NodeDesiredClearedWhenNotDesired": "93792adbdebf6c7b"
       },
       "units": {
         "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "8afb37c101daf9db",
         "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeEmptyName": "79d0c33d415f9055",
-        "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeProtectionFlags": "1b22f30f6fce2f0b"
+        "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeProtectionFlags": "1b22f30f6fce2f0b",
+        "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090NodeDesiredClearedWhenNotDesired": "32d424a308546ea1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4090-4.4-1": {
       "note": "full engine: armed bypass brought up, relayed RESV RRO subobject carries 0x01; negative is an unprotected LSP with zero flags",
@@ -109,17 +119,19 @@
       "verdict": "enforced"
     },
     "RFC4090-4.4-2": {
-      "note": "TestRROProtectionFlagsReflectState drives the rroProtectionFlags helper on a hand-built LSP and asserts only the in-use bit; the same sentence also requires 'Local Protection Available' in that state, and the update of the stored RESV RRO during fast reroute is not exercised by these units",
+      "note": "Rejudged 2026-09-29 (routing child). TestRFC4090RepairSetsInUseAndAvailable drives handleLinkDown onto the bypass, then sendResv from the stored state, and reads the PLR's own RRO subobject with both 0x01 and 0x02 set; the fixture asserts in-use was clear before repair. Existing negative keeps in-use clear while no repair happened.",
       "requirement_sha": "2981612b4e5351ad",
       "tests": {
         "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState#2": "52858b98606905a5"
+        "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState#2": "52858b98606905a5",
+        "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090RepairSetsInUseAndAvailable": "93792adbdebf6c7b"
       },
       "units": {
         "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState": "9508a9ff6c4a2645",
-        "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState#2": "9508a9ff6c4a2645"
+        "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState#2": "9508a9ff6c4a2645",
+        "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090RepairSetsInUseAndAvailable": "63b4acb65ba9a3eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4090-4.4-3": {
       "note": "TestRROProtectionFlagsReflectState drives rroProtectionFlags on a hand-built LSP whose armed bypass merges at 10.0.0.3; the node bit is set there because node protection was requested, and rroProtectionFlags reads only the request. The 'node protection is provided' condition is not in the tagged input, so the unit would pass with a link-only bypass, which RFC4090-4.4-7 forbids",
@@ -148,17 +160,19 @@
       "verdict": "weak"
     },
     "RFC4090-4.4-7": {
-      "note": "positive (TestRFC4090NodeBitSetWhenNodeProtected) is sound. The negative TestRFC4090NodeBitClearWithoutNodeBypass is vacuous: selectBypass arms no bypass for a node request when only an NHOP bypass exists, so every flag is zero and the node bit is clear for that reason. The row's link-only case (local protection available set, node bit clear) is never reached",
+      "note": "Rejudged 2026-09-29 (routing child). New negative TestRFC4090LinkProtectionLeavesNodeBitClear reaches the row's link-only case at the engine: a link request with an NHOP bypass up relays an RRO subobject with 0x01 set and 0x08 clear. Positive TestRFC4090NodeBitSetWhenNodeProtected. The older negative TestRFC4090NodeBitClearWithoutNodeBypass is still tagged and still vacuous (no bypass armed, all flags zero); it adds nothing. rroProtectionFlags derives 0x08 from the request, which is sound only because selectBypass arms no NHOP bypass for a node request.",
       "requirement_sha": "228f32dd78733703",
       "tests": {
         "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090NodeBitClearWithoutNodeBypass": "edce3cacbdcb8bdc",
-        "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090NodeBitSetWhenNodeProtected": "edce3cacbdcb8bdc"
+        "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090NodeBitSetWhenNodeProtected": "edce3cacbdcb8bdc",
+        "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090LinkProtectionLeavesNodeBitClear": "93792adbdebf6c7b"
       },
       "units": {
         "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090NodeBitClearWithoutNodeBypass": "8d4111b54d1dcaff",
-        "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090NodeBitSetWhenNodeProtected": "2079573c25e36f52"
+        "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090NodeBitSetWhenNodeProtected": "2079573c25e36f52",
+        "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090LinkProtectionLeavesNodeBitClear": "4c97fb08b3e6ce01"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4090-5-1": {
       "note": "head-end refresh PATH carries the stored FAST_REROUTE field for field; a tunnel with no protection refreshes none",
@@ -386,17 +400,19 @@
       "verdict": "enforced"
     },
     "RFC4090-6.5-1": {
-      "note": "the Notify is sent toward the head-end, but the unit compares ErrorCode/ErrorValue with the constants ErrCodeNotify and ErrValueTunnelLocallyRepaired, never 25 and 3; a wrong constant would pass. Constants are correct today (build.go)",
+      "note": "Rejudged 2026-09-29 (routing child). TestRFC4090LocalRepairNotifyLiterals compares the PathErr sent toward the head-end after handleLinkDown with the literals 25 and 0x0003, not the constants. Negative: an unrepairable failure sends code 24, not a Notify.",
       "requirement_sha": "124f09fcad10d93d",
       "tests": {
         "internal/plugins/rsvpte/frr_test.go::TestLocalRepairFallsBackToTeardown": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestLocalRepairSendsNotify": "52858b98606905a5"
+        "internal/plugins/rsvpte/frr_test.go::TestLocalRepairSendsNotify": "52858b98606905a5",
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090LocalRepairNotifyLiterals": "8cea1a3ca4572fd1"
       },
       "units": {
         "internal/plugins/rsvpte/frr_test.go::TestLocalRepairFallsBackToTeardown": "8333e42c422f9185",
-        "internal/plugins/rsvpte/frr_test.go::TestLocalRepairSendsNotify": "42aecaec47edce0b"
+        "internal/plugins/rsvpte/frr_test.go::TestLocalRepairSendsNotify": "42aecaec47edce0b",
+        "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090LocalRepairNotifyLiterals": "c8be484a59cc4db0"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4090-7.1-1": {
       "note": "TestRFC4090ProtectedPathSurvivesRepair (link and node cases): after the PLR's backup PATH reaches the MP, the MP forwards the protected LSP's SENDER_TEMPLATE downstream; negative TestRFC4090DifferentPathsDoNotMerge: a PATH whose remaining ERO differs is not merged and keeps its own sender",

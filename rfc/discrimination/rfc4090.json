@@ -2,6 +2,50 @@
   "rfc": "rfc4090",
   "records": [
     {
+      "rid": "RFC4090-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteClassAndCTypeLiterals",
+      "unit-sha": "4b03ddac913cb749",
+      "claim-sha": "c0e7670e12f9aebe",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::encodeFastReroute",
+      "producer-sha": "85dc52c31482a0f4",
+      "break": "body of encodeFastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteOtherCTypeNotRecognized",
+      "unit-sha": "1f4de3d34d776d87",
+      "claim-sha": "1841034ee4fcf513",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/message_validation.go::knownCType",
+      "producer-sha": "89b1704c6343ea26",
+      "break": "body of knownCType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090OneToOneRequestInPath",
+      "unit-sha": "bdb5795d3d8b6657",
+      "claim-sha": "adc228c85c73225c",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::fastReroute",
+      "producer-sha": "28c8753c8d789a15",
+      "break": "body of fastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090RequestNeverNamesOtherMethod",
+      "unit-sha": "27e55f6bc62a5937",
+      "claim-sha": "3b1f319d0cafc895",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::fastReroute",
+      "producer-sha": "28c8753c8d789a15",
+      "break": "body of fastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4090-4.1-3",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090TransitInsertsNoFastReroute",
@@ -24,6 +68,17 @@
       "break": "body of protectionFromPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4090-4.3-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090NodeDesiredClearedWhenNotDesired",
+      "unit-sha": "cbe1c3f3a0246445",
+      "claim-sha": "c7607e9a5d2d6780",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::sessionAttr",
+      "producer-sha": "4b6d2a4ab23205bb",
+      "break": "body of sessionAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4090-4.4-1",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/frr_test.go::TestPLRArmsBypass",
@@ -33,6 +88,17 @@
       "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
       "producer-sha": "f485360d9b8e2b03",
       "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.4-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090RepairSetsInUseAndAvailable",
+      "unit-sha": "bef03c21bab4e90e",
+      "claim-sha": "262aca8182d7959b",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
+      "producer-sha": "64f51006efbc1425",
+      "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-4.4-6",
@@ -73,6 +139,17 @@
       "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090NodeBitSetWhenNodeProtected",
       "unit-sha": "3d749d857f3285b0",
       "claim-sha": "fd4730f5692f9ba6",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+      "producer-sha": "f485360d9b8e2b03",
+      "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.4-7",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090LinkProtectionLeavesNodeBitClear",
+      "unit-sha": "b63e25a65c3aba80",
+      "claim-sha": "c4abcc2f31f01722",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
       "producer-sha": "f485360d9b8e2b03",
@@ -407,6 +484,17 @@
       "producer": "internal/plugins/rsvpte/frr.go::backupPath",
       "producer-sha": "acd5cbcd73c8c709",
       "break": "body of backupPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-6.5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090LocalRepairNotifyLiterals",
+      "unit-sha": "3524cf481e0960ab",
+      "claim-sha": "984b83c7f9dfdfad",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
+      "producer-sha": "64f51006efbc1425",
+      "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-7.1-1",
