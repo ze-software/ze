@@ -209,6 +209,11 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 		cl.sendResponse(from, pkt, nakCode(pkt.Code), radius.ErrorCauseUnsupportedAttribute)
 		return
 	}
+	if attrType, found := unsupportedAttrValue(pkt); found {
+		logger().Debug("coa: unsupported attribute value", "attribute", attrType, "from", from)
+		cl.sendResponse(from, pkt, nakCode(pkt.Code), radius.ErrorCauseInvalidAttributeValue)
+		return
+	}
 
 	switch pkt.Code {
 	case radius.CodeCoARequest:
@@ -259,13 +264,16 @@ var coaSupportedAttrs = map[uint8]bool{
 // NOT implement the RADIUS attributes for that service", so dict.go declares no
 // EAP-Message constant. Section 2.3 gives the answer for an attribute the NAS
 // does not support: a Disconnect-NAK with Error-Cause 401.
+//
+// Vendor-Specific is in that table and is NOT here either. This NAS reads no
+// vendor attribute in a Disconnect-Request, and Section 2.3 makes every
+// attribute mandatory, so one it would ignore is refused with a 401.
 var disconnectSupportedAttrs = map[uint8]bool{
 	radius.AttrUserName:             true,
 	radius.AttrNASIPAddress:         true,
 	radius.AttrNASPort:              true,
 	radius.AttrReplyMessage:         true,
 	radius.AttrClass:                true,
-	radius.AttrVendorSpecific:       true,
 	radius.AttrCalledStationID:      true,
 	radius.AttrCallingStationID:     true,
 	radius.AttrNASIdentifier:        true,
@@ -292,6 +300,43 @@ func unsupportedAttr(pkt *radius.Packet) (uint8, bool) {
 	}
 	for i := range pkt.Attrs {
 		if !supported[pkt.Attrs[i].Type] {
+			return pkt.Attrs[i].Type, true
+		}
+	}
+	return 0, false
+}
+
+// fixedLengthAttrs are the supported attributes whose value has one length:
+// the four-octet address, integer and time values of RFC 2865 Section 5, RFC
+// 2866 Section 5.10 and RFC 2869 Section 5.3, and the RFC 3162 IPv6 address
+// (16 octets) and interface identifier (8 octets).
+var fixedLengthAttrs = map[uint8]int{
+	radius.AttrNASIPAddress:       4,
+	radius.AttrNASPort:            4,
+	radius.AttrServiceType:        4,
+	radius.AttrFramedIPAddress:    4,
+	radius.AttrAcctTerminateCause: 4,
+	radius.AttrEventTimestamp:     4,
+	radius.AttrNASIPv6Address:     16,
+	radius.AttrFramedInterfaceID:  8,
+}
+
+// unsupportedAttrValue answers the first supported attribute whose value this
+// NAS cannot read, and whether it found one: a fixed-length value of another
+// length. The caller answers a NAK carrying Error-Cause 407.
+//
+// RFC 5176 Section 2.3: "A NAS MUST respond to a Disconnect-Request containing
+// one or more unsupported attributes or Attribute values with a Disconnect-NAK;
+// an Error-Cause Attribute with value 401 (Unsupported Attribute) or 407
+// (Invalid Attribute Value) MAY be included." A NAS-Port of two octets would
+// otherwise stop narrowing the session match and be ignored.
+func unsupportedAttrValue(pkt *radius.Packet) (uint8, bool) {
+	for i := range pkt.Attrs {
+		want, fixed := fixedLengthAttrs[pkt.Attrs[i].Type]
+		if !fixed {
+			continue
+		}
+		if len(pkt.Attrs[i].Value) != want {
 			return pkt.Attrs[i].Type, true
 		}
 	}
@@ -333,17 +378,16 @@ func (cl *coaListener) isAllowedSource(ip net.IP) bool {
 }
 
 func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
-	downloadRate, uploadRate := extractRates(pkt)
-	cosProfile := extractCoSProfile(pkt)
-
-	if downloadRate == 0 && cosProfile == "" {
-		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseUnsupportedAttribute)
+	change, cause := readCoAChange(pkt)
+	if cause != 0 {
+		logger().Debug("coa: authorization change refused", "error-cause", cause, "from", from)
+		cl.sendResponse(from, pkt, radius.CodeCoANAK, cause)
 		return
 	}
 
 	// Try subscriber registry first (works for both PPPoE and L2TP).
 	if subSess, ok := cl.findSubscriberSession(pkt); ok {
-		cl.applySubscriberCoA(pkt, from, &subSess, downloadRate, uploadRate, cosProfile)
+		cl.applySubscriberCoA(pkt, from, &subSess, &change)
 		return
 	}
 
@@ -378,9 +422,9 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 	// A CoS profile is applied to an access interface, which an L2TP-only session
 	// does not carry. RFC 5176 Section 2.3 owes a CoA-NAK here, not an ACK
 	// reporting a change this NAS did not make.
-	if cosProfile != "" {
+	if change.cosProfile != "" {
 		logger().Warn("coa: CoS change asked for an L2TP-only session with no access interface",
-			"session", sid, "profile", cosProfile)
+			"session", sid, "profile", change.cosProfile)
 		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
 		return
 	}
@@ -388,8 +432,8 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 	if _, emitErr := l2tpevents.SessionRateChange.Emit(cl.cfg.Bus, &l2tpevents.SessionRateChangePayload{
 		TunnelID:     sess.TunnelLocalTID,
 		SessionID:    sid,
-		DownloadRate: downloadRate,
-		UploadRate:   uploadRate,
+		DownloadRate: change.download,
+		UploadRate:   change.upload,
 	}); emitErr != nil {
 		logger().Warn("coa: emit rate-change failed", "error", emitErr)
 		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
@@ -398,7 +442,7 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 
 	cl.sendResponse(from, pkt, radius.CodeCoAACK, 0)
 	logger().Info("coa: accepted CoA",
-		"session", sid, "download-bps", downloadRate, "upload-bps", uploadRate, "from", from)
+		"session", sid, "download-bps", change.download, "upload-bps", change.upload, "from", from)
 }
 
 // applySubscriberCoA carries out a CoA-Request against a subscriber-registry
@@ -407,19 +451,37 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 // RFC 5176 Section 2.3: "State changes resulting from a CoA-Request MUST be
 // atomic: if the CoA-Request is successful for all matching sessions, the NAS
 // MUST send a CoA-ACK in reply, and all requested authorization changes MUST be
-// made." The subscriber registry answers with one session, so "all matching
-// sessions" is that session and the ACK reports a change that was made.
-func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr, sub *subscriber.Session, downloadRate, uploadRate uint64, cosProfile string) {
+// made. If the CoA-Request is unsuccessful for any matching sessions, the NAS
+// MUST send a CoA-NAK in reply, and the requested authorization changes MUST
+// NOT be made for any of the matching sessions." The subscriber registry answers
+// with one session, so "all matching sessions" is that session.
+//
+// Atomicity is kept by order: every condition that can refuse a part of the
+// change (no event bus, a CoS profile for a session with no access interface) is
+// decided before the first event leaves, and readCoAChange has already refused
+// any value this NAS cannot apply. The bus then refuses an emit only for an
+// event type nobody registered, and all three events here are registered at
+// package init, so no emit after the first can be refused.
+func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr, sub *subscriber.Session, change *coaChange) {
 	if cl.cfg.Bus == nil {
 		logger().Warn("coa: no event bus, the authorization change cannot be carried out", "from", from)
 		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
 		return
 	}
-	if downloadRate > 0 {
+	// A CoS profile is applied to an access interface. A session with none
+	// cannot take the CoS part, so the whole request is refused before the rate
+	// part is made.
+	if change.cosProfile != "" && sub.AccessInterface == "" {
+		logger().Warn("coa: CoS change asked for a subscriber session with no access interface",
+			"subscriber", sub.ID, "profile", change.cosProfile)
+		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
+		return
+	}
+	if change.hasRate {
 		if _, err := subevents.SessionRateChange.Emit(cl.cfg.Bus, &subevents.SessionRateChangePayload{
 			SessionID:    sub.ID,
-			DownloadRate: downloadRate,
-			UploadRate:   uploadRate,
+			DownloadRate: change.download,
+			UploadRate:   change.upload,
 		}); err != nil {
 			logger().Warn("coa: emit subscriber rate-change failed", "error", err)
 			cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
@@ -431,8 +493,8 @@ func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr,
 			if _, err := l2tpevents.SessionRateChange.Emit(cl.cfg.Bus, &l2tpevents.SessionRateChangePayload{
 				TunnelID:     sub.TunnelID,
 				SessionID:    sub.SessionID,
-				DownloadRate: downloadRate,
-				UploadRate:   uploadRate,
+				DownloadRate: change.download,
+				UploadRate:   change.upload,
 			}); err != nil {
 				logger().Warn("coa: emit l2tp rate-change failed", "error", err)
 				cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
@@ -440,12 +502,12 @@ func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr,
 			}
 		}
 	}
-	if cosProfile != "" {
+	if change.cosProfile != "" {
 		if _, err := l2tpevents.SessionCoSChange.Emit(cl.cfg.Bus, &l2tpevents.SessionCoSChangePayload{
 			TunnelID:        sub.TunnelID,
 			SessionID:       sub.SessionID,
 			AccessInterface: sub.AccessInterface,
-			ProfileName:     cosProfile,
+			ProfileName:     change.cosProfile,
 		}); err != nil {
 			logger().Warn("coa: emit cos-change failed", "error", err)
 			cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
@@ -454,8 +516,8 @@ func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr,
 	}
 	cl.sendResponse(from, pkt, radius.CodeCoAACK, 0)
 	logger().Info("coa: accepted CoA",
-		"subscriber", sub.ID, "download-bps", downloadRate, "upload-bps", uploadRate,
-		"cos-profile", cosProfile, "from", from)
+		"subscriber", sub.ID, "download-bps", change.download, "upload-bps", change.upload,
+		"cos-profile", change.cosProfile, "from", from)
 }
 
 func (cl *coaListener) handleDisconnect(pkt *radius.Packet, from *net.UDPAddr) {
@@ -584,39 +646,111 @@ func (cl *coaListener) findSessions(pkt *radius.Packet) []uint16 {
 	return out
 }
 
-// extractRates reads the download and upload rates from CoA attributes.
-// Checks Filter-Id first, then MikroTik VSA as fallback.
-//
-// The Filter-Id is read through traffic.ParseFilterIDRate, which is the same
-// function the shaper uses at Access-Accept, so a value the NAS accepts at
-// login is a value it accepts in a CoA. Reading it with ParseRateBps instead
-// accepted "rate:10mbit" and refused "rate:20mbit/5mbit", so an asymmetric
-// rate could be set at login and never changed
-// (plan/journal/helper-bypassed-by-an-open-coded-copy.md).
-//
-// Both rates are returned because both are enforced: the shaper installs a
-// qdisc for the download direction and an ingress policer for the upload one.
-func extractRates(pkt *radius.Packet) (download, upload uint64) {
-	for _, raw := range pkt.FindAllAttr(radius.AttrFilterID) {
-		if down, up, ok := traffic.ParseFilterIDRate(string(raw)); ok {
-			return down, up
-		}
-	}
-	return extractVSARates(pkt)
+// coaChange is the authorization change a CoA-Request asks for. hasRate and a
+// non-empty cosProfile each say that part was asked for; a zero rate is never
+// read as "no rate".
+type coaChange struct {
+	hasRate    bool
+	download   uint64
+	upload     uint64
+	cosProfile string
 }
 
-// extractCoSProfile reads the CoS profile name from CoA attributes.
-// Checks Filter-Id first, then vendor VSA as fallback.
-func extractCoSProfile(pkt *radius.Packet) string {
-	for _, raw := range pkt.FindAllAttr(radius.AttrFilterID) {
-		if name, ok := coreCos.ParseFilterID(string(raw)); ok {
-			return name
+// readCoAChange reads every authorization attribute of a CoA-Request and answers
+// the change it asks for, or the Error-Cause for the first value this NAS cannot
+// carry out, with nothing applied.
+//
+// RFC 5176 Section 2.3: "In CoA-Request and Disconnect-Request packets, all
+// attributes MUST be treated as mandatory," and "A NAS MUST respond to a
+// CoA-Request containing one or more unsupported attributes or Attribute values
+// with a CoA-NAK; an Error-Cause Attribute with value 401 (Unsupported
+// Attribute) or 407 (Invalid Attribute Value) MAY be included." Every Filter-Id
+// and every Vendor-Specific is read, so a value the NAS cannot apply is refused
+// even when a supported one rides beside it. A second rate or a second CoS
+// profile is refused too: the NAS applies one of each, so the other would be
+// ignored.
+//
+// A request that asks for no change at all is answered 401: it carries no
+// authorization attribute this NAS implements.
+func readCoAChange(pkt *radius.Packet) (coaChange, uint32) {
+	var change coaChange
+	for i := range pkt.Attrs {
+		var cause uint32
+		switch pkt.Attrs[i].Type {
+		case radius.AttrFilterID:
+			cause = change.addFilterID(string(pkt.Attrs[i].Value))
+		case radius.AttrVendorSpecific:
+			cause = change.addVendorSpecific(pkt.Attrs[i].Value)
+		}
+		if cause != 0 {
+			return coaChange{}, cause
 		}
 	}
-	if name := extractVSACoSProfile(pkt); name != "" {
-		return name
+	if !change.hasRate && change.cosProfile == "" {
+		return coaChange{}, radius.ErrorCauseUnsupportedAttribute
 	}
-	return ""
+	return change, 0
+}
+
+// addFilterID adds one Filter-Id to the change, answering 407 for a value that
+// is neither a rate nor a CoS profile, or that repeats a part already set.
+//
+// The rate is read through traffic.ParseFilterIDRate, which is the same function
+// the shaper uses at Access-Accept, so a value the NAS accepts at login is a
+// value it accepts in a CoA (plan/journal/helper-bypassed-by-an-open-coded-copy.md).
+// Both rates are kept because both are enforced: the shaper installs a qdisc for
+// the download direction and an ingress policer for the upload one.
+func (c *coaChange) addFilterID(value string) uint32 {
+	if down, up, ok := traffic.ParseFilterIDRate(value); ok {
+		return c.setRate(down, up)
+	}
+	if name, ok := coreCos.ParseFilterID(value); ok {
+		return c.setCoSProfile(name)
+	}
+	return radius.ErrorCauseInvalidAttributeValue
+}
+
+// addVendorSpecific adds one Vendor-Specific attribute to the change: a MikroTik
+// Rate-Limit, or a vendor CoS profile attribute matchVendorCoS reads. Any other
+// vendor or vendor type is a value this NAS does not support, answered 407.
+func (c *coaChange) addVendorSpecific(raw []byte) uint32 {
+	vendorID, vendorType, value, err := radius.DecodeVSA(raw)
+	if err != nil {
+		return radius.ErrorCauseInvalidAttributeValue
+	}
+	if len(value) == 0 {
+		return radius.ErrorCauseInvalidAttributeValue
+	}
+	if vendorID == radius.VendorMikrotik && vendorType == radius.MikrotikRateLimit {
+		down, up := parseMikrotikRate(value)
+		return c.setRate(down, up)
+	}
+	if name := matchVendorCoS(vendorID, vendorType, value); name != "" {
+		return c.setCoSProfile(name)
+	}
+	return radius.ErrorCauseInvalidAttributeValue
+}
+
+// setRate records the requested rate. A zero download rate is not a rate the
+// shaper can install, and a second rate would be ignored, so both answer 407.
+func (c *coaChange) setRate(download, upload uint64) uint32 {
+	if download == 0 {
+		return radius.ErrorCauseInvalidAttributeValue
+	}
+	if c.hasRate {
+		return radius.ErrorCauseInvalidAttributeValue
+	}
+	c.hasRate, c.download, c.upload = true, download, upload
+	return 0
+}
+
+// setCoSProfile records the requested CoS profile; a second one answers 407.
+func (c *coaChange) setCoSProfile(name string) uint32 {
+	if c.cosProfile != "" {
+		return radius.ErrorCauseInvalidAttributeValue
+	}
+	c.cosProfile = name
+	return 0
 }
 
 func (cl *coaListener) sendResponse(to *net.UDPAddr, req *radius.Packet, code uint8, errorCause uint32) {

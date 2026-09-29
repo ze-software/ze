@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2866-3-2": {
       "note": "TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator reads the Accounting-Request datagram SendToServers put on the wire and asserts its 16 authenticator octets equal an independent MD5(Code+ID+Length+16 zeros+attributes+secret) over that datagram, and differ from the random authenticator in the Packet. Exact equality over the sent octets fails on any formula or ordering deviation in client.go. The tampering negative stays helper-level (shows secret, attribute and Code feed the hash); the wire positive is what discriminates.",
@@ -37,8 +38,8 @@
       "note": "Forbidden behaviour: accepting a datagram shorter than its Length field. TestRFC2866ShortPacketSilentlyDiscarded overstates the Length by 8 and fails if the exchange completes; TestRFC2866HonestLengthIsAccepted shows the same server with an honest Length completes, isolating the length claim.",
       "requirement_sha": "aa727fbc9d9838ec",
       "tests": {
-        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866HonestLengthIsAccepted": "534d93087739be78",
-        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866ShortPacketSilentlyDiscarded": "534d93087739be78"
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866HonestLengthIsAccepted": "d31ec983abea25ed",
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866ShortPacketSilentlyDiscarded": "d31ec983abea25ed"
       },
       "units": {
         "internal/component/radius/rfc2866_packet_test.go::TestRFC2866HonestLengthIsAccepted": "9f6a40f7c02c2fa7",
@@ -97,8 +98,8 @@
       "note": "Triggers now isolated: the Acct-Delay-Time retransmit (no reply received, attributes changed) asserts a new Identifier; TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes sends two records with byte-identical attribute fields, the second after a valid reply, and asserts distinct Identifiers. The rule is one-directional (MUST change on either trigger), so the two positives carry it; the NextID counter negative is a counter property, not a violating input.",
       "requirement_sha": "dcb1d7f4e8205c4b",
       "tests": {
-        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierChangesForANewRequest": "534d93087739be78",
-        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierCounterCoversTheWholeSpace": "534d93087739be78",
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierChangesForANewRequest": "d31ec983abea25ed",
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierCounterCoversTheWholeSpace": "d31ec983abea25ed",
         "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator": "673a0e65f53e1495",
         "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes": "673a0e65f53e1495"
       },
@@ -109,19 +110,6 @@
         "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes": "35dc7b69e8b6ac4e"
       },
       "verdict": "enforced"
-    },
-    "RFC2866-4.2-1": {
-      "note": "The sentence binds the producer of an Accounting-Response, the accounting server: its Response Authenticator MUST contain the correct response. Ze is only the accounting client and sends no Accounting-Response. TestRFC2866AccountingResponseAuthenticatorAccepted and TestRFC2866AccountingResponseAuthenticatorForgeryDiscarded prove the neighbouring client rule, that ze verifies the authenticator and discards a forged reply (RFC 2865 Section 3 style), not this obligation.",
-      "requirement_sha": "99cf267f0d13cabb",
-      "tests": {
-        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AccountingResponseAuthenticatorAccepted": "534d93087739be78",
-        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AccountingResponseAuthenticatorForgeryDiscarded": "534d93087739be78"
-      },
-      "units": {
-        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AccountingResponseAuthenticatorAccepted": "fc4e3a97d28d2cf4",
-        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AccountingResponseAuthenticatorForgeryDiscarded": "ba61075a429ced6b"
-      },
-      "verdict": "wrong"
     },
     "RFC2866-5-1": {
       "note": "The row's quote is the Section 5.13 table span from '1 Acct-Status-Type' to the legend, because no shorter verbatim text names the attribute and the MUST. The Acct-Status-Type clause is proven: TestRFC2866AcctStatusTypePresent fails on a count other than 1 or a wrong value for Start, Stop and Interim-Update. The other entries of the span (Acct-Session-Id 1, CHAP-Challenge 0, Note 1, the 0-1 cardinalities) have no assertion in a unit tagged with this id, and the negative TestRFC2866AcctStatusTypeNeverOmitted repeats the positive's presence check.",
@@ -140,8 +128,8 @@
       "note": "Forbidden behaviour: a null octet read as a terminator. TestRFC2866EmbeddedNullsSurviveTheWire round-trips a value with interior nulls through EncodeTo and Decode and compares bytes; TestRFC2866AllNullValueKeepsItsLength fails if an all-null value loses length. A strcpy-style cut goes red in both.",
       "requirement_sha": "fd0fe9c78fc97102",
       "tests": {
-        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AllNullValueKeepsItsLength": "534d93087739be78",
-        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866EmbeddedNullsSurviveTheWire": "534d93087739be78"
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AllNullValueKeepsItsLength": "d31ec983abea25ed",
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866EmbeddedNullsSurviveTheWire": "d31ec983abea25ed"
       },
       "units": {
         "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AllNullValueKeepsItsLength": "4fa89649a7c27fa4",

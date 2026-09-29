@@ -4,8 +4,9 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc2866.txt",
   "source-sha": "928686054877a829",
-  "signed-off": "2026-08-31",
-  "reviewer": "ze-work agent, spec-rfcgate-6, rfc2866",
+  "signed-off": "2026-09-29",
+  "reviewer": "claude",
+  "resign-reason": "Main-thread ruling R2 (2026-09-29): site 4.2:2 binds the RADIUS accounting server, which writes the Response Authenticator of the Accounting-Response it transmits, and Ze runs no accounting server, so the site moves from mapped to excluded as binds-another-role and row RFC2866-4.2-1 is retired (rfc/corrections/rfc2866.md). Every other site keeps its decision.",
   "sections": [
     {
       "id": "front",
@@ -302,9 +303,9 @@
     {
       "id": "4.2:2",
       "quote": "The Response Authenticator field MUST contain the correct response for the pending Accounting-Request.",
-      "disposition": "mapped",
-      "mapped-to": "RFC2866-4.2-1",
-      "reason": "The sentence sits in the paragraph that describes reception by the client: the Identifier is matched with a pending Accounting-Request, the Response Authenticator is the correct response for it, and an invalid packet is silently discarded. ze is that client. Captured as RFC2866-4.2-1 at [MUST]. dispatchResponse (radius/client.go) calls VerifyResponseAuth (radius/packet.go) with the pending request's authenticator and its server's secret, and drops the datagram when the comparison fails."
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS accounting server, the party that writes the Response Authenticator of the Accounting-Response it transmits (the sentence before: 'the RADIUS accounting server MUST transmit a packet with the Code field set to 5'). ze runs no accounting server: radius/client.go sends Accounting-Requests and matches the replies, and the one listener ze runs (authradius/coa.go) takes RFC 5176 requests only. ze's verification of the field, dispatchResponse calling VerifyResponseAuth, is the client's reading of the indicative 'Invalid packets are silently discarded', which states no obligation keyword. RFC2866-4.2-1 was retired on 2026-09-29 (rfc/corrections/rfc2866.md)."
     },
     {
       "id": "5:1",

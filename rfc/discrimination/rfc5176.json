@@ -97,8 +97,41 @@
       "claim-sha": "909d5b457fee042f",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-      "producer-sha": "25f21c3d571409ff",
+      "producer-sha": "f7c7c770125f61d8",
       "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-2.3-5",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed",
+      "unit-sha": "9104a7e782b8c998",
+      "claim-sha": "114c7ae6de5be16c",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::readCoAChange",
+      "producer-sha": "f754405f54ce41e1",
+      "break": "body of readCoAChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-2.3-5",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed",
+      "unit-sha": "691845b5d5411233",
+      "claim-sha": "142c345e68643b9c",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::unsupportedAttrValue",
+      "producer-sha": "5823e1e7b5af2a2d",
+      "break": "body of unsupportedAttrValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-2.3-5",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed",
+      "unit-sha": "67d9004a7c0e30e0",
+      "claim-sha": "31350f02f4a0df80",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::readCoAChange",
+      "producer-sha": "f754405f54ce41e1",
+      "break": "body of readCoAChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5176-2.3-5",
@@ -130,7 +163,7 @@
       "claim-sha": "6af995633e0ad5ef",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-      "producer-sha": "25f21c3d571409ff",
+      "producer-sha": "f7c7c770125f61d8",
       "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -157,13 +190,35 @@
     },
     {
       "rid": "RFC5176-2.3-6",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed",
+      "unit-sha": "67d9004a7c0e30e0",
+      "claim-sha": "083a393b1258d022",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::applySubscriberCoA",
+      "producer-sha": "585b21bed8b17aba",
+      "break": "body of applySubscriberCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-2.3-6",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange",
+      "unit-sha": "5ac71558aeb4e2db",
+      "claim-sha": "f8cedeb61f127efa",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::applySubscriberCoA",
+      "producer-sha": "585b21bed8b17aba",
+      "break": "body of applySubscriberCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-2.3-6",
       "polarity": "positive",
       "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed",
       "unit-sha": "b336c6d1aaada62d",
       "claim-sha": "027876badb2fcdbf",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-      "producer-sha": "25f21c3d571409ff",
+      "producer-sha": "f7c7c770125f61d8",
       "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -174,7 +229,7 @@
       "claim-sha": "ea1c14f218f5f894",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-      "producer-sha": "25f21c3d571409ff",
+      "producer-sha": "f7c7c770125f61d8",
       "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

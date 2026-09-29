@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5176-2.3-1": {
       "note": "(a) forbidden: answering or acting on a packet whose Code is not CoA-Request or Disconnect-Request. (b) TestRFC5176InvalidCodeDiscarded: sendRawCoAPacketExpectNoResponse for a correctly signed Code 44 packet; the CoA-Request with the same attributes is answered. One invalid value exercises the whitelist in handlePacket.",
@@ -41,27 +42,35 @@
       "verdict": "enforced"
     },
     "RFC5176-2.3-5": {
-      "note": "New TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed proves a CoA whose only authorization attribute is a Filter-Id with an unsupported value is NAKed with no event, and the older unit proves the unsupported-ATTRIBUTE halves (CoA-NAK 401, Disconnect-NAK 401). Missing: (1) the Disconnect-Request unsupported-VALUE half, no test and no value check in handleDisconnect; (2) DEFECT at producer coa.go extractRates/extractCoSProfile: they return the first parseable Filter-Id and ignore the rest, and unsupportedAttr checks types only, so a CoA carrying Filter-Id \"10mbit\" plus Filter-Id \"not-a-rate\" is ACKed with the unsupported value silently dropped, a MUST CoA-NAK violation; (3) the cannot-be-carried-out sentence has no unit tagged to this row.",
+      "note": "Judge 2026-09-29. Every clause now has a unit on the real listener socket. Unsupported ATTRIBUTE: TestRFC5176UnsupportedAttributeNAKed (CoA-NAK 401 for Session-Timeout, Disconnect-NAK 401 for Filter-Id with zero teardowns; identification-only Disconnect is ACKed). Unsupported VALUE in a CoA: TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed (sole Filter-Id 'not-a-rate' or 'cos:') and TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed (a supported rate beside an unparseable Filter-Id, a second rate, or an unknown vendor VSA: CoA-NAK 407 and zero bus events), which is the case the old first-match producer ACKed. Unsupported VALUE in a Disconnect: TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed (2-octet NAS-Port gives Disconnect-NAK 407, a Vendor-Specific gives 401, zero teardowns). The ACK counterpart TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed isolates the value (same attributes, valid values: CoA-ACK, Disconnect-ACK with a 4-octet NAS-Port). Producer read: readCoAChange walks every Filter-Id and VSA and refuses the first it cannot apply; unsupportedAttrValue enforces the fixed lengths for both codes in handlePacket. The cannot-be-carried-out sentence is met in its value form here and in its NAS-side-failure form by the units tagged RFC5176-2.3-6 (506 with no event). Records observed for readCoAChange, unsupportedAttrValue, unsupportedAttr and handleCoA (panic-body breaks; by inspection a targeted break of setRate's duplicate check or of the NAS-Port length also turns the NAK units red).",
       "requirement_sha": "9b063492f7eea058",
       "tests": {
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed": "ff37f19e24dbd668",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed": "c7f18523e76c1699",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed": "c7f18523e76c1699",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "c7f18523e76c1699",
         "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed": "da48897714a68fd4",
         "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed#2": "da48897714a68fd4"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed": "b26bec63e7ea6a69",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed": "fd119ef22edaef4d",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed": "66433e1f7620d4c3",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "cf8f0a20e2c7c708",
         "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed": "9770d3018300a43a",
         "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed#2": "9770d3018300a43a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5176-2.3-6": {
-      "note": "L2TP-only fallback path now proven: rate+CoS on an L2TP-only session is CoA-NAK 506 with zero bus events (no partial change); a Disconnect-Request whose teardown fails gets Disconnect-NAK after one attempt, and a succeeding one gets Disconnect-ACK. Missing: the subscriber-registry path handleCoA tries FIRST (coa.go applySubscriberCoA) is untested for atomicity and is non-atomic by construction: it emits the rate-change events, then on a CoS emit failure answers CoA-NAK with the rate change already made. That is a DEFECT against \"the requested authorization changes MUST NOT be made\" (verified by reading the producer, not by a test).",
+      "note": "Judge 2026-09-29. CoA atomicity on both lookup paths. Subscriber path: TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange (rate + CoS on a session with no access interface: CoA-NAK 506 and zero events, so the rate part is not made), TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed (with an interface: CoA-ACK and all three events). L2TP-only path: TestRFC5176CoANAKMakesNoPartialChange (506, zero events) and TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed pair. Disconnect: TestRFC5176DisconnectThatCannotTerminateIsNAKed (NAK after one attempt) vs TestRFC5176DisconnectThatTerminatesIsACKed. Producer read: applySubscriberCoA decides every refusal (no bus, CoS without interface) before the first Emit. The residual NAK after a successful Emit is unreachable, and that is judged sufficient: Server.Emit -> deliverEvent (plugin/server/dispatch.go) fails only for an unregistered (namespace, event-type) or a JSON marshal failure; the three events are package-level events.Register handles, and their payloads are flat structs of integers and strings that json.Marshal cannot fail on. (The coa.go comment names only the first cause; harmless.) Records observed for applySubscriberCoA, handleDisconnect and handleCoA.",
       "requirement_sha": "1aade4585fa5416c",
       "tests": {
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoANAKMakesNoPartialChange": "ff37f19e24dbd668",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatCannotTerminateIsNAKed": "ff37f19e24dbd668",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatTerminatesIsACKed": "ff37f19e24dbd668",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "c7f18523e76c1699",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange": "c7f18523e76c1699",
         "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed": "da48897714a68fd4",
         "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed#2": "da48897714a68fd4"
       },
@@ -69,10 +78,12 @@
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoANAKMakesNoPartialChange": "b32c057e9acbc2a5",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatCannotTerminateIsNAKed": "5a82ceeb940fc217",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatTerminatesIsACKed": "540126093cbd42ed",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "cf8f0a20e2c7c708",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange": "7883cd09177c5069",
         "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed": "71d553e710b2095a",
         "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed#2": "71d553e710b2095a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5176-2.3-7": {
       "note": "CoA half added: a CoA-Request whose User-Name matches two sessions gets CoA-NAK 508 and zero bus events; the same request narrowed by NAS-Port to one session is ACKed with one event, so the NAK is specific to the multiple match. The Disconnect half (Disconnect-NAK 508, zero teardowns) was already held. Producer oneSession serves both.",
@@ -121,7 +132,7 @@
       "note": "A CoA-Request and a Disconnect-Request whose Acct-Session-Id matches no session get CoA-NAK and Disconnect-NAK 503 with no bus event and no teardown; the same two requests with a matching Acct-Session-Id succeed (CoA-ACK with one event, Disconnect-ACK with one teardown). Both request kinds, both outcomes; the older no-identification negative remains.",
       "requirement_sha": "79cb52981c308285",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestDisconnectReplayReturnsCachedResponse": "046fd8f40e85c999",
+        "internal/component/l2tp/plugins/authradius/coa_test.go::TestDisconnectReplayReturnsCachedResponse": "24bcf432ac577a22",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "ff37f19e24dbd668",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "ff37f19e24dbd668",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "6e404eca485fc4e5"
@@ -185,7 +196,7 @@
       "note": "(a) forbidden: treating the MAY as a MUST by discarding a request without Message-Authenticator by default. (b) TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault asserts Disconnect-ACK and one teardown with no Message-Authenticator; TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired asserts discard only when the operator leaf requires it.",
       "requirement_sha": "76d3f6211fedecf1",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "046fd8f40e85c999",
+        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "24bcf432ac577a22",
         "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault": "c6a157b9291bccdc"
       },
       "units": {
@@ -195,30 +206,17 @@
       "verdict": "enforced"
     },
     "RFC5176-3.5-1": {
-      "note": "(a) forbidden: acting on a request whose Authenticator does not authenticate it. (b) TestCoAListenerInvalidAuth fails if a zero-authenticator CoA-Request gets any response; TestCoAListenerUnknownSession asserts a correctly signed request is processed (CoA-NAK 503).",
+      "note": "Judge 2026-09-29, re-judged after the RFC5176-3.5-2 tags were dropped from the doc comments; the test bodies are unchanged. (a) forbidden: acting on a request whose Authenticator does not authenticate it. (b) TestCoAListenerInvalidAuth fails if a zero-authenticator CoA-Request gets any response; TestCoAListenerUnknownSession asserts a correctly signed request is processed (CoA-NAK 503).",
       "requirement_sha": "5241f933500338b9",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerInvalidAuth": "046fd8f40e85c999",
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerUnknownSession": "046fd8f40e85c999"
+        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerInvalidAuth": "24bcf432ac577a22",
+        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerUnknownSession": "24bcf432ac577a22"
       },
       "units": {
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerInvalidAuth": "9933657989cf1234",
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerUnknownSession": "bfc4771cd062ddb8"
+        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerInvalidAuth": "cbc56e58717de930",
+        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerUnknownSession": "0a97dc27651880c5"
       },
       "verdict": "enforced"
-    },
-    "RFC5176-3.5-2": {
-      "note": "(a) forbidden: answering a request from an untrusted source. (b) TestCoAListenerInvalidAuth asserts no response to a request from an allowed address that carries a bad authenticator; TestCoAListenerUnknownSession asserts a valid one is answered. The units prove the discard of an unauthenticated packet, which is the row's reading of \"untrusted\"; the source-address clause of the same sentence is proven by the units tagged RFC5176-6.1-1, not here. This row now quotes the same sentence as RFC5176-6.1-1.",
-      "requirement_sha": "44dfbd3b61d4fef1",
-      "tests": {
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerInvalidAuth": "046fd8f40e85c999",
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerUnknownSession": "046fd8f40e85c999"
-      },
-      "units": {
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerInvalidAuth": "9933657989cf1234",
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerUnknownSession": "bfc4771cd062ddb8"
-      },
-      "verdict": "weak"
     },
     "RFC5176-3.5-3": {
       "note": "The oracle is no longer the producer: TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5 reads CoA-ACK, CoA-NAK, Disconnect-ACK and Disconnect-NAK raw off the socket and compares the Authenticator field with an MD5 the test computes over Code, Identifier, Length, the sent Request Authenticator, the response attributes and the secret. The {single-polarity: positive} annotation holds: the NAS only emits responses.",

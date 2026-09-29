@@ -257,9 +257,9 @@ func TestRFC2866IdentifierCounterCoversTheWholeSpace(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2866-4.2-1 positive -- an Accounting-Response whose
-// Response Authenticator is the correct response for the pending
-// Accounting-Request is matched to it and accepted.
+// TestRFC2866AccountingResponseAuthenticatorAccepted checks that an
+// Accounting-Response whose Response Authenticator is the correct response for
+// the pending Accounting-Request is matched to it and accepted.
 func TestRFC2866AccountingResponseAuthenticatorAccepted(t *testing.T) {
 	secret := []byte("acct-secret")
 	addr, _ := startScriptedAcctServer(t, secret, nil)
@@ -269,9 +269,10 @@ func TestRFC2866AccountingResponseAuthenticatorAccepted(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2866-4.2-1 negative -- an Accounting-Response whose
-// Response Authenticator is not the correct response for the pending request is
-// discarded, so a forged acknowledgement cannot retire an accounting record.
+// TestRFC2866AccountingResponseAuthenticatorForgeryDiscarded checks that an
+// Accounting-Response whose Response Authenticator is not the correct response
+// for the pending request is discarded, so a forged acknowledgement cannot
+// retire an accounting record.
 func TestRFC2866AccountingResponseAuthenticatorForgeryDiscarded(t *testing.T) {
 	secret := []byte("acct-secret")
 	forge := func(resp []byte) []byte {

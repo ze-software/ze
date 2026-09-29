@@ -158,7 +158,11 @@ const (
 	ErrorCauseInvalidRequest       = 404
 	ErrorCauseUnsupportedService   = 405
 	ErrorCauseUnsupportedExtension = 406
-	ErrorCauseSessionNotFound      = 503
+	// ErrorCauseInvalidAttributeValue (407): RFC 5176 Section 3.5, "a fatal
+	// error sent if a CoA-Request or Disconnect-Request contains an attribute
+	// with an unsupported value".
+	ErrorCauseInvalidAttributeValue = 407
+	ErrorCauseSessionNotFound       = 503
 	// ErrorCauseResourcesUnavailable (506) and
 	// ErrorCauseMultiSessionUnsupported (508) are the two 500-series values ze
 	// emits: the NAS could not carry out the authorization change, and the

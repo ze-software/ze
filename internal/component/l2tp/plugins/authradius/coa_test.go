@@ -249,8 +249,6 @@ func mustResolveUDP(t *testing.T, addr string) *net.UDPAddr {
 // VALIDATES: AC-4 -- invalid authenticator silently discarded.
 // RFC requirement: RFC5176-3.5-1 negative -- a CoA-Request whose Request Authenticator
 // is invalid is not processed: its attributes are never acted on.
-// RFC requirement: RFC5176-3.5-2 positive -- a packet with an invalid authenticator is
-// silently discarded, producing no response datagram.
 func TestCoAListenerInvalidAuth(t *testing.T) {
 	secret := []byte("test-coa-secret")
 	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret})
@@ -336,8 +334,6 @@ func TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired(t *testing.T)
 // VALIDATES: AC-5 -- CoA for unknown session returns NAK with Error-Cause 503.
 // RFC requirement: RFC5176-3.5-1 positive -- a CoA-Request with a valid Request
 // Authenticator is processed: its attributes are examined and a response is emitted.
-// RFC requirement: RFC5176-3.5-2 negative -- a packet with a valid authenticator is not
-// discarded; it receives a response, so the silent discard is specific to invalid auth.
 func TestCoAListenerUnknownSession(t *testing.T) {
 	secret := []byte("test-coa-secret-2")
 	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret})
@@ -482,9 +478,12 @@ func TestExtractRate(t *testing.T) {
 				{Type: radius.AttrFilterID, Value: radius.AttrString(tt.filterID)},
 			},
 		}
-		got, _ := extractRates(pkt)
-		if got != tt.want {
-			t.Errorf("extractRates(Filter-Id=%q) = %d, want %d", tt.filterID, got, tt.want)
+		change, cause := readCoAChange(pkt)
+		if cause != 0 {
+			t.Errorf("readCoAChange(Filter-Id=%q) refused with %d", tt.filterID, cause)
+		}
+		if change.download != tt.want {
+			t.Errorf("readCoAChange(Filter-Id=%q) = %d, want %d", tt.filterID, change.download, tt.want)
 		}
 	}
 }
@@ -495,8 +494,8 @@ func TestExtractRate_Invalid(t *testing.T) {
 			{Type: radius.AttrFilterID, Value: radius.AttrString("notarate")},
 		},
 	}
-	if got, _ := extractRates(pkt); got != 0 {
-		t.Errorf("extractRates with invalid filter-id: got %d, want 0", got)
+	if _, cause := readCoAChange(pkt); cause != radius.ErrorCauseInvalidAttributeValue {
+		t.Errorf("readCoAChange with invalid filter-id: cause %d, want %d", cause, radius.ErrorCauseInvalidAttributeValue)
 	}
 }
 
@@ -512,9 +511,12 @@ func TestCoAExtractCiscoCoS(t *testing.T) {
 			{Type: radius.AttrVendorSpecific, Value: encoded[2:]},
 		},
 	}
-	got := extractCoSProfile(pkt)
-	if got != "business" {
-		t.Errorf("extractCoSProfile = %q, want %q", got, "business")
+	change, cause := readCoAChange(pkt)
+	if cause != 0 {
+		t.Errorf("readCoAChange refused with %d", cause)
+	}
+	if change.cosProfile != "business" {
+		t.Errorf("readCoAChange cos profile = %q, want %q", change.cosProfile, "business")
 	}
 }
 
@@ -529,9 +531,12 @@ func TestCoAExtractMikrotikRate(t *testing.T) {
 			{Type: radius.AttrVendorSpecific, Value: encoded[2:]},
 		},
 	}
-	got, _ := extractRates(pkt)
-	if got != 10_000_000 {
-		t.Errorf("extractRates = %d, want %d", got, 10_000_000)
+	change, cause := readCoAChange(pkt)
+	if cause != 0 {
+		t.Errorf("readCoAChange refused with %d", cause)
+	}
+	if change.download != 10_000_000 {
+		t.Errorf("readCoAChange download = %d, want %d", change.download, 10_000_000)
 	}
 }
 
@@ -559,27 +564,34 @@ func TestExtractRatesReadsAsymmetricFilterID(t *testing.T) {
 				{Type: radius.AttrFilterID, Value: radius.AttrString(c.filterID)},
 			},
 		}
-		down, up := extractRates(pkt)
-		if down != c.download {
-			t.Errorf("extractRates(Filter-Id=%q) download = %d, want %d", c.filterID, down, c.download)
+		change, cause := readCoAChange(pkt)
+		if cause != 0 {
+			t.Errorf("readCoAChange(Filter-Id=%q) refused with %d", c.filterID, cause)
 		}
-		if up != c.upload {
-			t.Errorf("extractRates(Filter-Id=%q) upload = %d, want %d", c.filterID, up, c.upload)
+		if change.download != c.download {
+			t.Errorf("readCoAChange(Filter-Id=%q) download = %d, want %d", c.filterID, change.download, c.download)
+		}
+		if change.upload != c.upload {
+			t.Errorf("readCoAChange(Filter-Id=%q) upload = %d, want %d", c.filterID, change.upload, c.upload)
 		}
 	}
 }
 
 // TestExtractRatesRejectsNonRate checks the other polarity: a Filter-Id that
-// names no rate yields no rate, so handleCoA answers with the unsupported
-// attribute rather than a change of zero.
+// names no rate is refused with Error-Cause 407, so handleCoA answers with the
+// invalid value rather than a change of zero.
 func TestExtractRatesRejectsNonRate(t *testing.T) {
 	pkt := &radius.Packet{
 		Attrs: []radius.Attr{
 			{Type: radius.AttrFilterID, Value: radius.AttrString("notarate")},
 		},
 	}
-	if down, up := extractRates(pkt); down != 0 || up != 0 {
-		t.Errorf("extractRates with a non-rate Filter-Id = %d/%d, want 0/0", down, up)
+	change, cause := readCoAChange(pkt)
+	if cause != radius.ErrorCauseInvalidAttributeValue {
+		t.Errorf("readCoAChange with a non-rate Filter-Id: cause %d, want %d", cause, radius.ErrorCauseInvalidAttributeValue)
+	}
+	if change.hasRate {
+		t.Errorf("readCoAChange with a non-rate Filter-Id answered a rate %d/%d", change.download, change.upload)
 	}
 }
 
@@ -594,11 +606,14 @@ func TestExtractRatesKeepsMikrotikUploadHalf(t *testing.T) {
 	pkt := &radius.Packet{
 		Attrs: []radius.Attr{{Type: radius.AttrVendorSpecific, Value: encoded[2:]}},
 	}
-	down, up := extractRates(pkt)
-	if down != 10_000_000 {
-		t.Errorf("download = %d, want 10000000", down)
+	change, cause := readCoAChange(pkt)
+	if cause != 0 {
+		t.Errorf("readCoAChange refused with %d", cause)
 	}
-	if up != 5_000_000 {
-		t.Errorf("upload = %d, want 5000000; the vendor attribute carried it and the listener dropped it", up)
+	if change.download != 10_000_000 {
+		t.Errorf("download = %d, want 10000000", change.download)
+	}
+	if change.upload != 5_000_000 {
+		t.Errorf("upload = %d, want 5000000; the vendor attribute carried it and the listener dropped it", change.upload)
 	}
 }

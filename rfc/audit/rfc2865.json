@@ -141,11 +141,12 @@
       "verdict": "enforced"
     },
     "RFC2865-4.1-3": {
-      "note": "Forbidden: an Access-Request carrying none of User-Password, CHAP-Password, State. The admin (TestAdminAccessRequestCarriesExactlyOneCredential) and L2TP PAP/CHAP units assert the credential attribute on the wire, and the AuthMethodNone and short MS-CHAPv2 units assert no request is sent. The sentence covers every Access-Request, and the full MS-CHAPv2 and EAP Access-Requests Ze sends carry none of the three (RFC 2548 / RFC 3579 carriers); no tagged unit asserts anything about them, so the row is not proven for every request Ze emits. Whether RFC 3579 relieves the EAP path is an owner question, recorded in findings.",
+      "note": "Judge 2026-09-29. The PAP, CHAP and admin units assert the credential attribute on the wire, and the AuthMethodNone and short MS-CHAPv2 units assert no request is sent. New: TestRFC2865MSCHAPv2AccessRequestCarriesTheExtensionCredential proves a full MS-CHAPv2 Access-Request carries the RFC 2548 MS-CHAP2-Response and neither User-Password nor CHAP-Password, which RFC 2865 Section 4.1 itself permits: 'the attribute for that can be used in an Access-Request instead of User-Password or CHAP-Password.' Still weak: (1) the row quotes only the MUST sentence and omits that relief, so the MS-CHAPv2 unit proves a request the row as written forbids; the row needs the 'If future extensions allow' sentence (row decision open); (2) the EAP Access-Request path (RFC 3579 EAP-Message) has no tagged unit.",
       "requirement_sha": "fe2a7a49820343bb",
       "tests": {
         "internal/component/l2tp/plugins/authradius/rfc2548_mschap2_success_test.go::TestCredentialBearingMethodStillReachesTheServer": "c2434105197a4ccd",
         "internal/component/l2tp/plugins/authradius/rfc2548_mschap2_success_test.go::TestNoAuthIsAdmittedWithARADIUSClientConfigured": "c2434105197a4ccd",
+        "internal/component/l2tp/plugins/authradius/rfc2865_extension_credential_test.go::TestRFC2865MSCHAPv2AccessRequestCarriesTheExtensionCredential": "befb7630a8b4d079",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential": "d914f47d88bb0d8f",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#2": "d914f47d88bb0d8f",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#3": "d914f47d88bb0d8f",
@@ -155,6 +156,7 @@
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc2548_mschap2_success_test.go::TestCredentialBearingMethodStillReachesTheServer": "5cdb35248e955a45",
         "internal/component/l2tp/plugins/authradius/rfc2548_mschap2_success_test.go::TestNoAuthIsAdmittedWithARADIUSClientConfigured": "bc7e0a96cd51b9b4",
+        "internal/component/l2tp/plugins/authradius/rfc2865_extension_credential_test.go::TestRFC2865MSCHAPv2AccessRequestCarriesTheExtensionCredential": "f072a39ef7bd421a",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential": "c714cc1090804910",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#2": "c714cc1090804910",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#3": "c714cc1090804910",
