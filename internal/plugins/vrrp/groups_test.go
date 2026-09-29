@@ -546,19 +546,23 @@ func TestValidateIPv6LinkLocal(t *testing.T) {
 //
 // RFC requirement: RFC9568-5.2.9-2 positive -- a group whose virtual addresses match its family (and therefore the VRRP packet's IPvX header) validates and runs (validateGroup groups.go:513-518)
 // RFC requirement: RFC5798-5.2.9-2 positive -- a group whose virtual addresses match its own family, and therefore the family of the IPvX header carrying its advertisements, validates and runs (validateGroup groups.go:513-518)
-// RFC requirement: RFC9568-5.2.9-2 negative -- an IPv6 address configured on an IPv4 group (and an IPv4 address on an IPv6 group) is rejected, so an advertisement can never carry an address of the other family (groups.go:513-518).
-// RFC requirement: RFC5798-5.2.9-2 negative -- an IPv6 address configured on an IPv4 group, and an IPv4 address on an IPv6 group, is rejected, so one IPvX Address field can never carry both families (groups.go:513-518).
+// RFC requirement: RFC9568-5.2.9-2 negative -- a virtual-address list mixing both families (an IPv6 address after an IPv4 one on an IPv4 group, an IPv4 address after the link-local on an IPv6 group) is rejected by the family check, so an advertisement can never carry an address of the other family (validateGroup groups.go).
+// RFC requirement: RFC5798-5.2.9-2 negative -- a virtual-address list mixing both families (an IPv6 address after an IPv4 one on an IPv4 group, an IPv4 address after the link-local on an IPv6 group) is rejected by the family check, so one IPvX Address field can never carry both families (validateGroup groups.go).
 func TestValidateVIPFamilyMatchesGroupFamily(t *testing.T) {
+	// The IPv6 group's IPv4 address comes second, after a link-local, so the
+	// first-address-is-link-local rule cannot refuse it and only the family
+	// check can. wantErr names the family refusal, so a refusal from any other
+	// check does not satisfy the case.
 	cases := []struct {
 		name    string
 		family  string
 		vips    []any
-		wantErr bool
+		wantErr string
 	}{
-		{"ipv4-group-ipv4-vip", familyIPv4, vips("192.0.2.1"), false},
-		{"ipv4-group-ipv6-vip", familyIPv4, vips("2001:db8::1"), true},
-		{"ipv6-group-ipv6-vip", familyIPv6, vips("fe80::1"), false},
-		{"ipv6-group-ipv4-vip", familyIPv6, vips("192.0.2.1"), true},
+		{"ipv4-group-ipv4-vip", familyIPv4, vips("192.0.2.1"), ""},
+		{"ipv4-group-ipv6-vip", familyIPv4, vips("192.0.2.1", "2001:db8::1"), "virtual-address 2001:db8::1 is not an IPv4 address"},
+		{"ipv6-group-ipv6-vip", familyIPv6, vips("fe80::1", "2001:db8::1"), ""},
+		{"ipv6-group-ipv4-vip", familyIPv6, vips("fe80::1", "192.0.2.1"), "virtual-address 192.0.2.1 is not an IPv6 address"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -568,11 +572,17 @@ func TestValidateVIPFamilyMatchesGroupFamily(t *testing.T) {
 				t.Fatalf("extract: %v", err)
 			}
 			err = validateGroups(specs, backendNetlink)
-			if tc.wantErr && err == nil {
-				t.Fatalf("%s: a virtual-address of the other family must be rejected", tc.name)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("%s: a same-family virtual-address list must be accepted: %v", tc.name, err)
+				}
+				return
 			}
-			if !tc.wantErr && err != nil {
-				t.Fatalf("%s: a same-family virtual-address must be accepted: %v", tc.name, err)
+			if err == nil {
+				t.Fatalf("%s: a list mixing both families must be rejected", tc.name)
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("%s: rejected for another reason: %v, want %q", tc.name, err, tc.wantErr)
 			}
 		})
 	}
@@ -1581,6 +1591,7 @@ func track(decrements map[string]uint8) map[string]any {
 func TestEffectivePriorityWithTracking(t *testing.T) {
 	// RFC requirement: RFC9568-5.2.4-1 positive -- the address owner runs with priority 255 whatever the tracked interfaces say, because the owner branch of EffectivePriority (groups.go) returns before any subtraction
 	// RFC requirement: RFC9568-5.2.4-2 positive -- a backing-up router's advertised priority never falls below 1: a decrement at or past the configured priority floors at 1 rather than reaching 0, which Section 5.2.4 reserves for the Active Router that stopped participating
+	// RFC requirement: RFC5798-5.2.4-2 positive -- a router backing up a virtual router runs with a priority in 1-254 at run time: a tracked decrement at or past the configured priority floors at 1 and never reaches 0 (EffectivePriority groups.go)
 	cases := []struct {
 		name      string
 		priority  uint8

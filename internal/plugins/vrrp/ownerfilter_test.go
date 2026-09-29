@@ -154,3 +154,77 @@ func TestOwnerFilterNamesNothingForANonOwner(t *testing.T) {
 		t.Fatalf("owner filter calls = %+v, want one call naming no address", got.ownerFilters)
 	}
 }
+
+// TestOwnerFilterWiredOnPromotionForEveryFamily proves the product route to
+// the owner filter: an address owner that becomes Master hands the dataplane
+// the filter for its parent and exactly its owned addresses, before any
+// address is installed, for IPv4 VRRPv2, IPv4 VRRPv3 and IPv6. The filter's
+// effect on the wire, that the parent's physical-MAC answers are dropped, is
+// TestVRRPOwnerAnswersWithVirtualMACOnly.
+//
+// Method: each owner starts and is promoted through the FSM. The first owner
+// filter call must name the parent and the owned address, and must come before
+// the address install. The same group as a non-owner names no address, so the
+// filter is bound to ownership.
+//
+// RFC requirement: RFC3768-8.2-1 positive -- a VRRPv2 address owner promoted to Master hands the dataplane the owner filter for its parent and its owned IPv4 address before installing it, so the parent's physical-MAC ARP answer is dropped whenever the Master holds the address (doInstallVIPs instance.go, ownedVIPs)
+// RFC requirement: RFC3768-8.2-1 negative -- contrast: the same VRRPv2 group as a non-owner names no address to the filter, so the drop is bound to the owner, the only case where the parent holds the virtual address (doInstallVIPs instance.go).
+// RFC requirement: RFC5798-8.2.2-1 positive -- an IPv6 address owner promoted to Master hands the dataplane the owner filter for its parent and its owned IPv6 address before installing it, so the parent's physical-MAC Neighbor Advertisement is dropped whenever the Master holds the address (doInstallVIPs instance.go, ownedVIPs)
+// RFC requirement: RFC5798-8.2.2-1 negative -- contrast: the same IPv6 group as a non-owner names no address to the filter, so the drop is bound to the owner (doInstallVIPs instance.go).
+// RFC requirement: RFC9568-8.2.2-1 positive -- an IPv6 address owner promoted to Active hands the dataplane the owner filter for its parent and its owned IPv6 address before installing it, so the parent's physical-MAC Neighbor Advertisement is dropped whenever the Active router holds the address (doInstallVIPs instance.go, ownedVIPs)
+// RFC requirement: RFC9568-8.2.2-1 negative -- contrast: the same IPv6 group as a non-owner names no address to the filter, so the drop is bound to the owner (doInstallVIPs instance.go).
+func TestOwnerFilterWiredOnPromotionForEveryFamily(t *testing.T) {
+	v2 := testSpec()
+	v2.Version = versionV2
+	v6 := testSpecV6()
+	cases := []struct {
+		name  string
+		spec  GroupSpec
+		owned netip.Addr
+	}{
+		{"ipv4-v2", v2, v2.VIPs[0]},
+		{"ipv4-v3", testSpec(), testSpec().VIPs[0]},
+		{"ipv6", v6, v6.VIPs[1]},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			spec := tc.spec
+			spec.realAddresses = []netip.Addr{tc.owned}
+			spec.IsOwner = true
+			spec.Priority = ownerPriority
+			in, f, clk := newTestInstance(t, spec)
+			in.dispatch(fsm.Startup{Config: in.fsmConfig()})
+			promoteToActive(t, in, clk)
+
+			got := f.snapshot()
+			if len(got.ownerFilters) == 0 {
+				t.Fatal("the owner Master handed the dataplane no owner filter")
+			}
+			set := got.ownerFilters[0]
+			if set.parent != spec.ParentDevice || !slices.Equal(set.vips, []netip.Addr{tc.owned}) {
+				t.Fatalf("owner filter = %+v, want parent %s and exactly %v", set, spec.ParentDevice, tc.owned)
+			}
+			filterAt := slices.Index(got.dataplane, "owner-filter-on")
+			installAt := slices.Index(got.dataplane, "install-addresses")
+			if filterAt < 0 || installAt < 0 || filterAt > installAt {
+				t.Fatalf("dataplane calls = %v, want owner-filter-on before install-addresses", got.dataplane)
+			}
+
+			// The non-owner's parent holds another address of the subnet, never
+			// the virtual one.
+			spec.realAddresses = []netip.Addr{netip.MustParseAddr("192.0.2.254")}
+			if tc.owned.Is6() {
+				spec.realAddresses = []netip.Addr{netip.MustParseAddr("2001:db8::254")}
+			}
+			spec.IsOwner = false
+			spec.Priority = 200
+			inN, fN, clkN := newTestInstance(t, spec)
+			inN.dispatch(fsm.Startup{Config: inN.fsmConfig()})
+			promoteToActive(t, inN, clkN)
+			gotN := fN.snapshot()
+			if len(gotN.ownerFilters) != 1 || len(gotN.ownerFilters[0].vips) != 0 {
+				t.Fatalf("non-owner owner filter calls = %+v, want one call naming no address", gotN.ownerFilters)
+			}
+		})
+	}
+}

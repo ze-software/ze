@@ -534,8 +534,13 @@ func TestInstanceRxDecodeErrorMapsReason(t *testing.T) {
 		Payload: []byte{0x31, 0x0a},
 	})
 	got := f.snapshot()
-	if len(got.rxErrors) != 1 || got.rxErrors[0] == "" {
-		t.Fatalf("malformed packet must record a reason, got %+v", got.rxErrors)
+	if len(got.rxErrors) != 1 || got.rxErrors[0] != "truncated" {
+		t.Fatalf("malformed packet must record the truncated reason, got %+v", got.rxErrors)
+	}
+	select {
+	case ev := <-in.events:
+		t.Fatalf("a truncated packet reached the FSM as %T", ev)
+	default:
 	}
 }
 

@@ -266,6 +266,8 @@ func TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery(t *testing.T) {
 //
 // RFC requirement: RFC9568-6.4.3-6 positive -- the IPvX address owner accepts packets addressed to the virtual address, and hands the dataplane no suppression, whatever Accept_Mode was configured (EffectiveAcceptMode groups.go)
 // RFC requirement: RFC9568-6.4.3-7 negative -- contrast: the prohibition does NOT reach the address owner, which is the first of the two exemptions the sentence names (EffectiveAcceptMode groups.go).
+// RFC requirement: RFC5798-6.4.3-6 positive -- a Master that is the IPvX address owner, configured with Accept_Mode False, hands the dataplane no suppression, so it accepts packets addressed to the virtual address on the owner condition alone (EffectiveAcceptMode groups.go)
+// RFC requirement: RFC5798-6.4.3-7 negative -- contrast: the prohibition does NOT reach the address owner, the first of the two exemptions the sentence names, even with Accept_Mode False (EffectiveAcceptMode groups.go).
 func TestActiveAddressOwnerAcceptsWhateverAcceptModeSays(t *testing.T) {
 	spec := testSpec()
 	spec.IsOwner = true
@@ -374,6 +376,8 @@ func promoteToActive(t *testing.T, in *instance, clk *sim.FakeClock) {
 //
 // RFC requirement: RFC3768-6.4.3-3 positive -- a VRRPv2 Master that is not the IP address owner hands the dataplane a suppression for the virtual address, so it does not accept packets addressed to it (doInstallVIPs instance.go, EffectiveAcceptMode groups.go)
 // RFC requirement: RFC3768-6.4.3-3 negative -- contrast: the VRRPv2 Master that IS the address owner hands the dataplane no suppression and accepts, so the prohibition is bound to ownership rather than applied to every Master (EffectiveAcceptMode groups.go).
+// RFC requirement: RFC3768-6.4.3-4 positive -- a VRRPv2 Master that is the IP address owner hands the dataplane an acceptance filter with accept true, so it accepts packets addressed to the virtual address (doInstallVIPs instance.go, EffectiveAcceptMode groups.go)
+// RFC requirement: RFC3768-6.4.3-4 negative -- contrast: a VRRPv2 Master that is NOT the address owner gets accept false, so the acceptance is bound to ownership rather than granted to every Master (EffectiveAcceptMode groups.go).
 func TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress(t *testing.T) {
 	tests := []struct {
 		name       string
