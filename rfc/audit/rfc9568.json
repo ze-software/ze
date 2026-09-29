@@ -617,19 +617,25 @@
       "verdict": "enforced"
     },
     "RFC9568-7.2-1": {
-      "note": "vrrp final judge 2026-09-29 (independent): after the R17 split the row is the field-fill clause only. Proven: TestEncodeGoldenV3IPv4 and TestEncodeGoldenV3IPv6 pin every VRRP field WriteTo writes from an Advert, and TestSendAdvertFillsFieldsAndChecksum pins the frames encodeLocked sends for IPv4 and IPv6 to the AdvertParams handed to the transport, all against literals. Missing: 'with the appropriate Virtual Router configuration state' -- no unit tagged here starts from the instance's configuration state; every tagged unit injects an Advert or AdvertParams. The instance-to-params step (effective priority after tracking, interval, VIPs; doSendAdvert) is proven only by TestTransmittedAdvertFilledFromInstanceState, tagged RFC5798-7.2-1 alone, so a doSendAdvert that handed a stale priority stays green for this row. Tagging that unit here with its own record closes it.",
+      "code": {
+        "internal/plugins/vrrp/instance.go::doSendAdvert": "c6745d0ab974fafc",
+        "internal/plugins/vrrp/packet/packet.go::WriteTo": "7f6d7ed20d3ce54e"
+      },
+      "note": "vrrp judge 2026-09-29 (independent, rejudge): the gap the previous weak verdict named is closed. TestTransmittedAdvertFilledFromInstanceState is now tagged here with its own observed-red record (producer doSendAdvert): for an IPv4 and an IPv6 VRRPv3 instance it drives the real instance to Active and requires the AdvertParams doSendAdvert hands the transport to carry version 3, the configured 1000 ms, both configured VIPs in order and the EFFECTIVE priority (200, then 150 after tracked eth1 fails), so a doSendAdvert that sent the configured or a stale priority reddens it; its WriteTo octets are compared with literals (31 0a 96 02 00 64 plus the address octets). With TestEncodeGoldenV3IPv4/IPv6 (WriteTo) and TestSendAdvertFillsFieldsAndChecksum (encodeLocked, both families) the fill is proven from configuration state to the frame. Claim is fill only: the checksum clause is the disclosed-deviation gap row RFC9568-7.2-5 and is not claimed here. Single-polarity positive per the row annotation.",
       "requirement_sha": "bd1576a9dc0e171d",
       "tests": {
+        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "fce8a1a5c87d6d49",
         "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1bf84088a1c1b91f",
         "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv6": "1bf84088a1c1b91f",
         "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "025e3148566bb3fe"
       },
       "units": {
+        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "989cf848454416be",
         "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "3de12a3108614ec7",
         "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv6": "035d8de9653f5f54",
         "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "e4f00dae4db9300c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9568-7.2-2": {
       "note": "vrrp final judge 2026-09-29 (independent): re-read after the comment-only edit to TestTxAdvertV4OnWire (body unchanged): it and TestTxAdvertV6OnWire (guest) compare the captured source MAC with the literal Virtual Router MACs for both families. Single-polarity positive per the row annotation.",

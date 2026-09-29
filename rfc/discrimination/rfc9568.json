@@ -499,6 +499,17 @@
     {
       "rid": "RFC9568-7.2-1",
       "polarity": "positive",
+      "unit": "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState",
+      "unit-sha": "5e52bfe616aa357b",
+      "claim-sha": "811b1d231440754b",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doSendAdvert",
+      "producer-sha": "02db770601b7a4a0",
+      "break": "body of doSendAdvert replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-7.2-1",
+      "polarity": "positive",
       "unit": "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4",
       "unit-sha": "9c512af5c39752c2",
       "claim-sha": "8da48337a93c73fe",

@@ -1072,7 +1072,7 @@
       "rid": "RFC5798-7.2-1",
       "polarity": "positive",
       "unit": "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState",
-      "unit-sha": "aef736dfd3a29107",
+      "unit-sha": "5e52bfe616aa357b",
       "claim-sha": "2db05666855b2e83",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doSendAdvert",

@@ -539,16 +539,20 @@
       "verdict": "enforced"
     },
     "RFC5798-7.2-1": {
-      "note": "vrrp final judge 2026-09-29 (independent): fill clause: TestTransmittedAdvertFilledFromInstanceState requires the params handed to the transport to carry version 3, the effective priority (200, then 150 after a tracked interface fails), 1000 ms and both VIPs. Checksum clause now through the production transmit path: TestSendAdvertFillsFieldsAndChecksum sends through encodeLocked and requires the IPv4 frame's checksum to equal an RFC 1071 sum the test computes itself over the RFC 5798 Section 5.2.8 pseudo-header (source, 224.0.0.18, 0, 112, length) and the zeroed message; an encodeLocked that skipped FillChecksum reddens it (author's targeted mutant, record: encodeLocked). IPv6 checksum is the kernel's (IPV6_CHECKSUM), not claimed.",
+      "code": {
+        "internal/plugins/vrrp/instance.go::doSendAdvert": "c6745d0ab974fafc",
+        "internal/plugins/vrrp/packet/packet.go::WriteTo": "7f6d7ed20d3ce54e"
+      },
+      "note": "vrrp judge 2026-09-29 (independent, rejudge after the unit gained an ipv6 subtest): fill clause: TestTransmittedAdvertFilledFromInstanceState drives an IPv4 and an IPv6 instance to Active and requires the params doSendAdvert hands the transport to carry version 3, the effective priority (200, then 150 after a tracked interface fails), 1000 ms and both VIPs, and their WriteTo octets to match literals; each encoding then decodes with its checksum verified. Checksum clause through the production path: TestSendAdvertFillsFieldsAndChecksum requires the IPv4 frame encodeLocked sends to carry an RFC 1071 sum over the RFC 5798 Section 5.2.8 pseudo-header that the test computes itself. Negative: TestBoundaryInterval (Validate refuses out-of-range intervals). IPv6 checksum is the kernel's (IPV6_CHECKSUM), not claimed. Each tagged unit has an observed-red record.",
       "requirement_sha": "fda7506724dfb32e",
       "tests": {
-        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "850865a4dc003eaf",
+        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "fce8a1a5c87d6d49",
         "internal/plugins/vrrp/packet/packet_test.go::TestBoundaryInterval": "1bf84088a1c1b91f",
         "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1bf84088a1c1b91f",
         "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "025e3148566bb3fe"
       },
       "units": {
-        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "ee15ebd20919de7c",
+        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "989cf848454416be",
         "internal/plugins/vrrp/packet/packet_test.go::TestBoundaryInterval": "806fdcb52c9b268c",
         "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "3de12a3108614ec7",
         "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "e4f00dae4db9300c"
