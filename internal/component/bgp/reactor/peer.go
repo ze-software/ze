@@ -1483,7 +1483,8 @@ func (p *Peer) resolveNextHop(session *Session, nh bgptypes.RouteNextHop, fam fa
 		// has first ascertained via the BGP Capability Advertisement that the BGP
 		// peer supports the Extended Next Hop Encoding capability for the
 		// relevant AFI/SAFI pair."
-		if fam.AFI == family.AFIIPv4 && addr.Is6() && !p.canUseNextHopFor(addr, fam) {
+		// RFC 8950 Section 3: the gate covers only the families it extends.
+		if rfc8950Family(fam) && addr.Is6() && !p.canUseNextHopFor(addr, fam) {
 			return netip.Addr{}, ErrNextHopIncompatible
 		}
 	case bgptypes.NextHopSelf:
@@ -1508,6 +1509,36 @@ func (p *Peer) resolveNextHop(session *Session, nh bgptypes.RouteNextHop, fam fa
 	return addr, nil
 }
 
+// safiVPNMulticast is SAFI 129, Multicast for BGP/MPLS IP VPNs (RFC 6513,
+// RFC 6514). No Ze family decodes it; RFC 8950 names it.
+const safiVPNMulticast family.SAFI = 129
+
+// rfc8950Family reports whether fam is one of the families RFC 8950 extends to
+// an IPv6 next hop. It is the one declaration of that set: the explicit next-hop
+// gate (Peer.resolveNextHop) and the forward gate
+// (egressNextHopLacksExtendedNextHop) both scope RFC 8950 Section 4 with it.
+//
+// Another AFI 1 family defines its own next hop and is not governed by RFC 8950:
+// IPv4 SR Policy (1/73), for one, takes an IPv6 next hop under RFC 9830
+// Section 2.1 (canUseNextHopFor).
+func rfc8950Family(fam family.Family) bool {
+	if fam.AFI != family.AFIIPv4 {
+		return false
+	}
+	// RFC 8950 Section 3: "The following AFI/SAFI definitions for the IPv4 NLRI
+	// or VPN-IPv4 NLRI (<1/1>, <1/2>, <1/4>, <1/128>, and <1/129>) only have
+	// provisions for advertising a next-hop address that belongs to the IPv4
+	// protocol. This document extends the set of usable next-hop address
+	// families to include IPv6 in addition to IPv4 when advertising an IPv4 or
+	// VPN-IPv4 NLRI."
+	switch fam.SAFI {
+	case family.SAFIUnicast, family.SAFIMulticast, family.SAFIMPLSLabel, family.SAFIVPN, safiVPNMulticast:
+		return true
+	default:
+		return false
+	}
+}
+
 // canUseNextHopFor checks if addr is valid as next-hop for family.
 // Natural match (IPv4 for IPv4, IPv6 for IPv6) always allowed.
 // Cross-family allowed if Extended NH capability negotiated.
@@ -1521,6 +1552,13 @@ func (p *Peer) canUseNextHopFor(addr netip.Addr, fam family.Family) bool {
 	if fam.AFI == family.AFIBGPLS &&
 		(fam.SAFI == family.SAFIBGPLinkState || fam.SAFI == family.SAFIBGPLinkStateVPN) {
 		return addr.IsGlobalUnicast() || addr.IsLoopback() || addr.IsLinkLocalUnicast()
+	}
+	// RFC 9830 Section 2.1: "The next-hop network address field in SR Policy
+	// SAFI (73) updates may be either a 4-octet IPv4 address or a 16-octet IPv6
+	// address, independent of the SR Policy AFI." No Extended Next Hop pair is
+	// involved.
+	if fam.SAFI == family.SAFISRPolicy {
+		return addr.Is4() || addr.Is6()
 	}
 	// Natural match - always allowed
 	if addr.Is4() && fam.AFI == family.AFIIPv4 {

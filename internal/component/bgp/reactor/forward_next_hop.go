@@ -284,7 +284,8 @@ func egressNextHopIsLinkLocalOnly(mods *filterapi.ModAccumulator, base nextHopVa
 //
 // nextHopAddr unmaps an IPv4-mapped address, so such an address is not IPv6 here.
 func egressNextHopLacksExtendedNextHop(dest *Peer, mods *filterapi.ModAccumulator, base nextHopValue) bool {
-	if base.mpFamily.AFI != family.AFIIPv4 {
+	// RFC 8950 Section 3: only the families it extends are gated.
+	if !rfc8950Family(base.mpFamily) {
 		return false
 	}
 	nextHop := base.mp

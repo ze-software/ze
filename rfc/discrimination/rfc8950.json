@@ -9,7 +9,7 @@
       "claim-sha": "40b17fb879a7486e",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLacksExtendedNextHop",
-      "producer-sha": "b186db1fa157add7",
+      "producer-sha": "c03863c3822b1d75",
       "break": "body of egressNextHopLacksExtendedNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -20,7 +20,7 @@
       "claim-sha": "130590b45afdfdab",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLacksExtendedNextHop",
-      "producer-sha": "b186db1fa157add7",
+      "producer-sha": "c03863c3822b1d75",
       "break": "body of egressNextHopLacksExtendedNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "a67ee26e543832c3",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer.go::canUseNextHopFor",
-      "producer-sha": "66b8a5f780bccb70",
+      "producer-sha": "2ee85657a4c76fe5",
       "break": "body of canUseNextHopFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -53,7 +53,7 @@
       "claim-sha": "63effe9276d15261",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer.go::canUseNextHopFor",
-      "producer-sha": "66b8a5f780bccb70",
+      "producer-sha": "2ee85657a4c76fe5",
       "break": "body of canUseNextHopFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "e982a50df01906fe",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer.go::canUseNextHopFor",
-      "producer-sha": "66b8a5f780bccb70",
+      "producer-sha": "2ee85657a4c76fe5",
       "break": "body of canUseNextHopFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "c30702ff20af98ff",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer.go::canUseNextHopFor",
-      "producer-sha": "66b8a5f780bccb70",
+      "producer-sha": "2ee85657a4c76fe5",
       "break": "body of canUseNextHopFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

@@ -183,9 +183,12 @@ Multiple entries concatenated.
 
 <!-- source: internal/core/bgp/capability/capability.go -- ExtendedNextHop struct, ExtendedNextHopFamily -->
 
-An IPv6 next hop for IPv4 NLRI (unicast, VPN-IPv4, or any other AFI 1 family)
-is sent only when the peer negotiated the entry for that exact AFI/SAFI pair
-(RFC 8950 Section 4). The check applies to `next-hop self` and to an explicit
+An IPv6 next hop for IPv4 or VPN-IPv4 NLRI is sent only when the peer
+negotiated the entry for that exact AFI/SAFI pair (RFC 8950 Section 4). The
+check covers the five families RFC 8950 Section 3 extends: AFI 1 with SAFI 1,
+2, 4, 128 or 129 (`rfc8950Family`). Another AFI 1 family is outside it. SR
+Policy (SAFI 73) takes an IPv4 or an IPv6 next hop for either AFI, with no
+Extended Next Hop pair (RFC 9830 Section 2.1). The check applies to `next-hop self` and to an explicit
 next hop alike, on every announce rail. A route that fails it is not sent to
 that peer, and the announce returns `ErrNextHopIncompatible` when no peer took
 it. A queued announcement is checked against the session that drains the queue,
@@ -202,7 +205,7 @@ When a destination lacks the pair, the announcement is withheld from it and the
 withdrawals in the same UPDATE are still sent. A warning names the peer and the
 family.
 
-<!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, canUseNextHopFor -->
+<!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, canUseNextHopFor, rfc8950Family -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- queuedNextHopPolicy -->
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- inlineIPv4Unicast -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopLacksExtendedNextHop -->
