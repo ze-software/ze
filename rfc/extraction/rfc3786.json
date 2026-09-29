@@ -220,7 +220,7 @@
       "id": "5:2",
       "quote": "If an LSP fragment 0 of an extended LSP set is missing or its RemainingLifetime is zero, only that LSP set MUST NOT be considered in the SPF.",
       "disposition": "mapped",
-      "mapped-to": "RFC3786-5-1"
+      "mapped-to": "RFC3786-5-2"
     },
     {
       "id": "6:1",

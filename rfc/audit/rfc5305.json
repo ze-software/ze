@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC5305-2-1": {
       "note": "Forbidden behaviour: rejecting a TLV that carries unknown sub-TLVs, or not skipping them so the next entry misparses. TestISISTLV22RoundTrip (tlv_core_test.go) keeps entry0's three uninterpreted sub-TLVs opaque and then asserts entry1's metric equals types.MaxMetric, which goes red on a wrong skip; TestISISTLVIPv4RoundTrip (tlv_ipv4_test.go, with-subtlv) goes red if a type-1 sub-TLV is rejected (t.Fatalf on decode error). Negative TestISISTLV22Truncated proves an overrunning length is not skipped as absent.",
@@ -56,11 +56,11 @@
       "verdict": "weak"
     },
     "RFC5305-4.1-1": {
-      "note": "The quote carries two clauses. Down the hierarchy: TestISISEngineLeakOrigination (lsdb_wiring_test.go) asserts the L2-to-L1 leak has up/down SET (t.Errorf on !up), and the negatives (the same test, and TestISISRedistConsumerConnected) assert an up leak and a first injection leave it clear. Same level, area to area: \"If a prefix is advertised from one area to another at the same level, then the up/down bit SHALL be set to 1.\" No tagged unit advertises a prefix between areas at one level, so that clause has no assertion that goes red.",
-      "requirement_sha": "352cca60941827ff",
+      "note": "Row narrowed to the level-to-level text; the tags are unchanged. TestISISEngineLeakOrigination feeds applyLeak a hand-built LeakResult whose IntoL1 entry already carries UpDown=true, so it proves the originator copies the bit into TLV 135, not that the producer (spf/leak.go leakInto, setDownBit) sets it on a down advertisement; a leakInto that cleared the bit on L2->L1 stays green. The second clause, 'Prefixes that have the up/down bit set to 1 may only be advertised down the hierarchy', has no tagged assertion here (TestISISRedistConsumerConnected covers first injection, RFC5305-4.1-2). spf's TestISISLeakOriginationL1L2 drives leakInto for both clauses but is not tagged for this row.",
+      "requirement_sha": "fcae79a8fa946731",
       "tests": {
-        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "cc9a1290177d7ed6",
-        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "cc9a1290177d7ed6",
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "90263ee52549afcf",
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "90263ee52549afcf",
         "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected": "be1395cfe8a7bf96"
       },
       "units": {
@@ -69,6 +69,12 @@
         "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected": "75ae0e892f463ba6"
       },
       "verdict": "weak"
+    },
+    "RFC5305-4.1-3": {
+      "no_code_path": "internal/plugins/isis/spf/leak.go LeakPrefixes builds IntoL1 only from the Level 2 result and IntoL2 only from the Level 1 result (leakInto with setDownBit true or false); no other producer re-advertises a prefix between areas at one level, so no same-level inter-area advertisement reaches TLV 135.",
+      "note": "The condition, a prefix advertised from one area to another at the same level, never arises in Ze.",
+      "requirement_sha": "36a8070bcad73fbe",
+      "verdict": "not-applicable"
     }
   },
   "rfc": "rfc5305"

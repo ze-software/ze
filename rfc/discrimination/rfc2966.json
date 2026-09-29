@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc2966",
+  "records": [
+    {
+      "rid": "RFC2966-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC2966EqualClassMembersCompareByMetric",
+      "unit-sha": "03c25bde88b92dc0",
+      "claim-sha": "e42b970e04102091",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf/route.go::better",
+      "producer-sha": "f4abc0f4bc4d6ca9",
+      "break": "body of better replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2966-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC2966EveryClassMemberOutranksNextClass",
+      "unit-sha": "7d0759fc1804112c",
+      "claim-sha": "d39e34297d3639c4",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf/route.go::preferenceRank",
+      "producer-sha": "84bfe24f1aa28418",
+      "break": "body of preferenceRank replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

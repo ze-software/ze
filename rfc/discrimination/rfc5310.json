@@ -1,0 +1,71 @@
+{
+  "rfc": "rfc5310",
+  "records": [
+    {
+      "rid": "RFC5310-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310Level1SNPRefusesOtherStrings",
+      "unit-sha": "4175714ab47619aa",
+      "claim-sha": "6424260af021db8e",
+      "route": "revert",
+      "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
+      "producer-sha": "5b236d91fdfedb04",
+      "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5310-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310Level1SNPUsesAreaString",
+      "unit-sha": "3a195ad88ca7993a",
+      "claim-sha": "380b243085225088",
+      "route": "revert",
+      "producer": "internal/plugins/isis/auth_wiring.go::signLevelPDU",
+      "producer-sha": "11605f3433fc9439",
+      "break": "body of signLevelPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5310-3.2-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310HelloRefusesAreaAndDomainStrings",
+      "unit-sha": "560170ef0dd6b05e",
+      "claim-sha": "fef5fb72bc9f1c84",
+      "route": "revert",
+      "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
+      "producer-sha": "5b236d91fdfedb04",
+      "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5310-3.2-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310HelloUsesLinkString",
+      "unit-sha": "228a4adf8acdca32",
+      "claim-sha": "98d428687eae8ccc",
+      "route": "revert",
+      "producer": "internal/plugins/isis/auth_wiring.go::signHelloPDU",
+      "producer-sha": "98acd0f270ef3bf5",
+      "break": "body of signHelloPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5310-4-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/auth_keystore_test.go::TestISISAuthRotation",
+      "unit-sha": "43fac63f1a1cbb71",
+      "claim-sha": "f3c9efa5fc77ffb3",
+      "route": "revert",
+      "producer": "internal/plugins/isis/auth_keystore.go::acceptKeys",
+      "producer-sha": "a1e1c4ca74caf1aa",
+      "break": "body of acceptKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5310-4-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310NonSendingKeyStillUsed",
+      "unit-sha": "709dbc269b645e7a",
+      "claim-sha": "4d791cfb4c453168",
+      "route": "revert",
+      "producer": "internal/plugins/isis/auth_keystore.go::acceptKeys",
+      "producer-sha": "a1e1c4ca74caf1aa",
+      "break": "body of acceptKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

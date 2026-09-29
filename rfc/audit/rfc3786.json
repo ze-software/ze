@@ -1,18 +1,26 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC3786-5-1": {
-      "note": "The sentence forbids three things: (a) considering a system's LSPs when Original fragment 0 is missing, (b) considering them when Original fragment 0 is present with RemainingLifetime zero, (c) considering an extended set whose fragment 0 is missing or expired. TestRFC1195StandardFragmentsRequireFragmentZero covers (a): after e.lsdb.Delete of fragment 0 it fails if loc.Lookup still has a path from fragment 1, and its positive requires the fragment-1 route while fragment 0 lives (metricWinner 2,15). No tagged assertion holds fragment 0 at RemainingLifetime zero (b), and none exercises an extended LSP set (c); Ze originates and recognises no extended set (owner decision 2026-09-21, standard fragment sets), so (c) has no producer to test, but (b) does.",
-      "requirement_sha": "79d8b7c247b32131",
+      "note": "Row narrowed to the Original-set sentences. Missing fragment 0: TestRFC1195StandardFragmentsRequireFragmentZero requires the fragment-1 route while fragment 0 lives (2, 15) and no route after fragment 0 is deleted. RemainingLifetime zero: TestRFC3786ExpiredFragmentZeroExcludesSet stores a zero-lifetime fragment 0, asserts it is still held by the LSDB, and requires no route although fragment 1 still carries the link back and the prefix. Whole-stack: RawSnapshot drops zero-lifetime entries and Records admits no fragment of a source without a live fragment 0. The extended-set clause is RFC3786-5-2.",
+      "requirement_sha": "9458f1ac64010ed2",
       "tests": {
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero": "e127fd71c27507af",
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero#2": "e127fd71c27507af"
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC3786ExpiredFragmentZeroExcludesSet": "e6d3e6dc3c5c468c",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero": "2fd56cd76cc7d907",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero#2": "2fd56cd76cc7d907"
       },
       "units": {
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC3786ExpiredFragmentZeroExcludesSet": "1605bcf97c31dd62",
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero": "562e30faad45e5ef",
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero#2": "562e30faad45e5ef"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
+    },
+    "RFC3786-5-2": {
+      "no_code_path": "internal/plugins/isis/lsdb/origination.go caps a source at maxFragments = 256 standard fragments and no IS Alias ID TLV (type 24) is decoded or originated in internal/plugins/isis/packet, so no extended LSP set exists; internal/plugins/isis/spf_wiring.go Records groups fragments by source ID only. The condition 'fragment 0 of an extended LSP set' never holds.",
+      "note": "Binds an extended LSP set, which Ze neither originates nor recognizes (owner decision 2026-09-21, standard fragment sets).",
+      "requirement_sha": "a8eef40fd3169f79",
+      "verdict": "not-applicable"
     },
     "RFC3786-6-1": {
       "note": "Forbidden behaviour: sending IS Hellos (ISH) or IS-IS Hellos with a system-id other than that of the LSP that contains the neighbor. assertNormalHelloIdentity first requires the neighbor in the node's normal LSP, then t.Fatalf when a captured ISH NET system-id or a P2P IIH SystemID differs from lsp.LSPID.SystemID(), and requires both to be seen. TestRFC3786NormalHelloMatchesContainingLSP is the positive; TestRFC3786NormalHelloIdentityReload reloads the NET twice and requires both hellos to follow, so a circuit keeping its old identity goes red. The S' (extended LSP) clause has no producer in Ze (no extended LSP sets), so the normal system-id is the only identity the MUST can require here.",

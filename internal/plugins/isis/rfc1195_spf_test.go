@@ -176,7 +176,6 @@ func TestRFC1195InternalMetricOutranksExternal(t *testing.T) {
 }
 
 // RFC requirement: RFC1195-3.10-2 negative -- an external TLV using internal metrics is not penalized as an external metric route; its lower internal cost wins.
-// RFC requirement: RFC1195-7-4 negative -- external reachability provenance alone does not turn its internal metric into an external metric during selection.
 func TestRFC1195ExternalReachabilityWithInternalMetric(t *testing.T) {
 	a := metricAdvertisement{level: lsdb.Level2, id: 2, cost: 100, metric: 63}
 	b := metricAdvertisement{level: lsdb.Level2, id: 3, cost: 1, metric: 1, external: true}
@@ -241,8 +240,9 @@ func TestRFC2966InvalidInternalExternalMetricExcluded(t *testing.T) {
 	metricWinner(t, e, loc, 3, 2)
 }
 
-// RFC requirement: RFC1195-3.10-3 negative -- removing the default metric octet prevents the malformed reachability entry from becoming a route; a valid competing entry remains usable.
-// RFC requirement: RFC1195-5.2-4 negative -- a reachability entry without the required metric cannot change the installed next hop.
+// A reachability entry whose default metric octet is removed installs no route;
+// the valid competing entry stays installed. The RFC 1195 tags for this case
+// live in rfc1195_selection_test.go, which also asserts the decoder refusal.
 func TestRFC1195MissingDefaultMetricCannotRoute(t *testing.T) {
 	a := metricAdvertisement{level: lsdb.Level2, id: 2, cost: 100, metric: 60}
 	b := metricAdvertisement{level: lsdb.Level2, id: 3, cost: 1, metric: 1}
@@ -329,7 +329,6 @@ func TestRFC1195NarrowLeakedMetricBelowCeiling(t *testing.T) {
 }
 
 // RFC requirement: RFC1195-7-2 positive -- the aging timer's periodic refresh triggers a full LSDB/SPF pass that repairs a stale installed prefix metric.
-// RFC requirement: RFC1195-7-2 negative -- recovery does not depend on receiving a topology-change trigger for the changed foreign LSP.
 func TestRFC1195PeriodicSPFRecoversMissedUpdate(t *testing.T) {
 	// Keep the adjacency at the foreign LSP's level: the P2P runtime chooses
 	// only L1 when both levels are enabled, leaving the L2 graph disconnected.
@@ -434,7 +433,6 @@ func TestRFC1195InternalOriginatorClearsExternalMetric(t *testing.T) {
 }
 
 // RFC requirement: RFC1195-3.2-2 positive -- duplicate specific prefixes from two L1 routers become one L2 entry with the minimum accumulated metric.
-// RFC requirement: RFC1195-3.2-2 negative -- the more expensive L1 advertisement cannot add a duplicate or replace the cheaper L2 metric.
 func TestRFC1195SpecificLeakCollapsesDuplicatePrefix(t *testing.T) {
 	got := metricLeak(t,
 		metricAdvertisement{level: lsdb.Level1, id: 2, cost: 10, metric: 10},

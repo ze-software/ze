@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc3786",
+  "records": [
+    {
+      "rid": "RFC3786-5-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC3786ExpiredFragmentZeroExcludesSet",
+      "unit-sha": "cb4032f089592506",
+      "claim-sha": "b1bfb388baf84a2c",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf_wiring.go::Records",
+      "producer-sha": "a879429846ef9467",
+      "break": "body of Records replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
