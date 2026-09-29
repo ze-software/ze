@@ -340,31 +340,11 @@ func livePlatform() enginePlatform {
 	return enginePlatform{
 		openInstance:  sharedTransport.OpenInstance,
 		closeInstance: sharedTransport.CloseInstance,
-		createMacvlan: func(dev, parent, owner string, mac [6]byte) error {
-			if err := iface.RegisterOwnedMacvlan(owner, iface.MacvlanSpec{
-				Name:   dev,
-				Parent: parent,
-				MAC:    macString(mac),
-				// Private, not bridge: in bridge mode the parent wins the ARP-flux
-				// race for the VIP and answers with its real MAC, so hosts never
-				// learn the virtual MAC (proven in docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md QEMU probes).
-				// Private isolation, together with the dataplane sysctls applied
-				// below, makes the virtual-MAC device the sole ARP/ND responder.
-				Mode: iface.MacvlanModePrivate,
-			}); err != nil {
-				return err
-			}
-			// RegisterOwnedMacvlan only records DESIRED state and pokes a
-			// coalescing channel (iface/device_owner.go:59-89 ->
-			// registryReconcileCh, iface/register.go:353); the device is created
-			// later by reconcileOwnedDevices (iface/config_apply.go:1006). The
-			// caller opens a transport that resolves this device BY NAME on the
-			// next line, so returning at registration time hands it a name the
-			// kernel does not have yet and every instance dies with "resolve
-			// macvlan <dev>: no such network interface". Block until the device
-			// actually exists, so "createMacvlan" means what it says.
-			return waitDevicePresent(dev, macvlanCreateTimeout)
-		},
+		createMacvlan: macvlanCreator{
+			register: iface.RegisterOwnedMacvlan,
+			present:  kernelDevicePresent,
+			timeout:  macvlanCreateTimeout,
+		}.create,
 		deleteMacvlan: func(owner, dev string) {
 			iface.UnregisterOwnedMacvlan(owner, dev)
 		},
@@ -388,6 +368,59 @@ func livePlatform() enginePlatform {
 	}
 }
 
+// macvlanCreator creates a virtual-MAC macvlan through iface's owned-device
+// registry and returns only once the kernel holds the device. register and
+// present are fields so a test can model a registry that creates the device
+// late: the live values are iface.RegisterOwnedMacvlan and kernelDevicePresent.
+type macvlanCreator struct {
+	register func(owner string, spec iface.MacvlanSpec) error
+	present  func(dev string) bool
+	timeout  time.Duration
+}
+
+// create registers the device and waits for it. The engine opens a transport
+// that resolves the device BY NAME right after this returns.
+func (c macvlanCreator) create(dev, parent, owner string, mac [6]byte) error {
+	if err := c.register(owner, iface.MacvlanSpec{
+		Name:   dev,
+		Parent: parent,
+		MAC:    macString(mac),
+		// Private, not bridge: in bridge mode the parent wins the ARP-flux
+		// race for the VIP and answers with its real MAC, so hosts never
+		// learn the virtual MAC (proven in docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md QEMU probes).
+		// Private isolation, together with the dataplane sysctls applied
+		// after this, makes the virtual-MAC device the sole ARP/ND responder.
+		Mode: iface.MacvlanModePrivate,
+	}); err != nil {
+		return err
+	}
+	// RegisterOwnedMacvlan only records DESIRED state and pokes a
+	// coalescing channel (iface/device_owner.go:59-89 ->
+	// registryReconcileCh, iface/register.go:353); the device is created
+	// later by reconcileOwnedDevices (iface/config_apply.go:1006). The
+	// caller opens a transport that resolves this device BY NAME next, so
+	// returning at registration time hands it a name the kernel does not
+	// have yet and every instance dies with "resolve macvlan <dev>: no such
+	// network interface". The instance, and so every gratuitous ARP or
+	// Neighbor Advertisement it sends, exists only after this wait.
+	// RFC 9568 Section 8.1.2: "At system boot, when initializing interfaces for VRRP operation, gratuitous ARP messages MUST be delayed until both the IPv4 address and the Virtual Router MAC address are configured."
+	// RFC 9568 Section 8.2.2: "At system boot, when initializing interfaces for VRRP operation, all ND Router Advertisements, ND Neighbor Advertisements, and ND Neighbor Solicitation messages MUST be delayed until both the IPv6 address and the Virtual Router MAC address are configured."
+	return waitDevicePresent(c.present, dev, c.timeout)
+}
+
+// kernelDevicePresent reports whether the kernel holds a device named dev.
+//
+// It probes with net.InterfaceByName deliberately: that is the exact call the
+// transport's resolve makes (its failure surfaced as "route ip+net: no such
+// network interface"), so a success here guarantees the caller's resolve sees
+// the device too. iface.Resolve would be the wrong probe -- it caches by
+// logical name (iface/resolve.go:84-97), and a hit there says nothing about
+// whether this kernel device is present.
+func kernelDevicePresent(dev string) bool {
+	_, err := net.InterfaceByName(dev)
+	return err == nil
+}
+
 // macvlanCreateTimeout bounds the wait for iface's reconcile pass to create a
 // registered macvlan. The pass is a channel wakeup plus a netlink round trip,
 // so it lands in milliseconds; this ceiling exists only so a reconcile that
@@ -403,16 +436,10 @@ const macvlanCreateTimeout = 10 * time.Second
 // costs nothing after create returns.
 const macvlanPollInterval = 20 * time.Millisecond
 
-// waitDevicePresent blocks until dev exists in the kernel, or timeout elapses.
-//
-// It probes with net.InterfaceByName deliberately: that is the exact call the
-// transport's resolve makes (its failure surfaced as "route ip+net: no such
-// network interface"), so a success here guarantees the caller's resolve sees
-// the device too. iface.Resolve would be the wrong probe -- it caches by
-// logical name (iface/resolve.go:84-97), and a hit there says nothing about
-// whether this kernel device is present.
-func waitDevicePresent(dev string, timeout time.Duration) error {
-	return waitDevicePresentEvery(dev, timeout, macvlanPollInterval)
+// waitDevicePresent blocks until present reports dev, or timeout elapses.
+// Production passes kernelDevicePresent.
+func waitDevicePresent(present func(dev string) bool, dev string, timeout time.Duration) error {
+	return waitDevicePresentEvery(present, dev, timeout, macvlanPollInterval)
 }
 
 // waitDevicePresentEvery is waitDevicePresent with an explicit poll interval. It
@@ -422,10 +449,10 @@ func waitDevicePresent(dev string, timeout time.Duration) error {
 // with a huge interval a first-probe hit still returns at once, while a
 // sleep-before-probe regression would block for the whole interval. Production
 // always passes macvlanPollInterval.
-func waitDevicePresentEvery(dev string, timeout, interval time.Duration) error {
+func waitDevicePresentEvery(present func(dev string) bool, dev string, timeout, interval time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
-		if _, err := net.InterfaceByName(dev); err == nil {
+		if present(dev) {
 			return nil
 		}
 		if time.Now().After(deadline) {
@@ -451,6 +478,8 @@ func liveDeps() engineDeps {
 		clearAcceptFilter: clearAcceptFilter,
 		setOwnerFilter:    setOwnerFilter,
 		clearOwnerFilter:  clearOwnerFilter,
+		setBackupFilter:   setBackupFilter,
+		clearBackupFilter: clearBackupFilter,
 		recordRxError:     sharedTransport.RecordRxError,
 		emitState:         emitStateChange,
 		parentReady:       parentReady,

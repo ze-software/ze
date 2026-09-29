@@ -54,6 +54,35 @@ the virtual-MAC device is not needed and was dropped, although keepalived sets i
 
 ## Constraints the code does not state
 
+### A Backup needs a filter, because the macvlan forwards without an address
+
+<!-- source: internal/plugins/vrrp/backupfilter.go -- backupFilterTables -->
+<!-- source: internal/plugins/vrrp/instance.go -- run, doInstallVIPs, doRemoveVIPs -->
+
+The macvlan exists in every state, so its MAC and the IPv6 link-local address
+derived from it stay stable across failovers. Only the virtual addresses wait for
+promotion. A frame sent to the Virtual Router MAC that reaches a Backup, for
+example by unknown-unicast flooding after a failover, is received by the macvlan.
+With forwarding enabled the kernel forwards it, with or without an address on the
+macvlan. RFC 3768, RFC 5798 and RFC 9568 Section 6.4.2 say a Backup MUST discard
+it.
+
+While an instance is not Active, the firewall table registry carries one table
+under the owner `vrrp-backup`:
+
+| Table | Family | Hook | Drops |
+|-------|--------|------|-------|
+| `ze_vrrp_backup` | inet | prerouting | every packet the Backup's macvlan receives |
+
+A private macvlan receives a unicast frame only when the destination MAC is its
+own. A broadcast or multicast frame also reaches the parent, which handles it,
+and the advertisement socket listens on the parent. The worker sets the entry when
+it starts, a demotion sets it again before the addresses are removed, a promotion
+withdraws it after they are installed, and the worker withdraws it when it stops.
+`TestVRRPBackupDoesNotForwardVirtualMACFrames` sends a transit datagram to the
+Virtual Router MAC: with no filter the kernel forwards it, with the filter it does
+not, and with the filter withdrawn and the address installed it is forwarded.
+
 ### The address owner needs a filter, not a sysctl
 
 <!-- source: internal/plugins/vrrp/register.go -- vipMaskBits -->

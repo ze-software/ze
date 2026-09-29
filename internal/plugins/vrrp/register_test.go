@@ -33,7 +33,7 @@ func TestWaitDevicePresentExisting(t *testing.T) {
 	// and be mistaken for a poll cycle.
 	const hugeInterval = 30 * time.Second
 	start := time.Now()
-	if err := waitDevicePresentEvery(lo, 2*time.Second, hugeInterval); err != nil {
+	if err := waitDevicePresentEvery(kernelDevicePresent, lo, 2*time.Second, hugeInterval); err != nil {
 		t.Fatalf("waitDevicePresentEvery(%q) = %v, want nil for an existing device", lo, err)
 	}
 	// Well under one poll interval => no sleep happened; the device was found on
@@ -55,7 +55,7 @@ func TestWaitDevicePresentMissing(t *testing.T) {
 	}
 
 	start := time.Now()
-	err := waitDevicePresent(missing, 120*time.Millisecond)
+	err := waitDevicePresent(kernelDevicePresent, missing, 120*time.Millisecond)
 	elapsed := time.Since(start)
 	if err == nil {
 		t.Fatalf("waitDevicePresent(%q) = nil, want an error for a device that never appears", missing)

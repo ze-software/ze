@@ -5,6 +5,8 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -94,47 +96,47 @@
       "verdict": "weak"
     },
     "RFC3768-6.4.2-1": {
-      "note": "vrrp judge 2026-09-29 (independent): Forbidden: a v2 Backup answering ARP for the virtual address. TestV2BackupHoldsNoVirtualAddress starts a Version 2 non-owner, requires Backup, zero address installs and no acceptance filter; the v2 owner contrast is Master with exactly one install on the virtual-MAC device. Asserted at Ze's boundary (the address Ze installs for the kernel ARP responder), the lower-layer form ai/rules/rfc-compliance.md asks for; no ARP is observed on the wire. Records: revert doInstallVIPs, both polarities. The Backup's virtual-MAC macvlan is up (D-8) but holds no address, so it has nothing to answer for.",
+      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: vrrp judge 2026-09-29 (independent): Forbidden: a v2 Backup answering ARP for the virtual address. TestV2BackupHoldsNoVirtualAddress starts a Version 2 non-owner, requires Backup, zero address installs and no acceptance filter; the v2 owner contrast is Master with exactly one install on the virtual-MAC device. Asserted at Ze's boundary (the address Ze installs for the kernel ARP responder), the lower-layer form ai/rules/rfc-compliance.md asks for; no ARP is observed on the wire. Records: revert doInstallVIPs, both polarities. The Backup's virtual-MAC macvlan is up (D-8) but holds no address, so it has nothing to answer for.",
       "requirement_sha": "63d14e1bbd4d44d6",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "ffb951f020b9cbce",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "ffb951f020b9cbce",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "b7108f927f669585",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "b7108f927f669585",
         "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "8b5d8c7a41e8e18e",
         "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "8b5d8c7a41e8e18e"
       },
       "units": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "312c553bb00ae79d",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "98d2994e98962652",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e1a785d3aeb30340",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "7e4b071c14d787cc",
         "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "5acb5d55e3b770ee",
         "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "5acb5d55e3b770ee"
       },
       "verdict": "enforced"
     },
     "RFC3768-6.4.2-2": {
-      "note": "the units assert only that a Backup installs no VIP. The vMAC macvlan still exists in Backup (created at apply, rp_filter=0), so frames addressed to the virtual MAC that reach a Backup are not shown discarded: no-VIP proves no local accept, not no forwarding",
+      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): TestVRRPBackupDoesNotForwardVirtualMACFrames (QEMU guest, records observed red on backupFilterTables) proves the wire effect: control without the filter forwards a transit datagram sent to the Virtual Router MAC, the vrrp-backup nft prerouting drop stops it. Still weak: the unit calls setBackupFilter by hand, and the product wiring that makes a Backup hold that filter (run sets it at start, doRemoveVIPs sets it before address removal) is proven only by the untagged TestBackupDiscardFollowsTheState; deleting setBackupDiscard from run or doRemoveVIPs leaves every tagged unit green. Owed: tag TestBackupDiscardFollowsTheState for this id, both polarities, with records on run and doRemoveVIPs.",
       "requirement_sha": "11cd0dd03e7ab80e",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "ffb951f020b9cbce",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "ffb951f020b9cbce"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "e5cea0285e8df647",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "e5cea0285e8df647"
       },
       "units": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "312c553bb00ae79d",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "98d2994e98962652"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "ae65b076e9153ae9",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "ae65b076e9153ae9"
       },
       "verdict": "weak"
     },
     "RFC3768-6.4.2-3": {
-      "note": "vrrp judge 2026-09-29 (independent): Forbidden: a v2 Backup accepting packets addressed to the virtual address. Same unit as 6.4.2-1: a Version 2 Backup installs no address (so the kernel has no local route for it) and hands no acceptance filter; the v2 Master contrast installs it. Records: revert doInstallVIPs, both polarities. Forwarding of virtual-MAC frames by a Backup is the separate RFC3768-6.4.2-2 defect (D-8), not this row.",
+      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: vrrp judge 2026-09-29 (independent): Forbidden: a v2 Backup accepting packets addressed to the virtual address. Same unit as 6.4.2-1: a Version 2 Backup installs no address (so the kernel has no local route for it) and hands no acceptance filter; the v2 Master contrast installs it. Records: revert doInstallVIPs, both polarities. Forwarding of virtual-MAC frames by a Backup is the separate RFC3768-6.4.2-2 defect (D-8), not this row.",
       "requirement_sha": "7c11c855f4f5522d",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "ffb951f020b9cbce",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "ffb951f020b9cbce",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "b7108f927f669585",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "b7108f927f669585",
         "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "8b5d8c7a41e8e18e",
         "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "8b5d8c7a41e8e18e"
       },
       "units": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "312c553bb00ae79d",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "98d2994e98962652",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e1a785d3aeb30340",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "7e4b071c14d787cc",
         "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "5acb5d55e3b770ee",
         "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "5acb5d55e3b770ee"
       },
@@ -206,28 +208,32 @@
       "verdict": "weak"
     },
     "RFC3768-6.4.3-1": {
-      "note": "positive asserts sysctl values (proxy for the ARP reply, the reply itself is not observed); the negative is teardown restoring the knobs, which is not an input violating the Master ARP obligation",
+      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly (QEMU guest, records observed red) proves a non-owner holding the virtual address on the virtual-MAC macvlan answers ARP, and with the address removed no reply is observed. Still weak: the unit installs the address by hand, and no unit tagged for this id shows the product installs the IPv4 virtual address on the virtual-MAC device on promotion (doInstallVIPs through installVIPs); deleting that install keeps every tagged unit green. The sysctl-recipe positive and teardown negative in dataplane_linux_test.go remain proxies. Owed: tag an instance promotion test that asserts the install device and CIDRs for this id.",
       "requirement_sha": "0782227452c1671b",
       "tests": {
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "a2a1d36eaea86500",
-        "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "a2a1d36eaea86500"
+        "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "a2a1d36eaea86500",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "e5cea0285e8df647",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "e5cea0285e8df647"
       },
       "units": {
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "8bbcb38638b03997",
-        "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "9264454e88d221df"
+        "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "9264454e88d221df",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "d265091692db3d83",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "d265091692db3d83"
       },
       "verdict": "weak"
     },
     "RFC3768-6.4.3-2": {
-      "note": "the units assert VIP installation on the macvlan; forwarding of frames to the virtual MAC depends on the macvlan, which exists in Backup too, so neither polarity shows forward-in-Master versus not-in-Backup",
+      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): TestVRRPBackupDoesNotForwardVirtualMACFrames (QEMU guest, records observed red on clearBackupFilter) proves the wire effect: with the filter withdrawn and the address installed the datagram sent to the Virtual Router MAC is forwarded, and while the filter holds it is not. Still weak: the unit withdraws the filter by hand; the promotion wiring (doInstallVIPs calls clearBackupDiscard after the install) is proven only by the untagged TestBackupDiscardFollowsTheState, so deleting that call keeps every tagged unit green while an Active router black-holes the Virtual Router MAC. Owed: tag TestBackupDiscardFollowsTheState for this id, both polarities, with a record on doInstallVIPs (and assert the withdraw follows the install).",
       "requirement_sha": "5e5216241a37631a",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "ffb951f020b9cbce",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "ffb951f020b9cbce"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "e5cea0285e8df647",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "e5cea0285e8df647"
       },
       "units": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "312c553bb00ae79d",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "98d2994e98962652"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "ae65b076e9153ae9",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "ae65b076e9153ae9"
       },
       "verdict": "weak"
     },
@@ -245,19 +251,19 @@
       "verdict": "enforced"
     },
     "RFC3768-6.4.3-4": {
-      "note": "vrrp judge 2026-09-29 (independent): TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress promotes a Version 2 group to Master and requires exactly one acceptance-filter call with accept=true for the owner (positive) and accept=false for the non-owner (negative), so an owner suppression or an acceptance granted to every Master goes red. Records: revert EffectiveAcceptMode, both polarities. The older tags on TestInstanceOwnerStartupGoesMaster/NonOwnerGoesBackup remain and add nothing.",
+      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: vrrp judge 2026-09-29 (independent): TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress promotes a Version 2 group to Master and requires exactly one acceptance-filter call with accept=true for the owner (positive) and accept=false for the non-owner (negative), so an owner suppression or an acceptance granted to every Master goes red. Records: revert EffectiveAcceptMode, both polarities. The older tags on TestInstanceOwnerStartupGoesMaster/NonOwnerGoesBackup remain and add nothing.",
       "requirement_sha": "e0ce4a74ed7e3d15",
       "tests": {
         "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress": "ac94e88781e5c08d",
         "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress#2": "ac94e88781e5c08d",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "ffb951f020b9cbce",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "ffb951f020b9cbce"
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "b7108f927f669585",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "b7108f927f669585"
       },
       "units": {
         "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress": "4ad715554dd0bc0d",
         "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress#2": "4ad715554dd0bc0d",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "312c553bb00ae79d",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "98d2994e98962652"
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e1a785d3aeb30340",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "7e4b071c14d787cc"
       },
       "verdict": "enforced"
     },
@@ -267,7 +273,7 @@
       "tests": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceShutdownAsMasterSendsPriorityZero": "ffb951f020b9cbce",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceShutdownAsMasterSendsPriorityZero": "b7108f927f669585",
         "internal/plugins/vrrp/v2_group_test.go::TestV2MasterShutdown": "8b5d8c7a41e8e18e",
         "internal/plugins/vrrp/v2_group_test.go::TestV2MasterShutdown#2": "8b5d8c7a41e8e18e"
       },
@@ -389,8 +395,8 @@
       "note": "RA-FIX re-read 2026-09-27. Owner half enforced for VRRPv2: TestInstanceV2OwnerDiscardsAdvert feeds a Priority 255 advert from a greater sender to a v2 owner and asserts ReasonOwner, no FSM event and Master held, and the same advert to a non-owner reaches the FSM. VRID half: Decode returns ErrUnknownVRID when the lookup does not resolve the VRID (TestValidationOrder 4<5) and TestDecodeGoldenV2 resolves a configured one. The clause 'on the receiving interface' is not asserted: the lookup (instance.lookup) compares the VRID with its own instance, and interface scoping rests on the per-instance socket the transport binds, which no tagged unit exercises; an advert for a VRID configured on another interface is never fed to any tagged unit. DF-VRRP-5 re-read 2026-09-27: onPacket changed only by the v3 noteOwnerConflict branch and the syncSourceLocked call before the FSM event, neither on the v2 owner path, so the owner-half assertions stand. The owner half is also proven end to end by the vrrp-v2-owner-keepalived interop scenario (keepalived at 255 from a greater source; Ze keeps the /32 and counts owner discards), red with the v2 owner return removed (DF-VRRP-4 iop-red2.log, DF-VRRP-5 iop-owner-red.log). Still weak: the 'on the receiving interface' clause has no tagged unit. RA-VRRP strict re-read 2026-09-27 (independent): agrees weak. Owner half: TestInstanceV2OwnerDiscardsAdvert asserts rxErrors == [ReasonOwner] and an empty event queue for the v2 owner, and AdvertReceived with no rx error for the v2 non-owner, so a missing discard or a discard of every advert goes red. VRID half: TestValidationOrder '4<5' asserts ErrUnknownVRID, but on a v3 packet with a lookup that answers false, and TestDecodeGoldenV2 resolves the configured VRID. 'On the receiving interface' has no assertion: no tagged unit delivers an advert whose VRID is configured on a different interface.",
       "requirement_sha": "33fb058bfc2e3638",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert": "ffb951f020b9cbce",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert#2": "ffb951f020b9cbce",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert": "b7108f927f669585",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert#2": "b7108f927f669585",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "19a4c15f930f948e",
         "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "19a4c15f930f948e"
       },
@@ -416,19 +422,19 @@
       "verdict": "enforced"
     },
     "RFC3768-7.1-6": {
-      "note": "vrrp judge 2026-09-29 (independent): TestInstanceRxFailedCheckIsDiscarded covers every RFC 3768 7.1 MUST check for a Version 2 group: TTL 254, version 3, fixed fields short, Authentication Data short (checksum refilled so only completeness fails), checksum, unconfigured VRID (checksum refilled), Auth Type 1, and the address-owner receiver; each case must record exactly its reason, post no FSM event and keep its state. Each case builds its own buffer, and a control instance fed the unbroken packet must record nothing and post AdvertReceived. TestInstanceRxDecodeErrorMapsReason now also asserts reason truncated and no event. Records: revert onPacket, both polarities. 'on the receiving interface' is RFC3768-7.1-4's clause, still weak.",
+      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): TestInstanceRxFailedCheckIsDiscarded: every RFC 3768 7.1 check for a Version 2 group (TTL, version, fixed fields, auth data, checksum, VRID, Auth Type, owner) gets its own buffer (checksum refilled so only that check fails), its exact reason, no FSM event and unchanged state; the unbroken packet reaches AdvertReceived. The unit changed only by a v3 case; records on onPacket re-recorded by the judge after that change, observed red.",
       "requirement_sha": "5382391a3b5b9394",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceRxDecodeErrorMapsReason": "ffb951f020b9cbce",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceRxValidAdvertReachesFSM": "ffb951f020b9cbce",
-        "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded": "09483b5297e8374b",
-        "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded#2": "09483b5297e8374b"
+        "internal/plugins/vrrp/instance_test.go::TestInstanceRxDecodeErrorMapsReason": "b7108f927f669585",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceRxValidAdvertReachesFSM": "b7108f927f669585",
+        "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded": "255033f28cfa55b1",
+        "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded#2": "255033f28cfa55b1"
       },
       "units": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceRxDecodeErrorMapsReason": "7273926a6ce2e1df",
         "internal/plugins/vrrp/instance_test.go::TestInstanceRxValidAdvertReachesFSM": "6f0121fec4875be7",
-        "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded": "0d4b4f6316242e6f",
-        "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded#2": "0d4b4f6316242e6f"
+        "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded": "3c21c5112840bac1",
+        "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded#2": "3c21c5112840bac1"
       },
       "verdict": "enforced"
     },
@@ -439,9 +445,9 @@
       "note": "onPacket drops a v2 address-list mismatch only when the sender Priority is not 255, and otherwise logs it (address-list reason) and continues. TestInstanceV2AddressListMismatchDrops pins the drop for Priority 250 with no FSM event; TestInstanceV2AddressListMismatchFromOwnerContinues pins the Priority 255 mismatch reaching the FSM with the reason logged; TestInstanceV2AddressListMatchReachesFSM pins a matching list. Discrimination recorded for each. DF-VRRP-5 re-read 2026-09-27, strictly: clause 'not generated by the address owner (Priority does not equal 255) MUST drop': TestInstanceV2AddressListMismatchDrops feeds a Priority 250 mismatch and asserts exactly ReasonAddressList and no FSM event, so a continue goes red. Clause 'otherwise continue processing': TestInstanceV2AddressListMismatchFromOwnerContinues feeds a Priority 255 mismatch and asserts the reason logged and an AdvertReceived at priority 255, so a drop goes red. A matching list reaching the FSM is TestInstanceV2AddressListMatchReachesFSM. onPacket's later edits (v3 noteOwnerConflict, syncSourceLocked) sit off this path. Priority 254, the boundary below the owner, is not fed to any unit. RA-VRRP strict re-read 2026-09-27 (independent): agrees enforced. Forbidden 1, continuing a non-owner mismatch: TestInstanceV2AddressListMismatchDrops (Priority 250) asserts rxErrors == [ReasonAddressList] and no event, red on continue. Forbidden 2, dropping an owner mismatch: TestInstanceV2AddressListMismatchFromOwnerContinues (Priority 255) asserts the reason and an AdvertReceived at priority 255, red on drop. The code tests adv.Priority != ownerPriority (instance.go onPacket), so the 250 and 255 cases pin the predicate's two outcomes; 254 remains unfed.",
       "requirement_sha": "b3bc79665caa7c9b",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMatchReachesFSM": "ffb951f020b9cbce",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMismatchDrops": "ffb951f020b9cbce",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMismatchFromOwnerContinues": "ffb951f020b9cbce"
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMatchReachesFSM": "b7108f927f669585",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMismatchDrops": "b7108f927f669585",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMismatchFromOwnerContinues": "b7108f927f669585"
       },
       "units": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMatchReachesFSM": "9275d0188f8d2f13",
@@ -523,7 +529,7 @@
       "verdict": "enforced"
     },
     "RFC3768-8.2-1": {
-      "note": "vrrp judge 2026-09-29 (independent): owner half now complete: TestOwnerFilterWiredOnPromotionForEveryFamily (ipv4-v2 case) drives the product route, an owner promoted through the FSM hands setOwnerFilter the parent and exactly the owned address before install-addresses, and the non-owner names none (records: revert doInstallVIPs); TestVRRPOwnerAnswersWithVirtualMACOnly proves the filter's wire effect. Still weak: the non-owner half. TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly (vmac_state_integration_linux_test.go, QEMU) carries tags but has no discrimination record and is not committed yet; until its guest records exist the non-owner case rests on the TestDataplaneApplyIPv4SetsRecipe sysctl proxy with a teardown negative.",
+      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Both halves now proven. Owner: TestOwnerFilterWiredOnPromotionForEveryFamily (ipv4-v2) drives an owner through the FSM to setOwnerFilter with the parent and exactly the owned address before install, non-owner names none (records on doInstallVIPs, re-recorded after the D-8 edit); TestVRRPOwnerAnswersWithVirtualMACOnly proves the wire effect with a physical-MAC control. Non-owner: TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly (QEMU guest) captures the physical MAC without applyDataplaneSysctls and only the virtual MAC with it (records observed red).",
       "requirement_sha": "0114ea42ca259e71",
       "tests": {
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "a2a1d36eaea86500",
@@ -532,8 +538,8 @@
         "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "20eee010ac52594f",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "6ac7289e0c409824",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "6ac7289e0c409824",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "6abf839c6681e3d9",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "6abf839c6681e3d9"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "e5cea0285e8df647",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "e5cea0285e8df647"
       },
       "units": {
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "8bbcb38638b03997",
@@ -542,10 +548,10 @@
         "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "409a8e77461dde0e",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "a3c52990d644258a",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "a3c52990d644258a",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "7fd35521e2b98a61",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "7fd35521e2b98a61"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "d265091692db3d83",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "d265091692db3d83"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc3768"

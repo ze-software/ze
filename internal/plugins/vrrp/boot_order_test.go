@@ -36,7 +36,7 @@ import (
 // RFC requirement: RFC9568-8.2.2-4 positive -- for an IPv6 group the engine creates the Virtual Router MAC device before it builds the instance, so the unsolicited Neighbor Advertisement follows both the device and the address install (build engine.go, execute instance.go)
 // RFC requirement: RFC9568-8.2.2-4 negative -- while the Virtual Router MAC device cannot be created the engine builds no instance, so no Neighbor Advertisement and no address install happen (build engine.go)
 // RFC requirement: RFC5798-8.2.2-4 positive -- for an IPv6 group the engine creates the virtual router MAC device before it builds the instance, so the unsolicited Neighbor Advertisement follows both the device and the address install (build engine.go, execute instance.go)
-// RFC requirement: RFC5798-8.2.2-4 negative -- while the virtual router MAC device cannot be created the engine builds no instance, so no Neighbor Advertisement and no address install happen (build engine.go)
+// RFC requirement: RFC5798-8.2.2-4 negative -- while the virtual router MAC device cannot be created the engine builds no instance, so no Neighbor Advertisement and no address install happen (build engine.go).
 func TestEngineAnnouncesNothingBeforeTheVirtualMACDevice(t *testing.T) {
 	cases := []struct {
 		name string

@@ -136,6 +136,15 @@ type engineDeps struct {
 	// alone.
 	clearOwnerFilter func(instanceOwner string) error
 
+	// setBackupFilter drops what the virtual-MAC device receives while the
+	// instance is not Active (backupfilter.go). The caller MUST call
+	// clearBackupFilter when the instance becomes Active and when it stops.
+	setBackupFilter func(instanceOwner, device string) error
+	// clearBackupFilter withdraws the instance's backup-filter entry. It MUST
+	// be called after setBackupFilter once the instance is Active or stopped,
+	// or the Virtual Router MAC stays a black hole.
+	clearBackupFilter func(instanceOwner string) error
+
 	// parentReady reports whether the unit's device can host a virtual router:
 	// operationally up, with an address of this family to source advertisements
 	// from. Keyed on the PARENT, never on the macvlan: the kernel leaves a
@@ -239,6 +248,12 @@ func eventName(ev fsm.Event) string {
 // ai/rules/goroutine-lifecycle.md (goroutine per lifecycle, not per event).
 func (in *instance) run() {
 	defer close(in.done)
+
+	// Every state before the first promotion is not Active, and the macvlan
+	// already exists, so its traffic is dropped from the start. The exit
+	// withdraws the entry once stopInstance has run the Shutdown actions.
+	in.setBackupDiscard()
+	defer in.clearBackupDiscard()
 
 	// Watch the parent and every tracked interface for link changes before the
 	// first evaluation, so a change racing startup is not missed.
@@ -594,6 +609,29 @@ func (in *instance) doInstallVIPs(vips []netip.Addr) {
 		logger().Error("vrrp: install virtual addresses failed",
 			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID, "device", in.dev, "error", err)
 	}
+	// RFC 9568 Section 6.4.3: the Active router forwards packets sent to the
+	// Virtual Router MAC, so the Backup discard ends here.
+	in.clearBackupDiscard()
+}
+
+// setBackupDiscard drops what the virtual-MAC device receives. A filter that
+// fails to apply is an operator-visible error; the state change goes on.
+func (in *instance) setBackupDiscard() {
+	// RFC 9568 Section 6.4.2
+	if err := in.deps.setBackupFilter(in.own, in.dev); err != nil {
+		logger().Error("vrrp: set backup discard dataplane filter failed",
+			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,
+			"device", in.dev, "error", err)
+	}
+}
+
+// clearBackupDiscard withdraws the drop setBackupDiscard installed.
+func (in *instance) clearBackupDiscard() {
+	if err := in.deps.clearBackupFilter(in.own); err != nil {
+		logger().Error("vrrp: withdraw backup discard dataplane filter failed",
+			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,
+			"device", in.dev, "error", err)
+	}
 }
 
 // doRemoveVIPs deregisters this instance's owner.
@@ -611,7 +649,12 @@ func (in *instance) doInstallVIPs(vips []netip.Addr) {
 // The owner filter is withdrawn after the addresses for the same reason: once
 // the virtual-MAC device no longer holds an owned address, the parent is its
 // only holder and has to answer for it again.
+//
+// The backup discard goes in FIRST: the macvlan forwards what it receives with
+// or without an address, so the drop, not the address removal, is what stops
+// a router that is no longer Active from forwarding for the Virtual Router MAC.
 func (in *instance) doRemoveVIPs() {
+	in.setBackupDiscard()
 	in.deps.removeVIPs(in.own)
 	if err := in.deps.clearAcceptFilter(in.own); err != nil {
 		logger().Error("vrrp: withdraw accept-mode dataplane filter failed",

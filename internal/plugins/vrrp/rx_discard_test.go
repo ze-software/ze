@@ -98,7 +98,7 @@ func rxChecksumWrong(buf []byte, n int, _ *packet.RxMeta) int {
 // record nothing and post an AdvertReceived: that control shows the only thing
 // separating the two runs is the broken check.
 //
-// RFC requirement: RFC9568-7.1-6 negative -- a VRRPv3 packet failing any one of the mandatory checks, IPv4 TTL or IPv6 Hop Limit 255, version 3, type ADVERTISEMENT, complete fixed fields and addresses, checksum, and VRID configured, records that check's reason and never reaches the state machine (onPacket instance.go, Decode packet/validate.go)
+// RFC requirement: RFC9568-7.1-6 negative -- a VRRPv3 packet failing any one of the mandatory checks, IPv4 TTL or IPv6 Hop Limit 255, version 3, type ADVERTISEMENT, complete fixed fields and addresses, checksum, VRID configured, and Max Advertise Interval non zero (erratum 8301), records that check's reason and never reaches the state machine (onPacket instance.go, Decode packet/validate.go)
 // RFC requirement: RFC9568-7.1-6 positive -- the same VRRPv3 packet with every check passing records nothing and reaches the state machine as AdvertReceived (onPacket instance.go).
 // RFC requirement: RFC5798-7.1-4 negative -- a VRRPv3 packet failing any one of the TTL or Hop Limit, version, complete packet, checksum, or VRID configured checks records that check's reason and never reaches the state machine; the owner half follows RFC 9568 erratum 8298 and is not claimed here (onPacket instance.go, Decode packet/validate.go)
 // RFC requirement: RFC5798-7.1-4 positive -- the same VRRPv3 packet with every check passing records nothing and reaches the state machine as AdvertReceived (onPacket instance.go).
@@ -125,6 +125,7 @@ func TestInstanceRxFailedCheckIsDiscarded(t *testing.T) {
 		{"v3-address-short", v3, false, rxTailShort, "length"},
 		{"v3-checksum", v3, false, rxChecksumWrong, "checksum"},
 		{"v3-vrid", v3, false, refilled(func(b []byte) { b[1] = 11 }), "vrid"},
+		{"v3-interval-zero", v3, false, refilled(func(b []byte) { b[4], b[5] = 0, 0 }), "interval-zero"},
 		{"v2-ttl", v2, false, rxHopLimit254, "ttl"},
 		{"v2-version", v2, false, refilled(func(b []byte) { b[0] = packet.VersionV3<<4 | 1 }), "version"},
 		{"v2-fixed-fields-short", v2, false, rxFixedFieldsShort, "truncated"},

@@ -58,6 +58,9 @@ type fakeDeps struct {
 	// kernel would hold enters dataplane.
 	ownerFilters []ownerFilterCall
 	ownerHeld    map[string]bool
+	// discards records every backup-filter call in order: "on:<device>" for
+	// setBackupFilter, "off" for clearBackupFilter.
+	discards []string
 }
 
 // ownerFilterCall is one call to setOwnerFilter or clearOwnerFilter.
@@ -167,6 +170,18 @@ func (f *fakeDeps) deps() engineDeps {
 			}
 			delete(f.ownerHeld, owner)
 			f.dataplane = append(f.dataplane, "owner-filter-withdrawn")
+			return nil
+		},
+		setBackupFilter: func(_, device string) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			f.discards = append(f.discards, "on:"+device)
+			return nil
+		},
+		clearBackupFilter: func(string) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			f.discards = append(f.discards, "off")
 			return nil
 		},
 		recordRxError: func(_ transport.InstanceKey, reason string) {
@@ -378,18 +393,12 @@ func TestInstanceStartupNonOwnerGoesBackup(t *testing.T) {
 	// docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md). The Master contrast lives in
 	// TestInstanceOwnerStartupGoesMaster.
 	// RFC requirement: RFC3768-6.4.2-1 positive -- a Backup installs no VIP, so the kernel never answers ARP requests for the virtual address (doInstallVIPs runs only on Master, instance.go:369).
-	// RFC requirement: RFC3768-6.4.2-2 positive -- with no VIP installed a Backup does not locally accept frames delivered to the virtual-MAC device.
 	// RFC requirement: RFC3768-6.4.2-3 positive -- a Backup accepts no packets addressed to the virtual IP because the address is never installed on it.
-	// RFC requirement: RFC3768-6.4.3-2 negative -- contrast: a Backup does NOT install the VIP, so it does not process traffic for the virtual MAC (a Master does).
 	// RFC requirement: RFC3768-6.4.3-4 negative -- contrast: a Backup does NOT accept packets for the virtual IP (a Master installs the VIP and accepts).
 	// RFC requirement: RFC9568-6.4.2-1 positive -- a Backup installs no virtual address, so the kernel answers no ARP request for it (doInstallVIPs runs only on an Active transition, instance.go:369)
 	// RFC requirement: RFC5798-6.4.2-1 positive -- a Backup installs no virtual address, so the kernel answers no ARP request for it (doInstallVIPs runs only on a Master transition, instance.go:369)
-	// RFC requirement: RFC9568-6.4.2-4 positive -- with no virtual address installed, frames delivered to the Virtual Router MAC device are not processed locally by a Backup
-	// RFC requirement: RFC5798-6.4.2-4 positive -- with no virtual address installed, frames delivered to the virtual router MAC device are not processed locally by a Backup (instance.go:369)
 	// RFC requirement: RFC9568-6.4.2-5 positive -- a Backup accepts no packet addressed to the virtual IPvX address, because the address is never installed on it
 	// RFC requirement: RFC5798-6.4.2-5 positive -- a Backup accepts no packet addressed to the virtual IPvX address, because the address is never installed on it (instance.go:369)
-	// RFC requirement: RFC9568-6.4.3-5 negative -- contrast: a Backup does NOT install the virtual address, so it does not process traffic for the Virtual Router MAC (an Active router does)
-	// RFC requirement: RFC5798-6.4.3-5 negative -- contrast: a Backup does NOT install the virtual address, so it does not forward traffic for the virtual router MAC (instance.go:369)
 	// RFC requirement: RFC9568-6.4.3-6 negative -- contrast: a Backup does NOT accept packets addressed to the virtual IPvX address (the Active owner installs the address and accepts).
 	in, f, _ := newTestInstance(t, testSpec())
 	in.dispatch(fsm.Startup{Config: in.fsmConfig()})
@@ -419,18 +428,12 @@ func TestInstanceOwnerStartupGoesMaster(t *testing.T) {
 	// vMAC device), which is how ze makes the kernel forward/accept traffic for the
 	// virtual MAC and virtual IP; the Backup contrast lives in
 	// TestInstanceStartupNonOwnerGoesBackup.
-	// RFC requirement: RFC3768-6.4.3-2 positive -- the Master installs the VIP on its virtual-MAC macvlan, so the kernel delivers/processes frames addressed to the virtual MAC (instance.go:369; createMacvlan register.go:329).
 	// RFC requirement: RFC3768-6.4.3-4 positive -- the owner Master installs the VIP (a real parent address), so the kernel accepts packets addressed to the virtual IP.
 	// RFC requirement: RFC3768-6.4.2-1 negative -- contrast: a Master DOES own the VIP on the vMAC device, so the Backup ARP-non-response is state-specific, not a blanket refusal.
-	// RFC requirement: RFC3768-6.4.2-2 negative -- contrast: a Master DOES accept frames delivered to the virtual MAC (VIP installed).
 	// RFC requirement: RFC3768-6.4.2-3 negative -- contrast: a Master DOES accept packets addressed to the virtual IP (VIP installed).
-	// RFC requirement: RFC9568-6.4.3-5 positive -- the Active router installs the virtual address on its Virtual Router MAC macvlan, so the kernel processes frames addressed to that MAC (instance.go:369; createMacvlan register.go:329)
-	// RFC requirement: RFC5798-6.4.3-5 positive -- the Master installs the virtual address on its virtual router MAC macvlan, so the kernel forwards frames whose destination link-layer address is that MAC (instance.go:369; createMacvlan register.go:329)
 	// RFC requirement: RFC9568-6.4.3-6 positive -- the Active router that owns the address installs it, so packets addressed to the virtual IPvX address are accepted (instance.go:369)
 	// RFC requirement: RFC9568-6.4.2-1 negative -- contrast: an Active router DOES own the virtual address on the vMAC device, so the Backup ARP silence is state-specific, not a blanket refusal
 	// RFC requirement: RFC5798-6.4.2-1 negative -- contrast: a Master DOES own the virtual address on the vMAC device, so the Backup ARP silence is state-specific rather than a blanket refusal (instance.go:369)
-	// RFC requirement: RFC9568-6.4.2-4 negative -- contrast: an Active router DOES process frames delivered to the Virtual Router MAC (address installed)
-	// RFC requirement: RFC5798-6.4.2-4 negative -- contrast: a Master DOES process frames delivered to the virtual router MAC, because it installs the address (instance.go:369)
 	// RFC requirement: RFC9568-6.4.2-5 negative -- contrast: an Active router DOES accept packets addressed to the virtual IPvX address (address installed).
 	// RFC requirement: RFC5798-6.4.2-5 negative -- contrast: a Master DOES accept packets addressed to the virtual IPvX address, because it installs the address (instance.go:369).
 	spec := testSpec()

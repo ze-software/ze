@@ -344,6 +344,11 @@ A few consequences of this mechanism are worth knowing:
   `show firewall ruleset` lists. Hosts therefore learn only the virtual MAC, as
   the RFCs require. The ARP table needs a kernel built with
   `CONFIG_NF_TABLES_ARP`; ze's appliance kernel has it.
+- **A Backup drops traffic sent to the virtual MAC.** The virtual-MAC interface
+  exists in every state, and the kernel would forward what it receives even with
+  no virtual IP on it. While a group is not Active, ze drops every packet that
+  interface receives with the firewall table `ze_vrrp_backup`, which
+  `show firewall ruleset` lists. The Active router forwards that traffic.
 - **First-resolution race (IPv4 only).** The very first host to ARP for the
   virtual IP right as a router becomes Active can, for one resolution, cache the
   parent's real MAC before the macvlan takes over; it converges to the virtual
