@@ -64,15 +64,24 @@ func playIPCPOpenIPv6CPHeld(t *testing.T, conn net.Conn, deadline time.Time, don
 // VALIDATES: with both NCPs enabled, IPCP Opened and IPV6CP in Ack-Rcvd (ze's
 // request Acked, the peer's never sent), the session never starts its IPv6
 // service and never reports the session up, until the NCP timeout ends it.
-// METHOD: the IPv6 service attempt is observed through its log line, which
-// afterLCPOpenIPv6Service writes whenever it calls startIPv6Service (the
-// service cannot start in the test, so every attempt logs the failure). The
+// METHOD: the IPv6 service attempt is observed through its log lines:
+// afterLCPOpenIPv6Service logs "IPv6 service start failed" whenever it calls
+// startIPv6Service (the service cannot start in the test), and logs "refusing
+// to start the IPv6 service" when it is reached with no negotiated peer
+// interface identifier, the form an early start takes in this scenario. The
 // wait runs until EventSessionDown, the end of every path that could reach the
 // service.
 //
 // RFC requirement: RFC5072-2-1 positive -- with IPCP Opened and IPV6CP out of Initial but not Opened (Ack-Rcvd), no EventSessionUp is emitted, the session ends on the NCP timeout with EventSessionDown, and the IPv6 service start is never attempted.
 func TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened(t *testing.T) {
-	const startAttemptLog = "IPv6 service start failed"
+	// Both lines mark an attempt: the first when startIPv6Service ran and
+	// failed, the second when the gate was passed without a negotiated peer
+	// interface identifier, which is what an early start logs here because
+	// the peer never sends its own IPV6CP Configure-Request.
+	startAttemptLogs := []string{
+		"IPv6 service start failed",
+		"refusing to start the IPv6 service",
+	}
 	w := &captureWriter{}
 	logger := slog.New(slog.NewTextHandler(w, nil))
 	td := newNCPTestDriverIPLogged(t, &StartSession{}, autoAcceptIP, logger)
@@ -92,8 +101,11 @@ func TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened(t *testing.T) {
 			case EventSessionUp:
 				t.Fatalf("EventSessionUp while IPV6CP was not Opened; log = %q", w.String())
 			case EventSessionDown:
-				if log := w.String(); strings.Contains(log, startAttemptLog) {
-					t.Fatalf("IPv6 service start attempted while IPV6CP was not Opened; log = %q", log)
+				log := w.String()
+				for _, attempt := range startAttemptLogs {
+					if strings.Contains(log, attempt) {
+						t.Fatalf("IPv6 service start attempted while IPV6CP was not Opened (%q); log = %q", attempt, log)
+					}
 				}
 				if !strings.Contains(got.Reason, "ncp: timeout") {
 					t.Fatalf("session ended with %q, want the NCP timeout; log = %q", got.Reason, w.String())

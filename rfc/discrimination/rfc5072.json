@@ -5,7 +5,7 @@
       "rid": "RFC5072-2-1",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/rfc5072_ipv6cp_opened_test.go::TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened",
-      "unit-sha": "5b8a040e6b0f1697",
+      "unit-sha": "7755df839546f4c6",
       "claim-sha": "d70ec7cbebbb2a0c",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ncp.go::ncpsComplete",

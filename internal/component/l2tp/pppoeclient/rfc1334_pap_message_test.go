@@ -11,6 +11,7 @@ package pppoeclient
 import (
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
@@ -26,9 +27,8 @@ func (discardRWC) Write(p []byte) (int, error) { return len(p), nil }
 func (discardRWC) Close() error                { return nil }
 
 // papReplyFrame builds a PPP frame carrying a PAP Authenticate-Ack (code 2) or
-// Authenticate-Nak (code 3) with the given Identifier and a Message. The
-// Message is deliberately non-empty so the test proves it is ignored, not that
-// it happens to be absent.
+// Authenticate-Nak (code 3) with the given Identifier and a Message, which
+// may be empty.
 func papReplyFrame(t *testing.T, code, id uint8, message string) []byte {
 	t.Helper()
 	var pap [64]byte
@@ -46,14 +46,14 @@ func papReplyFrame(t *testing.T, code, id uint8, message string) []byte {
 	return out[:off]
 }
 
-// RFC requirement: RFC1334-2.3-4 positive -- a PAP Authenticate-Ack (Code 2)
-// carrying a non-empty Message still yields auth success: runClientAuth
-// branches only on pkt.Code and never reads the Message field (producer
-// internal/component/l2tp/pppoeclient/session.go:285-288).
-// RFC requirement: RFC1334-2.3-4 negative -- a PAP Authenticate-Nak (Code 3)
-// carrying a Message still yields auth failure (session.go:289-290); the same
-// Message text on both codes yields opposite outcomes, proving the Message does
-// not change the Code-driven outcome.
+// The cases hold the Code fixed and vary only the Message: three Acks and
+// three Naks carry the same three Messages, one empty, one that reads as
+// success and one that reads as failure. A Nak must end the run with its own
+// rejection error, because an ignored Nak also ends in an error once the
+// Authenticate-Request retries run out.
+//
+// RFC requirement: RFC1334-2.3-4 positive -- a PAP Authenticate-Ack (Code 2) whose Message is empty, "welcome aboard" or "invalid credentials" yields auth success from runClientAuth every time: with the Code fixed, the Message does not change the outcome.
+// RFC requirement: RFC1334-2.3-4 negative -- a PAP Authenticate-Nak (Code 3) whose Message is empty, "welcome aboard" or "invalid credentials" yields the PAP rejection error from runClientAuth every time: a success-like Message does not turn a Nak into success.
 func TestPAPReplyMessageDoesNotAffectOutcome(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -61,8 +61,12 @@ func TestPAPReplyMessageDoesNotAffectOutcome(t *testing.T) {
 		message string
 		wantErr bool
 	}{
-		{"ack with message succeeds", ppp.PAPAuthenticateAck, "welcome aboard", false},
-		{"nak with message fails", ppp.PAPAuthenticateNak, "invalid credentials", true},
+		{"ack with empty message succeeds", ppp.PAPAuthenticateAck, "", false},
+		{"ack with success message succeeds", ppp.PAPAuthenticateAck, "welcome aboard", false},
+		{"ack with failure message succeeds", ppp.PAPAuthenticateAck, "invalid credentials", false},
+		{"nak with empty message fails", ppp.PAPAuthenticateNak, "", true},
+		{"nak with success message fails", ppp.PAPAuthenticateNak, "welcome aboard", true},
+		{"nak with failure message fails", ppp.PAPAuthenticateNak, "invalid credentials", true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -77,8 +81,8 @@ func TestPAPReplyMessageDoesNotAffectOutcome(t *testing.T) {
 
 			err := runClientAuth(discardRWC{}, frames, buf, lcp, cfg, 0, stopCh, logger)
 
-			if tc.wantErr && err == nil {
-				t.Fatalf("runClientAuth returned nil, want failure for a Nak bearing message %q", tc.message)
+			if tc.wantErr && (err == nil || !strings.Contains(err.Error(), "PAP auth rejected")) {
+				t.Fatalf("runClientAuth returned %v, want the PAP rejection for a Nak bearing message %q", err, tc.message)
 			}
 			if !tc.wantErr && err != nil {
 				t.Fatalf("runClientAuth returned %v, want success for an Ack bearing message %q", err, tc.message)

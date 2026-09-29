@@ -90,6 +90,28 @@
       "break": "body of rejectUnsupportedProtocol replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC1334-2.3-4",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome",
+      "unit-sha": "5de10b8fc7f11fe2",
+      "claim-sha": "d72a7c200630affa",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
+      "producer-sha": "c83d1658af0a4fc7",
+      "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1334-2.3-4",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome",
+      "unit-sha": "5de10b8fc7f11fe2",
+      "claim-sha": "336aa9415b2f7025",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
+      "producer-sha": "c83d1658af0a4fc7",
+      "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1334-x-1",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP",

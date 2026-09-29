@@ -17,6 +17,8 @@ import (
 //
 // RFC requirement: RFC1332-2.1-3 positive -- afterLCPOpen installs MTU 1400 on ppp7 for peer MRU 1400, preserving the complete Information field for the IP datagram.
 // RFC requirement: RFC1332-2.1-3 negative -- afterLCPOpen never installs the default 1500 on ppp7 when the peer negotiated MRU 1400.
+// RFC requirement: RFC1332-2.1-4 positive -- afterLCPOpen installs exactly one MTU on ppp7, 1400, the peer's negotiated MRU, as the size above which an IP datagram is fragmented.
+// RFC requirement: RFC1332-2.1-4 negative -- afterLCPOpen installs no MTU above 1400 on ppp7, the default 1500 included, when the peer negotiated MRU 1400.
 func TestIPMTUInstalledFromNegotiatedMRU(t *testing.T) {
 	reg := newPipeRegistry()
 	installPipeRegistry(t, reg)

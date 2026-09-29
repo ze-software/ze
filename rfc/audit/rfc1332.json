@@ -32,17 +32,29 @@
       "verdict": "enforced"
     },
     "RFC1332-2.1-3": {
-      "note": "Judge ppp4 2026-09-30. Row now quotes only the first sentence of Section 2.1 (verbatim, rfc/full/rfc1332.txt), the fragmentation sentence having moved to RFC1332-2.1-4. TestIPMTUInstalledFromNegotiatedMRU drives a proxied session with peer MRU 1400 to EventSessionUp and fails unless exactly one MTU is installed, on ppp7, equal to 1400: the value Ze installs for the largest IP packet sent. Negative is forced input (R1 b): 1400 differs from the 1500 default and MaxMRU, so a producer ignoring the negotiated MRU is red; recorded afterLCPOpen revert observed red.",
+      "note": "Judge ppp5 2026-09-30. Unit gained the RFC1332-2.1-4 tags only; body unchanged. TestIPMTUInstalledFromNegotiatedMRU fails unless exactly one MTU is installed on ppp7 and it equals the peer's negotiated MRU 1400 (the largest IP packet sent = the Information-field maximum); 1400 differs from the 1500 default and MaxMRU, so a producer ignoring the negotiated MRU is red (forced-input negative, R1 b). Recorded afterLCPOpen revert.",
       "requirement_sha": "0fa5e41e13adac0d",
       "tests": {
-        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "b8f321341f34b888",
-        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "b8f321341f34b888"
+        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "5311f4ad1daacab2",
+        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "5311f4ad1daacab2"
       },
       "units": {
-        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "ec9e825a4a58f335",
-        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "ec9e825a4a58f335"
+        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "c9b1748acb3cdb86",
+        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "c9b1748acb3cdb86"
       },
-      "upgrade_reason": "The 2026-09-27 weak verdict rested on the second clause (fragmentation) having no assertion. That clause is now its own row RFC1332-2.1-4; the unit, unchanged, fails on any installed MTU other than the peer's Information-field maximum, which is the whole of the remaining sentence.",
+      "verdict": "enforced"
+    },
+    "RFC1332-2.1-4": {
+      "note": "Judge ppp5 2026-09-30. Row is the verbatim second sentence of RFC 1332 Section 2.1. The Linux IPv4 output path fragments on the pppN MTU; Ze's part is the MTU it installs, which this row's tests assert at the boundary Ze owns (rfc-compliance: a requirement met through a lower layer still carries a test over the value Ze installs). TestIPMTUInstalledFromNegotiatedMRU: exactly one MTU on ppp7, equal to the peer MRU 1400 (+); no MTU above 1400, 1500 included (-). Kernel fragmentation itself is not observed (would need a guest kernel); the claim states only the installed MTU. Records: afterLCPOpen revert, both polarities.",
+      "requirement_sha": "1d376421dd3ede35",
+      "tests": {
+        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "5311f4ad1daacab2",
+        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "5311f4ad1daacab2"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "c9b1748acb3cdb86",
+        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "c9b1748acb3cdb86"
+      },
       "verdict": "enforced"
     },
     "RFC1332-3-1": {

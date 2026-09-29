@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC1334-1-1": {
       "note": "Re-read after both units gained AuthFallbackOrder pinned to the configured method (the RFC 1334 Section 2 fix would otherwise put CHAP first); the asserted behaviour is unchanged. TestLocalCONFREQAdvertisesAuthMethod asserts the Auth-Protocol option and its value in the first driver CONFREQ; TestAuthProtoRejectClearsMethod asserts it is absent once the peer Rejects it and authentication is no longer desired. Both observed red under recorded breaks (authMethodToLCPOptions, adjustAuthOnNakOrReject).",
@@ -110,17 +110,17 @@
       "verdict": "enforced"
     },
     "RFC1334-2.3-4": {
-      "note": "Forbidden: the Message field changing the outcome. TestPAPReplyMessageDoesNotAffectOutcome sends Ack with 'welcome aboard' (success) and Nak with 'invalid credentials' (failure). The messages differ, contrary to the tag prose ('the same Message text on both codes'), so an implementation that decides on the message text and ignores the Code passes both cases. No tagged case holds the Code fixed and varies the Message (or puts a failure-like message on an Ack), which is the input that isolates the rule.",
+      "note": "Judge ppp5 2026-09-30. The Message binds the receiver of the Ack/Nak, the pppoeclient peer (runClientAuth); ppp's authenticator never receives it. TestPAPReplyMessageDoesNotAffectOutcome now holds the Code fixed per group and varies the Message over the same three values ('', 'welcome aboard', 'invalid credentials'): every Ack succeeds (+), every Nak returns the 'PAP auth rejected' error (-), which an ignored Nak (retry exhaustion) would not give. A Message-driven decision turns one group red. Records: runClientAuth revert, both polarities.",
       "requirement_sha": "f7bc41f7c2e46b10",
       "tests": {
-        "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome": "0ec1ea8a09b93a94",
-        "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome#2": "0ec1ea8a09b93a94"
+        "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome": "1b424ba0e22a19c8",
+        "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome#2": "1b424ba0e22a19c8"
       },
       "units": {
-        "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome": "04446d313e7ae421",
-        "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome#2": "04446d313e7ae421"
+        "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome": "3211ef3dfd01c78d",
+        "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome#2": "3211ef3dfd01c78d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1334-x-1": {
       "note": "Both entry points now proven. TestConfiguredPAPStillOffersCHAPFirst starts a session through Driver/spawnSession with AuthMethod PAP and the default order: the first Configure-Request must offer CHAP 0xc223 (red on the old copy of StartSession.AuthMethod, observed before the fix and recorded against initialAuthMethod), PAP only after the peer's PAP Nak; the PAP-alone control keeps PAP first where no stronger method is included. TestAuthOffersCHAPBeforePAP drives the default path and the fallback after a PAP Nak. The negative (first Configure-Request never PAP while CHAP is in the order) reads the same first frame as the positive; a send-side MUST has no refusing input, so the pair is the correct shape. TestDefaultAuthFallbackOrder and TestSelectAuthFallback are supporting unit tags with no discrimination record.",

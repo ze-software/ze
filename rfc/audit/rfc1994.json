@@ -54,13 +54,17 @@
       "verdict": "enforced"
     },
     "RFC1994-4.1-4": {
-      "note": "TestBuildCHAPResponse proves buildCHAPResponse frames Code 2, but no tagged unit proves the peer TRANSMITS a Response when a Challenge arrives (runClientAuth, session.go). The negative TestBuildCHAPResponseMalformed tests malformed-Challenge rejection, a neighbouring rule, not a violation of this one.",
+      "note": "Judge ppp5 2026-09-30. Role reasoning holds: the row binds the peer that receives a Challenge, which Ze fills only in pppoeclient runClientAuth. New units are sound for the Authentication phase: TestRFC1994PeerTransmitsResponseForEveryChallenge (+, Challenge 0x42 then re-challenge 0x43 -> two Code 2 packets with matching Identifiers) and TestRFC1994PeerSendsNoResponseWithoutChallenge (-, Code 2 and Code 5 -> nothing written), both red under a runClientAuth revert. DEFECT: RFC 1994 Section 4.1 says 'The peer SHOULD expect Challenge packets during the Authentication phase and the Network-Layer Protocol phase. Whenever a Challenge packet is received, the peer MUST transmit a CHAP packet with the Code field set to 2 (Response).' After runClientAuth returns, pppoeclient's keepaliveLoop (session.go) drops every non-LCP frame, so a Network-phase re-challenge (which Ze's own LNS sends under periodic authentication) gets no Response. The 'whenever' clause is violated in the Network phase and no test covers it. The session_test.go negative (malformed Challenge) proves a neighbouring rule and stays supplementary.",
       "requirement_sha": "d8f32281ecc9458f",
       "tests": {
+        "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994PeerSendsNoResponseWithoutChallenge": "32c14543e2d5aacd",
+        "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994PeerTransmitsResponseForEveryChallenge": "32c14543e2d5aacd",
         "internal/component/l2tp/pppoeclient/session_test.go::TestBuildCHAPResponse": "50a2fa5b77fbaf66",
         "internal/component/l2tp/pppoeclient/session_test.go::TestBuildCHAPResponseMalformed": "50a2fa5b77fbaf66"
       },
       "units": {
+        "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994PeerSendsNoResponseWithoutChallenge": "1cfe9840310e9df6",
+        "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994PeerTransmitsResponseForEveryChallenge": "d453bfc7a59c8e37",
         "internal/component/l2tp/pppoeclient/session_test.go::TestBuildCHAPResponse": "7077d6244b1437d3",
         "internal/component/l2tp/pppoeclient/session_test.go::TestBuildCHAPResponseMalformed": "b173f886123fd393"
       },
@@ -164,15 +168,17 @@
       "verdict": "enforced"
     },
     "RFC1994-4.2-4": {
-      "note": "TestCHAPSuccessMessageDoesNotAffectOutcome proves two different Messages on a Success both complete authentication in runClientAuth. No case carries a Message on a Failure, so a Message that turned a Failure into success would pass.",
+      "note": "Judge ppp5 2026-09-30. The Message binds the receiver of Success/Failure, the pppoeclient peer (runClientAuth); the reasoning holds. TestRFC1994FailureMessageDoesNotAffectOutcome holds the Message fixed ('', 'authentication succeeded', non-ASCII) and varies only the Code: Failure returns the 'CHAP auth failed' error (not the closed-channel error an ignored Failure would give), Success returns nil, so a Message that turned a Failure into success, or a Success into failure, is red (recorded runClientAuth revert). TestCHAPSuccessMessageDoesNotAffectOutcome kept. Single-polarity positive per the row marker, whose line citation now names runClientAuth.",
       "requirement_sha": "091f184f86280047",
       "tests": {
-        "internal/component/l2tp/pppoeclient/rfc1994_chap_message_test.go::TestCHAPSuccessMessageDoesNotAffectOutcome": "d2d8e4764a8e3615"
+        "internal/component/l2tp/pppoeclient/rfc1994_chap_message_test.go::TestCHAPSuccessMessageDoesNotAffectOutcome": "d2d8e4764a8e3615",
+        "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994FailureMessageDoesNotAffectOutcome": "32c14543e2d5aacd"
       },
       "units": {
-        "internal/component/l2tp/pppoeclient/rfc1994_chap_message_test.go::TestCHAPSuccessMessageDoesNotAffectOutcome": "93ac6a9695d6ffe2"
+        "internal/component/l2tp/pppoeclient/rfc1994_chap_message_test.go::TestCHAPSuccessMessageDoesNotAffectOutcome": "93ac6a9695d6ffe2",
+        "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994FailureMessageDoesNotAffectOutcome": "ef25c518f51bc510"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc1994"
