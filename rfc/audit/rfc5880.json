@@ -1,6 +1,7 @@
 {
-  "audited": "2026-09-28",
+  "audited": "2026-09-29",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -185,21 +186,23 @@
       "verdict": "weak"
     },
     "RFC5880-6.7.2-3": {
-      "note": "Judge 2026-09-28. Positive TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID is sound. No negative violates THIS sentence: the new TestRFC5880SimplePasswordSignerNeedsPassword proves the section 4.2 password-length refusal (simplePasswordLenValid), not that the stored password and Key ID are the selected ones; the SHA1 Key ID units belong to the split 6.7.3/6.7.4 row and their Key ID flip is confounded by the digest. Missing: a Simple Password receiver refusing an otherwise valid packet whose Key ID or password differs from the selected pair (simpleVerifier has no digest, so it isolates), tagged here.",
+      "note": "Judge 2026-09-29. Transmit rule: the selected password and Key ID are stored in every outgoing Simple Password section. Positive TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID asserts both on the signed wire (observed red with simpleSigner.Sign broken). Negative TestRFC5880SimplePasswordOtherThanSelectedPairDiscarded offers the exact packets a violating transmitter emits (Key ID 4/6/255 with the right password; password changed in first/middle/last byte with Key ID 5) and asserts ErrPasswordMismatch on each, the selected pair accepted; Simple Password has no digest, so the field check alone refuses (observed red with the simple.go Key ID check mutated to false). The receiver refuses exactly the set of non-selected pairs, so it maps onto this row. The older tags (SignerNeedsPassword, AuthKeyID*) prove neighbouring rows and are not relied on.",
       "requirement_sha": "cc3a6fb7ffbac1f1",
       "tests": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSignerNeedsPassword": "6df6029d5da75c86",
+        "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880SimplePasswordOtherThanSelectedPairDiscarded": "7078094d8d649608",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDIsTheConfiguredKey": "0db40ad53e18e5c2",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "0db40ad53e18e5c2",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID": "0db40ad53e18e5c2"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSignerNeedsPassword": "9401088264f28c60",
+        "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880SimplePasswordOtherThanSelectedPairDiscarded": "4dd4fcbe56732b7d",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDIsTheConfiguredKey": "fc87a95789983001",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "31df44e35f6e8dc9",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID": "f7fae4f769908e20"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.7.2-4": {
       "note": "Judge 2026-09-28. The quoted Simple Password sentence is proven on simpleVerifier.Verify: positive accepts Auth Type 1 sections for 1/8/16-byte passwords; negative refuses an A-clear Length-24 packet (ErrShortAuthBody) and Auth Types 0,2,3,4,5,6,255 with every other field valid, so removing the type check lets them through (isolated). The row's 6.7.3/6.7.4 cite cannot apply to a type-1 sentence; the old SHA1 units stay tagged and the split is owned by the child's row-quality phase.",
@@ -281,19 +284,21 @@
       "verdict": "enforced"
     },
     "RFC5880-6.7.3-1": {
-      "note": "Judge 2026-09-28. Positive TestRFC5880KeyedMD5SectionHeader is sound. No isolated negative: the new TestRFC5880KeyedMD5OversizedKeyNotSigned proves the 16-byte key limit, and without that refusal Sign would still write Auth Len 24 (bodyLen is fixed, the key is truncated), so it does not violate this row; the old TestRFC5880KeyedMD5RejectsForeignSectionShape flips the type or length byte after signing, which the digest also refuses, and asserts only err != nil. Missing: an MD5 receiver refusing a packet whose digest was computed over the altered Auth Type 4 or Auth Len 28 (hand-built), asserting the exact error.",
+      "note": "Judge 2026-09-29. Both clauses. Positive TestRFC5880KeyedMD5SectionHeader asserts Auth Type 2/3 and Auth Len 24 on the signed wire (observed red with digestSigner.Sign broken). Negative TestRFC5880KeyedMD5OtherAlgorithmFieldsDiscarded, types 2 and 3, hand-builds packets with Auth Type 4/5 or Auth Len 28 and computes the MD5 digest AFTER the alteration, so the digest compare would accept them and only the field checks in digestVerifier.Verify refuse (read at the producer: Control Length is left correct, so the Length check cannot fire first); exact ErrDigestMismatch, fresh SeqState per packet, the unaltered packet accepted. The Auth Type half has an observed-red mutant record; the Auth Len half is isolated by construction but its mutants timed out, so it has no record. The older confounded tags (RejectsForeignSectionShape, OversizedKeyNotSigned) are not relied on.",
       "requirement_sha": "e3ed1566378fa96b",
       "tests": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5OversizedKeyNotSigned": "6df6029d5da75c86",
+        "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880KeyedMD5OtherAlgorithmFieldsDiscarded": "7078094d8d649608",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5RejectsForeignSectionShape": "0db40ad53e18e5c2",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5SectionHeader": "0db40ad53e18e5c2"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5OversizedKeyNotSigned": "20ca82d28e9cd052",
+        "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880KeyedMD5OtherAlgorithmFieldsDiscarded": "0eb0be93f21102b1",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5RejectsForeignSectionShape": "00d6b4a1d701adf1",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5SectionHeader": "da3c9f59a8ad3ed3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.7.3-10": {
       "note": "Judge 2026-09-28. Positive accepts RcvAuthSeq+1 and +3*DM at DM 1/5/255 and both wraps; negative refuses equal, -1, +3*DM+1 and behind-across-wrap with the floor unmoved, for types 3 and 5. Both inclusive bounds pinned.",
@@ -402,19 +407,21 @@
       "verdict": "enforced"
     },
     "RFC5880-6.7.3-4": {
-      "note": "Judge 2026-09-28. Positive TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits (session) drives Machine.Sign and AdvanceAuthSeq from 0xFFFFFFFE through 0 and 1 on the wire, so a saturating or non-incrementing XmitAuthSeq goes red. The held negative TestRFC5880MeticulousRejectsUnincrementedSequence is a receiver refusing a repeated sequence at 50: it covers the incremented clause only. Missing: a negative for the circular clause, a receiver refusing the packet a non-circular transmitter emits at the wrap (0xFFFFFFFF repeated after 0xFFFFFFFF, built through Machine.Sign).",
+      "note": "Judge 2026-09-29. Both clauses. Positive TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits puts 0xFFFFFFFE, 0xFFFFFFFF, 0, 1 on the wire through Machine.Sign/AdvanceAuthSeq (observed red with AdvanceAuthSeq broken), so a saturating or non-incrementing XmitAuthSeq goes red. Negative TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded (type 3) signs 0xFFFFFFFF twice through Machine.Sign, the exact output of a non-circular transmitter, and the peer refuses the repeat with ErrSequenceOutsideWindow, then accepts the circular successor 0 in the same state (observed red with the meticulous.go equality check mutated). The held incremented-clause negative stays.",
       "requirement_sha": "2b16c338c8deef26",
       "tests": {
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "0db40ad53e18e5c2",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "bc21fc5bf5e5043a",
-        "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "4991f8b5efadecf0"
+        "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "4991f8b5efadecf0",
+        "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded": "c51daa0559d3d7cd"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "0ab9ccf4c5898ef3",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "d890c4e4cd9e9fa5",
-        "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "fcce817c8a98ec95"
+        "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "fcce817c8a98ec95",
+        "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded": "d07a6bc579fed0b6"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.7.3-7": {
       "note": "Positive TestRFC5880KeyManagementAcceptsASCIIStrings proves parseAuthConfig keeps an ASCII MD5 key verbatim, called directly rather than through the YANG secret leaf or the config entry the operator uses. Negative TestRFC5880KeyManagementRejectsIncompleteConfig rejects missing or unknown fields, a neighbouring rule; no {single-polarity} marker. Re-stamped 2026-09-27 (DF-BFD): the unit bodies changed only in fixtures (a nonzero Your Discriminator in peer Init/Up packets, keys that fit their slot, dropped line numbers); the judgment is unchanged. RA-BFD strict re-read 2026-09-27: weak stands for the reason above.",
@@ -430,13 +437,15 @@
       "verdict": "weak"
     },
     "RFC5880-6.7.3-8": {
-      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): row cite widened to (\u00a76.7.3, \u00a76.7.4): the same sentence is the Keyed SHA1 transmit rule, and the backfill quote had dropped the SHA1 half the paraphrase claimed. Forbidden: a Sequence Number field other than bfd.XmitAuthSeq. Red: TestRFC5880AuthSequenceFieldIsXmitAuthSeq Fatalf unless the field equals 0x11223344, and TestRFC5880AuthSequenceFieldFollowsAdvance Fatalf unless it equals the advanced variable. Both are positive checks of one assertion with two values; no violating input exists and the row carries no {single-polarity} marker. Units sign with keyed SHA1; MD5 shares digestSigner.Sign (auth/sha1.go:84).",
+      "note": "Judge 2026-09-29. Positives TestRFC5880AuthSequenceFieldIsXmitAuthSeq and ...FollowsAdvance assert the field equals bfd.XmitAuthSeq, so Ze's transmitter is pinned, but neither has a discrimination record. The new negative TestRFC5880SequenceFieldOtherThanXmitAuthSeqDiscarded does not violate THIS rule: a receiver cannot know the sender's bfd.XmitAuthSeq, and the value it offers (XmitAuthSeq+1000, and XmitAuthSeq-1 for Meticulous) is refused by the replay-window rule of Section 6.7.3/6.7.4 reception (its record mutates the window bound in meticulous.go Check), while a violating field of XmitAuthSeq+1 would be accepted. Missing: a {single-polarity: positive} annotation (a transmit rule with no refusal path) with the negative tag moved to the window row, and an observed-red record on a positive.",
       "requirement_sha": "b9e08332d4459520",
       "tests": {
+        "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880SequenceFieldOtherThanXmitAuthSeqDiscarded": "c51daa0559d3d7cd",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldFollowsAdvance": "161fcc8120c2cb31",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldIsXmitAuthSeq": "161fcc8120c2cb31"
       },
       "units": {
+        "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880SequenceFieldOtherThanXmitAuthSeqDiscarded": "610989d971722964",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldFollowsAdvance": "5f2600d28bf0886c",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldIsXmitAuthSeq": "fa56a715fdc86922"
       },
@@ -464,19 +473,21 @@
       "verdict": "enforced"
     },
     "RFC5880-6.7.4-1": {
-      "note": "Judge 2026-09-28. Positive TestRFC5880KeyedSHA1SectionHeader is sound. No isolated negative: the new TestRFC5880KeyedSHA1OversizedKeyNotSigned proves the 20-byte key limit, and without it Sign would still write Auth Len 28 (bodyLen fixed, key truncated); the old TestRFC5880KeyedSHA1RejectsForeignSectionShape flips the type or length byte after signing, which the digest also refuses, and asserts only err != nil. Missing: a SHA1 receiver refusing a packet whose hash was computed over the altered Auth Type 2 or Auth Len 24, asserting the exact error.",
+      "note": "Judge 2026-09-29. Both clauses. Positive TestRFC5880KeyedSHA1SectionHeader asserts Auth Type 4/5 and Auth Len 28 (observed red with digestSigner.Sign broken). Negative TestRFC5880KeyedSHA1OtherAlgorithmFieldsDiscarded, types 4 and 5, hashes Auth Type 2/3 or Auth Len 24 in after the alteration, exact ErrDigestMismatch, unaltered accepted; isolated as for 6.7.3-1 (Control Length correct, digest valid). Auth Type half recorded by mutant; Auth Len half isolated by construction, no record. Older confounded tags not relied on.",
       "requirement_sha": "4b2b81703111d3e1",
       "tests": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedSHA1OversizedKeyNotSigned": "6df6029d5da75c86",
+        "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880KeyedSHA1OtherAlgorithmFieldsDiscarded": "7078094d8d649608",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1RejectsForeignSectionShape": "0db40ad53e18e5c2",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1SectionHeader": "0db40ad53e18e5c2"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedSHA1OversizedKeyNotSigned": "cf119a6c947bdf87",
+        "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880KeyedSHA1OtherAlgorithmFieldsDiscarded": "bc71be91b8b3cd45",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1RejectsForeignSectionShape": "96e4716a7aa39cb1",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1SectionHeader": "619def3d9758d595"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.7.4-2": {
       "note": "Judge 2026-09-28. Same units as RFC5880-6.7.3-2 for types 4 and 5: Sign's hash equals crypto/sha1 over the entire packet computed independently, and hashes over 24, off+4, off+8, Length-1 bytes plus every single-byte flip of the mandatory section, Reserved byte and Sequence Number are refused with ErrDigestMismatch.",
@@ -507,19 +518,21 @@
       "verdict": "enforced"
     },
     "RFC5880-6.7.4-4": {
-      "note": "Judge 2026-09-28. Positive TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits (session, type 5) puts 0xFFFFFFFE, 0xFFFFFFFF, 0, 1 on the wire through Machine.Sign and AdvanceAuthSeq. The held negative TestRFC5880MeticulousRejectsUnincrementedSequence covers the incremented clause only (a repeated sequence at 50 refused). Missing: a negative for the circular clause, a receiver refusing the packet a non-circular transmitter emits at the wrap (0xFFFFFFFF repeated after 0xFFFFFFFF).",
+      "note": "Judge 2026-09-29. Same units as 6.7.3-4 over type 5: the positive wrap test runs type 5 through Machine.Sign, and the negative loop runs type 5 after type 3 through the same Verify/Check path, repeat refused with ErrSequenceOutsideWindow and 0 accepted. The recorded red fired on the type-3 iteration; the type-5 iteration asserts the same outcome over the SHA1 verifier.",
       "requirement_sha": "688d11a4ee42cd94",
       "tests": {
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "0db40ad53e18e5c2",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "bc21fc5bf5e5043a",
-        "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "4991f8b5efadecf0"
+        "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "4991f8b5efadecf0",
+        "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded": "c51daa0559d3d7cd"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "0ab9ccf4c5898ef3",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "d890c4e4cd9e9fa5",
-        "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "fcce817c8a98ec95"
+        "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "fcce817c8a98ec95",
+        "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded": "d07a6bc579fed0b6"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.7.4-5": {
       "note": "Positive TestRFC5880KeyManagementAcceptsASCIIStrings proves parseAuthConfig stores an ASCII secret verbatim for keyed-sha1 and meticulous-keyed-sha1, called directly rather than through the YANG secret leaf or config entry. Negative TestRFC5880KeyManagementRejectsIncompleteConfig rejects incomplete config, a neighbouring rule; no {single-polarity} marker. Re-stamped 2026-09-27 (DF-BFD): the unit bodies changed only in fixtures (a nonzero Your Discriminator in peer Init/Up packets, keys that fit their slot, dropped line numbers); the judgment is unchanged. RA-BFD strict re-read 2026-09-27: weak stands for the reason above.",
@@ -937,9 +950,9 @@
       "note": "Forbidden: selecting a zero-discriminator packet on nothing, or on fields the receiver cannot observe. TestRFC5881FirstPacketMatchesByTuple fails if the matching tuple is not delivered; TestRFC5881FirstPacketWrongSourceDropped fails if a wrong source is delivered; TestFirstPacketMatchesWhatTheTransportSurfaces fails if another interface or the wildcard local address selects the session.",
       "requirement_sha": "34e438d9da306905",
       "tests": {
-        "internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces": "3b4586b9aefe451c",
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple": "3b4586b9aefe451c",
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketWrongSourceDropped": "3b4586b9aefe451c"
+        "internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces": "c8bf3135e7e74ea3",
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple": "c8bf3135e7e74ea3",
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketWrongSourceDropped": "c8bf3135e7e74ea3"
       },
       "units": {
         "internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces": "060948fa548b4268",
