@@ -1,15 +1,17 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5072-2-1": {
-      "note": "Forbidden: ze originating IPv6 packets (RA/DHCPv6 via startIPv6Service) before IPV6CP reaches Opened or before the network phase. TestIPv6ServiceStartsOnlyAfterIPv6CPOpened's control subtest goes red only when the service starts with IPV6CP disabled entirely (state Initial); a regression guarding on any non-Initial IPV6CP state (ReqSent/AckRcvd) or starting the service before Opened in an IPv6CP-enabled session passes both subtests, and the opened subtest only checks the start happened by EventSessionUp, not that it did not happen earlier. No assertion pins the Opened state specifically.",
+      "note": "Judge ppp4 2026-09-30. Progress: TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened enables both NCPs, opens IPCP and holds IPV6CP in Ack-Rcvd; it fails on EventSessionUp, so the regression the earlier verdict named (ncpsComplete or the up gate keyed on any non-Initial IPV6CP state) is now red, recorded on ncpsComplete. Still weak: the claim also says the IPv6 service start is never attempted, and the test looks for the log line 'IPv6 service start failed'. In this scenario the peer never sends its IPV6CP Configure-Request, so peerInterfaceIDNegotiated stays false and an attempt through afterLCPOpenIPv6Service would log 'refusing to start the IPv6 service' instead; a producer that started the service early from elsewhere (before the up gate) stays green. Owed: fail on either log line (or any afterLCPOpenIPv6Service entry), or drop that clause from the claim. Row marker now names ncpsComplete and afterLCPOpen instead of session_run.go:482.",
       "requirement_sha": "39050f2ad3f56b75",
       "tests": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened": "c0875be325cf7c8c"
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened": "c0875be325cf7c8c",
+        "internal/component/l2tp/ppp/rfc5072_ipv6cp_opened_test.go::TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened": "00133c2986420625"
       },
       "units": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened": "9825a762c5a78560"
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened": "9825a762c5a78560",
+        "internal/component/l2tp/ppp/rfc5072_ipv6cp_opened_test.go::TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened": "72dda53eae87a45d"
       },
       "verdict": "weak"
     },

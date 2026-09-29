@@ -35,6 +35,28 @@
       "break": "body of handleFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC1994-4.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier",
+      "unit-sha": "1c8e7350bdf313e9",
+      "claim-sha": "4ad14f38ccd1f978",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
+      "producer-sha": "68950dbf2425118b",
+      "break": "body of runCHAPAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1994-4.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier",
+      "unit-sha": "0352383bd0a076c8",
+      "claim-sha": "f46c35a314adf703",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
+      "producer-sha": "68950dbf2425118b",
+      "break": "body of runCHAPAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1994-4.1-8",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp",
@@ -44,6 +66,50 @@
       "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
       "producer-sha": "15bf63c906944976",
       "break": "body of handleFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1994-4.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier",
+      "unit-sha": "1c8e7350bdf313e9",
+      "claim-sha": "6c8de08f02c65943",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authlocal/auth.go::verifyCHAPMD5",
+      "producer-sha": "2200b9876ae49fac",
+      "break": "body of verifyCHAPMD5 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1994-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier",
+      "unit-sha": "0352383bd0a076c8",
+      "claim-sha": "0e496c6f43b94beb",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authlocal/auth.go::verifyCHAPMD5",
+      "producer-sha": "2200b9876ae49fac",
+      "break": "body of verifyCHAPMD5 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1994-4.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier",
+      "unit-sha": "1c8e7350bdf313e9",
+      "claim-sha": "8fee5f3c1ca48bb6",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authlocal/auth.go::verifyCHAPMD5",
+      "producer-sha": "2200b9876ae49fac",
+      "break": "body of verifyCHAPMD5 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1994-4.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier",
+      "unit-sha": "0352383bd0a076c8",
+      "claim-sha": "d268eb041a295a3d",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authlocal/auth.go::verifyCHAPMD5",
+      "producer-sha": "2200b9876ae49fac",
+      "break": "body of verifyCHAPMD5 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1994-4.2-4",

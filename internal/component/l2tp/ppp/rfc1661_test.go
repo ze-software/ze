@@ -1196,9 +1196,8 @@ func TestRFC1661NoCodeRejectForKnownCode(t *testing.T) {
 // RFC requirement: RFC1661-5.8-1 positive -- the Opened+RXR edge (ppp_fsm.go)
 // is ser, which performAction routes to sendEchoReply (session_run.go).
 //
-// RFC requirement: RFC1661-5.8-2 negative -- the Echo-Reply IS transmitted here
-// because the automaton is in Opened, which is what makes the "only in Opened"
-// restriction below observable rather than vacuous.
+// RFC requirement: RFC1661-5.8-2 positive -- in the LCP Opened state, the one
+// state the sentence permits, an Echo-Reply is transmitted.
 //
 // An Echo-Request in the same state DOES draw a reply, so the silence a
 // Discard-Request receives (TestRFC1661DiscardRequestSilentlyDiscarded) is specific
@@ -1239,14 +1238,17 @@ func TestRFC1661EchoReplyInOpened(t *testing.T) {
 // LCPDoTransition (ppp_fsm.go) carry no ser action, so no Echo packet is put
 // on the wire.
 //
-// RFC requirement: RFC1661-5.8-2 positive -- Echo-Request and Echo-Reply are
-// emitted only from the Opened state; in Req-Sent, Ack-Sent and Ack-Rcvd the
-// automaton stays put and transmits nothing.
+// RFC requirement: RFC1661-5.8-2 negative -- an Echo-Request received in
+// Req-Sent, Ack-Sent, Ack-Rcvd or Stopped, which would draw a reply sent
+// outside Opened, draws neither an Echo-Reply nor an Echo-Request.
 func TestRFC1661NoEchoOutsideOpened(t *testing.T) {
 	for _, st := range []LCPState{LCPStateReqSent, LCPStateAckSent, LCPStateAckRcvd, LCPStateStopped} {
 		s, rec, _ := newRFC1661Session(st)
+		// The same peer Magic-Number TestRFC1661EchoReplyInOpened answers, so
+		// the Magic-Number check passes and the state alone decides the reply.
+		s.peerMagic = 0x99887766
 		if term := s.handleLCPPacket(LCPPacket{
-			Code: LCPEchoRequest, Identifier: 0x52, Data: []byte{1, 2, 3, 4},
+			Code: LCPEchoRequest, Identifier: 0x52, Data: []byte{0x99, 0x88, 0x77, 0x66},
 		}); term {
 			t.Fatalf("%s: session terminated on an Echo-Request", st)
 		}

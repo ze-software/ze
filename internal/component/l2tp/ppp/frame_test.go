@@ -185,12 +185,10 @@ func TestIPCPFrameCarriesExactlyOnePacket(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC1332-2-1 negative -- a Protocol-0x8021 frame whose IPCP Length field
-// does not delimit exactly one packet is rejected: ParseLCPPacket
-// (internal/component/l2tp/ppp/lcp.go) returns errLCPLengthMismatch when the Length is
-// below the 4-byte header or exceeds the Information field, so a frame that is not exactly
-// one well-formed IPCP packet cannot be processed (handleFrame drops it,
-// internal/component/l2tp/ppp/session_run.go).
+// RFC requirement: RFC1661-5-2 positive -- ParseLCPPacket refuses, with
+// errLCPLengthMismatch, a Protocol-0x8021 packet whose Length field is below the
+// four-octet header or exceeds the Information field, the invalid-Length
+// detection on which handleFrame's discard rests.
 func TestIPCPFrameRejectsNonSinglePacket(t *testing.T) {
 	cases := []struct {
 		name string

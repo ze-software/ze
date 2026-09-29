@@ -2,6 +2,17 @@
   "rfc": "rfc5072",
   "records": [
     {
+      "rid": "RFC5072-2-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc5072_ipv6cp_opened_test.go::TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened",
+      "unit-sha": "5b8a040e6b0f1697",
+      "claim-sha": "d70ec7cbebbb2a0c",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::ncpsComplete",
+      "producer-sha": "352c7e0e3f28920b",
+      "break": "body of ncpsComplete replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5072-3-1",
       "polarity": "negative",
       "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase",

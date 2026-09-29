@@ -1,18 +1,16 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC1332-2-1": {
-      "note": "Judge 2026-09-29. TestIPCPOnePacketPerFrameThroughRun: ze's own IPCP Configure-Request from run() is Protocol 0x8021 with IPCP Length == Information length, so a send path packing a second packet fails (+, observed red on sendNCPConfigureRequest). Negative injects the non-compliant form at the receiver (R1 a, not b): one 0x8021 frame holding a Configure-Request and a trailing Terminate-Request draws the Configure-Ack alone and no Terminate-Ack within 1 s; a receiver that parsed a second packet from the frame answers it and turns red by construction (recorded break is only a ParseLCPPacket revert). FINDING: frame_test.go negative (Length below header / past Information field) proves RFC 1661 length validation, a neighbour; per R1 it should move.",
+      "note": "Judge ppp4 2026-09-30. Re-read after the frame_test.go negative moved to RFC1661-5-2 (it proved Length validation, a neighbour). Still proven by TestIPCPOnePacketPerFrameThroughRun: ze's IPCP CONFREQ from run() is 0x8021 with Length == Information length (+); a 0x8021 frame carrying a CONFREQ and a trailing Terminate-Request draws the Configure-Ack alone and no Terminate-Ack in 1 s (-, receiver-side injection).",
       "requirement_sha": "9ddbf116bac2d73e",
       "tests": {
-        "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameCarriesExactlyOnePacket": "4f3f86f1f0138e3a",
-        "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameRejectsNonSinglePacket": "4f3f86f1f0138e3a",
+        "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameCarriesExactlyOnePacket": "f5b41639f95677f8",
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun": "d6b4e2cbd1b095e9",
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun#2": "d6b4e2cbd1b095e9"
       },
       "units": {
         "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameCarriesExactlyOnePacket": "5ec5f340d14bd027",
-        "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameRejectsNonSinglePacket": "6bb2f4dd9b4825ed",
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun": "130db8c490b33bc9",
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun#2": "130db8c490b33bc9"
       },
@@ -34,8 +32,8 @@
       "verdict": "enforced"
     },
     "RFC1332-2.1-3": {
-      "note": "SB-3 strict re-read 2026-09-27. Clauses: (1) the largest IP packet sent equals the peer's Information-field maximum; (2) larger datagrams must be fragmented. (1): TestIPMTUInstalledFromNegotiatedMRU fails unless exactly one MTU of 1400 is installed on ppp7 for a negotiated MRU of 1400. Both tags sit on that one assertion, so there is one test, not a pair. (2) has no assertion: fragmentation is left to the Linux IP stack and no unit sends a datagram above the MTU and observes it fragmented, so a pppN that refused or truncated large datagrams stays green.",
-      "requirement_sha": "4400ca9b07bd7e86",
+      "note": "Judge ppp4 2026-09-30. Row now quotes only the first sentence of Section 2.1 (verbatim, rfc/full/rfc1332.txt), the fragmentation sentence having moved to RFC1332-2.1-4. TestIPMTUInstalledFromNegotiatedMRU drives a proxied session with peer MRU 1400 to EventSessionUp and fails unless exactly one MTU is installed, on ppp7, equal to 1400: the value Ze installs for the largest IP packet sent. Negative is forced input (R1 b): 1400 differs from the 1500 default and MaxMRU, so a producer ignoring the negotiated MRU is red; recorded afterLCPOpen revert observed red.",
+      "requirement_sha": "0fa5e41e13adac0d",
       "tests": {
         "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "b8f321341f34b888",
         "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "b8f321341f34b888"
@@ -44,7 +42,8 @@
         "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "ec9e825a4a58f335",
         "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "ec9e825a4a58f335"
       },
-      "verdict": "weak"
+      "upgrade_reason": "The 2026-09-27 weak verdict rested on the second clause (fragmentation) having no assertion. That clause is now its own row RFC1332-2.1-4; the unit, unchanged, fails on any installed MTU other than the peer's Information-field maximum, which is the whole of the remaining sentence.",
+      "verdict": "enforced"
     },
     "RFC1332-3-1": {
       "note": "Send side now tagged: TestIPCPOptionsWrittenInLCPFormat compares WriteIPCPOptions output byte for byte (Types 3/129/131, Length 6, four octets) and walks it with ParseLCPOptions; any drift of Type, Length or Data is red. Receive side: TestIPCPParseOptions decodes a well-formed list, TestIPCPParseRejects refuses malformed TLVs with the exact errors.",
