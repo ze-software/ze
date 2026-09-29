@@ -167,13 +167,14 @@ func TestMatchCondMatches(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7999-3.3-2 positive
-// RFC 7999 Section 3.3 lets a speaker honor a BLACKHOLE announcement only when
-// "the receiving party agreed to honor the BLACKHOLE community on that
-// particular BGP session". The agreement IS the configuration: a modify naming
-// the community, on that peer's import chain. Here it is present, so the route
-// carrying the community has its next-hop rewritten to the discard address the
-// operator named.
+// RFC requirement: RFC7999-4-1 negative -- the counter-case of the row: an
+// explicit configuration directive (a modify naming the BLACKHOLE community)
+// is present, so the route carrying 65535:666 has its next-hop rewritten to the
+// discard address 192.0.2.1 the operator named. The discard in this test
+// follows from the directive, which is why the pass-through below follows from
+// its absence.
+// The route is announced with no prefix authorization in scope: this unit does
+// not check the covering-prefix condition of RFC 7999 Section 3.3.
 func TestBlackholeCommunityRewritesNextHopWhenAgreed(t *testing.T) {
 	defs := map[string]*modifyDef{}
 	defs["RTBH"] = modifyDefsFromConfig(t, "RTBH", map[string]any{
@@ -195,11 +196,10 @@ func TestBlackholeCommunityRewritesNextHopWhenAgreed(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7999-3.3-2 negative
-// The same speaker, the same announcement, and no agreement for that community:
-// the operator's modify names a different community, so nothing was agreed for
-// BLACKHOLE. The route passes through with the next-hop the peer announced, and
-// is forwarded normally.
+// RFC requirement: RFC7999-4-1 positive -- without an explicit configuration
+// directive for BLACKHOLE (the operator's modify names 65001:100 only), the
+// route carrying 65535:666 is accepted with no change: its next-hop stays the
+// one the peer announced, so no traffic toward 10.100.0.1/32 is discarded.
 func TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement(t *testing.T) {
 	defs := map[string]*modifyDef{}
 	defs["RTBH"] = modifyDefsFromConfig(t, "RTBH", map[string]any{

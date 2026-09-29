@@ -1,13 +1,17 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9234-3.1-1": {
       "note": "the quote holds three MUST NOTs: Customer, RS-Client and Peer roles propagate only Customer-learned or local routes. TestOTCEgressFilter asserts suppression for Provider-learned->Provider, Peer-learned->Peer, Peer-learned->RS, RS-learned->Provider; TestOTCEgressSuppressProviderLearnedWithoutMeta for Provider-learned->Provider with no meta. Provider-learned->Peer/RS, RS-learned->Peer/RS and Peer-learned->Provider have no assertion (question 4). The same unit's untagged subtest src_role_rs_to_provider_accept asserts an RS-Client-learned route IS sent to a Provider, which the Customer rule's 'All other routes MUST NOT be propagated' forbids (question 1; see findings)",
       "requirement_sha": "dd09c11c76e8af3a",
       "tests": {
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressFilter": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressFilter#2": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressSuppressProviderLearnedWithoutMeta": "044d0e99a64705d6"
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressFilter": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressFilter#2": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressSuppressProviderLearnedWithoutMeta": "885cc967d56945b1"
       },
       "units": {
         "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressFilter": "65bedd0efe068003",
@@ -17,36 +21,40 @@
       "verdict": "weak"
     },
     "RFC9234-4.1-1": {
-      "note": "non-compliant: an OPEN sent with no Role capability although a role is configured. TestExtractRoleCapabilities_ParseBGPConfig require.Len(caps,1) + Code==9 goes red only if the role plugin stops DECLARING the capability; no tagged unit reads the OPEN ze sends, so an engine that dropped the declaration stays green (question 2 fails for the 'in the BGP OPEN message' clause). Negative (no/invalid/empty role -> no capability) is sound. Candidate tag: test/plugin/dynamic-peer-gets-group-role-capability.ci if it asserts code 9 in the OPEN bytes",
+      "note": "Positive on the wire: dynamic-peer-gets-group-role-capability.ci asserts ze's whole OPEN octet for octet ending 09 01 01 (role rs configured); revert record on extractRoleCapabilities, plus a mutant record on extractPeerRoleConfigs for TestExtractRoleCapabilities_ParseBGPConfig. Negative (no, invalid or empty role: no capability 9) is a table case in that same unit, recorded 2026-09-29 by the judge (revert extractRoleCapabilities, observed red).",
       "requirement_sha": "62efeb1033f32654",
       "tests": {
         "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig": "fe6a1844d24f559d",
-        "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig#2": "fe6a1844d24f559d"
+        "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig#2": "fe6a1844d24f559d",
+        "test/plugin/dynamic-peer-gets-group-role-capability.ci": "d29356b30309569d"
       },
       "units": {
         "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig": "56e78e6bbc863460",
-        "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig#2": "56e78e6bbc863460"
+        "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig#2": "56e78e6bbc863460",
+        "test/plugin/dynamic-peer-gets-group-role-capability.ci": "d29356b30309569d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9234-4.1-2": {
-      "note": "single-polarity positive. non-compliant: an OPEN carrying two Role capabilities. TestExtractRoleCapabilities_ParseBGPConfig require.Len(caps,1) and require.Len(cap.Peers,1) pin one declaration per peer at the plugin; no tagged unit counts Role capabilities in the OPEN ze encodes, so duplication after the declaration is unobserved (question 2 fails at the OPEN)",
+      "note": "Single-polarity positive, argument re-checked: parseRoleContainer reads one role per peer and extractRoleCapabilities emits one CapabilityDecl per peer. The .ci now asserts the OPEN ze sends octet for octet, so a second Role capability changes the length fields and goes red; revert record on extractRoleCapabilities. The marker cites config.go line numbers that have shifted; the argument holds.",
       "requirement_sha": "1ec6661c117f3362",
       "tests": {
-        "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig": "fe6a1844d24f559d"
+        "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig": "fe6a1844d24f559d",
+        "test/plugin/dynamic-peer-gets-group-role-capability.ci": "d29356b30309569d"
       },
       "units": {
-        "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig": "56e78e6bbc863460"
+        "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig": "56e78e6bbc863460",
+        "test/plugin/dynamic-peer-gets-group-role-capability.ci": "d29356b30309569d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9234-4.2-1": {
       "note": "non-compliant: accepting a pair outside Table 2. TestValidateOpenRolePair_InvalidPairs assert.False(output.Accept) over customer/customer, provider/provider, rs/rs, rsclient/rsclient, provider/rs, customer/peer, and TestValidateOpenRolePairRunsForADynamicGroupMember asserts RS/RS refused; positive TestValidateOpenRolePair_ValidPairs assert.True over all five Table 2 pairs",
       "requirement_sha": "7da463726e545b5a",
       "tests": {
         "internal/component/bgp/plugins/role/dynamic_group_test.go::TestValidateOpenRolePairRunsForADynamicGroupMember": "2ac8fba09ccdee06",
-        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_InvalidPairs": "069bedc57421841e",
-        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_ValidPairs": "069bedc57421841e"
+        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_InvalidPairs": "8064b6dabf4a8794",
+        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_ValidPairs": "8064b6dabf4a8794"
       },
       "units": {
         "internal/component/bgp/plugins/role/dynamic_group_test.go::TestValidateOpenRolePairRunsForADynamicGroupMember": "681c3facc086468b",
@@ -56,15 +64,17 @@
       "verdict": "enforced"
     },
     "RFC9234-4.2-2": {
-      "note": "non-compliant: a mismatched pair rejected with a different NOTIFICATION, or not rejected. The plugin units assert Accept=false with NotifyCode 2 / NotifySubcode 11 in validateOpenRolePair's OUTPUT; TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy covers only the unanswered-plugin path at the engine. No tagged unit observes the engine turning a plugin mismatch verdict into the NOTIFICATION it sends and closing the connection (question 2 fails for 'reject the connection'). Candidate: a mismatch .ci like test/plugin/role-strict-enforcement.ci, which asserts 03020B on the wire for strict mode",
+      "note": "Positive role-mismatch-notification.ci: ze Provider, ze-peer Provider, first message on the wire is NOTIFICATION 03020B and no EoR; mutant record removing ! from !isValidRolePair (revert cannot discriminate: a crashed plugin also fails closed with 2/11). Negative peer-open-role-complement.ci: same config, ze-peer answers Customer, EoR sent and 03020B rejected; revert record on validateOpenRolePair. Only the peer's role octet differs, so the pair isolates the correspondence check.",
       "requirement_sha": "5e84240229d8ad8d",
       "tests": {
         "internal/component/bgp/plugins/role/dynamic_group_test.go::TestValidateOpenRolePairRunsForADynamicGroupMember": "2ac8fba09ccdee06",
-        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_InvalidPairs": "069bedc57421841e",
-        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_ValidPairs": "069bedc57421841e",
+        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_InvalidPairs": "8064b6dabf4a8794",
+        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_ValidPairs": "8064b6dabf4a8794",
         "internal/component/bgp/server/validate_test.go::TestAskOpenValidatorsLeavesASilentPluginPending": "a6e74c24de705fd9",
         "internal/component/bgp/server/validate_test.go::TestBroadcastValidateOpenAcceptsAPeerWithNoPerPeerPolicy": "a6e74c24de705fd9",
-        "internal/component/bgp/server/validate_test.go::TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy": "a6e74c24de705fd9"
+        "internal/component/bgp/server/validate_test.go::TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy": "a6e74c24de705fd9",
+        "test/plugin/peer-open-role-complement.ci": "b71d982cd30d0278",
+        "test/plugin/role-mismatch-notification.ci": "637a2ad14bd917f2"
       },
       "units": {
         "internal/component/bgp/plugins/role/dynamic_group_test.go::TestValidateOpenRolePairRunsForADynamicGroupMember": "681c3facc086468b",
@@ -72,41 +82,51 @@
         "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_ValidPairs": "5263c40d7e0bb318",
         "internal/component/bgp/server/validate_test.go::TestAskOpenValidatorsLeavesASilentPluginPending": "9bd11f15c8740234",
         "internal/component/bgp/server/validate_test.go::TestBroadcastValidateOpenAcceptsAPeerWithNoPerPeerPolicy": "e40318badf9f4d97",
-        "internal/component/bgp/server/validate_test.go::TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy": "93c1c04ed8b2d1b9"
+        "internal/component/bgp/server/validate_test.go::TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy": "93c1c04ed8b2d1b9",
+        "test/plugin/peer-open-role-complement.ci": "b71d982cd30d0278",
+        "test/plugin/role-mismatch-notification.ci": "637a2ad14bd917f2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9234-4.2-3": {
-      "note": "non-compliant: multiple differing Role capabilities accepted or refused with another code. TestValidateOpenRolePair_MultipleDifferentRoles asserts Accept=false, 2/11 in the plugin output; negative TestValidateOpenRolePair_MultipleSameRoles asserts identical duplicates accepted. As for RFC9234-4.2-2, no tagged unit observes the connection rejected with the NOTIFICATION on the wire",
+      "note": "Positive role-multiple-roles-notification.ci: Customer then Peer; Customer alone pairs with ze's Provider, so only the differing second value can refuse; wire 03020B, no EoR; mutant record on len(peerRoles) > 1. Negative role-multiple-same-roles.ci: Customer twice establishes (EoR, 03020B rejected); revert record. The unit pair in validate_test.go stays as plugin-tier cover.",
       "requirement_sha": "99a4dbe5228e8238",
       "tests": {
-        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_MultipleDifferentRoles": "069bedc57421841e",
-        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_MultipleSameRoles": "069bedc57421841e"
+        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_MultipleDifferentRoles": "8064b6dabf4a8794",
+        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_MultipleSameRoles": "8064b6dabf4a8794",
+        "test/plugin/role-multiple-roles-notification.ci": "d9e680d53f5f62ee",
+        "test/plugin/role-multiple-same-roles.ci": "dbc55e88b4055841"
       },
       "units": {
         "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_MultipleDifferentRoles": "7255170d1de5365a",
-        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_MultipleSameRoles": "d98563ef3e459262"
+        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_MultipleSameRoles": "d98563ef3e459262",
+        "test/plugin/role-multiple-roles-notification.ci": "d9e680d53f5f62ee",
+        "test/plugin/role-multiple-same-roles.ci": "dbc55e88b4055841"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9234-4.2-5": {
-      "note": "MAY; the quote carries the strict-mode rejection sentence. Positive TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole asserts Accept=false, 2/11, reason 'strict' and a compliant member accepted. No negative polarity is tagged: the non-strict acceptance of a missing capability (TestValidateOpenRolePair_NoPeerRole_NoStrict, untagged) is not claimed, and no {single-polarity} marker. Wire proof exists untagged in test/plugin/role-strict-enforcement.ci",
+      "note": "Positive role-strict-enforcement.ci: strict true, ze-peer drops capability 9, first message is 03020B; mutant record cfg.strict -> false turns it red, so strict mode is what refuses. Negative TestValidateOpenRolePair_NoPeerRole_NoStrict: non-strict accepts a missing role; revert record. Note: the .ci session is iBGP (asn 1/1); the strict sentence is not eBGP-scoped in RFC 9234, so this does not void it. The .ci has a 10s budget and flaked once (journal row).",
       "requirement_sha": "b2d38199632f7300",
       "tests": {
-        "internal/component/bgp/plugins/role/dynamic_group_test.go::TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole": "2ac8fba09ccdee06"
+        "internal/component/bgp/plugins/role/dynamic_group_test.go::TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole": "2ac8fba09ccdee06",
+        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_NoPeerRole_NoStrict": "8064b6dabf4a8794",
+        "test/plugin/role-strict-enforcement.ci": "fb21c8a74e8c88c2"
       },
       "units": {
-        "internal/component/bgp/plugins/role/dynamic_group_test.go::TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole": "f38dcceb5b394a37"
+        "internal/component/bgp/plugins/role/dynamic_group_test.go::TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole": "f38dcceb5b394a37",
+        "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_NoPeerRole_NoStrict": "67b526c8dcb9acde",
+        "test/plugin/role-strict-enforcement.ci": "fb21c8a74e8c88c2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9234-5-1": {
       "note": "non-compliant: OTC route from Customer or RS-Client accepted. TestCheckOTCIngress reject_customer_with_otc and reject_rs_client_with_otc assert otcRejectLeak; TestOTCIngressGateRunsForADynamicGroupMember asserts accept=false for an RS-Client member; negative accept_provider_has_otc/accept_rs_has_otc assert otcAccept",
       "requirement_sha": "af215f89cdddb4ff",
       "tests": {
         "internal/component/bgp/plugins/role/dynamic_group_test.go::TestOTCIngressGateRunsForADynamicGroupMember": "2ac8fba09ccdee06",
-        "internal/component/bgp/plugins/role/otc_test.go::TestCheckOTCIngress": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestCheckOTCIngress#2": "044d0e99a64705d6"
+        "internal/component/bgp/plugins/role/otc_test.go::TestCheckOTCIngress": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestCheckOTCIngress#2": "885cc967d56945b1"
       },
       "units": {
         "internal/component/bgp/plugins/role/dynamic_group_test.go::TestOTCIngressGateRunsForADynamicGroupMember": "d248f6d80a39daa8",
@@ -119,11 +139,11 @@
       "note": "non-compliant: OTC procedures applied to a non AFI1/2 SAFI1 family. Egress stamp: TestOTCEgressUnicastOnly (ipv4 multicast, mods.Len()==0) and TestOTCEgressNonUnicastWithdrawalNotProcessed (VPNv4); egress rule 2: TestOTCNonUnicastWithdrawalSkipsOTCProcedures egress_rule_2_does_not_suppress; ingress rule 1: its ingress_rule_1_does_not_reject subtest; family gate: TestIsPayloadUnicastMPUnreachFamily. Negative TestOTCEgressStampMod stamps IPv4 unicast",
       "requirement_sha": "2374441580699bca",
       "tests": {
-        "internal/component/bgp/plugins/role/otc_test.go::TestIsPayloadUnicastMPUnreachFamily": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNonUnicastWithdrawalNotProcessed": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampMod": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressUnicastOnly": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCNonUnicastWithdrawalSkipsOTCProcedures": "044d0e99a64705d6"
+        "internal/component/bgp/plugins/role/otc_test.go::TestIsPayloadUnicastMPUnreachFamily": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNonUnicastWithdrawalNotProcessed": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampMod": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressUnicastOnly": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCNonUnicastWithdrawalSkipsOTCProcedures": "885cc967d56945b1"
       },
       "units": {
         "internal/component/bgp/plugins/role/otc_test.go::TestIsPayloadUnicastMPUnreachFamily": "951fbe646d051a7b",
@@ -135,35 +155,41 @@
       "verdict": "enforced"
     },
     "RFC9234-5-11": {
-      "note": "single-polarity positive. The sentence covers every ingress and egress procedure of Section 5. TestOTCEgressWireBytesCheck shows only egress rule 2 running with no source role config. No tagged unit shows the ingress procedures or the egress stamp surviving an operator setting (for example an export policy or a role option), so the claim 'cannot be switched off by configuration' rests on the marker's code reading, not on an assertion (question 4)",
+      "note": "Single-polarity positive, argument re-checked: peerRoleConfig carries only role, strict and export; TestRFC9234OTCProceduresSurviveOperatorSettings sets strict on and export naming every role on the source configs (the export set the egress filter reads, srcCfg.resolvedExport) and shows ingress still stamps OTC 64500 from a Provider, still refuses an OTC route from a Customer, egress still withholds an OTC route from a Provider and still stamps 65000 toward a Customer. Revert record on checkOTCIngress. The marker's otc.go:164/:384 line citations are stale (now checkOTCIngress and OTCEgressFilter moved); the argument holds.",
       "requirement_sha": "78a1a888b502be21",
       "tests": {
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressWireBytesCheck": "044d0e99a64705d6"
+        "internal/component/bgp/plugins/role/otc_procedures_rfc9234_test.go::TestRFC9234OTCProceduresSurviveOperatorSettings": "790b5f8818e8d37c",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressWireBytesCheck": "885cc967d56945b1"
       },
       "units": {
+        "internal/component/bgp/plugins/role/otc_procedures_rfc9234_test.go::TestRFC9234OTCProceduresSurviveOperatorSettings": "d6f3c3590e72fb78",
         "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressWireBytesCheck": "e23814d1392c7383"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9234-5-12": {
-      "note": "non-compliant: an OTC of length other than 4 not handled as treat-as-withdraw. TestOTCIngressMalformedTreatAsWithdraw asserts the NLRI moves to withdrawn, attribute length 0, OTC gone, and TestCheckOTCIngress malformed_* assert otcTreatWithdraw for every role, but every tagged malformed input has length 3. Lengths above 4 and 0 are driven only by TestOTCBoundaryLength (untagged, detection only), so 'not 4' is proven for the short side alone. Negative (length 4 accepted) is sound",
+      "note": "Positive TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw: OTC lengths 0, 5 and 8 from a Provider (attributes ORIGIN + OTC only, isolated) move 10.0.0.0/24 to withdrawn, clear the attributes and keep the message. Negative TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw: length 4 accepted unchanged. Revert records on findOTC for both.",
       "requirement_sha": "7101647356070194",
       "tests": {
-        "internal/component/bgp/plugins/role/otc_test.go::TestCheckOTCIngress": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressMalformedTreatAsWithdraw": "044d0e99a64705d6"
+        "internal/component/bgp/plugins/role/otc_malformed_rfc9234_test.go::TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw": "a264ab1f5def86dc",
+        "internal/component/bgp/plugins/role/otc_malformed_rfc9234_test.go::TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw": "a264ab1f5def86dc",
+        "internal/component/bgp/plugins/role/otc_test.go::TestCheckOTCIngress": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressMalformedTreatAsWithdraw": "885cc967d56945b1"
       },
       "units": {
+        "internal/component/bgp/plugins/role/otc_malformed_rfc9234_test.go::TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw": "1b3051612748420a",
+        "internal/component/bgp/plugins/role/otc_malformed_rfc9234_test.go::TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw": "134cdf3c6652a017",
         "internal/component/bgp/plugins/role/otc_test.go::TestCheckOTCIngress": "a8f63ea4d0fba230",
         "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressMalformedTreatAsWithdraw": "45e158e8c0882d97"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9234-5-2": {
       "note": "non-compliant: Peer route whose OTC differs from the Peer's AS accepted. TestOTCIngressFilter reject_peer_otc_mismatch asserts accept=false (OTC 65099 vs PeerAS 65003); negative accept_peer_otc_matches asserts accept=true and no rewrite; TestCheckOTCIngress also pins reject_peer_otc_wrong and zero ASN",
       "requirement_sha": "d6339ba62c2c3e53",
       "tests": {
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressFilter": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressFilter#2": "044d0e99a64705d6"
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressFilter": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressFilter#2": "885cc967d56945b1"
       },
       "units": {
         "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressFilter": "5c8a60dca8e82b66",
@@ -175,10 +201,10 @@
       "note": "non-compliant: a route without OTC from Provider, Peer or RS left unstamped or stamped with another ASN. TestOTCIngressFilter stamp_from_provider finds OTC == remote AS 65002 in the rewritten payload; TestCheckOTCIngress stamp_from_provider/peer/rs assert stampASN == remote ASN for each of the three roles. Negatives: Customer/RS-Client not stamped, pure withdrawal and MP_UNREACH-only not stamped",
       "requirement_sha": "2ee81cb8e6e90e03",
       "tests": {
-        "internal/component/bgp/plugins/role/otc_test.go::TestCheckOTCIngress": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressFilter": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressNoStampOnMPUnreachOnly": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressNoStampOnPureWithdrawal": "044d0e99a64705d6"
+        "internal/component/bgp/plugins/role/otc_test.go::TestCheckOTCIngress": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressFilter": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressNoStampOnMPUnreachOnly": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCIngressNoStampOnPureWithdrawal": "885cc967d56945b1"
       },
       "units": {
         "internal/component/bgp/plugins/role/otc_test.go::TestCheckOTCIngress": "a8f63ea4d0fba230",
@@ -189,15 +215,17 @@
       "verdict": "enforced"
     },
     "RFC9234-5-4": {
-      "note": "non-compliant: a route to a Customer, Peer or RS-Client advertised without OTC == local AS. Customer: TestOTCEgressStampMod (op code 35, value 65000), TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig, role-otc-fwd-withdraw.ci, role-otc-rs-withdraw-eor.ci; RS-Client: role-otc-rs-client-dest-stamp.ci. The Peer destination has no tagged assertion (TestOTCEgressStampPeer, untagged, asserts Gao-Rexford suppression, not a stamp), so one of the three listed cases is unproven (question 4). The scope negative TestOTCEgressNoStampProvider uses a payload with no NLRI, which payloadAdvertisesNLRI already refuses, so it stays green with the destination gate removed (question 3)",
+      "note": "Positive TestRFC9234OTCStampedToEveryDownstreamDestination: an NLRI-bearing route with no OTC toward Customer, Peer and RS-Client each gets exactly one set op, code 35, value local AS 65000; plus the existing .ci and FRR interop positives. Negatives TestRFC9234OTCNotStampedOutsideTheDownstreamScope: the same NLRI-bearing route toward Provider and RS gets no op (the destination gate refuses, not the empty-NLRI gate), and a route already carrying OTC toward a Customer gets no op. TestOTCEgressNoStampProvider was vacuous (no NLRI, refused before the destination gate) and now carries NLRI (D-15 correction, not a weakening). Revert records on OTCEgressFilter for all three.",
       "requirement_sha": "0fea82648a38f9f0",
       "tests": {
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNoStampOnMPUnreachOnly": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNoStampOnPureWithdrawal": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNoStampProvider": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampMod": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampsMixedWithdrawAndAnnounce": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig": "044d0e99a64705d6",
+        "internal/component/bgp/plugins/role/otc_procedures_rfc9234_test.go::TestRFC9234OTCNotStampedOutsideTheDownstreamScope": "790b5f8818e8d37c",
+        "internal/component/bgp/plugins/role/otc_procedures_rfc9234_test.go::TestRFC9234OTCStampedToEveryDownstreamDestination": "790b5f8818e8d37c",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNoStampOnMPUnreachOnly": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNoStampOnPureWithdrawal": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNoStampProvider": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampMod": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampsMixedWithdrawAndAnnounce": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig": "885cc967d56945b1",
         "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal": "f04334a58fd00e7c",
         "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal#2": "f04334a58fd00e7c",
         "test/plugin/role-otc-fwd-withdraw.ci": "291620aeb22446f9",
@@ -207,9 +235,11 @@
         "test/plugin/role-otc-rs-withdraw-eor.ci#2": "3511bc791dad6a70"
       },
       "units": {
+        "internal/component/bgp/plugins/role/otc_procedures_rfc9234_test.go::TestRFC9234OTCNotStampedOutsideTheDownstreamScope": "3dc6ad863e0079f3",
+        "internal/component/bgp/plugins/role/otc_procedures_rfc9234_test.go::TestRFC9234OTCStampedToEveryDownstreamDestination": "300c717414fcd26a",
         "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNoStampOnMPUnreachOnly": "4c7532bcc875bb31",
         "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNoStampOnPureWithdrawal": "7aede29ffdf92ccf",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNoStampProvider": "9c3b4e8bb039536e",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNoStampProvider": "59f3a29f702c7a09",
         "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampMod": "0f30c8c530aea5b4",
         "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampsMixedWithdrawAndAnnounce": "ab6ab7a26ef339d0",
         "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig": "f8ee3316acf05809",
@@ -221,14 +251,14 @@
         "test/plugin/role-otc-rs-withdraw-eor.ci": "3511bc791dad6a70",
         "test/plugin/role-otc-rs-withdraw-eor.ci#2": "3511bc791dad6a70"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9234-5-5": {
       "note": "non-compliant: an OTC-carrying route sent to a Provider, Peer or RS. TestOTCEgressWireBytesCheck asserts OTCEgressFilter false for each of the three destinations with no source config, true for an OTC route to a Customer and for a no-OTC route to a Provider",
       "requirement_sha": "041f5055e7ddc27a",
       "tests": {
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressWireBytesCheck": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressWireBytesCheck#2": "044d0e99a64705d6"
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressWireBytesCheck": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressWireBytesCheck#2": "885cc967d56945b1"
       },
       "units": {
         "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressWireBytesCheck": "e23814d1392c7383",
@@ -240,8 +270,8 @@
       "note": "non-compliant: an existing OTC value rewritten. TestOTCAttrModHandlerExistingPreserved plans OTC 65001 from source against a set op of 65000 and asserts the emitted value is 65001. Negative TestOTCAttrModHandlerNewAttr: no prior OTC, so the op's value is emitted. The confederation parenthetical has no ze code path (RFC9234-5-7/5-8 are not-applicable)",
       "requirement_sha": "19c8a7485552c882",
       "tests": {
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCAttrModHandlerExistingPreserved": "044d0e99a64705d6",
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCAttrModHandlerNewAttr": "044d0e99a64705d6"
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCAttrModHandlerExistingPreserved": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCAttrModHandlerNewAttr": "885cc967d56945b1"
       },
       "units": {
         "internal/component/bgp/plugins/role/otc_test.go::TestOTCAttrModHandlerExistingPreserved": "8016e32b59b373aa",
@@ -253,7 +283,7 @@
       "note": "single-polarity positive. non-compliant: egress OTC carrying a value other than the local (internet-facing) AS. TestOTCEgressStampLocalASN asserts the stamped value is dest.LocalAS 64999, not src AS 65001 nor dest peer AS 65002",
       "requirement_sha": "0d1b5fb6f1229d3e",
       "tests": {
-        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampLocalASN": "044d0e99a64705d6"
+        "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampLocalASN": "885cc967d56945b1"
       },
       "units": {
         "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressStampLocalASN": "d3c54cf60f14c3ea"

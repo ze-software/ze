@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC6793-3-1": {
       "note": "TestRFC6793AS4PathWireExcludesConfed: AS4Path.WriteTo/Len skip both confed types and keep AS_SEQUENCE/AS_SET, with Len matching bytes written.",
@@ -41,19 +41,23 @@
       "verdict": "enforced"
     },
     "RFC6793-4.1-6": {
-      "note": "AS4_PATH half is proven (originate builders toward a NEW speaker, and rfc6793-no-as4path-from-new-speaker.ci on the forward path). No unit tagged 4.1-6 proves AS4_AGGREGATOR is not carried between NEW speakers: the .ci input carries no AS4_AGGREGATOR, so its absence at conn=2 is vacuous, and the originate test checks as4PathASNs only.",
+      "note": "Both attributes now covered. AS4_AGGREGATOR: rfc6793-no-as4aggregator-from-new-speaker.ci feeds an AS4_AGGREGATOR (AS 4200000000, differing from AGGREGATOR 4200000123) from a NEW speaker and asserts conn=2 exact hex: AGGREGATOR unchanged, no type 18; revert record on CollapseAS4Family. TestOriginatedAggregatorOmitsAS4AggregatorTowardNewSpeaker: every aggregator builder toward NEW with a non-mappable AS emits no AS4_AGGREGATOR and AGGREGATOR carries the real AS; revert record on AS4AggregatorFor. AS4_PATH half as before (originate builders, no-as4path .ci, records). Negative rfc6793-narrow-to-old-speaker.ci: toward an OLD speaker AS4_PATH is carried; revert record on AS4PathForRewrite.",
       "requirement_sha": "2ec906b72a3df6f1",
       "tests": {
         "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathTowardNewSpeaker": "25df6509f8ec949f",
+        "internal/component/bgp/message/rfc6793_originate_as4agg_new_test.go::TestOriginatedAggregatorOmitsAS4AggregatorTowardNewSpeaker": "37d26ab7979c4e08",
         "test/plugin/rfc6793-narrow-to-old-speaker.ci": "ef19474df8c628ea",
+        "test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci": "a8645b72b9f68aaa",
         "test/plugin/rfc6793-no-as4path-from-new-speaker.ci": "23120258971227f4"
       },
       "units": {
         "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathTowardNewSpeaker": "bd621e569e53b228",
+        "internal/component/bgp/message/rfc6793_originate_as4agg_new_test.go::TestOriginatedAggregatorOmitsAS4AggregatorTowardNewSpeaker": "e83de3a62cfcedcc",
         "test/plugin/rfc6793-narrow-to-old-speaker.ci": "ef19474df8c628ea",
+        "test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci": "a8645b72b9f68aaa",
         "test/plugin/rfc6793-no-as4path-from-new-speaker.ci": "23120258971227f4"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC6793-4.1-7": {
       "note": "TestRFC6793NewSpeakerAS4AttributesAreDiscarded (ReconcileASPathFamily, fromNew=true) discards both AS4_PATH and AS4_AGGREGATOR and keeps the UPDATE; the .ci proves it end to end for AS4_PATH; the negative keeps an AS4_PATH from an OLD speaker.",

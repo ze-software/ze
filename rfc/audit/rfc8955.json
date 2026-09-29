@@ -1,19 +1,23 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8955-3-1": {
-      "note": "the test proves UPDATE filtering by NLRI prefix applies to FlowSpec destinations (accept, reject, missing, mixed); the sentence also names community matching, and no tagged test shows a community policy applying to a FlowSpec route",
+      "note": "Both halves now tagged both ways. Community half: TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute (ipv4/flow and ipv4/flow-vpn with 65001:100 accepted) and TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute (denied community first-match and implicit deny reject a FlowSpec route); revert records on evaluateCommunities. Prefix half: filter_prefix flowspec_test.go pair (accept, reject, missing, mixed), no record. Both at the plugin entry point: no .ci drives a FlowSpec UPDATE through a configured community filter in the running daemon.",
       "requirement_sha": "fbdee418c968fb93",
       "tests": {
+        "internal/component/bgp/plugins/filter_community_match/flowspec_rfc8955_test.go::TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute": "b9ec59934296330d",
+        "internal/component/bgp/plugins/filter_community_match/flowspec_rfc8955_test.go::TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute": "b9ec59934296330d",
         "internal/component/bgp/plugins/filter_prefix/flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination": "2398e19751309ce3",
         "internal/component/bgp/plugins/filter_prefix/flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination#2": "2398e19751309ce3"
       },
       "units": {
+        "internal/component/bgp/plugins/filter_community_match/flowspec_rfc8955_test.go::TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute": "47f004a0fcf48297",
+        "internal/component/bgp/plugins/filter_community_match/flowspec_rfc8955_test.go::TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute": "1e85edbbd0b7a765",
         "internal/component/bgp/plugins/filter_prefix/flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination": "c03d8c74ac155178",
         "internal/component/bgp/plugins/filter_prefix/flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination#2": "c03d8c74ac155178"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8955-4.2-2": {
       "note": "positive re-parses an out-of-order build and pins the exact emitted order 1,3,5,12; negative feeds a descending 5-then-3 NLRI and asserts ErrFlowSpecTypeOrder, with the same components ascending accepted, so the refusal is isolated to order",

@@ -1,18 +1,26 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-29",
   "requirements": {
     "RFC6996-4-1": {
-      "note": "Only the two-octet range in AS_PATH is exercised (64512 stripped, public kept). The sentence's '(including AS4_PATH if utilizing a four-octet AS number space)' clause and the four-octet Private Use range 4200000000-4294967294 have no tagged assertion, nor do the range boundaries (64511/64512/65534/65535).",
+      "note": "Both clauses, both polarities, at the range edges. Positive: plugin TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes rewrites AS_PATH [64496 64512 65534 4200000000 4294967294 64497] to [64496 64497] and draws the strip directive for an AS4_PATH holding 4294967294; reactor TestRFC6996StripRemovesPrivateUseASNsFromAS4Path asserts the exact AS4_PATH rewrite to [64496 64497]. Negative: 64511/65535/4199999999/4294967295 kept in AS_PATH and AS4_PATH at both tiers (accept, zero ops), so an off-by-one bound in either range goes red. All four new units carry observed-red revert records (isPrivateASN, isRFC6996PrivateASN). The two older private_as_test.go units are subsets with no record.",
       "requirement_sha": "09430783143eaffb",
       "tests": {
+        "internal/component/bgp/plugins/filter_remove_private_as/private_as_rfc6996_test.go::TestRFC6996KeepsASNsOutsideThePrivateUseRanges": "e324b1a9204010e2",
+        "internal/component/bgp/plugins/filter_remove_private_as/private_as_rfc6996_test.go::TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes": "e324b1a9204010e2",
         "internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go::TestRFC6996KeepsPublicASN": "778d71b3e2da3a82",
-        "internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go::TestRFC6996StripsPrivateUseASN": "778d71b3e2da3a82"
+        "internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go::TestRFC6996StripsPrivateUseASN": "778d71b3e2da3a82",
+        "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges": "f84fb4c5830c79e4",
+        "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripRemovesPrivateUseASNsFromAS4Path": "f84fb4c5830c79e4"
       },
       "units": {
+        "internal/component/bgp/plugins/filter_remove_private_as/private_as_rfc6996_test.go::TestRFC6996KeepsASNsOutsideThePrivateUseRanges": "49caefdf040a863a",
+        "internal/component/bgp/plugins/filter_remove_private_as/private_as_rfc6996_test.go::TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes": "cbae8e4552cbf170",
         "internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go::TestRFC6996KeepsPublicASN": "8ecfe8d3e74b323a",
-        "internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go::TestRFC6996StripsPrivateUseASN": "adf187dd868f22eb"
+        "internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go::TestRFC6996StripsPrivateUseASN": "adf187dd868f22eb",
+        "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges": "2942ec14910653c4",
+        "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripRemovesPrivateUseASNsFromAS4Path": "9562158165b22011"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc6996"

@@ -2,6 +2,28 @@
   "rfc": "rfc8955",
   "records": [
     {
+      "rid": "RFC8955-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/filter_community_match/flowspec_rfc8955_test.go::TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute",
+      "unit-sha": "accf95a278fafe82",
+      "claim-sha": "27db2d06ebc0362c",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/filter_community_match/match.go::evaluateCommunities",
+      "producer-sha": "9f9a1da907acb137",
+      "break": "body of evaluateCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/filter_community_match/flowspec_rfc8955_test.go::TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute",
+      "unit-sha": "367e853b672d7055",
+      "claim-sha": "f27632312d660116",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/filter_community_match/match.go::evaluateCommunities",
+      "producer-sha": "9f9a1da907acb137",
+      "break": "body of evaluateCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8955-4-3",
       "polarity": "positive",
       "unit": "test/encode/flow-encode.ci",

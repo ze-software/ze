@@ -109,6 +109,9 @@ func TestValidateOpenRolePair_InvalidPairs(t *testing.T) {
 //
 // VALIDATES: Without strict mode, missing peer Role is accepted per RFC 9234 Section 4.2.
 // PREVENTS: Sessions being rejected when strict mode is not configured.
+// RFC requirement: RFC9234-4.2-5 negative -- when the operator has not chosen
+// strict mode, a Role capability sent and none received does not reject the
+// connection: validateOpenRolePair accepts the OPEN.
 func TestValidateOpenRolePair_NoPeerRole_NoStrict(t *testing.T) {
 	t.Parallel()
 

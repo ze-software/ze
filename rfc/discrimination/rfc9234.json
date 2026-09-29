@@ -11,6 +11,178 @@
       "producer": "internal/component/bgp/plugins/role/config.go::extractPeerRoleConfigs",
       "producer-sha": "f5becd591afb8d0f",
       "break": "line 186: \"peerCfg != nil\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC9234-4.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig",
+      "unit-sha": "77ba5b4ba36ec6a8",
+      "claim-sha": "c41ac2ae1b5847a0",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/role/config.go::extractRoleCapabilities",
+      "producer-sha": "a4b287b96d81936c",
+      "break": "body of extractRoleCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9234-4.1-1",
+      "polarity": "positive",
+      "unit": "test/plugin/dynamic-peer-gets-group-role-capability.ci",
+      "unit-sha": "e8a4cfb156bc9a8a",
+      "claim-sha": "64393831b6a9322e",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/role/config.go::extractRoleCapabilities",
+      "producer-sha": "a4b287b96d81936c",
+      "break": "body of extractRoleCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E0104FFFD001E0102030411020F01040001000141040000FFFD090101"
+    },
+    {
+      "rid": "RFC9234-4.1-2",
+      "polarity": "positive",
+      "unit": "test/plugin/dynamic-peer-gets-group-role-capability.ci",
+      "unit-sha": "e8a4cfb156bc9a8a",
+      "claim-sha": "2a84f6f1389d5f6b",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/role/config.go::extractRoleCapabilities",
+      "producer-sha": "a4b287b96d81936c",
+      "break": "body of extractRoleCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E0104FFFD001E0102030411020F01040001000141040000FFFD090101"
+    },
+    {
+      "rid": "RFC9234-4.2-2",
+      "polarity": "negative",
+      "unit": "test/plugin/peer-open-role-complement.ci",
+      "unit-sha": "ac81246c6c712fcd",
+      "claim-sha": "300d6c0461b7672e",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/role/validate.go::validateOpenRolePair",
+      "producer-sha": "d0851e2a01f45365",
+      "break": "body of validateOpenRolePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000"
+    },
+    {
+      "rid": "RFC9234-4.2-2",
+      "polarity": "positive",
+      "unit": "test/plugin/role-mismatch-notification.ci",
+      "unit-sha": "a3c4025df7d9f2e4",
+      "claim-sha": "8db1c7ba5a0df3e1",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/role/validate.go::validateOpenRolePair",
+      "producer-sha": "d0851e2a01f45365",
+      "break": "line 102: \"!\" -\u003e \"\"",
+      "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001503020B"
+    },
+    {
+      "rid": "RFC9234-4.2-3",
+      "polarity": "positive",
+      "unit": "test/plugin/role-multiple-roles-notification.ci",
+      "unit-sha": "99f13eb9b679e972",
+      "claim-sha": "75bf849506386a0c",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/role/validate.go::validateOpenRolePair",
+      "producer-sha": "d0851e2a01f45365",
+      "break": "line 68: \"\u003e\" -\u003e \"\u003c\"",
+      "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001503020B"
+    },
+    {
+      "rid": "RFC9234-4.2-3",
+      "polarity": "negative",
+      "unit": "test/plugin/role-multiple-same-roles.ci",
+      "unit-sha": "6efc02f6fd030c63",
+      "claim-sha": "9faa70ff05e0e43c",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/role/validate.go::validateOpenRolePair",
+      "producer-sha": "d0851e2a01f45365",
+      "break": "body of validateOpenRolePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000"
+    },
+    {
+      "rid": "RFC9234-4.2-5",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_NoPeerRole_NoStrict",
+      "unit-sha": "ded1538137ca802b",
+      "claim-sha": "0c4f0c0c997f02f5",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/role/validate.go::validateOpenRolePair",
+      "producer-sha": "d0851e2a01f45365",
+      "break": "body of validateOpenRolePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9234-4.2-5",
+      "polarity": "positive",
+      "unit": "test/plugin/role-strict-enforcement.ci",
+      "unit-sha": "13aab2deca1393f0",
+      "claim-sha": "960647921d746ba9",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/role/validate.go::validateOpenRolePair",
+      "producer-sha": "d0851e2a01f45365",
+      "break": "line 86: \"cfg.strict\" -\u003e \"false\"",
+      "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001503020B"
+    },
+    {
+      "rid": "RFC9234-5-11",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/role/otc_procedures_rfc9234_test.go::TestRFC9234OTCProceduresSurviveOperatorSettings",
+      "unit-sha": "f001585ad184b2e8",
+      "claim-sha": "a61fef83e23d897c",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/role/otc.go::checkOTCIngress",
+      "producer-sha": "a2326791096ae4c7",
+      "break": "body of checkOTCIngress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9234-5-12",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/role/otc_malformed_rfc9234_test.go::TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw",
+      "unit-sha": "8df9f7515bd84783",
+      "claim-sha": "0088620f5f0f903d",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/role/otc.go::findOTC",
+      "producer-sha": "26ba284f79356960",
+      "break": "body of findOTC replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9234-5-12",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/role/otc_malformed_rfc9234_test.go::TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw",
+      "unit-sha": "e6466410e373a7a9",
+      "claim-sha": "d72d3b6c70abc7fb",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/role/otc.go::findOTC",
+      "producer-sha": "26ba284f79356960",
+      "break": "body of findOTC replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9234-5-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/role/otc_procedures_rfc9234_test.go::TestRFC9234OTCNotStampedOutsideTheDownstreamScope",
+      "unit-sha": "0344de1cd3bf3767",
+      "claim-sha": "fb4f2aa127b94801",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+      "producer-sha": "8158b7c74b9e32ef",
+      "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9234-5-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/role/otc_procedures_rfc9234_test.go::TestRFC9234OTCStampedToEveryDownstreamDestination",
+      "unit-sha": "ebf6b6987c04c260",
+      "claim-sha": "2bfbc41ecc07b255",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+      "producer-sha": "8158b7c74b9e32ef",
+      "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9234-5-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNoStampProvider",
+      "unit-sha": "a988c485f46418e7",
+      "claim-sha": "38de6da7dfe55d3c",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+      "producer-sha": "8158b7c74b9e32ef",
+      "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

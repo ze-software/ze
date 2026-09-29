@@ -14,6 +14,17 @@
     },
     {
       "rid": "RFC6793-4.1-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc6793_originate_as4agg_new_test.go::TestOriginatedAggregatorOmitsAS4AggregatorTowardNewSpeaker",
+      "unit-sha": "37ca0457e243b615",
+      "claim-sha": "f30833a965c20064",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::AS4AggregatorFor",
+      "producer-sha": "2b0bfd478294480d",
+      "break": "body of AS4AggregatorFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.1-6",
       "polarity": "negative",
       "unit": "test/plugin/rfc6793-narrow-to-old-speaker.ci",
       "unit-sha": "f92f2e6f589d98f9",
@@ -23,6 +34,18 @@
       "producer-sha": "6662cb242a4f468b",
       "break": "body of AS4PathForRewrite replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00420200000027400101004002080203FDE8FDE95BA040030401010101C0110E02030000FDE80000FDE9FA56EA7B180A0000"
+    },
+    {
+      "rid": "RFC6793-4.1-6",
+      "polarity": "positive",
+      "unit": "test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci",
+      "unit-sha": "b961a8c54e795df6",
+      "claim-sha": "a59bc6f7b4bec4e7",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/aspath_collapse.go::CollapseAS4Family",
+      "producer-sha": "ab2668a627662c2f",
+      "break": "body of CollapseAS4Family replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020A02020000FDE9FA56EA7B40030401010101C00708FA56EA7B01010101180A0000"
     },
     {
       "rid": "RFC6793-4.1-6",

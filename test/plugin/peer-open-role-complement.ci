@@ -1,6 +1,11 @@
 # Test: a peer block that names no role answers ze's Role capability with the
 # role RFC 9234 pairs with it, and the session establishes.
 #
+# RFC requirement: RFC9234-4.2-2 negative -- when the Roles correspond (ze
+# Provider, ze-peer Customer) the connection is not rejected: ze sends no Role
+# Mismatch NOTIFICATION (reject= on 03020B) and reaches Established, shown by
+# the End-of-RIB it sends.
+#
 # VALIDATES: RFC 9234 Section 4.2, Table 2. Ze declares Provider, so ze-peer
 #            answers Customer (complementaryRole, internal/test/peer/open.go) and
 #            validateOpenRolePair (internal/component/bgp/plugins/role/validate.go)

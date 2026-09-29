@@ -1,6 +1,9 @@
 # Test: role plugin strict mode sends NOTIFICATION to peer without role
 # VALIDATES: role strict enforcement sends RFC 9234 Role Mismatch NOTIFICATION
 # PREVENTS: strict mode silently accepting peers without role capability
+# RFC requirement: RFC9234-4.2-5 positive -- in strict mode, ze sends its BGP
+# Role Capability and ze-peer's OPEN carries none, so the first message ze sends
+# is the Role Mismatch NOTIFICATION (code 2, subcode 11), asserted on the wire.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER

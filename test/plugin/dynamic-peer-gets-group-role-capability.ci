@@ -18,6 +18,13 @@
 #           off the negotiated pair, so a route server silently ran with none of
 #           it against exactly the peer population an operator has not vetted.
 #
+# RFC requirement: RFC9234-4.1-1 positive -- with a BGP Role configured (rs, on
+# the dynamic group), the OPEN the running daemon sends carries the BGP Role
+# Capability 09 01 01, asserted on the whole OPEN as it arrives on the wire.
+# RFC requirement: RFC9234-4.1-2 positive -- that OPEN, asserted octet for octet,
+# carries exactly one BGP Role Capability: a second one would lengthen it and
+# change its length fields.
+#
 # DISCRIMINATION: the assertion is ze's OPEN, whole, and the three octets 09 01 01
 # at its tail are the subject. Measured 2026-08-13 by deleting the group link from
 # getPluginCapabilities: the OPEN arrives 3 octets shorter (length 002B, optional

@@ -1040,7 +1040,9 @@ func TestOTCEgressNoStampProvider(t *testing.T) {
 		filterMu.Unlock()
 	}()
 
-	noOTC := buildTestPayload(buildTestAttrs(0), nil)
+	// The payload announces 10.2.2.0/24. Without NLRI, payloadAdvertisesNLRI
+	// refuses the stamp first and the destination-role gate is never reached.
+	noOTC := buildTestPayload(buildTestAttrs(0), []byte{24, 10, 2, 2})
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
 	// LocalAS is load-bearing here. Without it the stamp is refused by the
 	// `localASN > 0` guard, and the test then passes even with the destination-role

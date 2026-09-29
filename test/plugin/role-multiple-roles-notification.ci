@@ -1,0 +1,85 @@
+# Test: a peer that sends two BGP Role capabilities with different values is
+# refused with the Role Mismatch NOTIFICATION, on the wire, before any UPDATE.
+#
+# RFC requirement: RFC9234-4.2-3 positive -- ze-peer's OPEN carries two Role
+# capabilities, Customer (3) and Peer (4). Not all of them have the same value,
+# so the first and only message ze sends on the session is NOTIFICATION code 2
+# (OPEN Message Error), subcode 11 (Role Mismatch), and no End-of-RIB follows.
+#
+# VALIDATES: RFC 9234 Section 4.2 multiple-capability rule, from the OPEN on the
+#            wire to the NOTIFICATION the engine sends.
+# PREVENTS:  ze picking one of two conflicting roles and establishing.
+#
+# DISCRIMINATION: role-multiple-same-roles.ci sends Customer twice and that
+# session establishes. Customer alone pairs with ze's Provider, so only the
+# second, different value can produce the refusal here.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# Replace ze-peer's Role capability with Customer (3) and Peer (4).
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+option=open:value=add-capability:code=9:hex=04
+# NOTIFICATION OPEN Message Error (2) / Role Mismatch (11, RFC 9234 Section 4.2).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001503020B
+# No End-of-RIB: the connection was rejected, never established.
+reject=bgp:conn=1:pattern=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	# A declared RFC 9234 role requires each bound chain to name a filter that
+	# can refuse a path through a transit provider (RFC 7454 Section 9). What
+	# this test exercises is elsewhere, so the decision is recorded and the
+	# filter is left deactivated: the chain names it, and it never runs.
+	policy {
+		reject-asn NO-TRANSIT {
+			indirect [ 3356 ]
+		}
+	}
+	filter {
+		import [ NO-TRANSIT ]
+		export [ NO-TRANSIT ]
+		inactive: import NO-TRANSIT
+		inactive: export NO-TRANSIT
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		role {
+			import provider
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-role -:stdin=ze-bgp:timeout=15s
