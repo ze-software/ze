@@ -224,7 +224,7 @@ func (c *countingEncoder) EncodeTemplate(_ *Sender) error {
 	return nil
 }
 
-// RFC requirement: SFLOW-V5-x-14 positive -- with PollingInterval=1s, a second snapshot whose time is a full interval after the first passes the gate (now.Sub(lastPoll) < pollInterval is false at exactly one interval) and produces a second counter poll (exporter.go:186-189,213).
+// RFC requirement: SFLOW-V5-x-14 positive -- with PollingInterval=1s, a second snapshot whose time is a full interval after the first passes the gate (the poll is due from the interval minus one snapshot tick) and produces a second counter poll.
 func TestSFlowCounterPollAtInterval(t *testing.T) {
 	exp := newTestExporter(t, "sflow") // PollingInterval: 1 (second)
 	enc := &countingEncoder{}
@@ -243,9 +243,12 @@ func TestSFlowCounterPollAtInterval(t *testing.T) {
 	}
 }
 
-// RFC requirement: SFLOW-V5-x-14 negative -- a snapshot arriving sooner than the configured PollingInterval is suppressed: with lastPoll set by the first poll, a snapshot 500ms later (< 1s) trips now.Sub(lastPoll) < pollInterval and the gate `continue`s, so no extra counter sample is produced (exporter.go:186-189).
+// TestSFlowCounterPollBeforeInterval checks Ze's own rate cap: with a 5 s
+// PollingInterval, snapshots at +500 ms and +3.9 s (before the poll is due at
+// the interval minus one snapshot tick) produce no extra counter poll. sFlow v5
+// lets an agent sample early, so this proves no RFC requirement.
 func TestSFlowCounterPollBeforeInterval(t *testing.T) {
-	exp := newTestExporter(t, "sflow") // PollingInterval: 1 (second)
+	exp, _ := newPollingExporter(t, 5)
 	enc := &countingEncoder{}
 	exp.setEncoder("c1", enc)
 
@@ -258,6 +261,10 @@ func TestSFlowCounterPollBeforeInterval(t *testing.T) {
 	// Well within the polling interval: the gate must suppress this snapshot.
 	exp.notifySnapshot(CounterSnapshot{Time: t0.Add(500 * time.Millisecond), Interfaces: []InterfaceCounters{{IfIndex: 1}}})
 	if enc.encodeCalls != 1 {
-		t.Fatalf("snapshot at +500ms: encodeCalls = %d, want 1 (no poll before the polling interval elapses)", enc.encodeCalls)
+		t.Fatalf("snapshot at +500ms: encodeCalls = %d, want 1 (no poll before it is due)", enc.encodeCalls)
+	}
+	exp.notifySnapshot(CounterSnapshot{Time: t0.Add(3900 * time.Millisecond), Interfaces: []InterfaceCounters{{IfIndex: 1}}})
+	if enc.encodeCalls != 1 {
+		t.Fatalf("snapshot at +3.9s: encodeCalls = %d, want 1 (the poll is due from 4 s)", enc.encodeCalls)
 	}
 }

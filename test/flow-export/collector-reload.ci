@@ -96,6 +96,7 @@ flow-export {
 		address 127.0.0.1
 		port $PORT2
 		protocol sflow
+		agent-address 127.0.0.1
 		polling-interval 1
 	}
 }

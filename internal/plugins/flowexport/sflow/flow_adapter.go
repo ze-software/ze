@@ -12,13 +12,7 @@ import (
 )
 
 func newSFlowFlowEncoder(cfg flowexport.CollectorConfig, startTime time.Time) flowexport.FlowSampleEncoder {
-	agentAddr := netip.IPv4Unspecified()
-	if cfg.AgentAddress != "" {
-		if parsed, err := netip.ParseAddr(cfg.AgentAddress); err == nil {
-			agentAddr = parsed
-		}
-	}
-	return NewFlowEncoder(agentAddr, cfg.SubAgentID, startTime)
+	return NewFlowEncoder(agentAddress(cfg), cfg.SubAgentID, startTime)
 }
 
 // FlowEncoder implements flowexport.FlowSampleEncoder, emitting one sFlow v5

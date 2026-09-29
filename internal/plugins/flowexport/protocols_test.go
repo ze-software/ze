@@ -50,7 +50,7 @@ func TestRegisteredProtocolsMatchTheModel(t *testing.T) {
 
 	for _, protocol := range declared {
 		cfg := &flowexport.Config{Collectors: []flowexport.CollectorConfig{{
-			Name: "c1", Address: "192.0.2.1", Port: 4739, Protocol: protocol,
+			Name: "c1", Address: "192.0.2.1", Port: 4739, Protocol: protocol, AgentAddress: "192.0.2.9",
 			PollingInterval: 20, TemplateRefresh: 600, MaxDatagramSize: flowexport.DatagramSizeDefault,
 		}}}
 		if err := cfg.Validate(); err != nil {

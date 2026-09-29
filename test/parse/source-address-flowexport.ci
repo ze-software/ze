@@ -7,6 +7,7 @@ flow-export {
         port 6343;
         source-address 192.168.1.1;
         protocol sflow;
+        agent-address 127.0.0.1;
     }
 }
 EOF_CONF

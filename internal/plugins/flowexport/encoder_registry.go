@@ -4,6 +4,7 @@
 package flowexport
 
 import (
+	"errors"
 	"maps"
 	"slices"
 	"time"
@@ -32,6 +33,40 @@ func lookupEncoderFactory(protocol string) EncoderFactory {
 // and then exported to nobody.
 func RegisteredProtocols() []string {
 	return slices.Sorted(maps.Keys(encoderFactories))
+}
+
+// CollectorsValidator checks every collector of one protocol together, for a
+// rule of that protocol that spans collectors. It returns nil when the
+// collectors are acceptable. Registered by a protocol subpackage in init().
+type CollectorsValidator func(collectors []CollectorConfig) error
+
+var collectorsValidators = map[string]CollectorsValidator{}
+
+// RegisterCollectorsValidator registers the validator for one protocol's
+// collectors. Called from init() in protocol subpackages.
+func RegisterCollectorsValidator(protocol string, v CollectorsValidator) {
+	collectorsValidators[protocol] = v
+}
+
+// validateProtocolCollectors runs each registered protocol validator over the
+// configured collectors of its protocol, in protocol order.
+func validateProtocolCollectors(collectors []CollectorConfig) error {
+	var errs []error
+	for _, protocol := range slices.Sorted(maps.Keys(collectorsValidators)) {
+		var matched []CollectorConfig
+		for i := range collectors {
+			if collectors[i].Protocol == protocol {
+				matched = append(matched, collectors[i])
+			}
+		}
+		if len(matched) == 0 {
+			continue
+		}
+		if err := collectorsValidators[protocol](matched); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // FlowSampleEncoderFactory creates a FlowSampleEncoder for a collector.

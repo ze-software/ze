@@ -35,3 +35,5 @@ Correction 2026-09-28: `SFLOW-V5-x-14` once claimed samples "at the configured p
 Correction 2026-09-28: `SFLOW-V5-x-20` once claimed a skip counter initialized in "[1, 2*N-1]". §3.1 states no range; the row now quotes the random skip-counter sentence and its Total_Packets/Total_Samples condition. No new row; same id and level.
 
 Correction 2026-09-28: `SFLOW-V5-x-24` once claimed the actual rate "MUST be reported in each flow sample". §4.3 states the MAY adjustment and "When read, the agent must return the actual sampling rate", which the row now quotes; the flow_sample field is `SFLOW-V5-x-10`. No new row; same id and level.
+
+Correction 2026-09-29: `SFLOW-V5-x-2` drops its `{single-polarity}` marker, which said no reject path existed. The sflow collector validator (internal/plugins/flowexport/sflow/register.go validateSFlowCollectors) now refuses an sflow collector without agent-address, an unspecified agent-address, and two sflow collectors naming two agent addresses, so the row carries a negative. Quote, id and level unchanged.

@@ -91,9 +91,10 @@ module ze-flowexport-conf {
                     range "1..3600";
                 }
                 default 20;
-                description "Counter polling interval in seconds, 1 to 3600, default 20. Ze sends the interface counters to
-                    this collector no more often than this. The counter snapshot is shared between collectors, so a
-                    short interval on one collector does not make another one faster.";
+                description "Counter polling interval in seconds, 1 to 3600, default 20. The interval is a maximum: Ze sends the
+                    interface counters to this collector at least once in each interval. Counter snapshots arrive once
+                    a second, so Ze polls from one second before the interval ends. The counter snapshot is shared
+                    between collectors, so a short interval on one collector does not make another one faster.";
                 ze:help "Counter polling interval in seconds";
             }
 
@@ -114,7 +115,9 @@ module ze-flowexport-conf {
                 default 0;
                 description "sFlow sub-agent identifier, default 0. Ze writes it into the sFlow v5 datagram header. It
                     separates several sFlow agents that share one agent-address, so a collector can keep their
-                    sequence numbers apart. A netflow9 or ipfix collector does not read the leaf.";
+                    sequence numbers apart. Every sflow collector exports every interface, and sFlow v5 binds each
+                    data source to one sub-agent, so all sflow collectors must name the same value: the config is
+                    refused otherwise. A netflow9 or ipfix collector does not read the leaf.";
                 ze:help "sFlow sub-agent identifier";
             }
 
@@ -131,8 +134,9 @@ module ze-flowexport-conf {
                 type zt:ip-address;
                 description "sFlow agent address, which is the device's own stable IP address. Ze writes it into the sFlow
                     v5 datagram header, so a collector identifies the exporter by one address whichever interface
-                    the datagram left. Left out, Ze writes 0.0.0.0. A netflow9 or ipfix collector does not read the
-                    leaf.";
+                    the datagram left. It is mandatory on an sflow collector, 0.0.0.0 and :: are refused, and all
+                    sflow collectors must name the same address, because Ze is one sFlow agent. A netflow9 or ipfix
+                    collector does not read the leaf.";
                 ze:help "sFlow agent address (device's own stable IP, e.g. loopback)";
             }
         }

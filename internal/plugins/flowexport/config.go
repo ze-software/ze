@@ -322,6 +322,9 @@ func (c *Config) Validate() error {
 			errs = append(errs, fmt.Errorf("collector %q: %w", c.Collectors[i].Name, err))
 		}
 	}
+	if err := validateProtocolCollectors(c.Collectors); err != nil {
+		errs = append(errs, err)
+	}
 	for i := range c.Sampling {
 		if err := c.Sampling[i].validate(); err != nil {
 			errs = append(errs, fmt.Errorf("sampling %q: %w", c.Sampling[i].Interface, err))
@@ -397,9 +400,9 @@ func (c *CollectorConfig) validate() error {
 		errs = append(errs, fmt.Errorf("template-refresh %d out of range 1-86400", c.TemplateRefresh))
 	}
 
-	// agent-address is optional, but if set it must be a valid IP: the sFlow
-	// encoder otherwise silently falls back to 0.0.0.0, breaking collector
-	// correlation with no operator-visible error.
+	// agent-address, when set, must be a valid IP for every protocol. The
+	// sflow package's collector validator also requires it on an sflow
+	// collector, where it becomes the agent's identity.
 	if c.AgentAddress != "" {
 		if _, err := netip.ParseAddr(c.AgentAddress); err != nil {
 			errs = append(errs, fmt.Errorf("agent-address %q: %w", c.AgentAddress, err))

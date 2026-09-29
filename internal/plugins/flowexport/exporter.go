@@ -168,14 +168,18 @@ func (e *exporter) setFlowRecordEncoder(collectorName string, enc FlowRecordEnco
 	}
 }
 
+// snapshotTick is the period of the iface rate tracker that calls
+// notifySnapshot (rateTracker.Start in internal/component/iface/rate.go ticks
+// every second). A poll is taken one tick early so the next tick never lands
+// past the polling interval.
+const snapshotTick = time.Second
+
 // notifySnapshot is called from the iface rate tracker with fresh
-// counter data. Non-blocking: if the exporter is busy, the snapshot
-// is dropped (counter export is best-effort like the protocols it
-// implements).
+// counter data. It waits for the exporter mutex rather than dropping the
+// snapshot: a dropped snapshot at the due time would push the poll one tick
+// past the polling interval, which sFlow v5 makes a maximum.
 func (e *exporter) notifySnapshot(snap CounterSnapshot) {
-	if !e.mu.TryLock() {
-		return
-	}
+	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if e.stopped {
@@ -191,8 +195,12 @@ func (e *exporter) notifySnapshot(snap CounterSnapshot) {
 			continue
 		}
 
-		pollInterval := time.Duration(cs.cfg.PollingInterval) * time.Second
-		if !cs.lastPoll.IsZero() && now.Sub(cs.lastPoll) < pollInterval {
+		// sFlow v5 Section 4.3: "The maximum number of seconds between
+		// successive samples of the counters associated with this data source."
+		// Snapshots arrive one tick apart, so a poll waiting for a full interval
+		// can land up to one tick late. Poll once the next tick would be too late.
+		pollDue := time.Duration(cs.cfg.PollingInterval)*time.Second - snapshotTick
+		if !cs.lastPoll.IsZero() && now.Sub(cs.lastPoll) < pollDue {
 			continue
 		}
 

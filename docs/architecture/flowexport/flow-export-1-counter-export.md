@@ -23,6 +23,20 @@ them would double-count traffic or introduce false packet totals.
 <!-- source: internal/plugins/flowexport/register.go -- interfaceCountersFrom -->
 <!-- source: internal/plugins/flowexport/ipfix/data.go -- writeCounterRecord -->
 
+## The polling interval is a maximum
+
+<!-- source: internal/plugins/flowexport/exporter.go -- notifySnapshot, snapshotTick -->
+
+sFlow v5 makes the counter polling interval the maximum time between two
+samples of one data source. Snapshots come from the iface rate tracker once a
+second, and never exactly on time. A poll that waits for a full interval
+therefore lands up to one tick late. The exporter polls once the elapsed time
+reaches the interval minus one tick, so the next tick is never too late.
+
+`notifySnapshot` waits for the exporter mutex. It does not drop a snapshot that
+finds the exporter busy, because a dropped snapshot at the due time pushes the
+poll past the interval.
+
 ## Datagram metrics count datagrams, not Encode calls
 
 <!-- source: internal/plugins/flowexport/exporter.go -- notifySnapshot -->

@@ -1,5 +1,8 @@
 {
   "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "SFLOW-V5-x-1": {
@@ -51,17 +54,19 @@
       "verdict": "enforced"
     },
     "SFLOW-V5-x-14": {
-      "note": "positive: a snapshot one full interval after the last poll produces a counter sample; but the negative asserts that a snapshot before the interval is suppressed, and the RFC makes the interval a maximum and lets the agent sample early, so the negative does not violate this requirement; no unit shows a poll is produced when the maximum interval elapses without an admitting snapshot",
+      "note": "notifySnapshot now polls at elapsed >= interval - one snapshot tick and waits for the mutex instead of TryLock-dropping. TestSFlowV5CounterGapNeverExceedsInterval drives 30 late 1.01 s snapshots at a 5 s interval through a real Sender and requires no gap over 5 s and at least 6 polls; the old elapsed >= interval gate leaves a 5.05 s gap and goes red (author observed red at HEAD). Its two tags sit on one assertion: the maximum is one upper bound, so this is effectively single-polarity, not a pair. TestSFlowCounterPollAtInterval covers the 1 s interval. The busy-exporter drop is covered under x-26.",
       "requirement_sha": "9bfa5c4eb03ff0b0",
       "tests": {
-        "internal/plugins/flowexport/exporter_test.go::TestSFlowCounterPollAtInterval": "021856616cf9ecb7",
-        "internal/plugins/flowexport/exporter_test.go::TestSFlowCounterPollBeforeInterval": "021856616cf9ecb7"
+        "internal/plugins/flowexport/exporter_test.go::TestSFlowCounterPollAtInterval": "5b23473bbddf172c",
+        "internal/plugins/flowexport/polling_sflow_v5_test.go::TestSFlowV5CounterGapNeverExceedsInterval": "86e3042da06611be",
+        "internal/plugins/flowexport/polling_sflow_v5_test.go::TestSFlowV5CounterGapNeverExceedsInterval#2": "86e3042da06611be"
       },
       "units": {
-        "internal/plugins/flowexport/exporter_test.go::TestSFlowCounterPollAtInterval": "eb290cb6c4b506e5",
-        "internal/plugins/flowexport/exporter_test.go::TestSFlowCounterPollBeforeInterval": "46edbb80aba60b9b"
+        "internal/plugins/flowexport/exporter_test.go::TestSFlowCounterPollAtInterval": "998f0f8cd5163a7d",
+        "internal/plugins/flowexport/polling_sflow_v5_test.go::TestSFlowV5CounterGapNeverExceedsInterval": "a6eb7b03cd434b32",
+        "internal/plugins/flowexport/polling_sflow_v5_test.go::TestSFlowV5CounterGapNeverExceedsInterval#2": "a6eb7b03cd434b32"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "SFLOW-V5-x-15": {
       "note": "single-polarity (marker: interfaceCountersFrom has no differencing path): a second conversion of the same kernel stats must equal the first, so a delta implementation (which loses the traffic of a lost sample) fails 'second conversion differs'; the negligible-wrap clause rests on 64-bit octet counters, and RxBytes 5e9 > 2^32 must come through untruncated",
@@ -75,7 +80,7 @@
       "verdict": "enforced"
     },
     "SFLOW-V5-x-16": {
-      "note": "Integer clause now proven: TestSFlowV5UnknownEgressInterfaceIsZero requires output format 0 and value 0 for a sample with no egress (recorded); sampling_worker.go never sets FlowSample.Output, so every egress is unknown and sent as 0. Counter clause: TestSFlowV5UnavailableCountersCarrySentinelEveryPoll and TestSFlowV5AvailableCountersNeverTurnUnavailable assert 0xFFFFFFFF for the four unexposed counters and real values otherwise, but neither carries a discrimination record, so that clause's red is unobserved.",
+      "note": "Integer clause: TestSFlowV5UnknownEgressInterfaceIsZero requires output format 0 and value 0 for an unknown egress. Counter clause: TestSFlowV5UnavailableCountersCarrySentinelEveryPoll requires exactly 0xFFFFFFFF for the four counters the kernel does not expose, and TestSFlowV5AvailableCountersNeverTurnUnavailable requires real values (including zero) for the rest. All three units now carry observed-red records.",
       "requirement_sha": "578792369cb72d8c",
       "tests": {
         "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable": "763d88a16419f274",
@@ -87,15 +92,20 @@
         "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "6528f60c8c92d034",
         "internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go::TestSFlowV5UnknownEgressInterfaceIsZero": "5b78f29b2dc2278f"
       },
-      "verdict": "weak"
+      "upgrade_reason": "The earlier weak verdict rested only on the counter-clause units lacking a discrimination record; both now carry observed-red records against interfaceCountersFrom. Re-read both units: they assert the exact sentinel and the exact available values, so a 0-for-unknown or sentinel-everywhere producer fails.",
+      "verdict": "enforced"
     },
     "SFLOW-V5-x-2": {
-      "note": "the quote carries four clauses (loopback on a multi-homed agent, SNMP connectivity, invariance across interface reconfiguration, a unique long-lived key); TestSFlowDatagramHeaderIPv4 only asserts that the address handed to WriteDatagramHeader reaches bytes 8-11 in one call, so an exporter that picked a non-loopback or per-interface address, or changed it when an interface went down, passes; no assertion goes red on any of the four",
+      "note": "Two of four clauses proven. Invariance: TestSFlowV5AgentAddressIsTheAgentKey drives the real counter encoder over three interface sets and requires 192.0.2.1 in every header. Unique key: the same unit requires Config.Validate to refuse two sflow collectors naming two agent addresses (validateSFlowCollectors, recorded +/-). Not proven: the SNMP-connectivity 'must' -- Ze runs no SNMP agent, and refusing a missing, 0.0.0.0 or :: address is a proxy that cannot show SNMP reachability; the multi-homed loopback SHOULD is an operator choice no unit observes. The negative also compares addresses as strings, so equal IPv6 spellings (2001:db8::1 vs 2001:DB8::1) are refused as two agents (unverified whether the config path canonicalizes first).",
       "requirement_sha": "1d400a7bcb34ee21",
       "tests": {
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey": "9966aabfc7a78dea",
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey#2": "9966aabfc7a78dea",
         "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowDatagramHeaderIPv4": "3fd871610d6c96e0"
       },
       "units": {
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey": "3b0962b9298d1561",
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey#2": "3b0962b9298d1561",
         "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowDatagramHeaderIPv4": "b838c197299a0e36"
       },
       "verdict": "weak"
@@ -114,17 +124,21 @@
       "verdict": "enforced"
     },
     "SFLOW-V5-x-26": {
-      "note": "both units call writeCounterDatagrams directly and prove that a 30-source batch is packed into three returned datagrams with none left over; neither observes a datagram being SENT, and the condition of the quote (counters due because the maximum sampling interval elapsed) is never produced, so an exporter that never sent a poll when the interval ran out passes; the trigger is SFLOW-V5-x-14, itself weak",
+      "note": "Chain now whole. TestSFlowV5DueCountersAreSent requires every due poll over 30 late ticks to send a datagram listing all three interfaces, and requires a due snapshot that meets a held exporter mutex still to send them (the old TryLock drop goes red). The real encoder's part: writeCounterDatagrams units require all 30 sources emitted with the partial tail not held back, and TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram counts all 30 samples on the collector socket through CounterEncoder.Encode. Trigger (x-14) now enforced.",
       "requirement_sha": "3f8b68a2d68e6d5b",
       "tests": {
+        "internal/plugins/flowexport/polling_sflow_v5_test.go::TestSFlowV5DueCountersAreSent": "86e3042da06611be",
+        "internal/plugins/flowexport/polling_sflow_v5_test.go::TestSFlowV5DueCountersAreSent#2": "86e3042da06611be",
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5OutstandingCountersAllSent": "3b99215d0d627c33",
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5TailDatagramNotWithheld": "3b99215d0d627c33"
       },
       "units": {
+        "internal/plugins/flowexport/polling_sflow_v5_test.go::TestSFlowV5DueCountersAreSent": "a6cc19a1799b69f2",
+        "internal/plugins/flowexport/polling_sflow_v5_test.go::TestSFlowV5DueCountersAreSent#2": "a6cc19a1799b69f2",
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5OutstandingCountersAllSent": "f29492873650df5d",
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5TailDatagramNotWithheld": "4d5b75c2446d7845"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "SFLOW-V5-x-27": {
       "note": "Ze cannot promise its ifIndex stays below 2^24 (Linux ifindex is a full int), so it falls in the quote's 'Otherwise' branch and the compact-for-all clause does not bind it; mixing: a compact format 1 or 2 among the six records fails 'compact data_format emitted'; expanded for all: alternating low and full-width ifIndex values fail 'want expanded 4' and 'want expanded 3' if any interface drops to compact",
@@ -155,7 +169,7 @@
       "verdict": "enforced"
     },
     "SFLOW-V5-x-29": {
-      "note": "Reset clause now whole: TestSFlowV5SequenceResetOnAnyCounterGoingBack rewinds each of the 13 cumulative if_counters in turn and requires sequence 1, with 2 on the prior rising poll (recorded, countersWentBackwards). The per-source_id increment clause (a second source's reset leaves the first untouched) and the no-reset-without-discontinuity negative rest on TestSFlowV5SequenceNeverResetWithoutDiscontinuity and TestSFlowV5SequenceResetWithCounters, which carry no discrimination record.",
+      "note": "Reset clause: TestSFlowV5SequenceResetOnAnyCounterGoingBack rewinds each of 13 cumulative counters and requires sequence 1; TestSFlowV5SequenceResetWithCounters requires source 3's reset on ifInOctets going back. Increment and no-spurious-reset: TestSFlowV5SequenceNeverResetWithoutDiscontinuity requires 1,2,3 while counters rise. All units now recorded.",
       "requirement_sha": "3189d9e545a5fb5b",
       "tests": {
         "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5SequenceNeverResetWithoutDiscontinuity": "6a390a00daec00b1",
@@ -167,7 +181,8 @@
         "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5SequenceResetWithCounters": "9c8d62acdafa303a",
         "internal/plugins/flowexport/sflow/sequence_rfc_sflow_v5_test.go::TestSFlowV5SequenceResetOnAnyCounterGoingBack": "4e4ce2533c573e88"
       },
-      "verdict": "weak"
+      "upgrade_reason": "The earlier weak verdict rested only on TestSFlowV5SequenceNeverResetWithoutDiscontinuity and TestSFlowV5SequenceResetWithCounters lacking discrimination records; both now carry observed-red records against resetSequencesOnDiscontinuity. Re-read: they assert exact sequence values, so a never-reset or always-reset producer fails.",
+      "verdict": "enforced"
     },
     "SFLOW-V5-x-3": {
       "note": "single-polarity: agent_address and sub_agent_id 7 both decode to the distinct values written, so the pair the header carries names the sub-agent's datagram stream",
@@ -194,19 +209,23 @@
       "verdict": "enforced"
     },
     "SFLOW-V5-x-31": {
-      "note": "TestSFlowV5DataSourceKeepsOneSubAgent shows one collector's factories send source 3's counter and flow samples under its single sub-agent 7, twice (recorded). Not proven, and likely a defect: sub-agent-id is per collector (config.go CollectorConfig.SubAgentID, no cross-collector validation), so two sflow collectors with the same agent-address and different sub-agent-id export one data source under two sub-agents of one agent. TestSFlowV5SubAgentBindingConstantForSession still sends source 3 under 7 then 8 and calls it a new session. Needs the owner's design choice (agent-level sub-agent-id, or a config validator).",
+      "note": "Only-one-sub-agent: TestSFlowV5OneSubAgentPerDataSource requires Config.Validate to accept two sflow collectors with sub-agent-id 7 and to refuse 7 and 8, naming sub-agent-id (validateSFlowCollectors; every sflow collector exports every data source); TestSFlowV5DataSourceKeepsOneSubAgent shows one collector's counter and flow factories use its single sub-agent. Constant-association: the sflow_v5_test.go negative keeps ifIndex 3 on one sub-agent over five datagrams. All units recorded.",
       "requirement_sha": "e1783aa52b81cf35",
       "tests": {
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5OneSubAgentPerDataSource": "9966aabfc7a78dea",
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5OneSubAgentPerDataSource#2": "9966aabfc7a78dea",
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5DataSourcesCarryTheirSubAgent": "3b99215d0d627c33",
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SubAgentBindingConstantForSession": "3b99215d0d627c33",
         "internal/plugins/flowexport/sflow/subagent_rfc_sflow_v5_test.go::TestSFlowV5DataSourceKeepsOneSubAgent": "315e39ecc463c856"
       },
       "units": {
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5OneSubAgentPerDataSource": "b735f437b22cb398",
+        "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5OneSubAgentPerDataSource#2": "b735f437b22cb398",
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5DataSourcesCarryTheirSubAgent": "dcb1773c1e0d5c55",
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SubAgentBindingConstantForSession": "4f7849814f539a22",
         "internal/plugins/flowexport/sflow/subagent_rfc_sflow_v5_test.go::TestSFlowV5DataSourceKeepsOneSubAgent": "942fe6cee1d8dd4e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "SFLOW-V5-x-32": {
       "note": "positive: every counter unavailable on the first poll is still the sentinel on a poll with different statistics; negative: available counters stay available on a later zero-valued poll",
@@ -259,39 +278,49 @@
       "verdict": "enforced"
     },
     "SFLOW-V5-x-5": {
-      "note": "positive proves a counter batch splits at the 1400-byte default buffer (11+4 samples), but the bound is len(buf) and only the default is exercised: an encoder that ignored the collector's configured max-datagram-size and hard-coded 1400 would pass, and Sender.Send's refusal of an oversized payload is not in this unit; the size assertion itself cannot fail because dg is a slice of buf",
+      "note": "Single-polarity row. TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram sets a non-default 600-octet bound on a real Sender, requires every counter datagram for 30 interfaces to be <= 600 octets while together carrying all 30 samples (num_samples summed on the collector socket), requires a flow sample with a 1400-octet header to arrive in <= 600 octets, and requires Sender.Send to refuse 601 octets; the older default-bound unit TestSFlowMultiInterface stays. An encoder bounding by the default instead of the configured size goes red.",
       "requirement_sha": "19cdd9b48418c9da",
       "tests": {
+        "internal/plugins/flowexport/sflow/datagram_rfc_sflow_v5_test.go::TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram": "e743d810dcc73b88",
         "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowMultiInterface": "3fd871610d6c96e0"
       },
       "units": {
+        "internal/plugins/flowexport/sflow/datagram_rfc_sflow_v5_test.go::TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram": "a08915e018f035da",
         "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowMultiInterface": "cda6880016df2aa6"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "SFLOW-V5-x-6": {
-      "note": "the unit hands the sample to a stub encoder and asserts only that the exporter dispatched it synchronously; it never observes the real FlowEncoder or Sender putting the datagram on the wire within 1 second, so a buffering encoder would pass (x-25's units observe the real send)",
+      "note": "Single-polarity row. TestSFlowV5FlowSampleSentWithinOneSecond hands a sample to the real sflow FlowEncoder with a real Sender and requires the datagram on the collector socket within one second of the call, so an encoder holding a sample longer than 1 s goes red while one flushing sooner passes, matching the quote; TestExportFlowSampleDispatch proves exportFlowSample dispatches synchronously. Counter samples are sent synchronously in the poll (x-26 units).",
       "requirement_sha": "b9952440cdffd397",
       "tests": {
-        "internal/plugins/flowexport/exporter_test.go::TestExportFlowSampleDispatch": "021856616cf9ecb7"
+        "internal/plugins/flowexport/exporter_test.go::TestExportFlowSampleDispatch": "5b23473bbddf172c",
+        "internal/plugins/flowexport/sflow/datagram_rfc_sflow_v5_test.go::TestSFlowV5FlowSampleSentWithinOneSecond": "e743d810dcc73b88"
       },
       "units": {
-        "internal/plugins/flowexport/exporter_test.go::TestExportFlowSampleDispatch": "cee0a841cf2b1aba"
+        "internal/plugins/flowexport/exporter_test.go::TestExportFlowSampleDispatch": "cee0a841cf2b1aba",
+        "internal/plugins/flowexport/sflow/datagram_rfc_sflow_v5_test.go::TestSFlowV5FlowSampleSentWithinOneSecond": "e229bcab8ed88a71"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "SFLOW-V5-x-7": {
-      "note": "Improved but not whole. TestSFlowV5FlowDatagramIsXDR pins the datagram header words, the flow_sample length, header_length, and the zero padding after 13 sampled-header octets (recorded); TestSFlowIfCounters pins the if_counters record (no record). Still unasserted under x-7: the counters_sample wrapper words written by writeCounterSample (tag, length, sequence, source_id, record count), the other flow_sample words (sample_pool, drops, input, output are checked for value elsewhere but not tagged x-7), and the extended_gateway record's variable-length arrays and next-hop union (writeExtendedGateway).",
+      "note": "Single-polarity row, every sflow writer now compared as XDR words with distinct-octet values: datagram header and sampled_header padding (TestSFlowV5FlowDatagramIsXDR), counters_sample wrapper (TestSFlowV5CounterSampleWrapperIsXDR), all flow_sample words (TestSFlowV5FlowSampleWordsAreXDR), extended_gateway IPv4 and IPv6 unions and variable-length arrays (TestSFlowV5ExtendedGatewayIsXDR), if_counters (TestSFlowIfCounters). A little-endian, reordered or unpadded write changes compared bytes. Every unit recorded.",
       "requirement_sha": "ecaa925946995695",
       "tests": {
         "internal/plugins/flowexport/sflow/counter_test.go::TestSFlowIfCounters": "7769a8fe6e20a7e4",
-        "internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go::TestSFlowV5FlowDatagramIsXDR": "c09c030ae4130286"
+        "internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go::TestSFlowV5FlowDatagramIsXDR": "c09c030ae4130286",
+        "internal/plugins/flowexport/sflow/xdr_rfc_sflow_v5_test.go::TestSFlowV5CounterSampleWrapperIsXDR": "b823d0baa838d52c",
+        "internal/plugins/flowexport/sflow/xdr_rfc_sflow_v5_test.go::TestSFlowV5ExtendedGatewayIsXDR": "b823d0baa838d52c",
+        "internal/plugins/flowexport/sflow/xdr_rfc_sflow_v5_test.go::TestSFlowV5FlowSampleWordsAreXDR": "b823d0baa838d52c"
       },
       "units": {
         "internal/plugins/flowexport/sflow/counter_test.go::TestSFlowIfCounters": "6e9c11c222c3f7f3",
-        "internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go::TestSFlowV5FlowDatagramIsXDR": "7d087708f2f49356"
+        "internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go::TestSFlowV5FlowDatagramIsXDR": "7d087708f2f49356",
+        "internal/plugins/flowexport/sflow/xdr_rfc_sflow_v5_test.go::TestSFlowV5CounterSampleWrapperIsXDR": "1963bcfb2729fec6",
+        "internal/plugins/flowexport/sflow/xdr_rfc_sflow_v5_test.go::TestSFlowV5ExtendedGatewayIsXDR": "4571ba24792dd2cc",
+        "internal/plugins/flowexport/sflow/xdr_rfc_sflow_v5_test.go::TestSFlowV5FlowSampleWordsAreXDR": "e6b968c702ebc8be"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "SFLOW-V5-x-9": {
       "note": "positive: counter and flow datagrams of one sender share one datagram sequence that wraps through 0xFFFFFFFF; negative: a counter generation reset restarts only the source sample sequence, never the datagram sequence",
