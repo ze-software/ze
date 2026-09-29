@@ -17,7 +17,10 @@ ACCM, ACFC or FCS Alternatives, and both reject peer requests for them.
 These restrictions do not change L2TP negotiation. A PADT matching the
 session ID and both MAC addresses ends the PPPoE transport immediately;
 PPP termination packets are not sent afterwards. Local teardown also
-stops PPP before sending PADT.
+stops PPP before sending PADT. A subscriber's LCP Terminate-Request is
+answered with a Terminate-Ack, and one Restart time later (3 seconds) the
+AC sends the PADT, with User Request as the accounting cause; a new LCP
+Configure-Request arriving before the PADT completes is still answered.
 
 ```
 Subscriber CPE

@@ -2,6 +2,28 @@
   "rfc": "rfc5072",
   "records": [
     {
+      "rid": "RFC5072-3-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase",
+      "unit-sha": "0ce7ea71d7abe63c",
+      "claim-sha": "875d643592dcfb13",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::runAuthPhase",
+      "producer-sha": "fc52407612e13c73",
+      "break": "body of runAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5072-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase",
+      "unit-sha": "0ce7ea71d7abe63c",
+      "claim-sha": "8ab0c4eb25ff409f",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
+      "producer-sha": "fb302bd261a2d076",
+      "break": "body of runNCPPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5072-4.1-1",
       "polarity": "negative",
       "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPDuplicateIdentifierOptionIsNotAcked",
@@ -60,8 +82,8 @@
       "rid": "RFC5072-4.1-5",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPSuggestionDiffersFromLocalIdentifier",
-      "unit-sha": "65bbd700f36489c8",
-      "claim-sha": "591cf515ed2fc72c",
+      "unit-sha": "8ba0dae48900891b",
+      "claim-sha": "3ac4cbf9e0cd2ba9",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ipv6cp.go::suggestIPv6CPInterfaceID",
       "producer-sha": "cd185ab66793e8a9",

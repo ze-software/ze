@@ -1256,30 +1256,36 @@ func TestIPv6CPNakOnEqualNonZeroIdentifiers(t *testing.T) {
 }
 
 // TestIPv6CPSuggestionDiffersFromLocalIdentifier drives
-// suggestIPv6CPInterfaceID (ipv6cp.go) directly across many draws,
-// proving A-3: the identifier it suggests never equals the local
-// identifier Ze carried in its own last Configure-Request
+// suggestIPv6CPInterfaceID (ipv6cp.go) with crypto/rand.Reader fed a
+// scripted stream whose first draw is exactly the local identifier ze
+// carried in its own last Configure-Request
 // (pppSession.localInterfaceID, session.go), which is the state RFC
-// 5072 Section 4.1's comparison reads.
+// 5072 Section 4.1's comparison reads, and whose second draw differs.
+// Real randomness never collides in 64 bits, so only a scripted draw
+// reaches the rejection.
 //
-// VALIDATES: A-3 and the Section 4.1 difference rule -- a suggestion
-// is never equal to the local identifier.
-// PREVENTS: a regression that occasionally redraws into the local
-// identifier and skips the rejection check.
+// VALIDATES: A-3 and the Section 4.1 difference rule -- a draw equal to
+// the local identifier is discarded and the next draw is suggested.
+// PREVENTS: a suggestion equal to the local identifier when the random
+// source produces it.
 //
-// RFC requirement: RFC5072-4.1-5 positive -- "Such a suggested
-// interface identifier MUST be different from the interface identifier
-// of the last Configure-Request sent to the peer" (§4.1).
+// RFC requirement: RFC5072-4.1-5 positive -- with the first draw equal to the local identifier (u bit already clear) and the second different, suggestIPv6CPInterfaceID returns the second draw, never the local identifier.
 func TestIPv6CPSuggestionDiffersFromLocalIdentifier(t *testing.T) {
-	local := ipv6cpTestPeerID
-	for i := range 64 {
-		suggestion, err := suggestIPv6CPInterfaceID(local)
-		if err != nil {
-			t.Fatalf("draw %d: %v", i, err)
-		}
-		if suggestion == local {
-			t.Fatalf("draw %d: suggestion equals the local identifier %x", i, local)
-		}
+	local := [8]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77}
+	second := [8]byte{0x00, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33}
+	saved := rand.Reader
+	t.Cleanup(func() { rand.Reader = saved })
+	rand.Reader = bytes.NewReader(append(local[:], second[:]...))
+
+	suggestion, err := suggestIPv6CPInterfaceID(local)
+	if err != nil {
+		t.Fatalf("suggestIPv6CPInterfaceID: %v", err)
+	}
+	if suggestion == local {
+		t.Fatalf("suggestion equals the local identifier %x", local)
+	}
+	if suggestion != second {
+		t.Fatalf("suggestion = %x, want the second draw %x", suggestion, second)
 	}
 }
 

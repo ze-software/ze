@@ -2,30 +2,36 @@
   "audited": "2026-09-29",
   "requirements": {
     "RFC1332-2-1": {
-      "note": "SB-3 strict re-read 2026-09-27. Clauses: an IPCP packet travels under Protocol 0x8021, and exactly one packet fills the Information field. The Protocol clause is enforced: TestIPCPFrameCarriesExactlyOnePacket fails unless the frame octets are 80 21 and ParseFrame returns ProtoIPCP. The 'exactly one' clause is not: the positive checks LCP Length == len(Information) on a frame the test itself assembles with one WriteLCPPacket call, so no Ze send path is driven and no sender that packed two packets into one frame could turn it red; the negative TestIPCPFrameRejectsNonSinglePacket rejects a Length below the header or past the Information field, which is RFC 1661 length validation, and no case offers a frame holding two IPCP packets.",
+      "note": "Judge 2026-09-29. TestIPCPOnePacketPerFrameThroughRun: ze's own IPCP Configure-Request from run() is Protocol 0x8021 with IPCP Length == Information length, so a send path packing a second packet fails (+, observed red on sendNCPConfigureRequest). Negative injects the non-compliant form at the receiver (R1 a, not b): one 0x8021 frame holding a Configure-Request and a trailing Terminate-Request draws the Configure-Ack alone and no Terminate-Ack within 1 s; a receiver that parsed a second packet from the frame answers it and turns red by construction (recorded break is only a ParseLCPPacket revert). FINDING: frame_test.go negative (Length below header / past Information field) proves RFC 1661 length validation, a neighbour; per R1 it should move.",
       "requirement_sha": "9ddbf116bac2d73e",
       "tests": {
         "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameCarriesExactlyOnePacket": "4f3f86f1f0138e3a",
-        "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameRejectsNonSinglePacket": "4f3f86f1f0138e3a"
+        "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameRejectsNonSinglePacket": "4f3f86f1f0138e3a",
+        "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun": "d6b4e2cbd1b095e9",
+        "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun#2": "d6b4e2cbd1b095e9"
       },
       "units": {
         "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameCarriesExactlyOnePacket": "5ec5f340d14bd027",
-        "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameRejectsNonSinglePacket": "6bb2f4dd9b4825ed"
+        "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameRejectsNonSinglePacket": "6bb2f4dd9b4825ed",
+        "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun": "130db8c490b33bc9",
+        "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun#2": "130db8c490b33bc9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1332-2.1-1": {
-      "note": "Forbidden: IP communicated before IPCP Opened, or before PPP reaches the Network-Layer Protocol phase. TestIPCPNoAddressBeforeOpened asserts no AddAddressP2P and no EventSessionIPAssigned at Configure-Request-sent and at AckRcvd, and TestIPResponseConfiguresInterface asserts both once Opened: the IPCP-Opened clause is enforced. No tagged unit holds IP (or IPCP) while PPP is still short of the Network-Layer Protocol phase (authentication incomplete), so that clause has no assertion that goes red.",
+      "note": "Judge 2026-09-29. Network-phase clause now driven: TestNCPHeldUntilNetworkPhase/ipv4, CHAP pending 3 s -> no frame, no address request, no AddAddressP2P (-); accepted -> address request and IPCP Configure-Request. Opened clause unchanged: TestIPCPNoAddressBeforeOpened / TestIPResponseConfiguresInterface. Observed red with runAuthPhase broken; an NCP started beside or before authentication writes a frame inside the 3 s window by construction.",
       "requirement_sha": "3568b51e3865902e",
       "tests": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened": "07e4a04f80ee93fe",
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPResponseConfiguresInterface": "07e4a04f80ee93fe"
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened": "c0875be325cf7c8c",
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPResponseConfiguresInterface": "c0875be325cf7c8c",
+        "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase": "d6b4e2cbd1b095e9"
       },
       "units": {
         "internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened": "05ad882f6d762809",
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPResponseConfiguresInterface": "5bd68df15f1a63ac"
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPResponseConfiguresInterface": "5bd68df15f1a63ac",
+        "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase": "8a0f8d564218620c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1332-2.1-3": {
       "note": "SB-3 strict re-read 2026-09-27. Clauses: (1) the largest IP packet sent equals the peer's Information-field maximum; (2) larger datagrams must be fragmented. (1): TestIPMTUInstalledFromNegotiatedMRU fails unless exactly one MTU of 1400 is installed on ppp7 for a negotiated MRU of 1400. Both tags sit on that one assertion, so there is one test, not a pair. (2) has no assertion: fragmentation is left to the Linux IP stack and no unit sends a datagram above the MTU and observes it fragmented, so a pppN that refused or truncated large datagrams stays green.",

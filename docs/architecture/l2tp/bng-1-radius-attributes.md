@@ -145,7 +145,7 @@ site names the cause that is TRUE of its own path.
 
 | Teardown path | Cause | RFC 2866 Section 5.10 value |
 |---------------|-------|------------------------------|
-| LCP reaching Closed or Stopped, and the teardown of a session waiting in Stopped after the peer's Terminate-Request | User Request | 1 |
+| LCP reaching Closed or Stopped, including the Stopped a peer's Terminate-Request leads to | User Request | 1 |
 | LCP echo probes unanswered past the limit | Lost Carrier | 2 |
 | A CDN whose Result Code is 1, "Call disconnected due to loss of carrier" | Lost Carrier | 2 |
 | The dead-peer keepalive timeout and the exhausted retransmit budget, which are both the peer no longer answering | Lost Carrier | 2 |
@@ -163,17 +163,22 @@ site names the cause that is TRUE of its own path.
 puts Opened plus RTR into Stopping with the Restart counter zeroed, and ze's
 FSM table says exactly that. The counter and its one-shot Restart timer now
 exist: `applyTransition` performs irc and zrc, and the timer's expiry raises
-TO-, which runs tlf and carries the session to Stopped. Since 2026-09-29 the
-session waits there for the peer's next Configure-Request instead of ending,
-because RFC 1661 Section 4.3 says of RTR: "The implementation MUST be prepared
-to receive a new Configure-Request without network administrator
-intervention." A new Configure-Request restarts negotiation. The L2TP
-teardown ends a session that is still waiting, through `StopSession` or the
-channel closing, and that down event reports User Request, the cause of the
-peer's Terminate-Request. The echo timer no longer decides a peer-driven
-teardown, so the cause it used to report, Lost Carrier, is gone from that path.
+TO-, which runs tlf and carries the session to Stopped. There tlf is what RFC
+1661 Section 4.4 says it is: "the lower layer is no longer needed for the
+link." The session emits its one down event at that moment, with User Request,
+so the L2TP reactor sends the CDN (or the PPPoE subsystem the PADT) and the
+Stop record carries User Request. The session goroutine does not end yet:
+until the lower layer's teardown closes the channel, it still answers a new
+Configure-Request, because RFC 1661 Section 4.3 says of RTR: "The
+implementation MUST be prepared to receive a new Configure-Request without
+network administrator intervention." A renegotiation that reaches Opened in
+that window ends the session instead of starting authentication over a
+transport being torn down, and no path reports a second down event, so the
+wait in Stopped is bounded by the teardown ze itself started. The echo timer
+no longer decides a peer-driven teardown, so the cause it used to report, Lost
+Carrier, is gone from that path.
 
-<!-- source: internal/component/l2tp/ppp/session_run.go -- applyTransition, handleRestartTimeout, sessionEndedAt, terminateCause -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- applyTransition, handleRestartTimeout, sessionEndedAt, signalLayerFinished, sendEvent -->
 
 **A path ze cannot attribute reports NAS Error, never a guess.** RFC 2866
 Section 5.10 defines eighteen causes; ze names the nine above and no others,

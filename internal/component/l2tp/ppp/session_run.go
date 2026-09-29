@@ -504,7 +504,14 @@ func (s *pppSession) fail(reason string) {
 // reads or the driver stops. The transport MUST drain events promptly
 // or PPP processing will stall. Buffer size is defaultEventsOutBuf
 // (64); sustained backlog beyond that blocks PPP progress.
+//
+// EventSessionDown is sent at most once per session: a session that signaled
+// This-Layer-Finished keeps running until the lower layer's Down event, and
+// that later exit (read error, driver stop) MUST NOT report a second teardown.
 func (s *pppSession) sendEvent(ev Event) {
+	if _, ok := ev.(EventSessionDown); ok && s.sessionDownSent {
+		return
+	}
 	select {
 	case s.eventsOut <- ev:
 		if _, ok := ev.(EventSessionDown); ok {
@@ -1351,6 +1358,15 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 	}
 
 	if cur != LCPStateOpened && tr.NewState == LCPStateOpened {
+		if s.sessionDownSent {
+			// This-Layer-Finished already told the lower layer it is no
+			// longer needed (signalLayerFinished), and the L2TP or PPPoE
+			// side is tearing it down. A renegotiation that completes
+			// before its Down event ends here rather than starting
+			// authentication and the NCPs over that transport.
+			s.logger.Debug("ppp: LCP reached Opened after This-Layer-Finished; ending session")
+			return true
+		}
 		s.mu.Lock()
 		if s.negotiatedMRU == 0 {
 			// Peer did not propose an MRU; PPP default per
@@ -1420,16 +1436,44 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 		})
 		return true
 	}
+	if tr.NewState == LCPStateStopped {
+		s.signalLayerFinished()
+	}
 
 	return false
 }
 
+// signalLayerFinished performs This-Layer-Finished for a Stopped the peer's
+// Terminate-Request led to, which sessionEndedAt keeps running. The lower
+// layer learns it through the one EventSessionDown the session emits: the
+// L2TP reactor answers with a CDN, the PPPoE subsystem with a PADT, and the
+// teardown that follows closes sessStop or the channel, which is the Down
+// event that ends run(). Until then the session still answers a
+// Configure-Request (sessionEndedAt), so the wait in Stopped is bounded by
+// the lower layer's teardown and never by the peer.
+func (s *pppSession) signalLayerFinished() {
+	// RFC 1661 Section 4.4, This-Layer-Finished: "This action indicates to
+	// the lower layers that the automaton is entering the Initial, Closed or
+	// Stopped states, and the lower layer is no longer needed for the link.
+	// The lower layer SHOULD respond with a Down event when the lower layer
+	// has terminated."
+	// RFC 2866 Section 5.10 value 1: "User requested termination of service,
+	// for example with LCP Terminate or by logging out."
+	s.sendEvent(EventSessionDown{
+		TunnelID:  s.tunnelID,
+		SessionID: s.sessionID,
+		Reason:    "LCP terminated by peer: stopped, lower layer released",
+		Cause:     l2tpevents.TerminateCauseUserRequest,
+	})
+}
+
 // sessionEndedAt reports whether reaching state ends the session. Closed
 // always does, because only ze's own Close leads there. Stopped does unless
-// the peer's Terminate-Request led there: that Stopped keeps the session and
-// waits for the peer's next Configure-Request, which LCPDoTransition answers
-// with irc, scr and sca or scn. The L2TP session teardown (sessStop) or the
-// channel closing then ends it.
+// the peer's Terminate-Request led there: that Stopped signals
+// This-Layer-Finished (signalLayerFinished) and keeps the session answering
+// the peer's next Configure-Request, which LCPDoTransition answers with irc,
+// scr and sca or scn, until the lower layer's teardown (sessStop) or the
+// channel closing ends it.
 func (s *pppSession) sessionEndedAt(state LCPState) bool {
 	if state == LCPStateClosed {
 		return true

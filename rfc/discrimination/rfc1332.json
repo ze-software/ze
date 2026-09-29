@@ -2,6 +2,39 @@
   "rfc": "rfc1332",
   "records": [
     {
+      "rid": "RFC1332-2-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun",
+      "unit-sha": "59dac489d76946ca",
+      "claim-sha": "174ac4d31d837b75",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::sendNCPConfigureRequest",
+      "producer-sha": "4afc19189d550fc7",
+      "break": "body of sendNCPConfigureRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1332-2-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun",
+      "unit-sha": "59dac489d76946ca",
+      "claim-sha": "29ec268cc3064e5b",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/lcp.go::ParseLCPPacket",
+      "producer-sha": "a8c7d6e2abbd3bf8",
+      "break": "body of ParseLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1332-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase",
+      "unit-sha": "0ce7ea71d7abe63c",
+      "claim-sha": "416a64d24cfd9874",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::runAuthPhase",
+      "producer-sha": "fc52407612e13c73",
+      "break": "body of runAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1332-2.1-3",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU",

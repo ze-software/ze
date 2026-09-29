@@ -35,6 +35,50 @@
       "break": "body of handleFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC1661-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsLCPBeforeAnyOtherProtocol",
+      "unit-sha": "e5c29a717537af6d",
+      "claim-sha": "3a2c88b2fff43020",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::sendConfigureRequest",
+      "producer-sha": "49940fc52beffdcb",
+      "break": "body of sendConfigureRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-3.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsNCPAfterLCPOpens",
+      "unit-sha": "8f37331d6a7d16a9",
+      "claim-sha": "699b0b5c823e1787",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
+      "producer-sha": "fb302bd261a2d076",
+      "break": "body of runNCPPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-3.5-3",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes",
+      "unit-sha": "3de98c266c768eb0",
+      "claim-sha": "89e865ddb59bdf9d",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
+      "producer-sha": "fb302bd261a2d076",
+      "break": "body of runNCPPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-3.5-3",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes",
+      "unit-sha": "3de98c266c768eb0",
+      "claim-sha": "81707b4d585f5429",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::runAuthPhase",
+      "producer-sha": "fc52407612e13c73",
+      "break": "body of runAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1661-3.6-2",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened",
@@ -104,12 +148,12 @@
       "rid": "RFC1661-4.3-2",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest",
-      "unit-sha": "89714a123b2dc4f7",
-      "claim-sha": "c57ec9bb1872d989",
+      "unit-sha": "6a5350bf063ab952",
+      "claim-sha": "7e3e3727acbadf73",
       "route": "revert",
-      "producer": "internal/component/l2tp/ppp/session_run.go::sessionEndedAt",
-      "producer-sha": "0aa026cd9d649a77",
-      "break": "body of sessionEndedAt replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/l2tp/ppp/session_run.go::signalLayerFinished",
+      "producer-sha": "4ee7612ac63c6517",
+      "break": "body of signalLayerFinished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1661-4.4-2",
@@ -352,6 +396,28 @@
       "producer": "internal/component/l2tp/ppp/session_run.go::sendProtocolReject",
       "producer-sha": "05f4700bf8d77857",
       "break": "body of sendProtocolReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-5.8-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened",
+      "unit-sha": "aa34714d733a838a",
+      "claim-sha": "a6864d7d0ae9e453",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::sendEchoRequest",
+      "producer-sha": "67e08de14e9b2399",
+      "break": "body of sendEchoRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-5.8-2",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened",
+      "unit-sha": "aa34714d733a838a",
+      "claim-sha": "bf42c255a642925a",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::run",
+      "producer-sha": "81d41b46bd2a232c",
+      "break": "body of run replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1661-5.8-4",

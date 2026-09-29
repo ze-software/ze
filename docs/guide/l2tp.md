@@ -444,7 +444,9 @@ The Stop record adds Acct-Terminate-Cause (type 49), and no other record
 carries it. RFC 2866 Section 5.10: "This attribute indicates how the session was
 terminated, and can only be present in Accounting-Request records where the
 Acct-Status-Type is set to Stop." The value is one of that section's integers:
-User Request (1) when LCP reaches Closed or Stopped, Lost Carrier (2) for
+User Request (1) when LCP reaches Closed or Stopped (a subscriber's LCP
+Terminate-Request reaches Stopped one Restart time after ze's Terminate-Ack,
+and ze then sends the CDN), Lost Carrier (2) for
 unanswered LCP echo probes and for a peer that stops answering at the tunnel
 level, Lost Service (3) for every session on a tunnel the peer ended, Idle
 Timeout (4) and Session Timeout (5) for the

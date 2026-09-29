@@ -302,12 +302,8 @@ func TestRFC1661SingleOctetProtocolRejected(t *testing.T) {
 
 // VALIDATES: the first frame a session puts on the wire is an LCP
 //
-//	Configure-Request.
-//
-// RFC requirement: RFC1661-3.1-1 positive -- run() (session_run.go) drives the
-// synthetic Initial->Closed->ReqSent sequence whose actions are [irc, scr], so
-// the session's first wire act is an LCP Configure-Request that configures and
-// tests the data link.
+//	Configure-Request, when the Closed+Open actions [irc, scr] run through
+//	performAction. The run() path is TestRFC1661RunSendsLCPBeforeAnyOtherProtocol.
 func TestRFC1661LCPPacketsSentFirst(t *testing.T) {
 	s, rec, _ := newRFC1661Session(LCPStateClosed)
 	tr := LCPDoTransition(LCPStateClosed, LCPEventOpen)

@@ -14,6 +14,8 @@ import (
 	"bytes"
 	"testing"
 	"time"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // lcpReplyOptionTypes returns the option Types of the last reply of code the
@@ -237,17 +239,22 @@ func TestRFC1661ConfigureRequestInOpenedRenegotiates(t *testing.T) {
 
 // TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest hands an Opened
 // session a Terminate-Request, lets the Restart timer expire, and then hands
-// it a Configure-Request with no Open event in between.
+// it a Configure-Request with no Open event in between, and last the peer's
+// Configure-Ack.
 //
 // VALIDATES: RFC 1661 Section 4.3 (RTR implementation note), after a peer's
-// Terminate-Request and the Restart timer expiry the session stays in Stopped
-// and a new Configure-Request restarts negotiation without any administrative
-// action.
-// PREVENTS: ending the session (EventSessionDown, run() returns) when Stopping
-// reaches Stopped, which left the peer no session to send the new
-// Configure-Request to.
+// Terminate-Request and the Restart timer expiry the session reaches Stopped,
+// signals This-Layer-Finished to the lower layer exactly once (one
+// EventSessionDown, cause User Request, which starts the L2TP CDN or the
+// PPPoE PADT), and a new Configure-Request arriving before the lower layer's
+// Down event is still answered without any administrative action. The peer's
+// Configure-Ack then ends the session rather than opening a network phase
+// over a lower layer that is terminating, so the wait has a bound.
+// PREVENTS: ending the session goroutine at Stopped (the Configure-Request
+// then goes unanswered), and waiting in Stopped with no signal to the lower
+// layer (a session held with no bound).
 //
-// RFC requirement: RFC1661-4.3-2 positive -- Opened + Terminate-Request, then the Timeout: handleRestartTimeout does not end the session, the state is Stopped and no EventSessionDown is emitted; a Configure-Request then draws ze's Configure-Request and a Configure-Ack, reaching Ack-Sent, still with no EventSessionDown.
+// RFC requirement: RFC1661-4.3-2 positive -- Opened + Terminate-Request, then the Timeout: handleRestartTimeout does not end the session, the state is Stopped and one EventSessionDown with cause User Request is emitted; a Configure-Request then draws ze's Configure-Request and a Configure-Ack echoing its Identifier, reaching Ack-Sent with no end and no second EventSessionDown.
 func TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest(t *testing.T) {
 	t.Parallel()
 
@@ -259,11 +266,21 @@ func TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest(t *testing.T) 
 	if term := s.handleLCPPacket(LCPPacket{Code: LCPTerminateRequest, Identifier: 0x31}); term {
 		t.Fatal("session ended on the Terminate-Request")
 	}
+	if n := countSessionDown(t, events); n != 0 {
+		t.Fatalf("%d EventSessionDown before the Restart timer expired, want 0", n)
+	}
 	if done := s.handleRestartTimeout(); done {
 		t.Fatal("session ended when the Restart timer took Stopping to Stopped")
 	}
 	if got := s.currentState(); got != LCPStateStopped {
 		t.Fatalf("state = %s, want stopped", got)
+	}
+	downs := drainSessionDowns(events)
+	if len(downs) != 1 {
+		t.Fatalf("%d EventSessionDown on reaching Stopped, want 1 (This-Layer-Finished)", len(downs))
+	}
+	if downs[0].Cause != l2tpevents.TerminateCauseUserRequest {
+		t.Fatalf("down cause = %v, want User Request", downs[0].Cause)
 	}
 	framesBefore := rec.count()
 	if term := s.handleLCPPacket(LCPPacket{Code: LCPConfigureRequest, Identifier: 0x32, Data: optStream(mruOption(1400))}); term {
@@ -280,11 +297,65 @@ func TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest(t *testing.T) 
 	if got := s.currentState(); got != LCPStateAckSent {
 		t.Fatalf("state = %s, want ack-sent", got)
 	}
+	if n := countSessionDown(t, events); n != 0 {
+		t.Fatalf("%d further EventSessionDown during the renegotiation, want 0", n)
+	}
+}
+
+// TestRFC1661StoppedAfterPeerTerminateEndsOnOpened drives the renegotiation
+// that follows This-Layer-Finished to completion: the peer Acks ze's
+// Configure-Request. The lower layer was told it is no longer needed, so the
+// session ends there instead of starting authentication and the NCPs over a
+// transport the L2TP or PPPoE side is tearing down.
+//
+// VALIDATES: R16 bound, the wait after This-Layer-Finished cannot turn into a
+// second network phase, and it emits no second EventSessionDown.
+// PREVENTS: an EventLCPUp or EventSessionUp published after the session's
+// EventSessionDown.
+func TestRFC1661StoppedAfterPeerTerminateEndsOnOpened(t *testing.T) {
+	t.Parallel()
+
+	s, rec, events := newRFC1661Session(LCPStateOpened)
+	s.restartTimer = time.NewTimer(time.Hour)
+	s.restartTimer.Stop()
+	defer s.restartTimer.Stop()
+
+	s.handleLCPPacket(LCPPacket{Code: LCPTerminateRequest, Identifier: 0x41})
+	s.handleRestartTimeout()
+	if n := len(drainSessionDowns(events)); n != 1 {
+		t.Fatalf("%d EventSessionDown on reaching Stopped, want 1", n)
+	}
+	s.handleLCPPacket(LCPPacket{Code: LCPConfigureRequest, Identifier: 0x42, Data: optStream(mruOption(1400))})
+	req := lastLCPConfigureRequest(t, rec)
+	if term := s.handleLCPPacket(LCPPacket{Code: LCPConfigureAck, Identifier: req.Identifier, Data: req.Data}); !term {
+		t.Fatal("session reached Opened after This-Layer-Finished and kept running")
+	}
 	for len(events) > 0 {
-		if ev, ok := (<-events).(EventSessionDown); ok {
-			t.Fatalf("EventSessionDown emitted: %+v", ev)
+		switch ev := (<-events).(type) {
+		case EventSessionDown:
+			t.Fatalf("second EventSessionDown: %+v", ev)
+		case EventLCPUp:
+			t.Fatalf("EventLCPUp after This-Layer-Finished: %+v", ev)
 		}
 	}
+}
+
+// drainSessionDowns empties events and returns the EventSessionDown values it
+// held, in order.
+func drainSessionDowns(events chan Event) []EventSessionDown {
+	var downs []EventSessionDown
+	for len(events) > 0 {
+		if ev, ok := (<-events).(EventSessionDown); ok {
+			downs = append(downs, ev)
+		}
+	}
+	return downs
+}
+
+// countSessionDown empties events and counts its EventSessionDown values.
+func countSessionDown(t *testing.T, events chan Event) int {
+	t.Helper()
+	return len(drainSessionDowns(events))
 }
 
 // TestRFC1661TerminateAckHoldsLinkForRestartTime hands an Opened session a

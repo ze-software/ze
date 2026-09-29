@@ -111,10 +111,13 @@ func (e EventSessionIPAssigned) Acknowledge() {
 	}
 }
 
-// EventSessionDown is emitted when a per-session goroutine that WAS
-// running exits for any reason: peer-initiated teardown, local
-// error, Manager.StopSession call, auth/NCP failure. The transport
-// should send a CDN and release its session state.
+// EventSessionDown is emitted at most once per session goroutine that
+// WAS running: when it exits for any reason (local error,
+// Manager.StopSession call, auth/NCP failure), or earlier, when LCP
+// reaches Stopped after the peer's Terminate-Request and signals
+// This-Layer-Finished while the goroutine keeps answering a new
+// Configure-Request until the transport's teardown ends it. The
+// transport should send a CDN and release its session state.
 //
 // Distinct from EventSessionRejected: a SessionDown implies the
 // session was at least accepted and a goroutine was spawned.
