@@ -226,17 +226,21 @@
       "verdict": "enforced"
     },
     "RFC9568-6.4.2-4": {
-      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): TestVRRPBackupDoesNotForwardVirtualMACFrames (QEMU guest, records observed red on backupFilterTables) proves the wire effect: control without the filter forwards a transit datagram sent to the Virtual Router MAC, the vrrp-backup nft prerouting drop stops it. Still weak: the unit calls setBackupFilter by hand, and the product wiring that makes a Backup hold that filter (run sets it at start, doRemoveVIPs sets it before address removal) is proven only by the untagged TestBackupDiscardFollowsTheState; deleting setBackupDiscard from run or doRemoveVIPs leaves every tagged unit green. Owed: tag TestBackupDiscardFollowsTheState for this id, both polarities, with records on run and doRemoveVIPs.",
+      "note": "vrrp judge 2026-09-29 (independent, continuation 3): Wiring now proven on the host: TestBackupDiscardFollowsTheState drives the FSM and asserts the worker sets the discard on the Virtual Router MAC device at start (idle worker: on then off), entering Backup adds no call, promotion withdraws it once after the only install, and a higher-priority advert demotes and sets it again before the only removal (records observed red on doRemoveVIPs; the run revert was also observed red but the ledger keeps one record per unit/polarity). Wire effect: TestVRRPBackupDoesNotForwardVirtualMACFrames (QEMU guest) forwards a transit datagram sent to the Virtual Router MAC without the nft drop and stops it with it (records on backupFilterTables). The host unit's negative tag is a state contrast; the violating negative (no discard, frame forwarded) is the QEMU control.",
       "requirement_sha": "4ee4111fb6fc83df",
       "tests": {
+        "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "222f08528bf57944",
+        "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState#2": "222f08528bf57944",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "e5cea0285e8df647",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "e5cea0285e8df647"
       },
       "units": {
+        "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "79074dcf716f8085",
+        "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState#2": "79074dcf716f8085",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "ae65b076e9153ae9",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "ae65b076e9153ae9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9568-6.4.2-5": {
       "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: TestInstanceStartupNonOwnerGoesBackup requires no virtual address installed in Backup, so the kernel accepts nothing addressed to it; Active contrast installs it",
@@ -304,21 +308,23 @@
       "verdict": "enforced"
     },
     "RFC9568-6.4.3-1": {
-      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly (QEMU guest, records observed red) proves a non-owner holding the virtual address on the virtual-MAC macvlan answers ARP, and with the address removed no reply is observed. Still weak: the unit installs the address by hand, and no unit tagged for this id shows the product installs the IPv4 virtual address on the virtual-MAC device on promotion (doInstallVIPs through installVIPs); deleting that install keeps every tagged unit green. The sysctl-recipe positive and teardown negative in dataplane_linux_test.go remain proxies. Owed: tag an instance promotion test that asserts the install device and CIDRs for this id.",
+      "note": "vrrp judge 2026-09-29 (independent, continuation 3): Product install now proven: TestPromotionInstallsIPv4AddressOnVirtualMACDevice (v3 and v2 subtests) asserts a Backup installs nothing and the promoted non-owner makes exactly one install, on the virtual-MAC macvlan zv4-2-10 (never the parent), of exactly 192.0.2.1/24 (record observed red on doInstallVIPs). TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly (QEMU guest) proves that installed state answers ARP and that no reply is seen with the address removed (records on vipCIDRs). The dataplane_linux_test sysctl tags stay without records.",
       "requirement_sha": "6aa669027221ac17",
       "tests": {
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "a2a1d36eaea86500",
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "a2a1d36eaea86500",
+        "internal/plugins/vrrp/promote_install_test.go::TestPromotionInstallsIPv4AddressOnVirtualMACDevice": "9bad609fe413a369",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "e5cea0285e8df647",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "e5cea0285e8df647"
       },
       "units": {
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "8bbcb38638b03997",
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "9264454e88d221df",
+        "internal/plugins/vrrp/promote_install_test.go::TestPromotionInstallsIPv4AddressOnVirtualMACDevice": "ec1e75f6df69b718",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "d265091692db3d83",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "d265091692db3d83"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9568-6.4.3-10": {
       "note": "matrix row master/advert/priority-zero requires SendAdvert and StartAdvertTimer; a losing non-zero advert sends without re-arming",
@@ -384,17 +390,21 @@
       "verdict": "enforced"
     },
     "RFC9568-6.4.3-5": {
-      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): TestVRRPBackupDoesNotForwardVirtualMACFrames (QEMU guest, records observed red on clearBackupFilter) proves the wire effect: with the filter withdrawn and the address installed the datagram sent to the Virtual Router MAC is forwarded, and while the filter holds it is not. Still weak: the unit withdraws the filter by hand; the promotion wiring (doInstallVIPs calls clearBackupDiscard after the install) is proven only by the untagged TestBackupDiscardFollowsTheState, so deleting that call keeps every tagged unit green while an Active router black-holes the Virtual Router MAC. Owed: tag TestBackupDiscardFollowsTheState for this id, both polarities, with a record on doInstallVIPs (and assert the withdraw follows the install).",
+      "note": "vrrp judge 2026-09-29 (independent, continuation 3): Wiring now proven on the host: TestBackupDiscardFollowsTheState asserts promotion withdraws the discard exactly once and only after the address install, and that it holds before promotion and after demotion (records observed red on doInstallVIPs and doRemoveVIPs). Wire effect: TestVRRPBackupDoesNotForwardVirtualMACFrames (QEMU guest) forwards the datagram sent to the Virtual Router MAC once the filter is withdrawn and the address installed, and not while the filter holds (records on clearBackupFilter).",
       "requirement_sha": "7a688a4e1ee35cb7",
       "tests": {
+        "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "222f08528bf57944",
+        "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState#2": "222f08528bf57944",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "e5cea0285e8df647",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "e5cea0285e8df647"
       },
       "units": {
+        "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "79074dcf716f8085",
+        "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState#2": "79074dcf716f8085",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "ae65b076e9153ae9",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "ae65b076e9153ae9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9568-6.4.3-6": {
       "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: vrrp judge 2026-09-29 re-read after RFC5798 tags were added to TestActiveAddressOwnerAcceptsWhateverAcceptModeSays (body unchanged): owner installs and accepts (instance and acceptfilter tests), Accept_Mode True hands no suppression, and a non-owner with Accept_Mode False gets a suppression: both conditions and the contrast are asserted",
@@ -606,21 +616,29 @@
       "verdict": "weak"
     },
     "RFC9568-8.1.2-1": {
-      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Non-owner half proven: TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly (QEMU guest) captures the physical MAC without applyDataplaneSysctls and only the virtual MAC with it (records observed red). Owner half untagged for this id: TestVRRPOwnerAnswersWithVirtualMACOnly and TestOwnerFilterWiredOnPromotionForEveryFamily (ipv4-v3) prove it but carry no RFC9568-8.1.2-1 tag, so deleting the owner filter keeps every unit tagged here green. Owed: RFC9568-8.1.2-1 tags on those two units, both polarities, with records.",
+      "note": "vrrp judge 2026-09-29 (independent, continuation 3): Both halves proven. Owner: TestOwnerFilterWiredOnPromotionForEveryFamily (ipv4-v3) drives an owner to setOwnerFilter with the parent and exactly the owned IPv4 address before install, and the same group as non-owner names none (records observed red on doInstallVIPs); TestVRRPOwnerAnswersWithVirtualMACOnly (QEMU guest) captures the parent's physical-MAC ARP reply without the filter and after withdrawal, and only the Virtual Router MAC with it (records on ownerARPReplyTerm, ownerFilterTables). Non-owner: TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly captures the physical MAC without applyDataplaneSysctls and only the virtual MAC with it.",
       "requirement_sha": "1e2a000e0692b566",
       "tests": {
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "a2a1d36eaea86500",
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "a2a1d36eaea86500",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "e23156f267947b68",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "e23156f267947b68",
+        "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "9bbf08a19af0da85",
+        "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "9bbf08a19af0da85",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "e5cea0285e8df647",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "e5cea0285e8df647"
       },
       "units": {
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "8bbcb38638b03997",
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "9264454e88d221df",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "cbeb65cab3ec6ff7",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "cbeb65cab3ec6ff7",
+        "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "ddef6ffca811100b",
+        "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "ddef6ffca811100b",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "d265091692db3d83",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "d265091692db3d83"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9568-8.1.2-2": {
       "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): TestEngineWaitsForALateVirtualMACDevice (ipv4) closes the gap: the live macvlanCreator.create runs over a registry that creates the device late and a transport refusing an absent device, and the order is device, install, gratuitous ARP; a device that never appears gives no instance, install or ARP. Deleting waitDevicePresent reddens the positive (records on register.go create, observed red). TestInstanceDelaysAnnounceUntilParentUsable covers the IPv4 address half.",
@@ -644,25 +662,25 @@
       "verdict": "enforced"
     },
     "RFC9568-8.2.2-1": {
-      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Both halves proven. Owner: TestOwnerFilterWiredOnPromotionForEveryFamily (ipv6) wiring, records on doInstallVIPs re-recorded after the D-8 edit; TestVRRPOwnerAnswersWithVirtualMACOnly wire effect with a physical-MAC control. Non-owner: TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly (QEMU guest) captures a physical-MAC NA with the address on the parent, only the Virtual Router MAC with it on the macvlan under the IPv6 recipe, and no NA once removed; TestInstanceIPv6VIPLivesOnVirtualMACDevice pins the product install device.",
+      "note": "vrrp judge 2026-09-29 (independent, continuation 3): Re-read: the owner units changed only by added RFC 8.1.2-1 tag comments; bodies unchanged. Verdict unchanged. Owner: TestOwnerFilterWiredOnPromotionForEveryFamily (ipv6) wiring, records on doInstallVIPs; TestVRRPOwnerAnswersWithVirtualMACOnly wire effect with a physical-MAC control. Non-owner: TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly (QEMU guest) captures a physical-MAC NA with the address on the parent, only the virtual MAC with it on the macvlan, and no NA once removed; TestInstanceIPv6VIPLivesOnVirtualMACDevice pins the install device.",
       "requirement_sha": "d8243483107b4756",
       "tests": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "b7108f927f669585",
         "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "d7c48fb71e456acc",
         "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "d7c48fb71e456acc",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "20eee010ac52594f",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "20eee010ac52594f",
-        "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "6ac7289e0c409824",
-        "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "6ac7289e0c409824"
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "e23156f267947b68",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "e23156f267947b68",
+        "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "9bbf08a19af0da85",
+        "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "9bbf08a19af0da85"
       },
       "units": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "bb1f308ff09eb61c",
         "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "d00227500cd03919",
         "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "d00227500cd03919",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "409a8e77461dde0e",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "409a8e77461dde0e",
-        "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "a3c52990d644258a",
-        "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "a3c52990d644258a"
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "cbeb65cab3ec6ff7",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "cbeb65cab3ec6ff7",
+        "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "ddef6ffca811100b",
+        "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "ddef6ffca811100b"
       },
       "verdict": "enforced"
     },

@@ -69,6 +69,28 @@
     },
     {
       "rid": "RFC9568-6.4.2-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState",
+      "unit-sha": "658cdb6974c316f4",
+      "claim-sha": "de96e82e05a43b0c",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doRemoveVIPs",
+      "producer-sha": "472084ff4c27bb08",
+      "break": "body of doRemoveVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-6.4.2-4",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState",
+      "unit-sha": "658cdb6974c316f4",
+      "claim-sha": "5f54647bbfc73c6d",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+      "producer-sha": "6c990de7776ea965",
+      "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-6.4.2-4",
       "polarity": "negative",
       "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames",
       "unit-sha": "bdc10717c49ebd8d",
@@ -88,6 +110,17 @@
       "producer": "internal/plugins/vrrp/backupfilter.go::backupFilterTables",
       "producer-sha": "5e8bd312a7a53e84",
       "break": "body of backupFilterTables replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-6.4.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/promote_install_test.go::TestPromotionInstallsIPv4AddressOnVirtualMACDevice",
+      "unit-sha": "b4ab7ccbe6981367",
+      "claim-sha": "c52978ac8fa14933",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+      "producer-sha": "6c990de7776ea965",
+      "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9568-6.4.3-1",
@@ -154,6 +187,28 @@
       "producer": "internal/plugins/vrrp/fsm/fsm.go::senderWinsTieBreak",
       "producer-sha": "b8f7123cc5b53541",
       "break": "body of senderWinsTieBreak replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-6.4.3-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState",
+      "unit-sha": "658cdb6974c316f4",
+      "claim-sha": "87c4c01a55f07a05",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+      "producer-sha": "6c990de7776ea965",
+      "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-6.4.3-5",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState",
+      "unit-sha": "658cdb6974c316f4",
+      "claim-sha": "84349da601d42619",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doRemoveVIPs",
+      "producer-sha": "472084ff4c27bb08",
+      "break": "body of doRemoveVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9568-6.4.3-5",
@@ -264,6 +319,50 @@
       "producer": "internal/plugins/vrrp/transport/transport.go::resolveParentPrimaryV4",
       "producer-sha": "93e7bfe0ac1b9d0c",
       "break": "body of resolveParentPrimaryV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.1.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly",
+      "unit-sha": "b874fc33c340c00c",
+      "claim-sha": "8f2c3234e505c72f",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/ownerfilter.go::ownerARPReplyTerm",
+      "producer-sha": "8024f9611f90edfc",
+      "break": "body of ownerARPReplyTerm replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.1.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly",
+      "unit-sha": "b874fc33c340c00c",
+      "claim-sha": "39dd527b5aba7724",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/ownerfilter.go::ownerFilterTables",
+      "producer-sha": "fb7f88e51d55c670",
+      "break": "body of ownerFilterTables replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.1.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily",
+      "unit-sha": "12b24d200af396af",
+      "claim-sha": "e24d979cfbef81c8",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+      "producer-sha": "6c990de7776ea965",
+      "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.1.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily",
+      "unit-sha": "12b24d200af396af",
+      "claim-sha": "ab6a2653cd45a666",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+      "producer-sha": "6c990de7776ea965",
+      "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9568-8.1.2-1",

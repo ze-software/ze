@@ -173,6 +173,10 @@ func TestOwnerFilterNamesNothingForANonOwner(t *testing.T) {
 // RFC requirement: RFC5798-8.2.2-1 negative -- contrast: the same IPv6 group as a non-owner names no address to the filter, so the drop is bound to the owner (doInstallVIPs instance.go).
 // RFC requirement: RFC9568-8.2.2-1 positive -- an IPv6 address owner promoted to Active hands the dataplane the owner filter for its parent and its owned IPv6 address before installing it, so the parent's physical-MAC Neighbor Advertisement is dropped whenever the Active router holds the address (doInstallVIPs instance.go, ownedVIPs)
 // RFC requirement: RFC9568-8.2.2-1 negative -- contrast: the same IPv6 group as a non-owner names no address to the filter, so the drop is bound to the owner (doInstallVIPs instance.go).
+// RFC requirement: RFC5798-8.1.2-1 positive -- a VRRPv3 IPv4 address owner promoted to Master hands the dataplane the owner filter for its parent and its owned IPv4 address before installing it, so the parent's physical-MAC ARP answer is dropped whenever the Master holds the address (doInstallVIPs instance.go, ownedVIPs)
+// RFC requirement: RFC5798-8.1.2-1 negative -- contrast: the same VRRPv3 IPv4 group as a non-owner names no address to the filter, so the drop is bound to the owner, the only case where the parent holds the virtual address (doInstallVIPs instance.go).
+// RFC requirement: RFC9568-8.1.2-1 positive -- a VRRPv3 IPv4 address owner promoted to Active hands the dataplane the owner filter for its parent and its owned IPv4 address before installing it, so the parent's physical-MAC ARP answer is dropped whenever the Active router holds the address (doInstallVIPs instance.go, ownedVIPs)
+// RFC requirement: RFC9568-8.1.2-1 negative -- contrast: the same VRRPv3 IPv4 group as a non-owner names no address to the filter, so the drop is bound to the owner, the only case where the parent holds the virtual address (doInstallVIPs instance.go).
 func TestOwnerFilterWiredOnPromotionForEveryFamily(t *testing.T) {
 	v2 := testSpec()
 	v2.Version = versionV2

@@ -101,7 +101,21 @@ func TestBackupFilterPublishesAndWithdraws(t *testing.T) {
 // driven through the FSM: Backup keeps the discard (set by run, not repeated),
 // promotion withdraws it after the addresses are installed, and demotion by a
 // higher-priority advertisement sets it again BEFORE the addresses are removed,
-// because the macvlan forwards with or without an address.
+// because the macvlan forwards with or without an address. The withdraw on
+// promotion is checked to come AFTER the address install.
+//
+// RFC requirement: RFC9568-6.4.2-4 positive -- a router that is not Active holds the discard on its Virtual Router MAC device: the worker sets it when it starts (run instance.go) and a demoted router sets it again before any address removal (doRemoveVIPs instance.go).
+// RFC requirement: RFC9568-6.4.2-4 negative -- contrast: an Active router holds no discard, because promotion withdraws it after the address install (doInstallVIPs instance.go), so the discard is bound to the Backup state.
+// RFC requirement: RFC5798-6.4.2-4 positive -- a router that is not Master holds the discard on its virtual router MAC device: the worker sets it when it starts (run instance.go) and a demoted router sets it again before any address removal (doRemoveVIPs instance.go).
+// RFC requirement: RFC5798-6.4.2-4 negative -- contrast: a Master holds no discard, because promotion withdraws it after the address install (doInstallVIPs instance.go), so the discard is bound to the Backup state.
+// RFC requirement: RFC3768-6.4.2-2 positive -- a router that is not Master holds the discard on its virtual router MAC device: the worker sets it when it starts (run instance.go) and a demoted router sets it again before any address removal (doRemoveVIPs instance.go).
+// RFC requirement: RFC3768-6.4.2-2 negative -- contrast: a Master holds no discard, because promotion withdraws it after the address install (doInstallVIPs instance.go), so the discard is bound to the Backup state.
+// RFC requirement: RFC9568-6.4.3-5 positive -- promotion to Active withdraws the discard exactly once, after the virtual address is installed, so the Active router forwards what is sent to the Virtual Router MAC (doInstallVIPs instance.go).
+// RFC requirement: RFC9568-6.4.3-5 negative -- contrast: before promotion and after demotion the discard holds, so a router that is not Active does not forward for the Virtual Router MAC (run, doRemoveVIPs instance.go).
+// RFC requirement: RFC5798-6.4.3-5 positive -- promotion to Master withdraws the discard exactly once, after the virtual address is installed, so the Master forwards what is sent to the virtual router MAC (doInstallVIPs instance.go).
+// RFC requirement: RFC5798-6.4.3-5 negative -- contrast: before promotion and after demotion the discard holds, so a router that is not Master does not forward for the virtual router MAC (run, doRemoveVIPs instance.go).
+// RFC requirement: RFC3768-6.4.3-2 positive -- promotion to Master withdraws the discard exactly once, after the virtual address is installed, so the Master forwards what is sent to the virtual router MAC (doInstallVIPs instance.go).
+// RFC requirement: RFC3768-6.4.3-2 negative -- contrast: before promotion and after demotion the discard holds, so a router that is not Master does not forward for the virtual router MAC (run, doRemoveVIPs instance.go).
 func TestBackupDiscardFollowsTheState(t *testing.T) {
 	idle, fi, _ := newTestInstance(t, testSpec())
 	idle.deps.parentReady = func(string, string) bool { return false }
@@ -117,6 +131,12 @@ func TestBackupDiscardFollowsTheState(t *testing.T) {
 	in.deps.setBackupFilter = func(owner, device string) error {
 		removesAtDiscard = len(f.snapshot().removes)
 		return set(owner, device)
+	}
+	installsAtWithdraw := -1
+	withdraw := in.deps.clearBackupFilter
+	in.deps.clearBackupFilter = func(owner string) error {
+		installsAtWithdraw = len(f.snapshot().installs)
+		return withdraw(owner)
 	}
 	in.dispatch(fsm.Startup{Config: in.fsmConfig()})
 	if got := f.discardCalls(); len(got) != 0 {
@@ -138,6 +158,9 @@ func TestBackupDiscardFollowsTheState(t *testing.T) {
 	}
 	if len(f.snapshot().installs) != 1 {
 		t.Fatal("promotion installed no address")
+	}
+	if installsAtWithdraw != 1 {
+		t.Fatalf("discard withdrawn with %d installs done, want it withdrawn after the only install", installsAtWithdraw)
 	}
 
 	in.dispatch(fsm.AdvertReceived{Priority: 254, SrcIP: netip.MustParseAddr("192.0.2.99"), IntervalMs: 1000, VIPCount: 1})

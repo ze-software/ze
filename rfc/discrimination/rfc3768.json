@@ -91,6 +91,28 @@
     },
     {
       "rid": "RFC3768-6.4.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState",
+      "unit-sha": "658cdb6974c316f4",
+      "claim-sha": "99ff2ae4c5c73a90",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doRemoveVIPs",
+      "producer-sha": "472084ff4c27bb08",
+      "break": "body of doRemoveVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3768-6.4.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState",
+      "unit-sha": "658cdb6974c316f4",
+      "claim-sha": "4b985963aa96bdad",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+      "producer-sha": "6c990de7776ea965",
+      "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3768-6.4.2-2",
       "polarity": "negative",
       "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames",
       "unit-sha": "bdc10717c49ebd8d",
@@ -135,6 +157,17 @@
     },
     {
       "rid": "RFC3768-6.4.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/promote_install_test.go::TestPromotionInstallsIPv4AddressOnVirtualMACDevice",
+      "unit-sha": "b4ab7ccbe6981367",
+      "claim-sha": "32f52bb2970b0ae5",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+      "producer-sha": "6c990de7776ea965",
+      "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3768-6.4.3-1",
       "polarity": "negative",
       "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly",
       "unit-sha": "b700c87dc50de836",
@@ -154,6 +187,28 @@
       "producer": "internal/plugins/vrrp/register.go::vipCIDRs",
       "producer-sha": "eeae85e66629ec86",
       "break": "body of vipCIDRs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3768-6.4.3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState",
+      "unit-sha": "658cdb6974c316f4",
+      "claim-sha": "e241650b1f070230",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+      "producer-sha": "6c990de7776ea965",
+      "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3768-6.4.3-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState",
+      "unit-sha": "658cdb6974c316f4",
+      "claim-sha": "09aea47aa6537c18",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::doRemoveVIPs",
+      "producer-sha": "472084ff4c27bb08",
+      "break": "body of doRemoveVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3768-6.4.3-2",
@@ -297,6 +352,28 @@
       "producer": "internal/plugins/vrrp/instance.go::onPacket",
       "producer-sha": "3b27d6e7104c148e",
       "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3768-7.1-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface",
+      "unit-sha": "c3ba12015001440f",
+      "claim-sha": "aa9a0f45f3198c1a",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/engine.go::dispatchRx",
+      "producer-sha": "64cbc500ec8b2c45",
+      "break": "body of dispatchRx replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3768-7.1-4",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface",
+      "unit-sha": "c3ba12015001440f",
+      "claim-sha": "4ea4d2e18b988d13",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::lookup",
+      "producer-sha": "94149d35256565e6",
+      "break": "body of lookup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3768-7.1-6",
