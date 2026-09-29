@@ -362,9 +362,9 @@ func parseAssignedSessionIDReply(payload []byte, expectedMsg MessageType, msgNam
 			}
 			break
 		}
-		if flags&FlagReserved != 0 {
+		if flags&FlagUnrecognized != 0 {
 			if flags&FlagMandatory != 0 {
-				return 0, fmt.Errorf("l2tp: mandatory %s AVP type %d with reserved bits set", msgName, attrType)
+				return 0, fmt.Errorf("l2tp: mandatory %s AVP type %d not recognized", msgName, attrType)
 			}
 			continue
 		}

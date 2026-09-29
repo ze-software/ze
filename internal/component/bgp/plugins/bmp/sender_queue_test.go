@@ -564,6 +564,10 @@ func TestStaleDrainDoesNotDiscardTheNextSessionsQueue(t *testing.T) {
 // by calling the encoder. Deleting the sendTermination call from
 // terminateAndClose leaves TestBMPSenderTermination, which carries the same tag,
 // green; it turns this test red (mutation-tested, 2026-08-30).
+//
+// RFC requirement: RFC7854-4.5-5 positive -- the router side of the Section 4.5
+// sentence, "use of this message is RECOMMENDED": when ze stops a BMP session,
+// the collector reads a Termination message before the connection ends.
 func TestSenderStopSendsTerminationToCollector(t *testing.T) {
 	// VALIDATES: RFC 7854 Section 4.5 -- when ze closes a BMP session, the
 	// collector receives a Termination message BEFORE the TCP connection goes

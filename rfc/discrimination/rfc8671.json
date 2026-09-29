@@ -15,6 +15,28 @@
     {
       "rid": "RFC8671-x-3",
       "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/msg_test.go::TestBMPPeerUpRoundTrip",
+      "unit-sha": "c89f6bcb1ee6ccfe",
+      "claim-sha": "474cee42c40d8741",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/msg.go::writePeerUp",
+      "producer-sha": "677a87b99003ac23",
+      "break": "body of writePeerUp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8671-x-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB",
+      "unit-sha": "5f7753435b8d4fd6",
+      "claim-sha": "6e18b4aa30dd77a9",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::handleSenderState",
+      "producer-sha": "ffe5146e9ddda902",
+      "break": "body of handleSenderState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8671-x-3",
+      "polarity": "positive",
       "unit": "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB",
       "unit-sha": "cce1aea9448fc683",
       "claim-sha": "9568d85e005d6005",

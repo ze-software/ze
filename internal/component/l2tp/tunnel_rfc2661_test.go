@@ -698,10 +698,10 @@ func lnsSessionEstablished(t *testing.T, tun *L2TPTunnel, now time.Time, remoteS
 	return sid
 }
 
-// RFC requirement: RFC2661-6.12-1 positive -- a CDN for an established session
+// RFC requirement: RFC2661-10-1 positive -- a CDN for an established session
 // removes the session and queues its kernel teardown and its session-down
 // event.
-// RFC requirement: RFC2661-6.12-1 negative -- the CDN is answered by nothing
+// RFC requirement: RFC2661-10-1 negative -- the CDN is answered by nothing
 // but a ZLB: no CDN and no other control message goes back.
 // RFC requirement: RFC2661-7.5.1-1 positive -- a CDN received for an
 // established LAC session removes the session and queues the kernel teardown

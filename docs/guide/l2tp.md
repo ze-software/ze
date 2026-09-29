@@ -108,8 +108,10 @@ Capabilities AVP`. The reply goes out with Tunnel ID 0, because the peer
 supplied no tunnel id ze can address it by, and no tunnel entry is created for
 it.
 
-An SCCRQ carrying a vendor-specific AVP ze does not recognize with the M-bit
-set is answered on the same path, with Error Code 8 rather than 3: RFC 2661
+An SCCRQ carrying an AVP ze does not recognize with the M-bit set is answered
+on the same path, with Error Code 8 rather than 3. That AVP is a
+vendor-specific AVP, or an IETF AVP whose Attribute Type RFC 2661 does not
+define. An AVP with a reserved flag bit set gets Error Code 3. RFC 2661
 Section 4.4.2 gives that code to a "tunnel was shutdown due to receipt of an
 unknown AVP with the M-bit set", and Section 4.2 says the same AVP with the
 M-bit clear is ignored and the message accepted, which is what ze does. Each
@@ -615,8 +617,17 @@ a NAK carrying an Error-Cause.
 | Event-Timestamp is within 5 minutes | Discarded when stale, NAK 404 when absent |
 | CoA-Request carries no Service-Type | NAK 405 |
 | Every attribute is one Ze supports | NAK 401 |
+| Every fixed-length attribute (NAS-Port, NAS-IP-Address, Acct-Terminate-Cause and others) has its length | NAK 407 |
+| CoA-Request: every Filter-Id and Vendor-Specific is a rate or a CoS profile Ze applies, with at most one of each | NAK 407 |
 | The identification attributes match exactly one session | NAK 503 for none, NAK 508 for several |
+| Every part of the requested change can be carried out (a CoS profile needs an access interface) | NAK 506 |
 | The requested change reached the shaper | NAK 506 |
+
+A CoA-Request is atomic, as RFC 5176 Section 2.3 requires. Ze makes every check
+before the first change leaves, so a NAK never follows a partial change. A
+Disconnect-Request carries only identification attributes: Ze reads no
+Vendor-Specific attribute in one, so it answers a Disconnect-Request that
+carries one with NAK 401.
 
 One of these is stricter than RFC 5176, deliberately. Section 6.3 makes the
 Event-Timestamp a SHOULD and lets an implementation be configurable about its
@@ -650,7 +661,7 @@ packet the finished Message-Authenticator is part of. A client that inverts the
 two is refused.
 
 <!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- coa-port -->
-<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- handlePacket, unsupportedAttr, oneSession -->
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- handlePacket, unsupportedAttr, unsupportedAttrValue, readCoAChange, applySubscriberCoA, oneSession -->
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- startCoAListener -->
 <!-- source: internal/component/radius/packet.go -- VerifyCoARequestAuth, VerifyCoAMessageAuthenticator -->
 

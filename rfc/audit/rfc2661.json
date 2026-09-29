@@ -1,100 +1,83 @@
 {
   "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2661-10-1": {
-      "note": "Cleanup clause now proven: TestRFC2661CDNCleansUpAndSendsNothing asserts the session leaves, one session-down, and one kernel teardown for the established case only. Clause 'does not send back any indication' is confounded the same way as RFC2661-9-1: the ICRP is never acknowledged, the cwnd-1 window is full, and a reply handleCDN enqueued would sit in sendQueue with nextSendSeq unchanged and no datagram returned. Negative TestSession_CDN_UnknownSessionDropped is accepted as the 'specific call' scope. Fix: ackAll after setup, or assert sendQueue unchanged.",
+      "note": "Cleanup: TestRFC2661CDNCleansUpAndSendsNothing (session removed, one session-down, one kernel teardown for the established case only) and TestRFC2661CDNCleansUpSilently (tags merged from retired 6.12-1). 'does not send back any indication': the send-queue assertion now closes the cwnd-1 confound the earlier verdict named, and TestRFC2661CDNCleansUpSilently asserts nothing but a ZLB goes back. Negative TestSession_CDN_UnknownSessionDropped accepted as the 'specific call' scope.",
       "requirement_sha": "7eadfdeae6dfa6d7",
       "tests": {
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661CDNCleansUpAndSendsNothing": "6fa9a0d3573e27c8",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_AnyState": "0cf65d28b0c85f7e",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_EstablishedSession": "0cf65d28b0c85f7e",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "0cf65d28b0c85f7e"
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661CDNCleansUpAndSendsNothing": "c0e9ed1fbd858625",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_AnyState": "7470b9faf5801057",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_EstablishedSession": "7470b9faf5801057",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "7470b9faf5801057",
+        "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CDNCleansUpSilently": "ed0cb3271bdc0590",
+        "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CDNCleansUpSilently#2": "ed0cb3271bdc0590"
       },
       "units": {
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661CDNCleansUpAndSendsNothing": "caee1f5c6f27e525",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661CDNCleansUpAndSendsNothing": "e0497c8ce3c03564",
         "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_AnyState": "4b5173ad5983463a",
         "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_EstablishedSession": "d86ede09628ce00a",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "2ce27ac82b948758"
+        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "2ce27ac82b948758",
+        "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CDNCleansUpSilently": "aa0a807dd2080044",
+        "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CDNCleansUpSilently#2": "aa0a807dd2080044"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2661-10-2": {
-      "note": "Sender, both IDs: TestRFC2661LocalIDsNeverZero (see RFC2661-24.10-1). Receiver: TestRFC2661PeerZeroTunnelIDRefused refuses Assigned Tunnel ID 0 and accepts 1 in parseSCCRQ; TestSession_SIDBoundary_Zero/MaxUint16 do the session half.",
+      "note": "Tags merged from retired RFC2661-24.10-1 (same sentence, section 5.3). Sender: TestRFC2661LocalIDsNeverZero (tunnel ID across the 0xFFFF wrap, session ID over 2^20 draws). Receiver, tunnel: TestRFC2661PeerZeroTunnelIDRefused, TestSCCRQWithZeroAssignedTunnelIDIsAnswered (StopCCN code 3, no tunnel) against TestSCCRQWithNonZeroAssignedTunnelIDEstablishes, the .ci over the wire both ways, and TestParseSCCRP_Rejects against TestTunnelInitiatorHandshake for the SCCRP half. Receiver, session: TestSession_SIDBoundary_Zero/MaxUint16.",
       "requirement_sha": "def41eea5d51e30b",
       "tests": {
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661LocalIDsNeverZero": "6fa9a0d3573e27c8",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerZeroTunnelIDRefused": "6fa9a0d3573e27c8",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_MaxUint16": "0cf65d28b0c85f7e",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_Zero": "0cf65d28b0c85f7e"
+        "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithNonZeroAssignedTunnelIDEstablishes": "0cc7f6cc41e76f75",
+        "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered": "0cc7f6cc41e76f75",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661LocalIDsNeverZero": "c0e9ed1fbd858625",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerZeroTunnelIDRefused": "c0e9ed1fbd858625",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_MaxUint16": "7470b9faf5801057",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_Zero": "7470b9faf5801057",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestParseSCCRP_Rejects": "5d58b580cd1af8b6",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "5d58b580cd1af8b6",
+        "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci": "aca9894b4579f5a6",
+        "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#2": "aca9894b4579f5a6"
       },
       "units": {
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661LocalIDsNeverZero": "84e8e04bbf7781c6",
+        "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithNonZeroAssignedTunnelIDEstablishes": "414a31ae4ce9a91f",
+        "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered": "002df26945563b4c",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661LocalIDsNeverZero": "6c1c81035000b95e",
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerZeroTunnelIDRefused": "59b80cb8810482fc",
         "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_MaxUint16": "9aaf1eddbc2d20e9",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_Zero": "549842b442a835e3"
+        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_Zero": "549842b442a835e3",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestParseSCCRP_Rejects": "5e8310d63269834f",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "45a43dfbc39206d3",
+        "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci": "aca9894b4579f5a6",
+        "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#2": "aca9894b4579f5a6"
       },
       "verdict": "enforced"
-    },
-    "RFC2661-24.10-1": {
-      "note": "Sender, both IDs: TestRFC2661LocalIDsNeverZero drives allocateLocalTID across the 0xFFFF wrap (the producer skips 0 and tidNoTunnel) and 2^20 allocateSessionID draws, which reach a raw 0 with near certainty; every caller treats the 0 return as exhaustion. Receiver refusal of a peer's zero tunnel ID by SCCRQ and SCCRP units and the .ci. Same text as RFC2661-10-2 (retirement candidate).",
-      "requirement_sha": "def41eea5d51e30b",
-      "tests": {
-        "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithNonZeroAssignedTunnelIDEstablishes": "256f9f9ee58dd412",
-        "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered": "256f9f9ee58dd412",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661LocalIDsNeverZero": "6fa9a0d3573e27c8",
-        "internal/component/l2tp/tunnel_initiator_test.go::TestParseSCCRP_Rejects": "8cf59898253f7242",
-        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "8cf59898253f7242",
-        "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci": "e449a0a4599b8e99",
-        "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#2": "e449a0a4599b8e99"
-      },
-      "units": {
-        "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithNonZeroAssignedTunnelIDEstablishes": "afe793814f831daa",
-        "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered": "348f0db9a3661b0d",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661LocalIDsNeverZero": "84e8e04bbf7781c6",
-        "internal/component/l2tp/tunnel_initiator_test.go::TestParseSCCRP_Rejects": "0f057742cdd1159d",
-        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "eb6b8c9d1487f052",
-        "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci": "e449a0a4599b8e99",
-        "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#2": "e449a0a4599b8e99"
-      },
-      "verdict": "enforced"
-    },
-    "RFC2661-24.12-1": {
-      "note": "Session clause: forbidden = escalating a session-scoped unknown M=1 AVP to tunnel teardown, or not terminating the session. session_fsm_test.go::TestSession_UnknownMandatoryAVP asserts the tunnel stays established, but only len(out)==1, not that the message is a CDN nor that the session is removed. Tunnel clause (the second sentence of the quote): no unit tagged with this id.",
-      "requirement_sha": "704455220ff17e8b",
-      "tests": {
-        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "0cf65d28b0c85f7e",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "0cf65d28b0c85f7e"
-      },
-      "units": {
-        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "1eebef17cb08fd53",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "1eebef17cb08fd53"
-      },
-      "verdict": "weak"
     },
     "RFC2661-4.1-1": {
-      "note": "Send clause proven (.ci record, TestAVPCatalogRoundTrip). Receive clause: TestRFC2661ReservedAVPBitTreatedAsUnrecognized is well isolated (the reserved-bit branch in parseICRQ runs before the type switch, and the M=0 case asserts the value 77 was not honored), but it drives ICRQ only. The HELLO path never walks its body (handleMessage returns nil for MsgHello), so a HELLO carrying an M=1 reserved-bit AVP is silently accepted: 'treated as an unrecognized AVP' is unmet there. Blocked by the D-8 fix that owns RFC2661-4.1-4; re-judge after it lands.",
+      "note": "Send clause: TestAVPCatalogRoundTrip and the .ci read reserved bits zero on every emitted AVP. Receive clause, both message scopes: TestRFC2661ReservedAVPBitTreatedAsUnrecognized (ICRQ, M=0 value ignored, M=1 one CDN) and TestUnrecognizedMandatoryAVPInHelloClearsTunnel (HELLO, reserved-bit AVP with M=1 clears the tunnel with its session, M=0 changes nothing). Producer checked: AVPIterator.Next sets FlagReserved|FlagUnrecognized, and every parser plus parseHello branches on FlagUnrecognized. The HELLO gap of the earlier verdict is closed.",
       "requirement_sha": "2143e31d9b133491",
       "tests": {
         "internal/component/l2tp/avp_test.go::TestAVPCatalogRoundTrip": "2fea7bba7d39fdcb",
         "internal/component/l2tp/avp_test.go::TestAVPIteratorReservedBits": "2fea7bba7d39fdcb",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedAVPBitTreatedAsUnrecognized": "6fa9a0d3573e27c8",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedAVPBitTreatedAsUnrecognized": "c0e9ed1fbd858625",
+        "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel": "beb7a378ea5d3333",
         "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
       },
       "units": {
         "internal/component/l2tp/avp_test.go::TestAVPCatalogRoundTrip": "5f6103da6005fcd4",
         "internal/component/l2tp/avp_test.go::TestAVPIteratorReservedBits": "7678b2f0a9d5c4f3",
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedAVPBitTreatedAsUnrecognized": "4aaf13a5b2387a36",
+        "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel": "0f7cd3930854a462",
         "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2661-4.1-2": {
       "note": "Positive TestRFC2661EveryEmittedMessageOpensWithMessageType reads the first AVP of all ten body writers plus the HELLO; these are the eleven non-test sites that write a Message Type AVP (SCCRQ, SCCRP, SCCCN, StopCCN, ICRQ, ICRP, ICCN, OCRQ, OCRP, CDN, HELLO). Negative TestReactor_MalformedSCCRQCreatesNoTunnel: an SCCRQ with Host Name first is refused and creates no tunnel. Text duplicates RFC2661-4.4.1-2.",
       "requirement_sha": "c54b46bf2c0af1c0",
       "tests": {
-        "internal/component/l2tp/reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel": "858feee3a98f48af",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661EveryEmittedMessageOpensWithMessageType": "6fa9a0d3573e27c8",
-        "internal/component/l2tp/session_fsm_test.go::TestWriteICRPBody": "0cf65d28b0c85f7e",
+        "internal/component/l2tp/reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel": "967923124e21ac52",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661EveryEmittedMessageOpensWithMessageType": "c0e9ed1fbd858625",
+        "internal/component/l2tp/session_fsm_test.go::TestWriteICRPBody": "7470b9faf5801057",
         "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
       },
       "units": {
@@ -106,37 +89,49 @@
       "verdict": "enforced"
     },
     "RFC2661-4.1-3": {
-      "note": "Forbidden = keeping a session alive after an unrecognized M=1 AVP in a session message. session_fsm_test.go::TestSession_UnknownMandatoryAVP asserts only len(out)==1 and tunnel still established; it does not assert the one message is a CDN nor that the session is removed, so an implementation that ignored the AVP and answered ICRP would pass. Positive TestSession_IncomingLNS_ICRQ is fine.",
+      "note": "IETF shape proven: TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession asserts one CDN, no session and the tunnel still established for an undefined IETF type with M=1, and one ICRP plus a session with M=0; dropping the FlagUnrecognized branch of parseICRQ turns it red. Vendor shape still unproven: TestSession_UnknownMandatoryAVP (tags moved from 24.12-1) asserts only len(out)==1 and tunnel established, so a parser that skipped the M=1 vendor AVP and answered ICRP passes; its positive claim 'exactly one CDN' states more than the body checks. Only ICRQ is exercised; the same branch in parseICCN/OCRQ/OCCN/CDN/ICRP/OCRP/WEN/SLI parsers has no discriminating unit. Fix: assert MsgCDN and sessionCount 0 in TestSession_UnknownMandatoryAVP, and one table case per session parser.",
       "requirement_sha": "8af8f6c776a076f3",
       "tests": {
-        "internal/component/l2tp/session_fsm_test.go::TestSession_IncomingLNS_ICRQ": "0cf65d28b0c85f7e",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "0cf65d28b0c85f7e"
+        "internal/component/l2tp/session_fsm_test.go::TestSession_IncomingLNS_ICRQ": "7470b9faf5801057",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "7470b9faf5801057",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "7470b9faf5801057",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#3": "7470b9faf5801057",
+        "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession": "beb7a378ea5d3333",
+        "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession#2": "beb7a378ea5d3333"
       },
       "units": {
         "internal/component/l2tp/session_fsm_test.go::TestSession_IncomingLNS_ICRQ": "9ab121ace211e8cc",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "1eebef17cb08fd53"
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "25288f3ff6c28abc",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "25288f3ff6c28abc",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#3": "25288f3ff6c28abc",
+        "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession": "f26a74ab9c3fa8dc",
+        "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession#2": "f26a74ab9c3fa8dc"
       },
       "verdict": "weak"
     },
     "RFC2661-4.1-4": {
-      "note": "Forbidden = keeping the tunnel after an unrecognized M=1 AVP in a tunnel message. tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN asserts StopCCN and state Closed, which goes red on that. Clause '(and all sessions within)': the case is an SCCCN before establishment, so no session exists; no tagged unit asserts sessions are cleared for a tunnel-scoped unknown M=1 AVP on an established tunnel.",
+      "note": "TestUnrecognizedMandatoryAVPInHelloClearsTunnel drives handleMessage with a HELLO on an established tunnel holding one session, for a vendor AVP, an undefined IETF type and a reserved-bit AVP: M=1 sends one StopCCN, clears the session and closes the tunnel; M=0 sends nothing and keeps both. This closes the '(and all sessions within)' clause the earlier verdict found missing. TestTunnelSCCCNUnknownMandatoryAVP_StopCCN keeps the SCCCN case; TestTunnelInitiatorHandshake is the clean-exchange positive. Producer checked: parseHello/handleHello (Error Code 8), parseSCCCN/parseStopCCN/parseSCCRP branch on FlagUnrecognized, handleStopCCN now closes on a malformed StopCCN.",
       "requirement_sha": "44d2c6a04226b6d2",
       "tests": {
-        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "8cf59898253f7242",
-        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN": "8cf59898253f7242"
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "5d58b580cd1af8b6",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN": "5d58b580cd1af8b6",
+        "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel": "beb7a378ea5d3333",
+        "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel#2": "beb7a378ea5d3333"
       },
       "units": {
-        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "eb6b8c9d1487f052",
-        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN": "1b0b2c19242c0473"
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "45a43dfbc39206d3",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN": "1b0b2c19242c0473",
+        "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel": "0f7cd3930854a462",
+        "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel#2": "0f7cd3930854a462"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2661-4.4-1": {
       "note": "TestRFC2661WrittenAVPFlags compares every AVP of the ten writers to the Section 4.4 M-bit table, and TestRFC2661HelloAVPMandatoryBits closes the one emitted body that walk missed (HELLO). Every Message Type emission site is covered. Single-polarity marker accepted: a sender obligation with no receiver refusal.",
       "requirement_sha": "591358fa378b8919",
       "tests": {
         "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661WrittenAVPFlags": "d54398d7e62b2795",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661HelloAVPMandatoryBits": "6fa9a0d3573e27c8"
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661HelloAVPMandatoryBits": "c0e9ed1fbd858625"
       },
       "units": {
         "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661WrittenAVPFlags": "e66f097d3cc22261",
@@ -171,7 +166,7 @@
       "requirement_sha": "addfe6b5d5db6066",
       "tests": {
         "internal/component/l2tp/reliable_test.go::TestTickBackoffSchedule": "1da6320bfe08bd17",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661RetransmitBackoffDoubles": "6fa9a0d3573e27c8"
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661RetransmitBackoffDoubles": "c0e9ed1fbd858625"
       },
       "units": {
         "internal/component/l2tp/reliable_test.go::TestTickBackoffSchedule": "4e410de38c96a079",
@@ -191,19 +186,21 @@
       "verdict": "enforced"
     },
     "RFC2661-5.8-3": {
-      "note": "The correction is accepted: the configurability parenthetical is judged under RFC2661-5.8-8. The MUST clause is still half proven. TestTickMaxAttempts proves the engine reports TeardownRequired after the budget and not before; TestPeerTeardownWithdrawsSubscriberRoute's claim says the tunnel is torn down, but its body asserts only one OnSessionDown for the one session. No tagged unit asserts the tunnel state (closed or reaped, StopCCN sent) after exhaustion, so a reactor that withdrew the route and kept the tunnel open stays green.",
+      "note": "TestRFC2661RetransmitExhaustionClearsTunnel drives reactor.handleTick with dead-peer detection off, an unanswered HELLO and one established session: after each of the DefaultMaxRetransmit retransmissions the tunnel stays established with its session, and the tick past the budget leaves the tunnel closed with zero sessions (StopCCN logged). TestTickMaxAttempts proves the engine signal on both sides. The 5.8-3 tag on TestPeerTeardownWithdrawsSubscriberRoute, whose body asserted only OnSessionDown, is gone. Configurability is judged under RFC2661-5.8-8.",
       "requirement_sha": "5d9557a4489cdedc",
       "tests": {
-        "internal/component/l2tp/reactor_test.go::TestPeerTeardownWithdrawsSubscriberRoute": "858feee3a98f48af",
         "internal/component/l2tp/reliable_test.go::TestTickMaxAttempts": "1da6320bfe08bd17",
-        "internal/component/l2tp/reliable_test.go::TestTickMaxAttempts#2": "1da6320bfe08bd17"
+        "internal/component/l2tp/reliable_test.go::TestTickMaxAttempts#2": "1da6320bfe08bd17",
+        "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel": "380a25f318629f07",
+        "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel#2": "380a25f318629f07"
       },
       "units": {
-        "internal/component/l2tp/reactor_test.go::TestPeerTeardownWithdrawsSubscriberRoute": "4593a22be37eb1d3",
         "internal/component/l2tp/reliable_test.go::TestTickMaxAttempts": "d2849faf20501127",
-        "internal/component/l2tp/reliable_test.go::TestTickMaxAttempts#2": "d2849faf20501127"
+        "internal/component/l2tp/reliable_test.go::TestTickMaxAttempts#2": "d2849faf20501127",
+        "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel": "1c16c003714b4174",
+        "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel#2": "1c16c003714b4174"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2661-5.8-4": {
       "note": "Forbidden = a retransmit carrying the stale Nr, or a new Ns. reliable_test.go::TestTickRetransmit asserts retransmit Nr==1 (updated) and Ns==0 (unchanged); either violation goes red.",
@@ -237,8 +234,8 @@
       "tests": {
         "internal/component/l2tp/reliable_window_test.go::TestWindowAvailable": "5aba25175d94de95",
         "internal/component/l2tp/reliable_window_test.go::TestWindowPeerRWSZero": "5aba25175d94de95",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerWindowOfFourAccepted": "6fa9a0d3573e27c8",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerWindowOfFourAccepted#2": "6fa9a0d3573e27c8"
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerWindowOfFourAccepted": "c0e9ed1fbd858625",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerWindowOfFourAccepted#2": "c0e9ed1fbd858625"
       },
       "units": {
         "internal/component/l2tp/reliable_window_test.go::TestWindowAvailable": "8325239166a557b4",
@@ -256,8 +253,8 @@
         "internal/component/l2tp/reliable_integration_test.go::TestPostTeardownAckRetention#2": "2cfab7fedaa6fb9b",
         "internal/component/l2tp/reliable_test.go::TestExpired": "1da6320bfe08bd17",
         "internal/component/l2tp/reliable_test.go::TestExpired#2": "1da6320bfe08bd17",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ClosedTunnelKeptForRetransmissionInterval": "6fa9a0d3573e27c8",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ClosedTunnelKeptForRetransmissionInterval#2": "6fa9a0d3573e27c8"
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ClosedTunnelKeptForRetransmissionInterval": "c0e9ed1fbd858625",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ClosedTunnelKeptForRetransmissionInterval#2": "c0e9ed1fbd858625"
       },
       "units": {
         "internal/component/l2tp/reliable_integration_test.go::TestPostTeardownAckRetention": "df7229d459c4faca",
@@ -269,6 +266,15 @@
       },
       "verdict": "enforced"
     },
+    "RFC2661-5.8-8": {
+      "code": {
+        "internal/component/l2tp/reactor.go::locateTunnelLocked": "533ac0d9e621fbfc",
+        "internal/component/l2tp/reactor_dial.go::handleDial": "36542dfb6ee2ec79"
+      },
+      "note": "The retransmit count is fixed at DefaultMaxRetransmit (5): ReliableConfig.MaxRetransmit exists, but both tunnel constructors, reactor.go::locateTunnelLocked and reactor_dial.go::handleDial, pass ReliableConfig{RecvWindow} only, and the l2tp YANG carries no leaf for it. The recommended default of 5 is met; 'SHOULD be configurable' is not. {gap} annotation on the row agrees.",
+      "requirement_sha": "31ed4fbaf5ba0708",
+      "verdict": "unimplemented"
+    },
     "RFC2661-6.1-1": {
       "note": "Sender: TestRFC2661SCCRQCarriesSection61AVPs asserts all five AVPs in writeSCCRQBody with and without the optional AVPs. Receiver: one case per missing AVP answered with StopCCN and no tunnel (unit and .ci), positive with every AVP. The \u00a77.1 clearing now rows as RFC2661-7.1-1.",
       "requirement_sha": "c5b438291817ffa6",
@@ -276,7 +282,7 @@
         "internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered": "9143875504323b6a",
         "internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithEveryMandatoryAVPEstablishes": "9143875504323b6a",
         "internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithShortFramingCapabilitiesIsAnswered": "9143875504323b6a",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRQCarriesSection61AVPs": "6fa9a0d3573e27c8",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRQCarriesSection61AVPs": "c0e9ed1fbd858625",
         "test/l2tp/rfc2661-sccrq-mandatory-avp.ci": "c00b96e6cc8f4a36",
         "test/l2tp/rfc2661-sccrq-mandatory-avp.ci#2": "c00b96e6cc8f4a36"
       },
@@ -294,8 +300,8 @@
       "note": "Sender: TestRFC2661SCCRPCarriesSection62AVPs asserts all five AVPs in writeSCCRPBody with and without Challenge/Response. Receiver: TestSCCRPMissingMandatoryAVPTearsTheTunnelDown covers four members, TestRFC2661SCCRPWithoutMessageTypeRefused the fifth with a paired accept. Correction accepted: the state-table 'not acceptable' transition has no sentence.",
       "requirement_sha": "b43d91c429dcde5f",
       "tests": {
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRPCarriesSection62AVPs": "6fa9a0d3573e27c8",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRPWithoutMessageTypeRefused": "6fa9a0d3573e27c8",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRPCarriesSection62AVPs": "c0e9ed1fbd858625",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRPWithoutMessageTypeRefused": "c0e9ed1fbd858625",
         "internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPMissingMandatoryAVPTearsTheTunnelDown": "c98336c1855b4bc7",
         "internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPWithEveryMandatoryAVPEstablishes": "c98336c1855b4bc7"
       },
@@ -308,40 +314,44 @@
       "verdict": "enforced"
     },
     "RFC2661-7.1-1": {
-      "note": "Row text is verbatim \u00a77.1. TestRFC2661InvalidOrMalformedMessageClearsControlConnection proves a Malformed entry and an unknown M=1 Message Type each log a warning and clear the connection (one StopCCN, session gone, tunnel closed), with the unknown M=0 type ignored as the negative; the window is acknowledged first, so the StopCCN count is not confounded. Missing: \u00a77.1 also defines an invalid message as one 'received in an improper sequence (e.g. an SCCCN sent in reply to an SCCRQ)', and the producer does not clear on it: handleSCCCN ignores an SCCCN outside wait-ctl-conn at Debug, although the \u00a77.2.1 table says 'wait-ctl-reply Receive SCCCN Send StopCCN Clean up' and 'established Receive SCCRQ, SCCRP, SCCCN Send StopCCN Clean up'. No unit covers that half.",
+      "note": "Malformed entry and unknown M=1 Message Type: TestRFC2661InvalidOrMalformedMessageClearsControlConnection (unchanged judgement). Out-of-order SCCCN now proven: TestRFC2661OutOfOrderSCCCNClearsControlConnection shows a warning, one StopCCN, sessions cleared and tunnel closed in established and wait-ctl-reply, and a clean establish in wait-ctl-conn. Still missing, a producer defect: the section 7.2.1 table also says 'wait-ctl-conn Receive SCCRP, SCCRQ Send StopCCN, Clean up' and 'established Receive SCCRQ, SCCRP, SCCCN Send StopCCN Clean up', but tunnel_initiator.go::handleSCCRP drops an SCCRP outside wait-ctl-reply at Debug and tunnel_fsm.go::handleSCCRQ drops an SCCRQ outside idle at Debug, so those improper sequences neither log at warning level nor clear the control connection.",
       "requirement_sha": "947a54aca921510b",
       "tests": {
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection": "6fa9a0d3573e27c8",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection#2": "6fa9a0d3573e27c8"
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection": "c0e9ed1fbd858625",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection#2": "c0e9ed1fbd858625",
+        "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection": "a707da59110efbb3",
+        "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection#2": "a707da59110efbb3"
       },
       "units": {
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection": "c8f2f2254c65393d",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection#2": "c8f2f2254c65393d"
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection#2": "c8f2f2254c65393d",
+        "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection": "8d2cdc7dfe6556fe",
+        "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection#2": "8d2cdc7dfe6556fe"
       },
       "verdict": "weak"
     },
     "RFC2661-9-1": {
-      "note": "Clearing clause proven: TestRFC2661StopCCNClearsSessionsSilently and TestSession_StopCCN_CascadeSessions assert zero sessions. Clause '(without sending any explicit call control messages)' is confounded: the setup never acknowledges the first ICRP, so the congestion window (cwnd 1) is full and the second ICRP already waits in sendQueue. A CDN that handleStopCCN enqueued would join sendQueue, leaving nextSendSeq unchanged and out empty, so both assertions stay green. Fix: ackAll before the StopCCN, or assert sendQueue unchanged.",
+      "note": "TestRFC2661StopCCNClearsSessionsSilently clears an established and a wait-connect session and now asserts sendQueue does not grow beside no datagram and nextSendSeq unchanged, which removes the cwnd-1 confound the earlier verdict named: a CDN handleStopCCN enqueued behind the unacknowledged ICRP now turns it red. Clearing also held by TestSession_StopCCN_CascadeSessions, and TestStopCCNQueuesAllTeardowns is the negative.",
       "requirement_sha": "d0add38fb6db42ea",
       "tests": {
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661StopCCNClearsSessionsSilently": "6fa9a0d3573e27c8",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_StopCCN_CascadeSessions": "0cf65d28b0c85f7e",
-        "internal/component/l2tp/session_fsm_test.go::TestStopCCNQueuesAllTeardowns": "0cf65d28b0c85f7e"
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661StopCCNClearsSessionsSilently": "c0e9ed1fbd858625",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_StopCCN_CascadeSessions": "7470b9faf5801057",
+        "internal/component/l2tp/session_fsm_test.go::TestStopCCNQueuesAllTeardowns": "7470b9faf5801057"
       },
       "units": {
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661StopCCNClearsSessionsSilently": "509799eaa64a27ec",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661StopCCNClearsSessionsSilently": "327914a7c874074a",
         "internal/component/l2tp/session_fsm_test.go::TestSession_StopCCN_CascadeSessions": "71c01fff365324a4",
         "internal/component/l2tp/session_fsm_test.go::TestStopCCNQueuesAllTeardowns": "3fe8db9561cef6f5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2661-x-1": {
       "note": "Send clause: TestRFC2661ReservedHeaderBitsSentZero masks every reserved bit of the control header and of all 16 data-header shapes (red on any reserved bit emitted 1); the .ci reads the SCCRP header off the wire. Receive clause: TestRFC2661ReservedHeaderBitsIgnoredOnReceive sets every reserved bit on a control and a data header and asserts ParseMessageHeader returns the identical struct with no error; ParseMessageHeader is the receive entry and no other receive path re-tests the flag word. The wrong single-polarity marker is gone.",
       "requirement_sha": "9b391db3f3100ed3",
       "tests": {
         "internal/component/l2tp/header_test.go::TestWriteControlHeader": "076c21360cefe770",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedHeaderBitsIgnoredOnReceive": "6fa9a0d3573e27c8",
-        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedHeaderBitsSentZero": "6fa9a0d3573e27c8",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedHeaderBitsIgnoredOnReceive": "c0e9ed1fbd858625",
+        "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedHeaderBitsSentZero": "c0e9ed1fbd858625",
         "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
       },
       "units": {

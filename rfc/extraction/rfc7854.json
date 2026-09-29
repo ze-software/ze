@@ -1,15 +1,15 @@
 {
   "schema-version": 1,
   "stem": "rfc7854",
-  "register": "rfc2119",
+  "register": "prose",
   "source-path": "rfc/full/rfc7854.txt",
   "source-sha": "b32c6bf7d6b5d67a",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-09-29",
   "reviewer": "claude",
   "sections": [
     {
       "id": "front",
-      "sites": 0,
+      "sites": 1,
       "disposition": "walked"
     },
     {
@@ -86,7 +86,8 @@
       "sites": 2,
       "disposition": "walked",
       "unsourced-ids": [
-        "RFC7854-x-7"
+        "RFC7854-x-7",
+        "RFC7854-4.3-2"
       ]
     },
     {
@@ -96,8 +97,11 @@
     },
     {
       "id": "4.5",
-      "sites": 3,
-      "disposition": "walked"
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7854-4.5-4"
+      ]
     },
     {
       "id": "4.6",
@@ -112,13 +116,17 @@
       "sites": 2,
       "disposition": "walked",
       "unsourced-ids": [
-        "RFC7854-x-20"
+        "RFC7854-x-20",
+        "RFC7854-4.7-3"
       ]
     },
     {
       "id": "4.8",
-      "sites": 2,
-      "disposition": "walked"
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7854-4.8-3"
+      ]
     },
     {
       "id": "4.9",
@@ -135,12 +143,13 @@
       "disposition": "walked",
       "unsourced-ids": [
         "RFC7854-x-8",
-        "RFC7854-x-19"
+        "RFC7854-x-19",
+        "RFC7854-4.10-1"
       ]
     },
     {
       "id": "5",
-      "sites": 4,
+      "sites": 6,
       "disposition": "walked"
     },
     {
@@ -165,7 +174,7 @@
     },
     {
       "id": "8.2",
-      "sites": 1,
+      "sites": 2,
       "disposition": "walked"
     },
     {
@@ -251,6 +260,13 @@
   ],
   "sites": [
     {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Front-matter boilerplate the extractor did not strip: the IETF Trust Legal Provisions notice binds whoever extracts Code Components from the RFC document, not a BMP router or monitoring station. The lowercase must is the license condition of the copyright notice."
+    },
+    {
       "id": "3.2:1",
       "quote": "Retries MUST be subject to some variety of backoff.",
       "disposition": "mapped",
@@ -326,18 +342,24 @@
     },
     {
       "id": "4.5:1",
+      "quote": "Although use of this message is RECOMMENDED, a monitoring station must always be prepared for the session to terminate with no message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-4.5-5"
+    },
+    {
+      "id": "4.5:2",
       "quote": "Once the router has sent a termination message, it MUST close the TCP session without sending any further messages.",
       "disposition": "mapped",
       "mapped-to": "RFC7854-4.5-1"
     },
     {
-      "id": "4.5:2",
+      "id": "4.5:3",
       "quote": "Likewise, the monitoring station MUST close the TCP session after receiving a termination message.",
       "disposition": "mapped",
       "mapped-to": "RFC7854-4.5-2"
     },
     {
-      "id": "4.5:3",
+      "id": "4.5:4",
       "quote": "Inclusion of this TLV is REQUIRED.",
       "disposition": "mapped",
       "mapped-to": "RFC7854-4.5-3"
@@ -362,6 +384,13 @@
     },
     {
       "id": "4.8:2",
+      "quote": "64-bit Gauge: A non-negative integer that may increase or decrease, but shall never exceed a maximum value, nor fall below a minimum one.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The sentence is the 64-bit Gauge definition that section 4.8 adopts from Section 4 of RFC 2856 (the section says the stats types are defined after the examples in Section 3.2.3.3 of RFC 1155 and Section 4 of RFC 2856). The lowercase shall describes the semantics of that data type as RFC 2856 defines it; section 4.8 states its own obligations on stats reports at the sites this walk maps to RFC7854-4.8-1 and RFC7854-4.8-2."
+    },
+    {
+      "id": "4.8:3",
       "quote": "However, if an SR message is transmitted, at least one statistic MUST be carried in it.",
       "disposition": "mapped",
       "mapped-to": "RFC7854-4.8-2"
@@ -388,12 +417,32 @@
     },
     {
       "id": "5:4",
+      "quote": "When a change occurs to a route, such as an attribute change, the router must update the monitoring station with the new attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-5-6"
+    },
+    {
+      "id": "5:5",
       "quote": "The withdraw MUST have its L flag set to correspond to that of any previous announcement; if the route in question was previously announced with L flag both clear and set, the withdraw MUST similarly be sent twice, with L flag clear and set.",
       "disposition": "mapped",
-      "mapped-to": "RFC7854-5-3"
+      "mapped-to": "RFC7854-5-4"
+    },
+    {
+      "id": "5:6",
+      "quote": "(Route mirroring (Section 6) is provided if this is required.) While the router should attempt to generate updates promptly, there is a finite time that could elapse between reception of an update, the generation an RM message, and its transmission to the monitoring station.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The prose scanner matched the ordinary English required in (Route mirroring (Section 6) is provided if this is required.), which describes when an operator uses Route Mirroring, and the lowercase should attempt to generate updates promptly, which the same paragraph relaxes: it is acceptable that the router generate the final state of that prefix. Neither states an obligation on the router; RFC 7854 invokes RFC 2119 for the capitalized keywords only."
     },
     {
       "id": "8.2:1",
+      "quote": "Some consideration is required for routes originated into BGP by the local router, whether as a result of redistribution from another protocol or for some other reason.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The prose scanner matched the ordinary English Some consideration is required, which introduces section 8.2 and states no obligation. The section obligation on locally originated routes is the next site, mapped to RFC7854-8.2-1."
+    },
+    {
+      "id": "8.2:2",
       "quote": "Since in this case no transport session actually exists, the Local and Remote Port fields of the Peer Up message MUST be set to 0.",
       "disposition": "mapped",
       "mapped-to": "RFC7854-8.2-1"
@@ -461,5 +510,6 @@
       "excluded-kind": "binds-another-role",
       "reason": "Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one."
     }
-  ]
+  ],
+  "resign-reason": "Re-walk under the prose register: five keyword-less [MUST] layout rows raised the gated count above the 33 capitalized sites, so the register fell to prose and the lowercase modal inventory added front:1, 4.5:1, 4.8:2, 5:4, 5:6 and 8.2:1. Four of those are excluded (license boilerplate, the RFC 2856 gauge definition, two ordinary-English uses of required); 4.5:1 and 5:4 bind Ze and map to the new rows RFC7854-4.5-5 and RFC7854-5-6."
 }

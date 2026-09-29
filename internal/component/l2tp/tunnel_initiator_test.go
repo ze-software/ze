@@ -106,7 +106,7 @@ func TestParseSCCRP_RoundTrip(t *testing.T) {
 	require.Equal(t, resp, info.ChallengeResponseValue)
 }
 
-// RFC requirement: RFC2661-24.10-1 negative -- an SCCRP whose Assigned Tunnel ID
+// RFC requirement: RFC2661-10-2 negative -- an SCCRP whose Assigned Tunnel ID
 // is 0 (or absent) is a protocol error: parseSCCRP rejects it, so no tunnel is
 // adopted from a zero peer TID. (Ze drops the SCCRP here rather than emitting a
 // StopCCN; this tags the code's actual behavior.)
@@ -134,7 +134,7 @@ func TestParseSCCRP_Rejects(t *testing.T) {
 // RFC requirement: RFC2661-4.1-4 positive -- a tunnel-scoped control exchange with
 // no unrecognized mandatory AVP is accepted: a clean SCCRP drives SCCCN emission
 // and the tunnel reaches Established rather than being torn down with StopCCN.
-// RFC requirement: RFC2661-24.10-1 positive -- an SCCRP carrying a non-zero
+// RFC requirement: RFC2661-10-2 positive -- an SCCRP carrying a non-zero
 // Assigned Tunnel ID (555) is accepted and adopted as the peer's tunnel ID.
 func TestTunnelInitiatorHandshake(t *testing.T) {
 	// VALIDATES: AC-1 + AC-2 -- dial sends SCCRQ (peer TID 0, our local TID

@@ -558,9 +558,9 @@ func TestSession_OutgoingLAC_OCCN(t *testing.T) {
 
 // RFC requirement: RFC2661-4.1-3 negative -- an unrecognized mandatory (M=1) AVP
 // in a session-scoped ICRQ is rejected with a CDN that tears down the session.
-// RFC requirement: RFC2661-24.12-1 positive -- the response to an unknown M=1
+// RFC requirement: RFC2661-4.1-3 positive -- the response to an unknown M=1
 // vendor AVP in a session context is exactly one CDN (session teardown).
-// RFC requirement: RFC2661-24.12-1 negative -- the tunnel is NOT torn down: it
+// RFC requirement: RFC2661-4.1-3 negative -- the tunnel is NOT torn down: it
 // stays Established, so the unknown session AVP does not escalate to a StopCCN.
 func TestSession_UnknownMandatoryAVP(t *testing.T) {
 	// VALIDATES: AC-14 -- unknown M=1 vendor AVP -> CDN (not StopCCN).

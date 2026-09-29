@@ -175,6 +175,19 @@ var (
 		Log:       logMalformedSCCRQ,
 		Detail:    "SCCRQ carries a vendor-specific AVP with the M-bit set that ze does not recognize",
 	}
+	// errUnrecognizedMandatoryAVP is the cause parseHello wraps when a HELLO
+	// carries an unrecognized AVP with the M bit set, so handleHello can pick
+	// Error Code 8 over the malformed-body Error Code 3.
+	errUnrecognizedMandatoryAVP = errors.New("l2tp: unrecognized AVP with the M-bit set")
+	// The same refusal for an IETF AVP (Vendor ID 0) whose Attribute Type the
+	// RFC 2661 catalog does not define: AVPIterator.Next flags it
+	// FlagUnrecognized, and Error Code 8 names the cause.
+	errSCCRQUnknownMandatoryAVP = &sccrqRejection{
+		Result:    resultProtocolError,
+		ErrorCode: errorUnknownMandatoryAVP,
+		Log:       logMalformedSCCRQ,
+		Detail:    "SCCRQ carries an IETF AVP with the M-bit set whose attribute type ze does not recognize",
+	}
 	// A reserved bit that is not zero is "an invalid value in its header" in
 	// the words of Section 7.1, and Error Code 3 is the one whose sentence
 	// names it: "One of the field values was out of range or reserved field

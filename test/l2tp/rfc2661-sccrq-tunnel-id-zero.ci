@@ -18,10 +18,10 @@
 # Both polarities run against one daemon, so neither can pass because the
 # listener was down.
 #
-# RFC requirement: RFC2661-24.10-1 negative -- an SCCRQ whose Assigned Tunnel ID
+# RFC requirement: RFC2661-10-2 negative -- an SCCRQ whose Assigned Tunnel ID
 # AVP carries 0 is answered with StopCCN, Result Code 2 and Error Code 3, read
 # off the wire by a decoder that is not ze.
-# RFC requirement: RFC2661-24.10-1 positive -- an SCCRQ carrying a non-zero
+# RFC requirement: RFC2661-10-2 positive -- an SCCRQ carrying a non-zero
 # Assigned Tunnel ID gets SCCRP on the same path and the tunnel comes up.
 
 

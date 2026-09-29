@@ -56,10 +56,7 @@
     {
       "id": "4.1",
       "sites": 5,
-      "disposition": "walked",
-      "unsourced-ids": [
-        "RFC2661-24.12-1"
-      ]
+      "disposition": "walked"
     },
     {
       "id": "4.2",
@@ -139,10 +136,7 @@
     {
       "id": "5.3",
       "sites": 3,
-      "disposition": "walked",
-      "unsourced-ids": [
-        "RFC2661-24.10-1"
-      ]
+      "disposition": "walked"
     },
     {
       "id": "5.4",
@@ -1286,7 +1280,7 @@
       "id": "6.12:1",
       "quote": "The peer MUST clean up any resources, and does not send back any indication of success or failure for such cleanup.",
       "disposition": "mapped",
-      "mapped-to": "RFC2661-6.12-1"
+      "mapped-to": "RFC2661-10-1"
     },
     {
       "id": "6.12:2",

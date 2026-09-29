@@ -169,6 +169,11 @@ func locRIBPeerHeader(id localIdentity, installed time.Time) PeerHeader {
 // marker, so what the OPEN advertises and what the dump delivers are one
 // declaration rather than two that can disagree.
 //
+// The Extended Next Hop capability joins them for the pairs in
+// locRIBExtendedNextHop, because buildLocRIBUpdateBody conveys an IPv4 best path
+// whose next hop is IPv6 in MP_REACH_NLRI with AFI 1 and a 16-octet next hop,
+// and that Route Monitoring cannot be represented without it.
+//
 // RFC 9069 Section 6.1.1 is what the receiver does with them: "Each emulated
 // peer instance MUST send a Peer Up with the OPEN message indicating the address
 // family capabilities. A BMP receiver MUST process these capabilities to know
@@ -177,13 +182,20 @@ func locRIBPeerHeader(id localIdentity, installed time.Time) PeerHeader {
 // The Hold Time is 0. RFC 4271 Section 4.2 allows "either zero or at least three
 // seconds", and this peer has no session to keep alive.
 func fabricateLocRIBOpen(id localIdentity) []byte {
-	caps := make([]capability.Capability, 0, 1+len(dumpFamilies))
+	caps := make([]capability.Capability, 0, 2+len(dumpFamilies))
 	caps = append(caps, &capability.ASN4{ASN: id.asn})
 	for _, fam := range dumpFamilies {
 		// capability.AFI and capability.SAFI are aliases of the family package's
 		// own types, so the fields take a family.Family's halves unconverted.
 		caps = append(caps, &capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI})
 	}
+	// RFC 9069 Section 5.2: "Capabilities MUST include the 4-octet ASN and all
+	// necessary capabilities to represent the Loc-RIB Route Monitoring messages."
+	// RFC 8950 Section 4: "A BGP speaker that wishes to advertise an IPv6 next
+	// hop for IPv4 NLRI or for VPN-IPv4 NLRI to a BGP peer as per this
+	// specification MUST use the Capability Advertisement procedures defined in
+	// [RFC5492] with the Extended Next Hop Encoding capability".
+	caps = append(caps, &capability.ExtendedNextHop{Families: locRIBExtendedNextHop[:]})
 
 	capBytes := 0
 	for _, capa := range caps {
@@ -194,7 +206,7 @@ func fabricateLocRIBOpen(id localIdentity) []byte {
 	// 2, whose value is the sequence of capability triples.
 	params := make([]byte, 2+capBytes)
 	params[0] = optParamCapabilities
-	params[1] = byte(capBytes) // bounded: three capabilities of 6 octets each
+	params[1] = byte(capBytes) // bounded: four capabilities of 8 octets or fewer each
 	off := 2
 	for _, capa := range caps {
 		off += capa.WriteTo(params, off)
@@ -320,7 +332,9 @@ func buildLocRIBUpdateBody(fam family.Family, e *ribevents.BestChangeEntry) []by
 	}
 
 	// IPv6 NLRI (or an IPv4 NLRI reachable via an IPv6 next-hop): reachability
-	// and next-hop travel together in MP_REACH_NLRI (RFC 4760 / RFC 5549).
+	// and next-hop travel together in MP_REACH_NLRI (RFC 4760 / RFC 8950). The
+	// IPv4 case is decodable because fabricateLocRIBOpen advertises the Extended
+	// Next Hop capability for it (locRIBExtendedNextHop).
 	attrs := ab.Build()
 	if nh.IsValid() {
 		mp := attribute.NewMPReachNLRI(
@@ -469,6 +483,20 @@ func nextDumpToken() uint64 {
 // There is no negotiated set to derive it from -- the Loc-RIB peer has no
 // session -- so these are the two a collector is realistically waiting on.
 var dumpFamilies = [...]family.Family{family.IPv4Unicast, family.IPv6Unicast}
+
+// locRIBExtendedNextHop are the NLRI and next-hop AFI pairs the Loc-RIB Route
+// Monitoring can carry across address families, which the fabricated OPEN
+// advertises in an Extended Next Hop capability (fabricateLocRIBOpen).
+//
+// The RIB answers an IPv4 unicast best path's next hop from MP_REACH_NLRI when a
+// peer sent it that way under RFC 8950, so the next hop is IPv6
+// (entryNextHopAddr in the rib plugin), and buildLocRIBUpdateBody then writes an
+// MP_REACH_NLRI with AFI 1 and that 16-octet next hop. Whether such a path is in
+// the table depends on what the peers send, so the capability is advertised
+// whenever IPv4 unicast is a dump family: the route can be sent at any time.
+var locRIBExtendedNextHop = [...]capability.ExtendedNextHopFamily{
+	{NLRIAFI: family.AFIIPv4, NLRISAFI: family.SAFIUnicast, NextHopAFI: family.AFIIPv6},
+}
 
 // closeDumpFamilies sends the End-of-RIB markers a dump still owes: every family
 // in dumpFamilies that no batch closed.

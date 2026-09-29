@@ -68,6 +68,28 @@
       "break": "body of handleSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7854-4.10-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854PeerUpIsThePerPeerHeaderThenTheFixedFieldsAndBothOPENs",
+      "unit-sha": "5e57b4cc6a7b4238",
+      "claim-sha": "3faced27b3986d4f",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/msg.go::writePeerUp",
+      "producer-sha": "677a87b99003ac23",
+      "break": "body of writePeerUp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7854-4.10-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854PeerUpShorterThanItsFixedFieldsIsRefused",
+      "unit-sha": "d67b1bd67ab3ec18",
+      "claim-sha": "09ce15d9646520df",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/msg.go::decodePeerUp",
+      "producer-sha": "176021763cbf357a",
+      "break": "body of decodePeerUp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7854-4.2-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854ReservedFlagsIgnoredOnReceipt",
@@ -88,6 +110,28 @@
       "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent",
       "producer-sha": "2c360041ec2f4b82",
       "break": "body of peerHeaderFromEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7854-4.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854InitiationIsTheCommonHeaderThenTwoOrMoreTLVs",
+      "unit-sha": "1da85444bf78da95",
+      "claim-sha": "aaa2a6a2c45d8098",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/sender.go::sendInitiation",
+      "producer-sha": "db462600e7edfc39",
+      "break": "body of sendInitiation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7854-4.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854InitiationWithFewerThanTwoTLVsIsRefused",
+      "unit-sha": "307e8f262a4421fa",
+      "claim-sha": "042b0b7192709f71",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeInitiation",
+      "producer-sha": "ed60cbd2c8a1d093",
+      "break": "body of decodeInitiation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7854-4.5-1",
@@ -112,6 +156,50 @@
       "break": "body of stop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7854-4.5-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854TerminationIsTheCommonHeaderThenTLVs",
+      "unit-sha": "86c6b06e50fd91d8",
+      "claim-sha": "ce8db5aa95a848be",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/sender.go::writeTerminationLocked",
+      "producer-sha": "1c09a16edf286183",
+      "break": "body of writeTerminationLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7854-4.5-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854TerminationWithNoTLVIsRefused",
+      "unit-sha": "60967080026a72e7",
+      "claim-sha": "339cd5ec4566f531",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeTermination",
+      "producer-sha": "d6e0c4eb3a5efd93",
+      "break": "body of decodeTermination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7854-4.5-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/sender_queue_test.go::TestSenderStopSendsTerminationToCollector",
+      "unit-sha": "bff09ec8d6df5597",
+      "claim-sha": "c7519dec429b5228",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/sender.go::writeTerminationLocked",
+      "producer-sha": "1c09a16edf286183",
+      "break": "body of writeTerminationLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7854-4.5-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination",
+      "unit-sha": "9658b7d6293bb3d1",
+      "claim-sha": "d1948e8ff2b2e895",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/state.go::removeRouter",
+      "producer-sha": "36cbf299c95a3e96",
+      "break": "body of removeRouter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7854-4.7-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RouteMirroringBGPMessageTLVLast",
@@ -121,6 +209,28 @@
       "producer": "internal/component/bgp/plugins/bmp/sender.go::writeRouteMirroring",
       "producer-sha": "81edd51269581c83",
       "break": "body of writeRouteMirroring replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7854-4.7-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854RouteMirroringIsThePerPeerHeaderThenTLVs",
+      "unit-sha": "f3849e32a92986a6",
+      "claim-sha": "61806fc07a941379",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/msg.go::writeRouteMirroring",
+      "producer-sha": "1414c968026c7012",
+      "break": "body of writeRouteMirroring replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7854-4.7-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854RouteMirroringWhoseBodyIsNotTLVsIsRefused",
+      "unit-sha": "092e063ad544d0a6",
+      "claim-sha": "e9a9ab141fb96ae5",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeRouteMirroring",
+      "producer-sha": "12df0cdfaa04eef8",
+      "break": "body of decodeRouteMirroring replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7854-4.8-1",
@@ -156,6 +266,28 @@
       "break": "body of sendStatisticsReports replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7854-4.8-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused",
+      "unit-sha": "35330bdc2d6a77c0",
+      "claim-sha": "49da281add15d7fa",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeStatisticsReport",
+      "producer-sha": "6b4030ce6f7eaa4c",
+      "break": "body of decodeStatisticsReport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7854-4.8-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountNamesTheCountersThatFollow",
+      "unit-sha": "9428039629c4a1f6",
+      "claim-sha": "6b98647b4c1a4beb",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/msg.go::writeStatisticsReport",
+      "producer-sha": "71d927ce5ce71af0",
+      "break": "body of writeStatisticsReport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7854-5-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy",
@@ -178,7 +310,7 @@
       "break": "body of peerHeaderFromEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC7854-5-3",
+      "rid": "RFC7854-5-4",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy",
       "unit-sha": "e02acb3836f0c849",
@@ -189,7 +321,7 @@
       "break": "body of peerHeaderFromEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC7854-5-3",
+      "rid": "RFC7854-5-4",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagNotDecidedByBody",
       "unit-sha": "662919a24df00184",
@@ -198,6 +330,17 @@
       "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent",
       "producer-sha": "2c360041ec2f4b82",
       "break": "body of peerHeaderFromEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7854-5-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue",
+      "unit-sha": "0a333a365970175a",
+      "claim-sha": "9077c0ac6a15e779",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::handleSenderUpdate",
+      "producer-sha": "200984a416980b14",
+      "break": "body of handleSenderUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7854-8.2-1",

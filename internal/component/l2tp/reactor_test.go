@@ -937,14 +937,15 @@ func TestTunnelFSM_SCCCNMissingResponseWhenChallenged(t *testing.T) {
 	require.Equal(t, L2TPTunnelClosed, state)
 }
 
-// TestTunnelFSM_SCCCNIgnoredOnEstablished -- defense-in-depth per
-// handover landmine #13. A second SCCCN with a different Ns delivered
-// after the tunnel is established must not re-run verification; it is
-// dropped with a debug log.
+// TestTunnelFSM_SCCCNOnEstablishedClearsTunnel -- handover landmine #13.
+// A second SCCCN with a different Ns delivered after the tunnel is
+// established must not re-run verification. RFC 2661 Section 7.2.1 answers
+// it: "established  Receive SCCRQ, SCCRP, SCCCN  Send StopCCN Clean up".
 //
-// VALIDATES: the state != wait-ctl-conn branch of handleSCCCN drops
-// cleanly without mutating state or emitting anything.
-func TestTunnelFSM_SCCCNIgnoredOnEstablished(t *testing.T) {
+// VALIDATES: the established branch of handleSCCCN sends a StopCCN and
+// closes the tunnel.
+// PREVENTS: a wrong-order SCCCN being dropped with the tunnel left up.
+func TestTunnelFSM_SCCCNOnEstablishedClearsTunnel(t *testing.T) {
 	const secret = "topsecret"
 	ln, r, logs, stop := buildLogReactorSecret(t, secret)
 	defer stop()
@@ -965,17 +966,18 @@ func TestTunnelFSM_SCCCNIgnoredOnEstablished(t *testing.T) {
 	// Drain the engine's ZLB for the SCCCN.
 	_ = readDatagram(t, client)
 
-	// Second SCCCN (new Ns=2) must be delivered by the engine and dropped
-	// by the FSM state check; state stays established.
+	// Second SCCCN (new Ns=2) must be delivered by the engine and answered
+	// by the FSM state check with a StopCCN.
 	client.Send(t, buildSCCCN(t, ourLocalTID, 2, 1, resp[:]))
-	waitForLog(t, logs, "SCCCN on non-wait-ctl-conn tunnel ignored")
+	waitForLog(t, logs, "SCCCN received out of order; clearing the control connection")
+	require.Equal(t, MsgStopCCN, sentMessageType(t, readDatagram(t, client)))
 
 	tunnel := r.tunnelByLocalID(ourLocalTID)
 	require.NotNil(t, tunnel)
 	r.tunnelsMu.Lock()
 	state := tunnel.state
 	r.tunnelsMu.Unlock()
-	require.Equal(t, L2TPTunnelEstablished, state, "established tunnel must not revert on a duplicate-Ns SCCCN")
+	require.Equal(t, L2TPTunnelClosed, state, "a wrong-order SCCCN on an established tunnel must clear it")
 }
 
 // TestTunnelFSM_SCCCNWithResponseUnchallenged -- when the peer did not
@@ -1201,10 +1203,6 @@ func (o *recordingRouteObserver) downs() [][2]uint16 {
 	return out
 }
 
-// RFC requirement: RFC2661-5.8-3 positive -- after the reliable engine exhausts
-// its retransmissions without a response, the tunnel AND its established sessions
-// are cleared: the peer-teardown path tears the tunnel down and withdraws the
-// session's subscriber route (OnSessionDown fires for the established session).
 // VALIDATES: a peer-initiated tunnel teardown (HELLO exhaustion -> StopCCN)
 // withdraws subscriber routes for the tunnel's established sessions via
 // RouteObserver.OnSessionDown, matching the operator and PPP-event paths.
@@ -1734,11 +1732,13 @@ func TestTunnelFSM_StopCCNDuringHandshake(t *testing.T) {
 	require.Equal(t, L2TPTunnelClosed, state, "StopCCN during handshake must close tunnel")
 }
 
-// TestTunnelFSM_MalformedStopCCNIgnored -- ISSUE-6 from review.
+// TestTunnelFSM_MalformedStopCCNClosesTunnel -- ISSUE-6 from review.
 //
-// VALIDATES: a StopCCN with a malformed body (wrong first AVP) is
-// ignored without crash; the tunnel remains in its current state.
-func TestTunnelFSM_MalformedStopCCNIgnored(t *testing.T) {
+// VALIDATES: a StopCCN carrying an unrecognized AVP with the M bit set is
+// handled without crash and closes the tunnel, as RFC 2661 Section 4.1
+// requires for a message associated with the overall tunnel.
+// PREVENTS: a malformed StopCCN leaving the tunnel established.
+func TestTunnelFSM_MalformedStopCCNClosesTunnel(t *testing.T) {
 	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	ln, r, logs, stop := buildLogReactorWithClock(t, clk, 60*time.Second, "")
 	defer stop()
@@ -1765,15 +1765,14 @@ func TestTunnelFSM_MalformedStopCCNIgnored(t *testing.T) {
 	copy(pkt[12:], buf[:off])
 
 	client.Send(t, pkt)
-	waitForLog(t, logs, "malformed StopCCN; ignoring")
+	waitForLog(t, logs, "malformed StopCCN; closing the tunnel")
 
-	// Tunnel must remain established.
 	r.tunnelsMu.Lock()
 	tunnel := r.tunnelsByLocalID[localTID]
 	require.NotNil(t, tunnel)
 	state := tunnel.state
 	r.tunnelsMu.Unlock()
-	require.Equal(t, L2TPTunnelEstablished, state, "malformed StopCCN must not change tunnel state")
+	require.Equal(t, L2TPTunnelClosed, state, "a StopCCN with an unrecognized M=1 AVP must close the tunnel")
 }
 
 // TestTunnelFSM_HelloNotSentWhenLastActivityZero -- ISSUE-7 from review.

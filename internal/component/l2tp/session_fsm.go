@@ -551,10 +551,10 @@ func parseICRQ(payload []byte) (icrqInfo, error) {
 			}
 			break
 		}
-		if flags&FlagReserved != 0 {
+		if flags&FlagUnrecognized != 0 {
 			if flags&FlagMandatory != 0 {
 				// AC-14: unknown mandatory AVP in session message.
-				return icrqInfo{}, fmt.Errorf("l2tp: mandatory ICRQ AVP type %d with reserved bits set", attrType)
+				return icrqInfo{}, fmt.Errorf("l2tp: mandatory ICRQ AVP type %d not recognized", attrType)
 			}
 			continue
 		}
@@ -659,9 +659,9 @@ func parseICCN(payload []byte) (iccnInfo, error) {
 			}
 			break
 		}
-		if flags&FlagReserved != 0 {
+		if flags&FlagUnrecognized != 0 {
 			if flags&FlagMandatory != 0 {
-				return iccnInfo{}, fmt.Errorf("l2tp: mandatory ICCN AVP type %d with reserved bits set", attrType)
+				return iccnInfo{}, fmt.Errorf("l2tp: mandatory ICCN AVP type %d not recognized", attrType)
 			}
 			continue
 		}
@@ -776,9 +776,9 @@ func parseOCRQ(payload []byte) (ocrqInfo, error) {
 			}
 			break
 		}
-		if flags&FlagReserved != 0 {
+		if flags&FlagUnrecognized != 0 {
 			if flags&FlagMandatory != 0 {
-				return ocrqInfo{}, fmt.Errorf("l2tp: mandatory OCRQ AVP type %d with reserved bits set", attrType)
+				return ocrqInfo{}, fmt.Errorf("l2tp: mandatory OCRQ AVP type %d not recognized", attrType)
 			}
 			continue
 		}
@@ -878,9 +878,9 @@ func parseOCCN(payload []byte) (occnInfo, error) {
 			}
 			break
 		}
-		if flags&FlagReserved != 0 {
+		if flags&FlagUnrecognized != 0 {
 			if flags&FlagMandatory != 0 {
-				return occnInfo{}, fmt.Errorf("l2tp: mandatory OCCN AVP type %d with reserved bits set", attrType)
+				return occnInfo{}, fmt.Errorf("l2tp: mandatory OCCN AVP type %d not recognized", attrType)
 			}
 			continue
 		}
@@ -967,9 +967,9 @@ func parseCDN(payload []byte) (cdnInfo, error) {
 			}
 			break
 		}
-		if flags&FlagReserved != 0 {
+		if flags&FlagUnrecognized != 0 {
 			if flags&FlagMandatory != 0 {
-				return cdnInfo{}, fmt.Errorf("l2tp: mandatory CDN AVP type %d with reserved bits set", attrType)
+				return cdnInfo{}, fmt.Errorf("l2tp: mandatory CDN AVP type %d not recognized", attrType)
 			}
 			continue
 		}
@@ -1044,9 +1044,9 @@ func parseSingleAVPMessage(payload []byte, expectedMsg MessageType, targetAVP AV
 			}
 			break
 		}
-		if flags&FlagReserved != 0 {
+		if flags&FlagUnrecognized != 0 {
 			if flags&FlagMandatory != 0 {
-				return nil, fmt.Errorf("l2tp: mandatory %s AVP type %d with reserved bits set", msgName, attrType)
+				return nil, fmt.Errorf("l2tp: mandatory %s AVP type %d not recognized", msgName, attrType)
 			}
 			continue
 		}

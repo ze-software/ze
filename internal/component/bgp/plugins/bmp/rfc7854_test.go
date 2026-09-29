@@ -476,7 +476,7 @@ func TestRFC7854StatsReportCarriesAStatistic(t *testing.T) {
 }
 
 // RFC requirement: RFC7854-5-1 positive — a received (pre-policy) announcement is transmitted with the L flag clear and a sent (post-policy) one with the L flag set
-// RFC requirement: RFC7854-5-3 positive — a withdraw carries the L flag its direction's announcement carried: clear on the received side, set on the sent side
+// RFC requirement: RFC7854-5-4 positive — a withdraw carries the L flag its direction's announcement carried: clear on the received side, set on the sent side
 // Each case streams one UPDATE event and reads the Route Monitoring off the collector end of a pipe.
 func TestRFC7854LFlagFollowsPolicy(t *testing.T) {
 	cases := []struct {
@@ -501,7 +501,7 @@ func TestRFC7854LFlagFollowsPolicy(t *testing.T) {
 }
 
 // RFC requirement: RFC7854-5-1 negative — the L flag is decided by the direction and never by the message: one and the same announcement body streamed on both sides leaves with L clear on the received copy and L set on the sent copy
-// RFC requirement: RFC7854-5-3 negative — one and the same withdraw body streamed on both sides leaves with L clear on the received copy and L set on the sent copy, so a withdraw can never carry the flag of the other side's announcement
+// RFC requirement: RFC7854-5-4 negative — one and the same withdraw body streamed on both sides leaves with L clear on the received copy and L set on the sent copy, so a withdraw can never carry the flag of the other side's announcement
 // Each body is streamed once per direction and both Route Monitorings are read off the collector end of a pipe.
 func TestRFC7854LFlagNotDecidedByBody(t *testing.T) {
 	bodies := []struct {

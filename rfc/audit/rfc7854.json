@@ -1,13 +1,18 @@
 {
   "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7854-3.2-1": {
       "note": "nextReconnectWait doubles and caps at reconnectMax; a refused dial is not retried before the base wait even when the port reopens early",
       "requirement_sha": "09dc7992f47e0cd1",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RetryBackoffDoubles": "038516cab017d625",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RetryNotBeforeBackoff": "038516cab017d625"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RetryBackoffDoubles": "94e84131af3555be",
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RetryNotBeforeBackoff": "94e84131af3555be"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RetryBackoffDoubles": "b734bd8042f71ee4",
@@ -19,8 +24,8 @@
       "note": "after the collector closes a session the sender reconnects, and not before the base wait since the first session",
       "requirement_sha": "7b983ab8eba0bf8a",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854SessionEstablishmentRateLimited": "038516cab017d625",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854SessionEstablishmentRateLimited#2": "038516cab017d625"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854SessionEstablishmentRateLimited": "94e84131af3555be",
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854SessionEstablishmentRateLimited#2": "94e84131af3555be"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854SessionEstablishmentRateLimited": "08ff67d65f4e1ea6",
@@ -32,9 +37,9 @@
       "note": "after reconnect Peer Up precedes the surviving route and each family gets EOR after its routes; an incremental UPDATE and another collector's reconnect produce no EOR, and an incomplete snapshot never emits EOR",
       "requirement_sha": "9e950d05f2096cce",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayCompletionIsSessionScoped": "5255260885a3b47f",
-        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayEndsEachFamily": "5255260885a3b47f",
-        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854IncompleteAdjReplayCannotClaimCompletion": "5255260885a3b47f"
+        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayCompletionIsSessionScoped": "de39a86aea269f0a",
+        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayEndsEachFamily": "de39a86aea269f0a",
+        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854IncompleteAdjReplayCannotClaimCompletion": "de39a86aea269f0a"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayCompletionIsSessionScoped": "fc92d70bcfce5e19",
@@ -47,8 +52,8 @@
       "note": "type 200 is skipped and the following Termination is consumed; a malformed Peer Up still ends the session",
       "requirement_sha": "1a3a13edba299c64",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854MalformedKnownTypeStillEndsSession": "038516cab017d625",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854UnrecognizedMessageTypeIgnored": "038516cab017d625"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854MalformedKnownTypeStillEndsSession": "94e84131af3555be",
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854UnrecognizedMessageTypeIgnored": "94e84131af3555be"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854MalformedKnownTypeStillEndsSession": "8838e8908cca26d2",
@@ -56,16 +61,42 @@
       },
       "verdict": "enforced"
     },
+    "RFC7854-4.10-1": {
+      "note": "First verdict 2026-09-29. The row's sentence is the lead-in to the \u00a74.10 figure, the only statement of the Peer Up layout, so the obligation judged is that figure: Local Address (16), Local Port, Remote Port, Sent OPEN, Received OPEN after the per-peer header (Information TLVs are RFC7854-x-19, the OPEN contents RFC7854-x-8). Positive rfc7854_message_layout_test.go::TestRFC7854PeerUpIsThePerPeerHeaderThenTheFixedFieldsAndBothOPENs reads each field raw at its offset from writePeerUp output and the exact total length. Negative ::TestRFC7854PeerUpShorterThanItsFixedFieldsIsRefused: a valid Peer Up is accepted, the same cut 10 octets into the fixed fields is refused (decodePeerUp short check).",
+      "requirement_sha": "5c02030c7a337d93",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854PeerUpIsThePerPeerHeaderThenTheFixedFieldsAndBothOPENs": "72508c9e38a649fc",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854PeerUpShorterThanItsFixedFieldsIsRefused": "72508c9e38a649fc"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854PeerUpIsThePerPeerHeaderThenTheFixedFieldsAndBothOPENs": "24e613050bb3832d",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854PeerUpShorterThanItsFixedFieldsIsRefused": "3378616d80bb58dc"
+      },
+      "verdict": "enforced"
+    },
     "RFC7854-4.2-1": {
       "note": "transmitted Route Monitoring on both directions has reserved bits 0; a Peer Up with every reserved bit set is accepted and its defined flags decode unchanged",
       "requirement_sha": "b3c873c60b23f271",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854ReservedFlagsIgnoredOnReceipt": "038516cab017d625",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854ReservedFlagsTransmittedAsZero": "038516cab017d625"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854ReservedFlagsIgnoredOnReceipt": "94e84131af3555be",
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854ReservedFlagsTransmittedAsZero": "94e84131af3555be"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854ReservedFlagsIgnoredOnReceipt": "8cea30311bb6a00b",
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854ReservedFlagsTransmittedAsZero": "ee3d0998a1a23da9"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7854-4.3-2": {
+      "note": "First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854InitiationIsTheCommonHeaderThenTwoOrMoreTLVs reads the octets sender.go::sendInitiation writes off a pipe, checks type 4 and walks TLVs by hand from octet 6 to exactly the end, requiring >= 2. Negative (R1(a)) ::TestRFC7854InitiationWithFewerThanTwoTLVsIsRefused: a one-TLV Initiation is refused by the receiver. The refusal comes from decodeInitiation's sysName-presence check (RFC7854-x-18), not a count check, but every one-TLV Initiation lacks sysName or sysDescr, so no one-TLV input is accepted; the buffer is otherwise valid.",
+      "requirement_sha": "bffb3b1b79b86a59",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854InitiationIsTheCommonHeaderThenTwoOrMoreTLVs": "72508c9e38a649fc",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854InitiationWithFewerThanTwoTLVsIsRefused": "72508c9e38a649fc"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854InitiationIsTheCommonHeaderThenTwoOrMoreTLVs": "66ed54432cc92548",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854InitiationWithFewerThanTwoTLVsIsRefused": "dc59848d854aa26d"
       },
       "verdict": "enforced"
     },
@@ -116,8 +147,8 @@
       "note": "after stop() the collector reads the Termination then EOF; a Peer Up afterwards is refused with errNotConnected",
       "requirement_sha": "9d33a24055f39c1b",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TerminationThenCloseAndSilence": "038516cab017d625",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TerminationThenCloseAndSilence#2": "038516cab017d625"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TerminationThenCloseAndSilence": "94e84131af3555be",
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TerminationThenCloseAndSilence#2": "94e84131af3555be"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TerminationThenCloseAndSilence": "753e841ad05d1ac7",
@@ -129,7 +160,7 @@
       "note": "receiver closes after reading a Termination with the router end held open (well under the read deadline) and drops the router; without a Termination two valid messages leave the session open",
       "requirement_sha": "f36f60f6f7d09a41",
       "tests": {
-        "internal/component/bgp/plugins/bmp/termination_absent_test.go::TestBMPReceiverKeepsSessionWithoutTermination": "25ae16e8f1eb8316",
+        "internal/component/bgp/plugins/bmp/termination_absent_test.go::TestBMPReceiverKeepsSessionWithoutTermination": "ed236b6be6cca946",
         "internal/component/bgp/plugins/bmp/termination_close_test.go::TestBMPReceiverClosesAfterTermination": "6de2c420371e9ffc"
       },
       "units": {
@@ -151,13 +182,39 @@
       },
       "verdict": "enforced"
     },
+    "RFC7854-4.5-4": {
+      "note": "First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854TerminationIsTheCommonHeaderThenTLVs reads the octets the sender's Termination path writes, walks TLVs from octet 6 to exactly the end, requires at least one and exactly one Reason TLV. Negative ::TestRFC7854TerminationWithNoTLVIsRefused: a 6-octet header-only Termination is refused (decodeTermination's missing-Reason branch, which any zero-TLV body reaches).",
+      "requirement_sha": "6efafcc1b86cea17",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854TerminationIsTheCommonHeaderThenTLVs": "72508c9e38a649fc",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854TerminationWithNoTLVIsRefused": "72508c9e38a649fc"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854TerminationIsTheCommonHeaderThenTLVs": "59305636f679feab",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854TerminationWithNoTLVIsRefused": "a09b9af8a8bb09a0"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7854-4.5-5": {
+      "note": "Station clause: termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination sends Initiation + Peer Up, confirms one router and one peer held, closes the pipe with no Termination, and requires handleSession to return with zero routers and zero peers (record: removeRouter break observed red). RECOMMENDED clause: sender_queue_test.go::TestSenderStopSendsTerminationToCollector reads a Termination on the collector side through stop() racing holdConnection (record: writeTerminationLocked break observed red). {single-polarity: positive} holds: the sentence permits the no-message close, so no non-compliant router input exists for the station to refuse.",
+      "requirement_sha": "5cfc5355e3dc68da",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "8f727193769a3f0a",
+        "internal/component/bgp/plugins/bmp/termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination": "ed236b6be6cca946"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "4e7bf6a440dd0715",
+        "internal/component/bgp/plugins/bmp/termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination": "94c059c47be91595"
+      },
+      "verdict": "enforced"
+    },
     "RFC7854-4.7-1": {
       "note": "transmitted Route Mirroring ends with the BGP Message TLV; Information then BGP Message is accepted, BGP Message then Information ends the session",
       "requirement_sha": "bc13864f8037ae80",
       "tests": {
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithPDUAccepted": "4c8de7d703105fd1",
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854MirrorBGPMessageNotLastEndsSession": "4c8de7d703105fd1",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RouteMirroringBGPMessageTLVLast": "038516cab017d625"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RouteMirroringBGPMessageTLVLast": "94e84131af3555be"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithPDUAccepted": "3bbc3dde4867b1af",
@@ -179,12 +236,25 @@
       },
       "verdict": "enforced"
     },
+    "RFC7854-4.7-3": {
+      "note": "First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854RouteMirroringIsThePerPeerHeaderThenTLVs: writeRouteMirroring output decodes a per-peer header equal to the input at octet 6, then TLVs walked by hand from octet 48 to exactly the end, same types and values in order. Negative ::TestRFC7854RouteMirroringWhoseBodyIsNotTLVsIsRefused: the valid message is first accepted, then a 3-octet tail that is no TLV (length fixed up) is refused, so only the not-TLVs body differs.",
+      "requirement_sha": "8511519b09039f18",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854RouteMirroringIsThePerPeerHeaderThenTLVs": "72508c9e38a649fc",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854RouteMirroringWhoseBodyIsNotTLVsIsRefused": "72508c9e38a649fc"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854RouteMirroringIsThePerPeerHeaderThenTLVs": "5c4d00c3fa024361",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854RouteMirroringWhoseBodyIsNotTLVsIsRefused": "623edb603361bdc6"
+      },
+      "verdict": "enforced"
+    },
     "RFC7854-4.8-1": {
       "note": "unknown stat type 60000 and a 3-octet counter are consumed and the session survives; a stat length past the report end still ends it",
       "requirement_sha": "e0b26d25f5b889b7",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TruncatedStatEndsSession": "038516cab017d625",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854UnrecognizedStatTypeIgnored": "038516cab017d625"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TruncatedStatEndsSession": "94e84131af3555be",
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854UnrecognizedStatTypeIgnored": "94e84131af3555be"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TruncatedStatEndsSession": "f0f9424c360f3a49",
@@ -197,11 +267,24 @@
       "requirement_sha": "8004323dfce1f0b5",
       "tests": {
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854SenderRefusesEmptyStatistics": "4c8de7d703105fd1",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854StatsReportCarriesAStatistic": "038516cab017d625"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854StatsReportCarriesAStatistic": "94e84131af3555be"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854SenderRefusesEmptyStatistics": "7b755fac31a0361e",
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854StatsReportCarriesAStatistic": "25c294f7ea78a34f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7854-4.8-3": {
+      "note": "First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854StatsReportCountNamesTheCountersThatFollow: the 4-octet count at octet 48 equals 3 and exactly three counter TLVs, walked by hand, run to the end with the input types and values. Negative ::TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused: the valid report is first accepted, then count+1 (truncated entry) and count-1 (trailing data) are each refused by decodeStatisticsReport.",
+      "requirement_sha": "e9b2e3e5e8e1814b",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused": "72508c9e38a649fc",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountNamesTheCountersThatFollow": "72508c9e38a649fc"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused": "401b9ffa12005b7d",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountNamesTheCountersThatFollow": "08d98b0054e0521c"
       },
       "verdict": "enforced"
     },
@@ -219,15 +302,15 @@
       "verdict": "weak"
     },
     "RFC7854-5-1": {
-      "note": "received (pre-policy) Route Monitoring leaves with L clear, sent with L set, decided by direction not body; Ze sends no post-policy Adj-RIB-In, its L-set stream is the RFC 8671 Adj-RIB-Out (O and L set)",
+      "note": "Re-judged 2026-09-29 (the negative unit gained the RFC7854-5-4 tag line only; assertions unchanged). rfc7854_test.go::TestRFC7854LFlagFollowsPolicy: received announce and withdraw leave with L clear, sent with L set. ::TestRFC7854LFlagNotDecidedByBody: one body streamed on both sides leaves L clear received and L set sent, so the flag follows the direction (policy stage) and not the message. Ze sends no post-policy Adj-RIB-In; its L-set stream is the RFC 8671 Adj-RIB-Out (O and L set, peerHeaderFromEvent).",
       "requirement_sha": "8769677dcfa32e5d",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy": "038516cab017d625",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagNotDecidedByBody": "038516cab017d625"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy": "94e84131af3555be",
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagNotDecidedByBody": "94e84131af3555be"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy": "8f42940700cefa84",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagNotDecidedByBody": "aa929b9af0b5b257"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy": "6e49c954267a390e",
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagNotDecidedByBody": "6fa2951e961f3181"
       },
       "verdict": "enforced"
     },
@@ -235,8 +318,8 @@
       "note": "replayed routes and EORs with unknown receipt time carry 0.0; a known receipt time survives replay exactly",
       "requirement_sha": "403c4cad7eea7c97",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854KnownRouteTimeSurvivesReplay": "5255260885a3b47f",
-        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854UnknownRouteTimeIsZero": "5255260885a3b47f"
+        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854KnownRouteTimeSurvivesReplay": "de39a86aea269f0a",
+        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854UnknownRouteTimeIsZero": "de39a86aea269f0a"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854KnownRouteTimeSurvivesReplay": "bfcbce2005f0cae9",
@@ -244,25 +327,36 @@
       },
       "verdict": "enforced"
     },
-    "RFC7854-5-3": {
-      "note": "units prove a withdraw carries its direction's L flag; the second clause (a route announced with L both clear and set is withdrawn twice) is asserted by no unit",
-      "requirement_sha": "bbf99ac266f96f1f",
+    "RFC7854-5-4": {
+      "note": "First verdict 2026-09-29 (first clause of the \u00a75 sentence; the twice-sent-withdraw clause left with retired RFC7854-5-3). Producer peerHeaderFromEvent sets L only on the sent direction, so a route's announcement and its withdraw take their L from the same direction. Positive rfc7854_test.go::TestRFC7854LFlagFollowsPolicy: a received withdraw carries L clear like a received announce, a sent withdraw L set like a sent announce. Negative ::TestRFC7854LFlagNotDecidedByBody: the same withdraw body on both sides gets L clear and L set, so a withdraw cannot carry the other side's flag. Both observed red under the peerHeaderFromEvent break. The test does not pair one announce with its own withdraw by prefix; the direction is the only input L reads, so no pairing can diverge.",
+      "requirement_sha": "3487e1ff16b58dad",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy": "038516cab017d625",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagNotDecidedByBody": "038516cab017d625"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy": "94e84131af3555be",
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagNotDecidedByBody": "94e84131af3555be"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy": "8f42940700cefa84",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagNotDecidedByBody": "aa929b9af0b5b257"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy": "6e49c954267a390e",
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagNotDecidedByBody": "6fa2951e961f3181"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
+    },
+    "RFC7854-5-6": {
+      "note": "rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue receives one prefix three times with ORIGIN IGP, INCOMPLETE, IGP and requires exactly three Route Monitoring messages, each body byte-equal to the UPDATE carrying that ORIGIN, so a sender that suppresses or dedupes the return to an earlier value fails (record: handleSenderUpdate break observed red). One attribute (ORIGIN) samples 'such as an attribute change'. {single-polarity: positive} holds: every route change is compliant input to the router, which has no refusal path.",
+      "requirement_sha": "188789eb497d3328",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue": "de39a86aea269f0a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue": "26b2024bb749b686"
+      },
+      "verdict": "enforced"
     },
     "RFC7854-8.2-1": {
       "note": "Loc-RIB instance Peer Up carries ports 0/0; a BGP peer's Peer Up carries its real 179/40000",
       "requirement_sha": "583da7efc8fdd685",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854BGPPeerUpCarriesTransportPorts": "038516cab017d625",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LocRIBPeerUpPortsZero": "038516cab017d625"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854BGPPeerUpCarriesTransportPorts": "94e84131af3555be",
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LocRIBPeerUpPortsZero": "94e84131af3555be"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854BGPPeerUpCarriesTransportPorts": "2d0a8df5c36c9d1c",
@@ -301,14 +395,14 @@
       "verdict": "weak"
     },
     "RFC7854-x-11": {
-      "note": "Termination is produced on shutdown, both on the encoder and through stop() racing holdConnection; single-polarity marker",
+      "note": "Re-judged 2026-09-29: the stale unit TestSenderStopSendsTerminationToCollector changed only by an added RFC7854-4.5-5 tag comment; body unchanged. It still requires the collector to read a Termination through stop() racing holdConnection, and the writeTerminationLocked break recorded under RFC7854-4.5-5 on this same unit was observed red. sender_test.go::TestBMPSenderTermination covers the encoder, no record. {single-polarity: positive} holds for a MAY that ze always exercises.",
       "requirement_sha": "56e09620e7c035a8",
       "tests": {
-        "internal/component/bgp/plugins/bmp/sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "ae8bcc45c85d4c60",
+        "internal/component/bgp/plugins/bmp/sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "8f727193769a3f0a",
         "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderTermination": "b1d529e5dcb7872e"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "508aa3a1c0f65ec2",
+        "internal/component/bgp/plugins/bmp/sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "4e7bf6a440dd0715",
         "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderTermination": "1938d89642e3c010"
       },
       "verdict": "enforced"
@@ -371,7 +465,7 @@
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationEmptyIdentityValuesAccepted": "4c8de7d703105fd1",
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationMissingSysDescrEndsSession": "4c8de7d703105fd1",
         "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854InitiationCarriesSysName": "cb0d93469e3bcca9",
-        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854InitiationCarriesSysDescr": "038516cab017d625"
+        "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854InitiationCarriesSysDescr": "94e84131af3555be"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestBMPInitiationMissingSysNameEndsSession": "83fa456a0adaf430",

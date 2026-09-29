@@ -65,6 +65,27 @@ Type AVPs clear the tunnel through the malformed-control path.
 <!-- source: internal/component/l2tp/reliable.go -- makeRecvEntry -->
 <!-- source: internal/component/l2tp/tunnel_fsm.go -- handleMessage -->
 
+`Next()` sets `FlagUnrecognized` on an AVP with a reserved bit set (with
+`FlagReserved`) and on an IETF AVP (Vendor ID 0) whose Attribute Type the
+RFC 2661 catalog does not define: a type above 39, or type 20. Every parser
+tests this flag. An unrecognized AVP with M=0 is skipped. With M=1 the message
+is refused, and the scope of the message decides the teardown (RFC 2661
+Section 4.1):
+
+| Message | Unrecognized AVP with M=1 |
+|---------|---------------------------|
+| Session message (ICRQ, ICRP, ICCN, CDN and the others) | The session is cleared with CDN |
+| SCCRQ | StopCCN, Result Code 2, Error Code 8. A reserved bit set gives Error Code 3 |
+| HELLO | StopCCN, Result Code 2, Error Code 8, and every session is cleared. Any other refused HELLO AVP gives Error Code 3 |
+<!-- source: internal/component/l2tp/avp.go -- AVPIterator.Next, ietfAVPDefined -->
+<!-- source: internal/component/l2tp/tunnel_fsm.go -- parseSCCRQ, handleHello, parseHello -->
+
+Two other tunnel messages clear the control connection. A StopCCN that does
+not parse still closes the tunnel and clears every session. An SCCCN received
+in `wait-ctl-reply` or `established` is out of order (RFC 2661 Section 7.2.1):
+Ze logs a warning and sends StopCCN with Result Code 1.
+<!-- source: internal/component/l2tp/tunnel_fsm.go -- handleStopCCN, closeOnPeerStopCCN, handleSCCCN -->
+
 ## Buffer discipline
 
 All encoding helpers write into caller-provided buffers. No function in the

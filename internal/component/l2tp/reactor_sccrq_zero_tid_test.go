@@ -72,7 +72,7 @@ const replyWait = 2 * time.Second
 // going to come, it would already be here.
 const silenceWait = 250 * time.Millisecond
 
-// RFC requirement: RFC2661-24.10-1 negative -- an SCCRQ whose Assigned Tunnel ID
+// RFC requirement: RFC2661-10-2 negative -- an SCCRQ whose Assigned Tunnel ID
 // AVP carries 0 is a protocol error. Ze answers it with a StopCCN carrying
 // Result Code 2 and Error Code 3, and creates no tunnel. The two tags that
 // existed before this test both drive the SCCRP half of the same requirement.
@@ -114,7 +114,7 @@ func TestSCCRQWithZeroAssignedTunnelIDIsAnswered(t *testing.T) {
 	require.Equal(t, 0, peerMapLen)
 }
 
-// RFC requirement: RFC2661-24.10-1 positive -- an SCCRQ carrying a non-zero
+// RFC requirement: RFC2661-10-2 positive -- an SCCRQ carrying a non-zero
 // Assigned Tunnel ID is accepted on the same path: ze answers SCCRP, adopts the
 // peer's tunnel ID, and sends no StopCCN.
 //

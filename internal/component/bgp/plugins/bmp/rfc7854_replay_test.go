@@ -244,24 +244,37 @@ func TestRFC7854AdjReplaySeparatesDirections(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7854-5-6 positive -- each change of one received route's
+// ORIGIN, from IGP to INCOMPLETE and back to IGP, sends the connected collector
+// one Route Monitoring message carrying the route with its new ORIGIN.
 func TestRFC7854ChangedAttributesCanReturnToEarlierValue(t *testing.T) {
+	// VALIDATES: RFC 7854 Section 5 -- "When a change occurs to a route, such
+	// as an attribute change, the router must update the monitoring station
+	// with the new attribute." One prefix is received three times with the
+	// ORIGIN changed each time, and each Route Monitoring body is compared
+	// with the UPDATE that carried the change.
+	// PREVENTS: a sender that suppresses an UPDATE it has seen before, so the
+	// return to an earlier ORIGIN leaves the collector on the superseded one.
 	bp := replayPlugin(t)
 	ss, conn := primeReplayCollector(t, bp)
 	bp.senders = []*senderSession{ss}
 	conn.reset()
-	for _, origin := range []byte{0, 2, 0} {
+	origins := []byte{0, 2, 0}
+	for _, origin := range origins {
 		body := assembleUpdateBody(nil, []byte{0x40, 1, 1, origin}, []byte{24, 10, 20, 30})
 		replayUpdate(bp, rpc.DirectionReceived, body, time.Time{}, 0)
 	}
 	waitQueueDrained(t, ss)
 	msgs := decodeBMPStream(t, conn.written())
-	if len(msgs) != 3 {
-		t.Fatalf("A, B, A attribute transitions produced %d messages, want 3", len(msgs))
+	if len(msgs) != len(origins) {
+		t.Fatalf("A, B, A attribute transitions produced %d messages, want %d", len(msgs), len(origins))
 	}
-	last, ok := msgs[2].(*RouteMonitoring)
-	want := assembleUpdateBody(nil, []byte{0x40, 1, 1, 0}, []byte{24, 10, 20, 30})
-	if !ok || !bytes.Equal(last.BGPUpdate[message.HeaderLen:], want) {
-		t.Fatalf("collector remained on superseded attributes: %#v", msgs[2])
+	for i, origin := range origins {
+		mon, ok := msgs[i].(*RouteMonitoring)
+		want := assembleUpdateBody(nil, []byte{0x40, 1, 1, origin}, []byte{24, 10, 20, 30})
+		if !ok || !bytes.Equal(mon.BGPUpdate[message.HeaderLen:], want) {
+			t.Fatalf("message %d does not carry ORIGIN %d: %#v", i, origin, msgs[i])
+		}
 	}
 }
 

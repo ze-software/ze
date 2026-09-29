@@ -143,11 +143,7 @@ func (t *L2TPTunnel) handleMessage(entry RecvEntry, now time.Time, defaults Tunn
 		return t.handleStopCCN(now, entry.Payload)
 	}
 	if msgType == MsgHello {
-		// Peer HELLO: no action needed beyond ACK. The engine's
-		// NeedsZLB path already schedules the ZLB ACK. The inbound
-		// message resets lastActivity via the reactor's Process caller.
-		t.logger.Debug("l2tp: Hello received")
-		return nil
+		return t.handleHello(now, entry.Payload)
 	}
 	// Session-scoped messages: ICRQ, ICRP, ICCN, OCRQ, OCRP, OCCN, CDN, WEN, SLI.
 	// Dispatched to session_fsm.go handlers via dispatchToSession.
@@ -276,11 +272,22 @@ func (t *L2TPTunnel) handleSCCRQ(now time.Time, defaults TunnelDefaults, sccrq *
 // Engine dedup makes this safe for duplicate SCCCNs: the engine delivers
 // the message once and retransmits are ACKed from the engine's retention.
 // A second SCCCN with a different Ns on an established tunnel is
-// delivered; the state check below drops it with a debug log (defense
-// against a malicious peer, not a normal protocol event).
+// delivered; the state check below clears the control connection.
 func (t *L2TPTunnel) handleSCCCN(now time.Time, defaults TunnelDefaults, payload []byte) []sendRequest {
+	if t.state == L2TPTunnelWaitCtlReply || t.state == L2TPTunnelEstablished {
+		// RFC 2661 Section 7.2.1: "wait-ctl-reply  Receive SCCCN  Send
+		// StopCCN Clean up  idle" and "established  Receive SCCRQ, SCCRP,
+		// SCCCN  Send StopCCN Clean up  idle". Section 7.1 counts a message
+		// "received in the wrong order" as invalid, and its receipt "should
+		// be logged appropriately and the control connection cleared".
+		t.logger.Warn("l2tp: SCCCN received out of order; clearing the control connection",
+			"state", t.state.String())
+		return t.teardownStopCCN(now, ResultCodeValue{Result: resultGeneralError}, l2tpevents.TerminateCauseNASError)
+	}
 	if t.state != L2TPTunnelWaitCtlConn {
-		t.logger.Debug("l2tp: SCCCN on non-wait-ctl-conn tunnel ignored", "state", t.state.String())
+		// Idle has no connection to clear ("idle  Receive SCCCN  Clean up
+		// idle"), and a closed tunnel is already cleared.
+		t.logger.Debug("l2tp: SCCCN on idle or closed tunnel ignored", "state", t.state.String())
 		return nil
 	}
 	scccn, err := parseSCCCN(payload)
@@ -408,11 +415,17 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 			}
 			break
 		}
-		if flags&FlagReserved != 0 {
-			if flags&FlagMandatory != 0 {
+		if flags&FlagUnrecognized != 0 {
+			if flags&FlagMandatory == 0 {
+				continue
+			}
+			// A reserved bit is "an invalid value in its header" (Error
+			// Code 3); an undefined IETF Attribute Type is an unknown AVP
+			// with the M-bit set (Error Code 8).
+			if flags&FlagReserved != 0 {
 				return sccrqInfo{}, errSCCRQMandatoryReservedBits
 			}
-			continue
+			return sccrqInfo{}, errSCCRQUnknownMandatoryAVP
 		}
 		if skip, err := skipHiddenAVP("SCCRQ", attrType, flags); err != nil {
 			return sccrqInfo{}, err
@@ -641,9 +654,9 @@ func parseSCCCN(payload []byte) (scccnInfo, error) {
 			}
 			break
 		}
-		if flags&FlagReserved != 0 {
+		if flags&FlagUnrecognized != 0 {
 			if flags&FlagMandatory != 0 {
-				return scccnInfo{}, fmt.Errorf("l2tp: mandatory SCCCN AVP type %d with reserved bits set", attrType)
+				return scccnInfo{}, fmt.Errorf("l2tp: mandatory SCCCN AVP type %d not recognized", attrType)
 			}
 			continue
 		}
@@ -729,9 +742,27 @@ func (t *L2TPTunnel) handleStopCCN(now time.Time, payload []byte) []sendRequest 
 	}
 	info, err := parseStopCCN(payload)
 	if err != nil {
-		t.logger.Warn("l2tp: malformed StopCCN; ignoring", "error", err.Error())
+		// RFC 2661 Section 4.1: "If the M bit is set on an unrecognized AVP
+		// within a message associated with the overall tunnel, the entire
+		// tunnel (and all sessions within) MUST be terminated." Section 7.1
+		// clears the control connection for any other malformed message.
+		// The peer asked to stop, so no StopCCN goes back: the tunnel closes
+		// here exactly as it does for a well-formed StopCCN.
+		t.logger.Warn("l2tp: malformed StopCCN; closing the tunnel", "error", err.Error())
+		t.closeOnPeerStopCCN(now, "malformed StopCCN received")
 		return nil
 	}
+	t.closeOnPeerStopCCN(now, "StopCCN received")
+	t.logger.Info("l2tp: peer StopCCN received; tunnel closed",
+		"result", info.Result,
+		"error-code", info.Error,
+		"message", strconv.Quote(info.Message))
+	return nil
+}
+
+// closeOnPeerStopCCN clears every session and closes the tunnel after the
+// peer sent a StopCCN, well-formed or not. reason names the transition.
+func (t *L2TPTunnel) closeOnPeerStopCCN(now time.Time, reason string) {
 	// AC-9: cascade CDN to all active sessions before closing tunnel.
 	// RFC 2661 S6.4: on a StopCCN "all active sessions are implicitly
 	// cleared".
@@ -745,13 +776,8 @@ func (t *L2TPTunnel) handleStopCCN(now time.Time, payload []byte) []sendRequest 
 	if len(cleared) > 0 {
 		t.logger.Info("l2tp: StopCCN clearing sessions", "count", len(cleared))
 	}
-	t.transition(L2TPTunnelClosed, "StopCCN received")
+	t.transition(L2TPTunnelClosed, reason)
 	t.engine.Close(now)
-	t.logger.Info("l2tp: peer StopCCN received; tunnel closed",
-		"result", info.Result,
-		"error-code", info.Error,
-		"message", strconv.Quote(info.Message))
-	return nil
 }
 
 // stopCCNInfo collects the fields parseStopCCN extracts from a StopCCN body.
@@ -777,9 +803,9 @@ func parseStopCCN(payload []byte) (stopCCNInfo, error) {
 			}
 			break
 		}
-		if flags&FlagReserved != 0 {
+		if flags&FlagUnrecognized != 0 {
 			if flags&FlagMandatory != 0 {
-				return stopCCNInfo{}, fmt.Errorf("l2tp: mandatory StopCCN AVP type %d with reserved bits set", attrType)
+				return stopCCNInfo{}, fmt.Errorf("l2tp: mandatory StopCCN AVP type %d not recognized", attrType)
 			}
 			continue
 		}
@@ -833,6 +859,62 @@ func parseStopCCN(payload []byte) (stopCCNInfo, error) {
 		return stopCCNInfo{}, errors.New("l2tp: empty StopCCN body")
 	}
 	return info, nil
+}
+
+// handleHello reads a peer HELLO body. A clean body needs no action beyond
+// the ACK: the engine's NeedsZLB path already schedules the ZLB, and the
+// reactor's Process caller resets lastActivity.
+//
+// HELLO is a message associated with the overall tunnel, so an unrecognized
+// AVP with the M bit set in it clears the tunnel with Error Code 8, and a
+// body the iterator cannot walk clears it as Section 7.1 malformed.
+func (t *L2TPTunnel) handleHello(now time.Time, payload []byte) []sendRequest {
+	err := parseHello(payload)
+	if err == nil {
+		t.logger.Debug("l2tp: Hello received")
+		return nil
+	}
+	t.logger.Warn("l2tp: HELLO refused; clearing the control connection", "error", err.Error())
+	errorCode := errorValueOutOfRange
+	if errors.Is(err, errUnrecognizedMandatoryAVP) {
+		// RFC 2661 Section 4.1: "If the M bit is set on an unrecognized AVP
+		// within a message associated with the overall tunnel, the entire
+		// tunnel (and all sessions within) MUST be terminated."
+		errorCode = errorUnknownMandatoryAVP
+	}
+	return t.teardownStopCCN(now, ResultCodeValue{
+		Result:       resultProtocolError,
+		ErrorPresent: true,
+		Error:        errorCode,
+	}, l2tpevents.TerminateCauseNASError)
+}
+
+// parseHello walks a HELLO body through the same AVPIterator every other
+// parser uses. RFC 2661 Section 6.5 gives HELLO the Message Type AVP alone,
+// so every other AVP is one ze does not act on: M=0 is skipped, and M=1 on a
+// vendor, hidden or unrecognized AVP returns errUnrecognizedMandatoryAVP.
+// A recognized IETF AVP is skipped whatever its M bit, because Section 4.1
+// terminates only on an unrecognized one. Returns nil for a clean body.
+func parseHello(payload []byte) error {
+	iter := NewAVPIterator(payload)
+	for {
+		vendorID, attrType, flags, _, ok := iter.Next()
+		if !ok {
+			return iter.Err()
+		}
+		if flags&FlagMandatory == 0 {
+			continue
+		}
+		if flags&FlagUnrecognized != 0 {
+			return fmt.Errorf("%w: HELLO AVP type %d", errUnrecognizedMandatoryAVP, attrType)
+		}
+		if vendorID != 0 {
+			return fmt.Errorf("%w: HELLO vendor %d AVP type %d", errUnrecognizedMandatoryAVP, vendorID, attrType)
+		}
+		if flags&FlagHidden != 0 {
+			return fmt.Errorf("%w: hidden HELLO AVP type %d", errUnrecognizedMandatoryAVP, attrType)
+		}
+	}
 }
 
 // handleHelloTimer is called by the reactor when the HELLO interval

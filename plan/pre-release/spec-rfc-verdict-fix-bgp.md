@@ -308,6 +308,8 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | RFC9830-4.2.1-2 | weak | `spec-bgp-sr-policy-rfc-defects` |
 | RFC9830-2.4.2-6 | weak | `spec-bgp-sr-policy-rfc-defects` (D1: its quote is the row text verbatim, though the spec says "no row names it") |
 | RFC9830-4.2.1-7 | weak | `spec-bgp-sr-policy-rfc-defects` AC-5 (§4.2.1 receive validation: attribute 23 has no validator) |
+| RFC7854-x-10 | weak | `spec-bmp-sflow-export-rfc-defects` AC-4 (§4.9 cause-to-reason tie in `peerDownFor`; reason 4 is its D1) |
+| RFC7854-4.9-1 | weak | `spec-bmp-sflow-export-rfc-defects` AC-5 (§4.9 reason 2 FSM event code: the event must reach `peerDownFor` across `rpc.StructuredEvent`; lands with D1) |
 
 - RFC9494-4.3-2 has no verdict in `rfc/audit/rfc9494.json` and RFC9494-4.3-3 is `enforced`, so neither is a blocked verdict; the graceful-restart spec still owns both defects.
 - RFC9252-5-2 is `unimplemented`, not weak or wrong.

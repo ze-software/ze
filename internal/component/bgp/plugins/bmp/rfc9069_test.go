@@ -154,13 +154,12 @@ func TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC9069-4.2-1 negative -- RFC 9069 Section 4.2 reserves the peer type
-// for locally sourced routes: "If locally sourced routes are communicated using BMP, they
-// MUST be conveyed using the Loc-RIB Instance Peer Type." A monitored BGP peer's routes
-// are not locally sourced, so the Route Monitoring carrying them reaches the collector
-// under Peer Type 0. An implementation stamping Peer Type 3 on every message passes the
-// positive above and fails here, having told the collector that every peer's Adj-RIB-In is
-// the router's Loc-RIB.
+// A monitored BGP peer's routes are not locally sourced, so the Route Monitoring carrying
+// them reaches the collector under Peer Type 0. An implementation stamping Peer Type 3 on
+// every message passes the Loc-RIB positives and fails here, having told the collector
+// that every peer's Adj-RIB-In is the router's Loc-RIB. No ledger row states this
+// property: RFC9069-4.2-1 constrains locally sourced routes only, and its negative is
+// TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer.
 func TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType(t *testing.T) {
 	// VALIDATES: the Loc-RIB Instance Peer Type discriminates the Loc-RIB feed.
 	server, client := net.Pipe()

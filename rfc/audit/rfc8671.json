@@ -1,5 +1,10 @@
 {
   "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8671-4-1": {
       "note": "Re-read 2026-09-27. Transmit clause: TestRFC8671ReservedPeerFlagsTransmittedAsZero fails if peerHeaderFromEvent, locRIBPeerHeader or the byte writePeerHeader puts on the wire carries a reserved bit. Receipt clause: TestRFC8671ReservedPeerFlagsIgnoredOnReceipt fails if a header with every reserved bit set is refused or changes a defined flag, over two bases.",
@@ -80,17 +85,19 @@
       "verdict": "enforced"
     },
     "RFC8671-x-3": {
-      "note": "Re-judged 2026-09-29. The Peer Up half is now proven through the producer: rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB primes one collector per route-monitoring policy (pre-policy, post-policy, all) over the same Established peer and requires exactly one Peer Up with identical per-peer header, OPENs and transport fields. Missing: the sentence names Peer Up AND Down notifications, and no tagged unit shows a Peer Down whose presence or content is the same under each policy, so a Peer Down suppressed or altered for one monitored RIB stays green.",
+      "note": "Re-judged 2026-09-29 (second). Both halves of 'Peer Up and Down Notifications ... independent of whether ... Adj-RIB-In, Adj-RIB-Out, or both' go through the producer under pre-policy, post-policy and all: rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB (identical per-peer header, both OPENs, transport fields; primeSender break observed red) and ::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB (identical header, reason, data; handleSenderState break observed red). msg_test.go::TestBMPPeerUpRoundTrip: stale line cite replaced by recordPeerUp (bmp_events.go), body unchanged; codec round trip now carries a writePeerUp record observed red. {single-polarity: positive} holds.",
       "requirement_sha": "5be0d12471a734fa",
       "tests": {
-        "internal/component/bgp/plugins/bmp/msg_test.go::TestBMPPeerUpRoundTrip": "3f21c748e8e703fe",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB": "134d1ccbf4e2ad58"
+        "internal/component/bgp/plugins/bmp/msg_test.go::TestBMPPeerUpRoundTrip": "071a7fb045cb1b4e",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB": "fb27b88fc924ab93",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB": "fb27b88fc924ab93"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/msg_test.go::TestBMPPeerUpRoundTrip": "09b701b3bf81d357",
+        "internal/component/bgp/plugins/bmp/msg_test.go::TestBMPPeerUpRoundTrip": "91d88a18cef9e783",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB": "0c960f570a18d537",
         "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB": "e748948bd94d543a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc8671"

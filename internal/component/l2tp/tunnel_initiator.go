@@ -240,9 +240,9 @@ func parseSCCRP(payload []byte) (sccrpInfo, error) {
 			}
 			break
 		}
-		if flags&FlagReserved != 0 {
+		if flags&FlagUnrecognized != 0 {
 			if flags&FlagMandatory != 0 {
-				return sccrpInfo{}, fmt.Errorf("l2tp: mandatory SCCRP AVP type %d with reserved bits set", attrType)
+				return sccrpInfo{}, fmt.Errorf("l2tp: mandatory SCCRP AVP type %d not recognized", attrType)
 			}
 			continue
 		}

@@ -102,8 +102,8 @@ func TestBMPTerminationRoundTrip(t *testing.T) {
 }
 
 // RFC requirement: RFC8671-x-3 positive -- a Peer Up message carries the peer's sent and received
-// OPEN messages, encoded and decoded intact. ze sources these OPENs from the per-peer openCache
-// (internal/component/bgp/plugins/bmp/bmp.go:757-772) independent of the O flag, so an Adj-RIB-Out
+// OPEN messages, encoded and decoded intact. ze sources these OPENs from the per-peer openCache,
+// which recordPeerUp (bmp_events.go) reads independent of the O flag, so an Adj-RIB-Out
 // (O=1) Peer Up carries the same sent/received OPENs as the Adj-RIB-In case (see the
 // {single-polarity} annotation in rfc8671.md).
 func TestBMPPeerUpRoundTrip(t *testing.T) {

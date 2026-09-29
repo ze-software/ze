@@ -286,10 +286,6 @@ func TestRFC2661SCCRPWithoutMessageTypeRefused(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2661-24.10-1 positive -- allocateLocalTID never returns
-// 0 as Ze's Assigned Tunnel ID, including when its counter wraps past 0xFFFF,
-// and allocateSessionID never returns 0 as Ze's Assigned Session ID over
-// 2^20 allocations on an empty tunnel.
 // RFC requirement: RFC2661-10-2 positive -- allocateLocalTID never returns 0
 // as Ze's Assigned Tunnel ID, including when its counter wraps past 0xFFFF,
 // and allocateSessionID never returns 0 as Ze's Assigned Session ID over 2^20
@@ -355,8 +351,9 @@ func stopCCNPayload() []byte {
 
 // RFC requirement: RFC2661-9-1 positive -- a StopCCN received on a tunnel with
 // one established and one wait-connect session clears both sessions and sends
-// no explicit call control message: handleStopCCN returns no datagram and the
-// reliable engine's next send sequence number does not advance.
+// no explicit call control message: handleStopCCN returns no datagram, the
+// reliable engine's next send sequence number does not advance, and its send
+// queue does not grow.
 //
 // TestRFC2661StopCCNClearsSessionsSilently checks both halves of the Section
 // 6.4 sentence on one tunnel.
@@ -373,6 +370,9 @@ func TestRFC2661StopCCNClearsSessionsSilently(t *testing.T) {
 		t.Fatalf("setup: %d sessions, want 2", tun.sessionCount())
 	}
 	sendSeq := tun.engine.nextSendSeq
+	// The first ICRP is unacknowledged, so the window is full and a message
+	// handleStopCCN enqueued would wait in sendQueue without taking an Ns.
+	queued := len(tun.engine.sendQueue)
 
 	out := tun.handleStopCCN(now, stopCCNPayload())
 	if len(out) != 0 {
@@ -380,6 +380,9 @@ func TestRFC2661StopCCNClearsSessionsSilently(t *testing.T) {
 	}
 	if tun.engine.nextSendSeq != sendSeq {
 		t.Fatalf("StopCCN enqueued %d control messages, want none", tun.engine.nextSendSeq-sendSeq)
+	}
+	if len(tun.engine.sendQueue) != queued {
+		t.Fatalf("StopCCN queued %d control messages, want none", len(tun.engine.sendQueue)-queued)
 	}
 	if tun.sessionCount() != 0 {
 		t.Fatalf("StopCCN left %d sessions", tun.sessionCount())
@@ -391,8 +394,9 @@ func TestRFC2661StopCCNClearsSessionsSilently(t *testing.T) {
 // one kernel teardown for its local session ID and one session-down are
 // queued, and a CDN for a wait-connect session removes it and queues its
 // session-down with no kernel teardown, since it holds no kernel session. In
-// both cases Ze sends back nothing: handleCDN returns no datagram and the
-// reliable engine's next send sequence number does not advance.
+// both cases Ze sends back nothing: handleCDN returns no datagram, the
+// reliable engine's next send sequence number does not advance, and its send
+// queue does not grow.
 //
 // TestRFC2661CDNCleansUpAndSendsNothing drives handleCDN in the two session
 // states and reads the queues the reactor drains into the kernel worker, the
@@ -412,6 +416,9 @@ func TestRFC2661CDNCleansUpAndSendsNothing(t *testing.T) {
 		}
 		sid := sess.localSID
 		sendSeq := tun.engine.nextSendSeq
+		// The ICRP is unacknowledged, so the window is full and a message
+		// handleCDN enqueued would wait in sendQueue without taking an Ns.
+		queued := len(tun.engine.sendQueue)
 
 		out := tun.handleCDN(sid, buildCDN(1, 500), logger)
 		if len(out) != 0 {
@@ -419,6 +426,9 @@ func TestRFC2661CDNCleansUpAndSendsNothing(t *testing.T) {
 		}
 		if tun.engine.nextSendSeq != sendSeq {
 			t.Fatalf("established=%v: CDN enqueued a control message", established)
+		}
+		if len(tun.engine.sendQueue) != queued {
+			t.Fatalf("established=%v: CDN queued a control message", established)
 		}
 		if tun.sessionCount() != 0 {
 			t.Fatalf("established=%v: session survived the CDN", established)

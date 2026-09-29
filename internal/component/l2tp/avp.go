@@ -93,7 +93,28 @@ const (
 	// the wire. Per RFC 2661 Section 4.1, the AVP must then be treated as
 	// unrecognized; upstream applies the M-bit handling rule.
 	FlagReserved AVPFlags = 1 << 2
+	// FlagUnrecognized marks an AVP the receiver MUST treat as unrecognized.
+	// Next sets it for two causes: a reserved bit that is not zero
+	// (FlagReserved is then set too), and an IETF AVP (Vendor ID 0) whose
+	// Attribute Type RFC 2661 does not define. Every parser tests this one
+	// flag, so the M-bit rule of Section 4.1 is decided in one place. A
+	// vendor-specific AVP is not flagged: each parser knows no vendor AVP,
+	// and tests vendorID itself.
+	FlagUnrecognized AVPFlags = 1 << 3
 )
+
+// avpTypeUndefined20 is the one value inside the RFC 2661 catalog range that
+// the catalog skips: Framing Type is 19 and Called Number is 21.
+const avpTypeUndefined20 AVPType = 20
+
+// ietfAVPDefined reports whether attrType is an Attribute Type the RFC 2661
+// catalog (the AVPType constants above) defines for Vendor ID 0.
+func ietfAVPDefined(attrType AVPType) bool {
+	if attrType > AVPSequencingRequired {
+		return false
+	}
+	return attrType != avpTypeUndefined20
+}
 
 // AVPHeaderLen is the fixed 6-byte AVP header length.
 const AVPHeaderLen = 6
@@ -140,11 +161,23 @@ func (it *AVPIterator) Next() (vendorID uint16, attrType AVPType, flags AVPFlags
 		flags |= FlagHidden
 	}
 	// Reserved bits (2-5) of the first byte => bits 11-8 of `word`.
+	// RFC 2661 Section 4.1: "An AVP received with a reserved bit set to 1
+	// MUST be treated as an unrecognized AVP."
 	if word&0x3C00 != 0 {
-		flags |= FlagReserved
+		flags |= FlagReserved | FlagUnrecognized
 	}
 	vendorID = binary.BigEndian.Uint16(it.data[it.offset+2:])
 	attrType = AVPType(binary.BigEndian.Uint16(it.data[it.offset+4:]))
+	// RFC 2661 Section 4.1: "If the M bit is set on an unrecognized AVP
+	// within a message associated with a particular session, the session
+	// associated with this message MUST be terminated. If the M bit is set
+	// on an unrecognized AVP within a message associated with the overall
+	// tunnel, the entire tunnel (and all sessions within) MUST be
+	// terminated." An IETF Attribute Type outside the catalog is such an
+	// AVP; the parser that owns the message applies the M-bit rule.
+	if vendorID == 0 && !ietfAVPDefined(attrType) {
+		flags |= FlagUnrecognized
+	}
 	value = it.data[it.offset+AVPHeaderLen : it.offset+length]
 	it.offset += length
 	return vendorID, attrType, flags, value, true
