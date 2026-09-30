@@ -2,6 +2,28 @@
   "rfc": "rfc9085",
   "records": [
     {
+      "rid": "RFC9085-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFCapabilitiesOnNoOtherNLRI",
+      "unit-sha": "43a1462b60d87940",
+      "claim-sha": "b403b43e388a50c0",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::routerInformation",
+      "producer-sha": "ae2e603e84b113a4",
+      "break": "body of routerInformation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFCapabilitiesOnOriginatorNode",
+      "unit-sha": "d6eb7303c7194363",
+      "claim-sha": "581a93e1c7f70c96",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::routerInformation",
+      "producer-sha": "ae2e603e84b113a4",
+      "break": "body of routerInformation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9085-2.1.1-1",
       "polarity": "negative",
       "unit": "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared",
@@ -22,6 +44,17 @@
       "producer": "internal/plugins/isis/bgpls_export.go::srBlock",
       "producer-sha": "4ab019293b1095a3",
       "break": "body of srBlock replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.1.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags",
+      "unit-sha": "dcdade5a65c4fd5b",
+      "claim-sha": "c8a902d2b699a9bc",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_node.go::decodeSRCapabilities",
+      "producer-sha": "aa6d83afae309a7f",
+      "break": "body of decodeSRCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9085-2.1.2-1",
@@ -55,6 +88,17 @@
       "producer": "internal/plugins/ospf/bgpls_export.go::routerInformation",
       "producer-sha": "ae2e603e84b113a4",
       "break": "body of routerInformation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.1.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags",
+      "unit-sha": "dcdade5a65c4fd5b",
+      "claim-sha": "8e0c5df80fa4359a",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_node.go::decodeSRCapabilities",
+      "producer-sha": "aa6d83afae309a7f",
+      "break": "body of decodeSRCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9085-2.1.2-2",
@@ -106,72 +150,6 @@
       "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated",
       "unit-sha": "b082df52f3d2bfa9",
       "claim-sha": "e38b1b24f408b15d",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/bgpls_export.go::routerInformation",
-      "producer-sha": "ae2e603e84b113a4",
-      "break": "body of routerInformation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9085-2.1.2-3",
-      "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved",
-      "unit-sha": "916b74a88e5d2487",
-      "claim-sha": "e4501ac7d39c7da2",
-      "route": "revert",
-      "producer": "internal/plugins/isis/bgpls_export.go::srBlock",
-      "producer-sha": "4ab019293b1095a3",
-      "break": "body of srBlock replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9085-2.1.2-3",
-      "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero",
-      "unit-sha": "e1edeb0fb521e7dd",
-      "claim-sha": "11bc71cc1a015564",
-      "route": "revert",
-      "producer": "internal/plugins/isis/bgpls_export.go::srBlock",
-      "producer-sha": "4ab019293b1095a3",
-      "break": "body of srBlock replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9085-2.1.2-3",
-      "polarity": "positive",
-      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero",
-      "unit-sha": "828d0fbaca92fdf7",
-      "claim-sha": "2f860afc6fe4a567",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/bgpls_export.go::routerInformation",
-      "producer-sha": "ae2e603e84b113a4",
-      "break": "body of routerInformation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9085-2.1.2-3",
-      "polarity": "negative",
-      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated",
-      "unit-sha": "b082df52f3d2bfa9",
-      "claim-sha": "e38b1b24f408b15d",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/bgpls_export.go::routerInformation",
-      "producer-sha": "ae2e603e84b113a4",
-      "break": "body of routerInformation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9085-2.1.2-4",
-      "polarity": "positive",
-      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero",
-      "unit-sha": "828d0fbaca92fdf7",
-      "claim-sha": "765b937d5475f928",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/bgpls_export.go::routerInformation",
-      "producer-sha": "ae2e603e84b113a4",
-      "break": "body of routerInformation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9085-2.1.2-4",
-      "polarity": "negative",
-      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated",
-      "unit-sha": "b082df52f3d2bfa9",
-      "claim-sha": "38d2f6cad618ea9b",
       "route": "revert",
       "producer": "internal/plugins/ospf/bgpls_export.go::routerInformation",
       "producer-sha": "ae2e603e84b113a4",
@@ -299,6 +277,39 @@
       "break": "body of sidValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9085-2.2.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedSIDReservedZero",
+      "unit-sha": "1b9479331e592926",
+      "claim-sha": "4003a1b0f4d051ab",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::bgplsAdjAttribute",
+      "producer-sha": "2ab3959972aa9723",
+      "break": "body of bgplsAdjAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.2.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved",
+      "unit-sha": "eaeacb84657bd3df",
+      "claim-sha": "6c218fe0cfa60173",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::bgplsAdjAttribute",
+      "producer-sha": "2ab3959972aa9723",
+      "break": "body of bgplsAdjAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.2.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085UndecodedSIDReceiptKeepsReserved",
+      "unit-sha": "b8636903de1dd541",
+      "claim-sha": "590fc000e3c7e8da",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr.go::AttrTLVsToJSON",
+      "producer-sha": "4b3255e0d0730e79",
+      "break": "body of AttrTLVsToJSON replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9085-2.2.2-1",
       "polarity": "negative",
       "unit": "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved",
@@ -319,6 +330,28 @@
       "producer": "internal/plugins/isis/bgpls_export.go::sidValue",
       "producer-sha": "8e018f9b55415a4f",
       "break": "body of sidValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.2.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedSIDReservedZero",
+      "unit-sha": "1b9479331e592926",
+      "claim-sha": "f1cc23c8c1a1e58a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::bgplsAdjAttribute",
+      "producer-sha": "2ab3959972aa9723",
+      "break": "body of bgplsAdjAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.2.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved",
+      "unit-sha": "eaeacb84657bd3df",
+      "claim-sha": "c37e6f9d831ea60b",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::bgplsAdjAttribute",
+      "producer-sha": "2ab3959972aa9723",
+      "break": "body of bgplsAdjAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9085-2.3.1-1",
@@ -354,6 +387,39 @@
       "break": "body of sidValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9085-2.3.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedSIDReservedZero",
+      "unit-sha": "1b9479331e592926",
+      "claim-sha": "506cbc10c4cb3a62",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::bgplsPrefixAttribute",
+      "producer-sha": "6ecf3c16afd83ae2",
+      "break": "body of bgplsPrefixAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.3.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved",
+      "unit-sha": "eaeacb84657bd3df",
+      "claim-sha": "1ec48735786fbb96",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::bgplsPrefixAttribute",
+      "producer-sha": "6ecf3c16afd83ae2",
+      "break": "body of bgplsPrefixAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.3.5-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085UndecodedSIDReceiptKeepsReserved",
+      "unit-sha": "b8636903de1dd541",
+      "claim-sha": "457e21a594142d34",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr.go::AttrTLVsToJSON",
+      "producer-sha": "4b3255e0d0730e79",
+      "break": "body of AttrTLVsToJSON replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9085-2.3.5-1",
       "polarity": "negative",
       "unit": "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved",
@@ -374,6 +440,28 @@
       "producer": "internal/plugins/isis/bgpls_export.go::binding",
       "producer-sha": "8baeb5aa9615bfda",
       "break": "body of binding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.3.5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedSIDReservedZero",
+      "unit-sha": "1b9479331e592926",
+      "claim-sha": "a788b4f64d0233aa",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::prefixRange",
+      "producer-sha": "8f21bd17679672ab",
+      "break": "body of prefixRange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.3.5-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved",
+      "unit-sha": "eaeacb84657bd3df",
+      "claim-sha": "793da138e9ef67ad",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::prefixRange",
+      "producer-sha": "8f21bd17679672ab",
+      "break": "body of prefixRange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

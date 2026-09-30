@@ -46,11 +46,7 @@
     {
       "id": "2.1.2",
       "sites": 2,
-      "disposition": "walked",
-      "unsourced-ids": [
-        "RFC9085-2.1.2-3",
-        "RFC9085-2.1.2-4"
-      ]
+      "disposition": "walked"
     },
     {
       "id": "2.1.3",

@@ -76,7 +76,6 @@ func originatedCapabilityRanges(t *testing.T, flags byte, size [3]byte) (srgb, s
 // values, whose second octet is the Reserved octet.
 //
 // RFC requirement: RFC9085-2.1.2-2 positive -- the SR Capabilities TLV 1034 Ze originates from an IS-IS SR-Capabilities sub-TLV has Reserved octet 0 (§2.1.2).
-// RFC requirement: RFC9085-2.1.2-3 positive -- the SR Capabilities TLV 1034 Ze originates from an IS-IS SR-Capabilities sub-TLV has Reserved octet 0 (§2.1.2).
 // RFC requirement: RFC9085-2.1.4-2 positive -- the SR Local Block TLV 1036 Ze originates from an IS-IS SRLB sub-TLV has Reserved octet 0 (§2.1.4).
 func TestRFC9085ISISOriginatedCapabilitiesReservedZero(t *testing.T) {
 	srgb, srlb := originatedCapabilityRanges(t, 0x80, [3]byte{0, 0, 100})
@@ -95,7 +94,6 @@ func TestRFC9085ISISOriginatedCapabilitiesReservedZero(t *testing.T) {
 // octet if the producer shifts or copies the native header.
 //
 // RFC requirement: RFC9085-2.1.2-2 negative -- an IS-IS SR-Capabilities sub-TLV with flags ff and range ffffff is originated as TLV 1034 with Reserved octet 0 (§2.1.2).
-// RFC requirement: RFC9085-2.1.2-3 negative -- an IS-IS SR-Capabilities sub-TLV with flags ff and range ffffff is originated as TLV 1034 with Reserved octet 0 (§2.1.2).
 // RFC requirement: RFC9085-2.1.4-2 negative -- an IS-IS SRLB sub-TLV with flags ff and range ffffff is originated as TLV 1036 with Reserved octet 0 (§2.1.4).
 func TestRFC9085ISISAllOnesSourceNeverReachesReserved(t *testing.T) {
 	srgb, srlb := originatedCapabilityRanges(t, 0xff, [3]byte{0xff, 0xff, 0xff})

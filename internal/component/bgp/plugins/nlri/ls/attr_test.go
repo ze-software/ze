@@ -895,11 +895,11 @@ func TestRFC9085SIDLabelMasksLeftmostFourBits(t *testing.T) {
 // fields and undefined flag bits on receipt: an SR Capabilities TLV whose
 // Reserved octet is non-zero AND whose Flags octet carries an undefined bit still
 // decodes to the correct meaningful flags and label range. RFC 9085 requires
-// ignore-on-receipt (never reject), so these are single-polarity positive
-// requirements -- there is no negative case for the gate.
+// ignore-on-receipt (never reject), so the receipt clause has no negative case
+// here; the set-to-0 clause's negatives are the IS-IS and OSPF exporter tests.
 //
-// VALIDATES: RFC9085-2.1.2-3 (Reserved field skipped, not folded into the ranges)
-// and RFC9085-2.1.2-4 (undefined Flags bits stored without branching or rejecting).
+// VALIDATES: RFC9085-2.1.2-2 (Reserved field skipped, not folded into the ranges)
+// and RFC9085-2.1.2-1 (undefined Flags bits stored without branching or rejecting).
 // PREVENTS: a non-zero Reserved octet being consumed as range data (a 1-byte
 // misalignment that corrupts or rejects the decode); an undefined Flags bit
 // rejecting the TLV or masking away the meaningful I/V flags.
@@ -925,7 +925,7 @@ func TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags(t *testing.T) {
 	require.True(t, ok)
 	require.Len(t, caps.Ranges, 1)
 
-	// RFC requirement: RFC9085-2.1.2-4 positive -- an undefined flag bit (0x02) in the SR Capabilities Flags octet is ignored on receipt: it is stored verbatim without branching or rejecting, and does not disturb the meaningful I-flag.
+	// RFC requirement: RFC9085-2.1.2-1 positive -- an undefined flag bit (0x02) in the SR Capabilities Flags octet is ignored on receipt: it is stored verbatim without branching or rejecting, and does not disturb the meaningful I-flag.
 	assert.Equal(t, uint8(0x82), caps.Flags) // full Flags byte stored as-is; the undefined 0x02 bit is neither rejected nor masked away.
 	j := caps.ToJSON()
 	capsJSON, ok := j["sr-capabilities"].(map[string]any)
@@ -935,7 +935,7 @@ func TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags(t *testing.T) {
 	assert.Equal(t, 1, flags["I"])   // meaningful I-flag (IPv4 MPLS) survives intact.
 	assert.Equal(t, 2, flags["RSV"]) // the undefined 0x02 bit is preserved in the reserved-flag field.
 
-	// RFC requirement: RFC9085-2.1.2-3 positive -- the Reserved octet (value byte [1], here 0xFF) is ignored on receipt: it is skipped, not consumed as range data, so the label range decodes correctly and the TLV is not rejected.
+	// RFC requirement: RFC9085-2.1.2-2 positive -- the Reserved octet (value byte [1], here 0xFF) is ignored on receipt: it is skipped, not consumed as range data, so the label range decodes correctly and the TLV is not rejected.
 	assert.Equal(t, uint32(1000), caps.Ranges[0].Range)     // range parses from data[2:]; the 0xFF reserved octet at data[1] was skipped, not folded in.
 	assert.Equal(t, uint32(16000), caps.Ranges[0].FirstSID) // FirstSID intact -- a 1-byte misalignment from consuming the reserved octet would corrupt or reject this.
 }
