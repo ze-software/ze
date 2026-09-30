@@ -1,5 +1,6 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC6396-1-1": {
       "note": "Forbidden: any multi-octet MRT field written little-endian. internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip byte-asserts MSB-first order only for the four common-header fields (Timestamp, Type, Subtype, Length). No tagged assertion covers the PEER_INDEX_TABLE, RIB entry or BGP4MP multi-octet fields (Peer AS, View Name Length, Peer Count, Sequence Number, Entry Count, Originated Time, Interface Index), so a little-endian writer for any of them that round-trips through a matching decoder stays green.",
@@ -16,7 +17,7 @@
       "note": "Forbidden: emitting a TABLE_DUMP (type 12) record for a 4-byte peer AS or a peer/prefix AFI mismatch. internal/plugins/mrt/dump_test.go::TestRibSubtype asserts only that ribSubtype maps AFIs to TABLE_DUMP_V2 subtype numbers; it never asserts the record Type field is TypeTableDumpV2 and never drives a 4-byte peer AS or a differing peer AFI through the dump, so stamping TypeTableDump on those records stays green.",
       "requirement_sha": "bc7aa97ad7fbe9e2",
       "tests": {
-        "internal/plugins/mrt/dump_test.go::TestRibSubtype": "8d266da6e4557b90"
+        "internal/plugins/mrt/dump_test.go::TestRibSubtype": "6ed6559cf54841e4"
       },
       "units": {
         "internal/plugins/mrt/dump_test.go::TestRibSubtype": "afc6c2958382fedb"
@@ -49,7 +50,7 @@
       "note": "Forbidden: a RIB entry record written before the PEER_INDEX_TABLE, or another record between them. internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry drives the real writeTableDumpV2 path and asserts order[0] is (TABLE_DUMP_V2, PEER_INDEX_TABLE) and order[1] is (TABLE_DUMP_V2, RIB_IPV4_UNICAST); a late or missing PEER_INDEX_TABLE or an interleaved record turns it red. Single-polarity positive marker on the row. It drives one route only.",
       "requirement_sha": "a14ee59763ac83fc",
       "tests": {
-        "internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "8d266da6e4557b90"
+        "internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "6ed6559cf54841e4"
       },
       "units": {
         "internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "80a64893da21da06"
@@ -57,19 +58,23 @@
       "verdict": "enforced"
     },
     "RFC6396-4.3.4-1": {
-      "note": "Forbidden: a TABLE_DUMP_V2 RIB entry whose AS_PATH carries 2-byte AS numbers (a route from a 2-byte session). internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte proves ingest widens a 2-byte AS_PATH, and ::TestRFC6396RIBEntryASPathFourByteSessionUnchanged proves no double widening. internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte feeds an AS_PATH that is already 4-byte, so it proves only that the writer copies bytes unchanged. No tagged unit drives a 2-byte-session route through the RIB into a written RIB entry. The link between the widened value and the MRT output is claimed in prose only, so an MRT path that read unwidened bytes would stay green.",
+      "note": "Judge 2026-09-30. rib TestRFC6396TwoByteSessionRouteDumpsFourByteASPath drives a 2-byte-session UPDATE (AS_SEQ 65001 65002, 2-octet) through wireu.CollapseAS4Family, the RIB received-UPDATE entry (context stays ASN4=false), dumpRIBForMRT, the internal/mrt RIB writers and DecodeRIBRecord: the entry AS_PATH is 4-octet. Negative TestRFC6396FourByteSessionRouteDumpsASPathUnchanged: a 4-byte session path with AS 200000 is written octet-equal (no second widening, no narrowing). mrt TestDumpV2RIBEntryASPathIs4Byte (claim reworded to what it asserts) proves writeTableDumpV2 keeps a 4-byte path. Records observed red on revert of CollapseAS4Family, reconstructWireAttrs and writeTableDumpV2. Limit: the rib test composes the record with the same internal/mrt writers the MRT plugin calls rather than the plugin itself; the plugin half is the mrt unit.",
       "requirement_sha": "2a52cfc3407ee35b",
       "tests": {
+        "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396FourByteSessionRouteDumpsASPathUnchanged": "0ecb81c80cd0b439",
+        "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396TwoByteSessionRouteDumpsFourByteASPath": "0ecb81c80cd0b439",
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathFourByteSessionUnchanged": "ef5cdafe1b9e158d",
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte": "ef5cdafe1b9e158d",
-        "internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "8d266da6e4557b90"
+        "internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "6ed6559cf54841e4"
       },
       "units": {
+        "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396FourByteSessionRouteDumpsASPathUnchanged": "97f95516d8e9b6cf",
+        "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396TwoByteSessionRouteDumpsFourByteASPath": "bdb9751bcb95eebd",
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathFourByteSessionUnchanged": "13986c347835ca8b",
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte": "36a87415e3065443",
-        "internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "c00b2b6a1ec5c802"
+        "internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "f13a25b7a26f6d8c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC6396-4.4.2-2": {
       "note": "Forbidden: more than one BGP message in one BGP4MP message record. internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord makes one OnBGPMessage call and asserts one record whose body equals that message. With a single input message there is nothing to coalesce, so a writer that batched consecutive messages into one record would stay green. A second call is needed before the assertion can fail.",

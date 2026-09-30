@@ -493,6 +493,10 @@ func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
 		}
 	}
 
+	// RFC 8092 Section 3, applied at this site for the reason the strips above are:
+	// the deduplicated attribute is what the RIB, the relays and every rebuild see.
+	wu = removeRedundantLargeCommunities(wu)
+
 	wu = discardNonVPNAcceptOwn(wu)
 
 	attrs, err := wu.Attrs()

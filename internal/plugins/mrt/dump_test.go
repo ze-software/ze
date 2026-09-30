@@ -242,14 +242,11 @@ func TestDumpV2PeerIndexBeforeFirstRIBEntry(t *testing.T) {
 
 func TestDumpV2RIBEntryASPathIs4Byte(t *testing.T) {
 	// RFC requirement: RFC6396-4.3.4-1 positive -- a produced TABLE_DUMP_V2 RIB entry
-	// carries a 4-byte-ASN AS_PATH. The dump path copies the RIB-supplied path attributes
-	// into the RIB entry verbatim (WriteRIBEntry, internal/mrt/encode.go:88-98), and the ze
-	// RIB producer always supplies a 4-byte AS_PATH: canonicalizeASPath returns the 4-byte
-	// AS4_PATH or expands a 2-byte AS_PATH to 4-byte
-	// (internal/component/bgp/plugins/rib/storage/attrparse.go:198-208), reconstructed into
-	// the attribute blob by rib_mrt.go:128-130. This drives writeTableDumpV2 with a 4-byte
-	// AS_PATH and asserts the decoded RIB entry's AS_PATH is 4-byte (a >65535 ASN, which
-	// cannot be 2-byte, round-trips intact).
+	// carries a 4-byte-ASN AS_PATH: writeTableDumpV2, handed a 4-byte AS_PATH by the RIB
+	// visitor, writes a RIB entry whose decoded AS_PATH is 4-byte, with AS 200000 (which
+	// no 2-byte field holds) intact. The widening of a 2-byte session's AS_PATH before it
+	// reaches the visitor is proven in the rib plugin
+	// (TestRFC6396TwoByteSessionRouteDumpsFourByteASPath).
 	_, _, ribs := runRIBDumpV2(t, func(v registry.RIBDumpVisitor) {
 		idx := v.OnPeer("192.0.2.1", 65001, [4]byte{1, 2, 3, 4}, false)
 		v.OnRoute(idx, mrtfmt.AFIIPv4, 1, 24, []byte{203, 0, 113}, testWireASPath4())

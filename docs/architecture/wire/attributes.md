@@ -579,6 +579,18 @@ RFC 8092 - Large community values (12 bytes each).
 Format: GlobalAdmin:LocalData1:LocalData2 (e.g., 4294967295:100:200)
 <!-- source: internal/core/bgp/attribute/community.go -- LargeCommunity, LargeCommunities -->
 
+**A repeated value is removed at ingest.** RFC 8092 Section 3 requires a
+receiver to silently remove redundant values. `publishBase` rewrites the
+received UPDATE when the attribute holds a value twice, keeping the first
+occurrence of each value in received order, so the RIB, the relays and every
+rebuild see the deduplicated attribute. The check reads the value without
+allocating (a pairwise scan up to 16 values, a seeded hash filter above), and
+only an UPDATE that carries a repeat pays for the rebuild. The attribute keeps
+the peer's flags and length-field width. `ParseLargeCommunities` removes repeats
+as well, for a caller that decodes the value itself.
+<!-- source: internal/component/bgp/reactor/rfc8092_large_community.go -- removeRedundantLargeCommunities -->
+<!-- source: internal/core/bgp/attribute/community.go -- ParseLargeCommunities -->
+
 ---
 
 ## 40. BGP_PREFIX_SID (Code 40)
@@ -728,8 +740,9 @@ parsed-value side table alone.
 **The index freezes which attributes an UPDATE has.** Code that rewrites the
 attribute bytes must run before the first `Attrs()` call, or wrap its result in a
 new `WireUpdate`. On the receive path that is why `enforceRFC7606` publishes the
-base last, after its RFC 7606 Section 3.g duplicate strip and its in-place
-attribute-discard branch have both run.
+base last, after its RFC 7606 Section 3.g duplicate strip, its in-place
+attribute-discard branch and the RFC 8092 Section 3 redundant-value removal
+have all run.
 <!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
 
 ---

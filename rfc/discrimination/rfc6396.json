@@ -1,0 +1,38 @@
+{
+  "rfc": "rfc6396",
+  "records": [
+    {
+      "rid": "RFC6396-4.3.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396FourByteSessionRouteDumpsASPathUnchanged",
+      "unit-sha": "6b7f4aeb7258ffd3",
+      "claim-sha": "adca66abd7607796",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_mrt.go::reconstructWireAttrs",
+      "producer-sha": "3f4a5bf952cbabc4",
+      "break": "body of reconstructWireAttrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6396-4.3.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396TwoByteSessionRouteDumpsFourByteASPath",
+      "unit-sha": "183c9ccdc71fc167",
+      "claim-sha": "d89300f7ec23a8b1",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/aspath_collapse.go::CollapseAS4Family",
+      "producer-sha": "ab2668a627662c2f",
+      "break": "body of CollapseAS4Family replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6396-4.3.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte",
+      "unit-sha": "208385a569a039b0",
+      "claim-sha": "6cdae5dd4fc5f53c",
+      "route": "revert",
+      "producer": "internal/plugins/mrt/dump.go::writeTableDumpV2",
+      "producer-sha": "c36d65611ec8ad5d",
+      "break": "body of writeTableDumpV2 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

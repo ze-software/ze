@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -8,17 +8,19 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8950-3-2": {
-      "note": "The next hop is the VPN-IPv6 address with an 8-octet RD set to zero. TestParseMPReachNLRI_VPNWithIPv6NextHop decodes a zero-RD 24-byte next hop, and a decoder that skips the RD would pass whatever the RD holds. TestMPReachNLRI_RoundTrip_VPN encodes an IPv4 next hop (the RFC 4364 12-byte form, a neighbouring rule) and asserts only NH_Len = 12, never that the 8 RD bytes are zero. A writer emitting a non-zero RD passes both units. The 48-byte link-local form is untested.",
+      "note": "Judge 2026-09-30. TestRFC8950VPNIPv6NextHopCarriesZeroRD writes AFI 1 SAFI 128 with an IPv6 next hop into a 0xFF-filled buffer: Length 24 = zero RD + global, Length 48 = zero RD + global + zero RD + link-local, and parses back to the same addresses; observed red on revert of mpnlri.go::writeNextHops (extracted from MPReachNLRI.WriteTo, behaviour unchanged: same loop, clear() for the RD). {single-polarity: positive} valid: a sender-side encoding, the encoder takes no RD input, so no non-zero RD can be produced or refused. Caveat: HEAD unit mpnlri_test.go::TestMPReachNLRI_RoundTrip_VPN claims 'the RD is always written as zero' but asserts only NH_Len=12 on a zeroed buffer with an IPv4 next hop; its claim overstates its body and should be reworded (owner approval needed).",
       "requirement_sha": "e399c98a362732ab",
       "tests": {
         "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_RoundTrip_VPN": "956952d4c9cbe9bd",
-        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_VPNWithIPv6NextHop": "956952d4c9cbe9bd"
+        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_VPNWithIPv6NextHop": "956952d4c9cbe9bd",
+        "internal/core/bgp/attribute/rfc8950_vpn_nexthop_test.go::TestRFC8950VPNIPv6NextHopCarriesZeroRD": "58771bf5c6996eb3"
       },
       "units": {
         "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_RoundTrip_VPN": "2de233ae11c22f66",
-        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_VPNWithIPv6NextHop": "630eb519ab626e3f"
+        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_VPNWithIPv6NextHop": "630eb519ab626e3f",
+        "internal/core/bgp/attribute/rfc8950_vpn_nexthop_test.go::TestRFC8950VPNIPv6NextHopCarriesZeroRD": "2b7fef1b6631ca27"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8950-4-1": {
       "note": "MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after the peer advertised Extended Next Hop for the relevant AFI/SAFI pair. Both gaps of the earlier verdict are closed. (a) explicit next hop: Peer.resolveNextHop now refuses it without the pair; TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair drives AnnounceNLRIBatch over a live pipe session with <1/1> only, <1/128> only and neither: IPv4 unicast is sent only with <1/1>, otherwise ErrNextHopIncompatible and no UPDATE on the wire; VPN-IPv4 resolves only with <1/128>. TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach shows the licensed route leaves as MP_REACH_NLRI 1/1 with the 16-octet next hop and the prefix, no NEXT_HOP and an empty NLRI field. (b) forward rails: TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair, general and route-server rails, received IPv6 next hop unchanged and explicit IPv6 next hop: the paired destination gets MP_REACH with that next hop, the unpaired one only the withdrawal half. Next-hop self stays proven by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair. Observed-red records on canUseNextHopFor, inlineIPv4Unicast and egressNextHopLacksExtendedNextHop. Not asserted: the queued-drain path (same resolveNextHop producer) and VPN-IPv4 on the forward rails (same gate keyed by the MP_REACH family). Defect noted separately: both new gates apply to every AFI 1 family, beyond this rule's SAFIs.",

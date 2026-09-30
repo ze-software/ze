@@ -247,24 +247,7 @@ func (m *MPReachNLRI) WriteTo(buf []byte, off int) int {
 	buf[off+3] = byte(nhLen)
 
 	// RFC 4760 Section 3: Network Address of Next Hop (variable)
-	// RFC 4364 Section 4.3.4: VPN next-hops are prefixed with 8-byte RD (all zeros).
-	pos := off + 4
-	for _, nh := range m.NextHops.Slice() {
-		octets := nh.AsSlice()
-		if len(octets) == 0 {
-			// No wire form. ValidateNextHops refuses such an attribute, and the RD is
-			// skipped with the address so this write matches nextHopOctets exactly.
-			continue
-		}
-		if m.SAFI == SAFIVPN {
-			// Write 8-byte RD = 0 before each next-hop address.
-			for i := range RDSize {
-				buf[pos+i] = 0
-			}
-			pos += RDSize
-		}
-		pos += copy(buf[pos:], octets)
-	}
+	pos := m.writeNextHops(buf, off+4)
 
 	// RFC 4760 Section 3: Reserved (1 octet) - "MUST be set to 0"
 	buf[pos] = 0
@@ -275,6 +258,38 @@ func (m *MPReachNLRI) WriteTo(buf []byte, off int) int {
 	pos += n
 
 	return pos - off
+}
+
+// writeNextHops writes the Network Address of Next Hop field at buf[pos:] and
+// returns the position after it. The octet count always equals nextHopLen.
+//
+// A VPN (SAFI 128) next hop is preceded by an 8-octet Route Distinguisher of
+// zero, for each address, the link-local one included:
+//
+//	non-VPN: [addr 4|16] [link-local 16]?
+//	VPN:     [RD 8 = 0] [addr 4|16] ([RD 8 = 0] [link-local 16])?
+//
+// RFC 4364 Section 4.3.4: "The Route Distinguisher component of the Next Hop
+// field SHALL be set to all zeros."
+// RFC 8950 Section 3: "Next Hop Address = VPN-IPv6 address of a next hop with
+// an 8-octet RD set to zero (potentially followed by the link-local VPN-IPv6
+// address of the next hop with an 8-octet RD set to zero)."
+// Both apply to every VPN next hop written here.
+func (m *MPReachNLRI) writeNextHops(buf []byte, pos int) int {
+	for _, nh := range m.NextHops.Slice() {
+		octets := nh.AsSlice()
+		if len(octets) == 0 {
+			// No wire form. ValidateNextHops refuses such an attribute, and the RD is
+			// skipped with the address so this write matches nextHopOctets exactly.
+			continue
+		}
+		if m.SAFI == SAFIVPN {
+			clear(buf[pos : pos+RDSize])
+			pos += RDSize
+		}
+		pos += copy(buf[pos:], octets)
+	}
+	return pos
 }
 
 // WriteToWithContext writes MP_REACH_NLRI - context-independent.

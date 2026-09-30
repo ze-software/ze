@@ -2,6 +2,17 @@
   "rfc": "rfc8950",
   "records": [
     {
+      "rid": "RFC8950-3-2",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc8950_vpn_nexthop_test.go::TestRFC8950VPNIPv6NextHopCarriesZeroRD",
+      "unit-sha": "1d68257105c2300d",
+      "claim-sha": "b999b340b88bf735",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/mpnlri.go::writeNextHops",
+      "producer-sha": "d570e7f78b24b876",
+      "break": "body of writeNextHops replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8950-4-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/reactor_a2_rfc8950_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair",
