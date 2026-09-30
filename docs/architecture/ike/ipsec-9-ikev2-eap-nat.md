@@ -103,8 +103,20 @@ fails whenever either peer sits behind a NAT device.
 - RFC 3748 Section 2.1 closes the Nak: "A peer MUST NOT send a Nak (legacy or
   expanded) in reply to a Request after an initial non-Nak Response has been
   sent."
+- RFC 5216 Section 2.1.1: "If the EAP server sent a certificate_request
+  message in the preceding EAP-Request packet, then unless the peer is
+  configured for privacy (see Section 2.1.4) the peer MUST send, in addition,
+  certificate and certificate_verify messages." Ze as EAP-TLS peer has no
+  privacy mode, so it always sends its configured certificate. It answers
+  through `GetClientCertificate`, never `tls.Config.Certificates`: crypto/tls
+  picks from `Certificates` only a certificate whose issuer the
+  certificate_request names, and otherwise sends an empty certificate_list and
+  no certificate_verify. Whether the issuer is trusted is the authenticator's
+  Section 5.3 decision, taken on the certificate it receives.
 - RFC 5216 Section 2.1.3 requires a fatal alert to be delivered to the peer
   before the exchange ends. See the trap on two-round producers below.
+
+<!-- source: internal/core/eap/peer.go -- answerCertificateRequest, tlsClientConfig -->
 - RFC 2759 Section 6 defines the MS-CHAPv2 Failure packet. A refused
   NT-Response is answered with it, carrying `E=691`, `R=0`, a fresh 32-digit
   `C=` challenge, `V=3` and `M=`, and the exchange ends behind that packet.

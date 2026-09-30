@@ -18,6 +18,7 @@
 package eap
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -464,10 +465,16 @@ func TestEAPTLSAuthenticatorRequiresClientCert(t *testing.T) {
 // which the peer presents a client certificate signed by a CA the authenticator
 // does not trust.
 //
+// The peer sends that certificate (answerCertificateRequest), so the refusal
+// under test is path validation of a certificate the authenticator received,
+// not the missing-certificate refusal TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate
+// covers.
+//
 // RFC requirement: RFC5216-5.3-1 negative -- the authenticator path-validates
 // the peer's certificate chain and rejects a client certificate signed by an
-// untrusted CA: the handshake never reaches EAP-Success and the authenticator's
-// TLS handshake does not complete.
+// untrusted CA: the handshake never reaches EAP-Success, the authenticator's
+// TLS handshake does not complete, and its refusal is a certificate verification
+// failure for unknown authority over the very certificate the peer sent.
 func TestEAPTLSServerRejectsUntrustedClientChain(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("rogue-client", &PeerTLSConfig{
@@ -486,6 +493,22 @@ func TestEAPTLSServerRejectsUntrustedClientChain(t *testing.T) {
 	}
 	if res.serverState().HandshakeComplete {
 		t.Fatal("authenticator completed TLS handshake with an untrusted client chain")
+	}
+
+	err := res.sess.Err()
+	verifyErr, verifyFailed := errors.AsType[*tls.CertificateVerificationError](err)
+	if !verifyFailed {
+		t.Fatalf("authenticator refusal is %v, want a certificate verification failure over the chain the peer sent", err)
+	}
+	if _, unknown := errors.AsType[x509.UnknownAuthorityError](verifyErr.Err); !unknown {
+		t.Fatalf("authenticator refused the chain with %v, want an unknown authority failure", verifyErr.Err)
+	}
+	block, _ := pem.Decode(pki.untrustedClientCertPEM)
+	if block == nil {
+		t.Fatal("the configured peer certificate is not PEM")
+	}
+	if len(verifyErr.UnverifiedCertificates) == 0 || !bytes.Equal(verifyErr.UnverifiedCertificates[0].Raw, block.Bytes) {
+		t.Fatal("the certificate the authenticator refused is not the one the peer was configured with")
 	}
 }
 

@@ -175,8 +175,14 @@ type PeerSession struct {
 	userName      string
 
 	// EAP-TLS state.
-	tlsCfg       *PeerTLSConfig
-	tlsConn      *tls.Conn
+	tlsCfg  *PeerTLSConfig
+	tlsConn *tls.Conn
+
+	// tlsCertificate is the certificate this peer answers every
+	// certificate_request with (answerCertificateRequest). Written by
+	// startTLSClient before the TLS engine starts, read by the engine.
+	tlsCertificate tls.Certificate
+
 	tlsTransport *eapTLSTransport
 	tlsStarted   atomic.Bool
 	tlsDone      atomic.Bool
@@ -1271,13 +1277,30 @@ func (ps *PeerSession) startTLSClient() error {
 	check := &serverChainCheck{roots: rootCAs, crls: crls, requireStatus: ps.tlsCfg.CertificateStatusRequest}
 	ps.serverCheck = check
 
+	ps.tlsCertificate = cert
 	ps.tlsTransport = newEAPTLSTransport()
-	ps.tlsConn = tls.Client(ps.tlsTransport, ps.tlsClientConfig(cert, rootCAs, check))
+	ps.tlsConn = tls.Client(ps.tlsTransport, ps.tlsClientConfig(rootCAs, check))
 	ps.tlsStarted.Store(true)
 
 	go ps.runTLSClient()
 
 	return nil
+}
+
+// answerCertificateRequest is the peer's GetClientCertificate: it returns the
+// configured certificate whatever the certificate_request names.
+//
+// Ze implements no Section 2.1.4 privacy mode, so the "unless" never applies and
+// the certificate is owed on every certificate_request. Whether the
+// authenticator trusts its issuer is the authenticator's Section 5.3 decision,
+// taken on the certificate it receives, and it is the authenticator that must
+// see it to take it.
+func (ps *PeerSession) answerCertificateRequest(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+	// RFC 5216 Section 2.1.1: "If the EAP server sent a certificate_request
+	// message in the preceding EAP-Request packet, then unless the peer is
+	// configured for privacy (see Section 2.1.4) the peer MUST send, in
+	// addition, certificate and certificate_verify messages."
+	return &ps.tlsCertificate, nil
 }
 
 // tlsClientConfig builds the peer role's tls.Config for one EAP-TLS exchange.
@@ -1286,11 +1309,15 @@ func (ps *PeerSession) startTLSClient() error {
 // read against each other whenever a question is about what BOTH roles accept:
 // the version range, the trust anchor, and the chain callbacks. Naming it makes
 // each role's answer reachable on its own.
-func (ps *PeerSession) tlsClientConfig(cert tls.Certificate, rootCAs *x509.CertPool, check *serverChainCheck) *tls.Config {
+//
+// The certificate is answered through GetClientCertificate and never through
+// Certificates: crypto/tls picks from Certificates only one that matches the
+// certificate_request, and with no match it sends an empty certificate_list.
+func (ps *PeerSession) tlsClientConfig(rootCAs *x509.CertPool, check *serverChainCheck) *tls.Config {
 	return &tls.Config{
-		Certificates:       []tls.Certificate{cert},
-		InsecureSkipVerify: true, //nolint:gosec // EAP has no server hostname; the chain is always verified in VerifyPeerCertificate
-		MinVersion:         tls.VersionTLS12,
+		GetClientCertificate: ps.answerCertificateRequest,
+		InsecureSkipVerify:   true, //nolint:gosec // EAP has no server hostname; the chain is always verified in VerifyPeerCertificate
+		MinVersion:           tls.VersionTLS12,
 
 		// RFC 9190 Section 1: "Therefore, implementations MUST limit the maximum
 		// TLS version they use to 1.3, unless later versions are explicitly

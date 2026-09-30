@@ -42,7 +42,8 @@ func peerTLSConfigForTest(t *testing.T, pki *eapTLSPKI) *tls.Config {
 		t.Fatal("the harness trust anchor did not parse")
 	}
 
-	return peer.tlsClientConfig(cert, roots, &serverChainCheck{roots: roots})
+	peer.tlsCertificate = cert
+	return peer.tlsClientConfig(roots, &serverChainCheck{roots: roots})
 }
 
 // TestEAPTLSCapsBothRolesAtTLS13 reads the tls.Config each EAP-TLS role builds

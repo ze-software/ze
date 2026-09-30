@@ -20,7 +20,7 @@
       "claim-sha": "22635e67be788e44",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::tlsClientConfig",
-      "producer-sha": "cc710de2affa56d9",
+      "producer-sha": "1b211a4c01804785",
       "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

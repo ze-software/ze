@@ -27,8 +27,8 @@
       "rid": "RFC5216-2.1.1-1",
       "polarity": "negative",
       "unit": "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate",
-      "unit-sha": "b6baeb588739a2ca",
-      "claim-sha": "67dbe494fe9a4d79",
+      "unit-sha": "bf0c5f4f1a339df0",
+      "claim-sha": "55d902b01b84e40a",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
       "producer-sha": "6a89e2148a8dd067",
@@ -42,8 +42,19 @@
       "claim-sha": "3ebbb2a4073753d8",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::tlsClientConfig",
-      "producer-sha": "cc710de2affa56d9",
+      "producer-sha": "1b211a4c01804785",
       "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-2.1.1-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc5216_peer_certificate_test.go::TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames",
+      "unit-sha": "b6bf5926745757cd",
+      "claim-sha": "604dccff048c64cd",
+      "route": "revert",
+      "producer": "internal/core/eap/peer.go::answerCertificateRequest",
+      "producer-sha": "c4905821222489fd",
+      "break": "body of answerCertificateRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5216-2.1.1-10",
@@ -60,11 +71,11 @@
       "rid": "RFC5216-2.1.1-10",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry",
-      "unit-sha": "2aa9ca14d9f0da90",
+      "unit-sha": "f0741fee08dc9ba3",
       "claim-sha": "977f75524a422f7a",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::tlsClientConfig",
-      "producer-sha": "cc710de2affa56d9",
+      "producer-sha": "1b211a4c01804785",
       "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +86,7 @@
       "claim-sha": "a527ed8a21e2b7f4",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::tlsClientConfig",
-      "producer-sha": "cc710de2affa56d9",
+      "producer-sha": "1b211a4c01804785",
       "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -104,7 +115,7 @@
       "rid": "RFC5216-2.1.1-4",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry",
-      "unit-sha": "2aa9ca14d9f0da90",
+      "unit-sha": "f0741fee08dc9ba3",
       "claim-sha": "c89b48e406b09eac",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
@@ -137,7 +148,7 @@
       "rid": "RFC5216-2.1.1-5",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry",
-      "unit-sha": "2aa9ca14d9f0da90",
+      "unit-sha": "f0741fee08dc9ba3",
       "claim-sha": "b24329c175d20265",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
@@ -170,7 +181,7 @@
       "rid": "RFC5216-2.1.1-6",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry",
-      "unit-sha": "2aa9ca14d9f0da90",
+      "unit-sha": "f0741fee08dc9ba3",
       "claim-sha": "a4fdc6e9620b4a47",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
@@ -225,11 +236,11 @@
       "rid": "RFC5216-2.1.1-9",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry",
-      "unit-sha": "2aa9ca14d9f0da90",
+      "unit-sha": "f0741fee08dc9ba3",
       "claim-sha": "015f9c1f9917de69",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::tlsClientConfig",
-      "producer-sha": "cc710de2affa56d9",
+      "producer-sha": "1b211a4c01804785",
       "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -240,14 +251,14 @@
       "claim-sha": "381a4675247de279",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::tlsClientConfig",
-      "producer-sha": "cc710de2affa56d9",
+      "producer-sha": "1b211a4c01804785",
       "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5216-2.1.2-1",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry",
-      "unit-sha": "2aa9ca14d9f0da90",
+      "unit-sha": "f0741fee08dc9ba3",
       "claim-sha": "e97f17b1093dd581",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
@@ -471,7 +482,7 @@
       "claim-sha": "4db02e14b91f856e",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::tlsClientConfig",
-      "producer-sha": "cc710de2affa56d9",
+      "producer-sha": "1b211a4c01804785",
       "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -493,7 +504,7 @@
       "claim-sha": "0638e043c23b2152",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::tlsClientConfig",
-      "producer-sha": "cc710de2affa56d9",
+      "producer-sha": "1b211a4c01804785",
       "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -621,8 +632,8 @@
       "rid": "RFC5216-5.3-1",
       "polarity": "negative",
       "unit": "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain",
-      "unit-sha": "edf3a53e478c629c",
-      "claim-sha": "a550ce5c49bb029b",
+      "unit-sha": "42f9bf224412558c",
+      "claim-sha": "429e91adcd8f1a2a",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
       "producer-sha": "6a89e2148a8dd067",
@@ -658,7 +669,7 @@
       "claim-sha": "ac8b6d4328089f53",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::startTLSClient",
-      "producer-sha": "9ac063e486cda4f2",
+      "producer-sha": "dcfd4f1b0f5e2729",
       "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -667,6 +678,28 @@
       "unit": "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerSendsItsChainWithoutTheRoot",
       "unit-sha": "f94d8e2b1e815019",
       "claim-sha": "2c55aab4c7ed7d57",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+      "producer-sha": "6a89e2148a8dd067",
+      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-5.3-4",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216PeerRefusesAServerChainMissingItsIntermediate",
+      "unit-sha": "00e8629cdc201491",
+      "claim-sha": "606023ca84fa331b",
+      "route": "revert",
+      "producer": "internal/core/eap/peer_chain.go::verifyPeerCertificate",
+      "producer-sha": "21a7756cc3463e46",
+      "break": "body of verifyPeerCertificate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-5.3-4",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216ServerSendsItsIntermediateButNotTheRoot",
+      "unit-sha": "6870ce1bffdd083d",
+      "claim-sha": "c885f315f547d746",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
       "producer-sha": "6a89e2148a8dd067",

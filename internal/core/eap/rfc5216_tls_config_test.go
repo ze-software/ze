@@ -61,8 +61,21 @@ func TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry(t *testing.T) {
 	peer := NewPeerSessionTLS("eap-tls-client", pki.resumptionPeerConfig(NewResumption(time.Now, true)))
 	t.Cleanup(peer.Close)
 	cfg := peerTLSConfigFor(t, peer)
-	if len(cfg.Certificates) != 1 {
-		t.Errorf("peer installs %d certificates, want 1", len(cfg.Certificates))
+	// The peer answers every certificate_request through GetClientCertificate,
+	// never through Certificates: crypto/tls picks from Certificates only a
+	// certificate matching the request, and sends an empty list otherwise.
+	if len(cfg.Certificates) != 0 {
+		t.Errorf("peer installs %d certificates in Certificates, which crypto/tls withholds from a non-matching certificate_request", len(cfg.Certificates))
+	}
+	if cfg.GetClientCertificate == nil {
+		t.Fatal("peer installs no GetClientCertificate, so it has no certificate to send")
+	}
+	answer, err := cfg.GetClientCertificate(&tls.CertificateRequestInfo{})
+	if err != nil {
+		t.Fatalf("peer GetClientCertificate: %v", err)
+	}
+	if len(answer.Certificate) != 1 {
+		t.Errorf("peer answers a certificate_request with %d certificates, want 1", len(answer.Certificate))
 	}
 	if cfg.ClientSessionCache == nil {
 		t.Error("peer installs no session cache with resumption on, so it could never offer a resumed session")
@@ -116,5 +129,6 @@ func peerTLSConfigFor(t *testing.T, peer *PeerSession) *tls.Config {
 	if !roots.AppendCertsFromPEM(peer.tlsCfg.CACertPEM) {
 		t.Fatal("the harness trust anchor did not parse")
 	}
-	return peer.tlsClientConfig(cert, roots, &serverChainCheck{roots: roots})
+	peer.tlsCertificate = cert
+	return peer.tlsClientConfig(roots, &serverChainCheck{roots: roots})
 }

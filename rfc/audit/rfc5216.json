@@ -1,38 +1,41 @@
 {
   "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5216-2.1.1-1": {
-      "note": "The authenticator side is proven: a peer flight answering certificate_request with an empty certificate_list and no certificate_verify draws no EAP-Success and no completed handshake (TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate), and a compliant ze peer flight carries certificate and certificate_verify (TestRFC5216PeerFlightAnswersTheCertificateRequest). But the row binds the PEER, and that negative's own setup shows ze's peer violating it: tlsClientConfig (peer.go) hands crypto/tls Certificates, whose selection sends an empty certificate_list and no certificate_verify when the configured certificate's issuer is not in the request's certificate_authorities (crypto/tls handshake_client.go 'No acceptable certificate found'). The MUST is unconditional apart from privacy, so a ze peer holding a certificate from another CA sends neither message. Defect: the peer must send its configured certificate (GetClientCertificate) whatever certificate_authorities names; the negative then needs a different way to put a certless flight on the wire.",
+      "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). D-8 fixed: tlsClientConfig answers every certificate_request through GetClientCertificate (answerCertificateRequest, peer.go), so the peer no longer drops to an empty certificate_list when the request names another CA. Positive: TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames reads the TLS 1.2 peer flight off the wire after a certificate_request naming a CA other than the peer certificate's issuer: a certificate message whose first entry is the configured DER, and a certificate_verify (red before the fix, record on answerCertificateRequest); TestRFC5216PeerFlightAnswersTheCertificateRequest keeps the exact compliant flight. Negative (R1 a, non-compliant form on the wire): TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate configures a TRUSTED client cert, empties the peer's answer after the TLS client starts, asserts the empty certificate_list and absent certificate_verify on the wire, and the authenticator sends no EAP-Success, does not succeed or complete its handshake, and refuses with an error that is not a certificate verification failure. Privacy (Section 2.1.4) is not implemented, so the unless-clause never applies. Every tagged unit carries an observed-red record.",
       "requirement_sha": "93cfbce29401fdaf",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "6124c76d4158f4b1",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "6124c76d4158f4b1",
-        "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate": "182e7c6d967ee18f",
-        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "17b33557ac5ec62f"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "24154b07f453f130",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+        "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate": "95ff448a085f9fb0",
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "17b33557ac5ec62f",
+        "internal/core/eap/rfc5216_peer_certificate_test.go::TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames": "0bd9dc5fe4a89761"
       },
       "units": {
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "5c7e512a57e8ab7c",
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
-        "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate": "70db919ca665b1fa",
-        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "43e40a57c746c213"
+        "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate": "c18bebd2e0f28023",
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "43e40a57c746c213",
+        "internal/core/eap/rfc5216_peer_certificate_test.go::TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames": "f8a0c918ccde8362"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-2.1.1-10": {
-      "note": "TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished drives a second TLS 1.2 conversation that resumes (peer.Resumed asserted) and reads the peer's answer: no plaintext handshake message, change_cipher_spec, one sealed record; a peer adding certificate, client_key_exchange or certificate_verify fails. The negative tag is a config assertion. Every tagged unit carries a record. Caveat: the ruled fix for RFC5216-2.1.2-1 refuses TLS 1.2 resumption on ze's authenticator, which removes the resumed conversation this unit drives.",
+      "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). The only unit change is the peer certificate assertion in TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry; records re-observed on the changed tlsClientConfig. TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished drives a second TLS 1.2 conversation that resumes (peer.Resumed asserted) and reads the peer's answer: no plaintext handshake message, change_cipher_spec, one sealed record; a peer adding certificate, client_key_exchange or certificate_verify fails. The negative tag is a config assertion. Every tagged unit carries a record. Caveat: the ruled fix for RFC5216-2.1.2-1 refuses TLS 1.2 resumption on ze's authenticator, which removes the resumed conversation this unit drives.",
       "requirement_sha": "a4623332d55d280b",
       "tests": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "17b33557ac5ec62f",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "3b6a99b82239605b",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3b6a99b82239605b"
       },
       "units": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "551832a2bf182227",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "dc505710d6e665a9",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
       },
       "verdict": "enforced"
@@ -64,47 +67,44 @@
       "verdict": "enforced"
     },
     "RFC5216-2.1.1-4": {
-      "code": {
-        "internal/core/eap/eap_tls.go::newTLSMethod": "331d7f0fff03214f"
-      },
-      "note": "The tagged units assert session-ticket keys and resumption-off config, which prove the ticket rule, not the sessionId choice this sentence names. Gap: crypto/tls, as newTLSMethod (internal/core/eap/eap_tls.go) configures it, sets ServerHello.sessionId only in doResumeHandshake (echoing the client), so a TLS 1.2 full handshake sends an empty session_id and the server chooses no sessionId for the new session.",
+      "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). The only unit change is the peer assertion in TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry (GetClientCertificate instead of Certificates), which bears on no sessionId. The tagged units assert session-ticket keys and resumption-off config, which prove the ticket rule, not the sessionId choice this sentence names. Gap: crypto/tls, as newTLSMethod (internal/core/eap/eap_tls.go) configures it, sets ServerHello.sessionId only in doResumeHandshake (echoing the client), so a TLS 1.2 full handshake sends an empty session_id and the server chooses no sessionId for the new session.",
       "requirement_sha": "aed07a9f6964af4f",
       "tests": {
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "3b6a99b82239605b",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3b6a99b82239605b"
       },
       "units": {
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "dc505710d6e665a9",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
       },
       "verdict": "wrong"
     },
     "RFC5216-2.1.1-5": {
-      "note": "The new positive compares the resumed ServerHello suite with the first conversation's, but both conversations run identical configs, so a fresh negotiation picks the same suite and a server resuming under a different suite is never offered the chance: the assertion cannot fail on non-compliance. A discriminating case changes the suite preference or set between the two conversations. The negative remains a config assertion (resumption off installs a refusal).",
+      "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). The only unit change is the peer certificate assertion in TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry, unrelated to the resumed ciphersuite; the weakness stands. The new positive compares the resumed ServerHello suite with the first conversation's, but both conversations run identical configs, so a fresh negotiation picks the same suite and a server resuming under a different suite is never offered the chance: the assertion cannot fail on non-compliance. A discriminating case changes the suite preference or set between the two conversations. The negative remains a config assertion (resumption off installs a refusal).",
       "requirement_sha": "3260e6d733fefa3f",
       "tests": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "17b33557ac5ec62f",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "3b6a99b82239605b",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3b6a99b82239605b"
       },
       "units": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "551832a2bf182227",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "dc505710d6e665a9",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
       },
       "verdict": "weak"
     },
     "RFC5216-2.1.1-6": {
-      "note": "TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone reassembles the server's first full TLS 1.2 flight from its fragments and reads it message by message: a certificate is present and server_hello_done is the last handshake message, so a flight missing either fails. The negative tag is a config refusal (unparsable certificate builds no tls.Config), which covers the certificate clause only; the ordering clause rests on the exact-output positive. Every tagged unit carries a record.",
+      "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). The only unit change is the peer certificate assertion in TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry; the server-flight proof is unchanged. TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone reassembles the server's first full TLS 1.2 flight from its fragments and reads it message by message: a certificate is present and server_hello_done is the last handshake message, so a flight missing either fails. The negative tag is a config refusal (unparsable certificate builds no tls.Config), which covers the certificate clause only; the ordering clause rests on the exact-output positive. Every tagged unit carries a record.",
       "requirement_sha": "a5b31546f57258ed",
       "tests": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone": "17b33557ac5ec62f",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "3b6a99b82239605b",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3b6a99b82239605b"
       },
       "units": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone": "260f31cb85204b08",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "dc505710d6e665a9",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
       },
       "verdict": "enforced"
@@ -123,29 +123,29 @@
       "verdict": "enforced"
     },
     "RFC5216-2.1.1-9": {
-      "note": "TestRFC5216PeerFlightAnswersTheCertificateRequest reads the peer's second flight after a non-resuming server_hello: handshake types exactly certificate, client_key_exchange, certificate_verify, then change_cipher_spec, then one sealed handshake record (finished); a flight missing client_key_exchange, change_cipher_spec or finished fails. The negative tag is a config assertion (no session cache with resumption off), so discrimination rests on the exact-output positive. Every tagged unit carries a record.",
+      "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). The only unit change is the peer certificate assertion in TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry; records re-observed on the changed tlsClientConfig. TestRFC5216PeerFlightAnswersTheCertificateRequest reads the peer's second flight after a non-resuming server_hello: handshake types exactly certificate, client_key_exchange, certificate_verify, then change_cipher_spec, then one sealed handshake record (finished); a flight missing client_key_exchange, change_cipher_spec or finished fails. The negative tag is a config assertion (no session cache with resumption off), so discrimination rests on the exact-output positive. Every tagged unit carries a record.",
       "requirement_sha": "aa652a71dde99132",
       "tests": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "17b33557ac5ec62f",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "3b6a99b82239605b",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3b6a99b82239605b"
       },
       "units": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "43e40a57c746c213",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "dc505710d6e665a9",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
       },
       "verdict": "enforced"
     },
     "RFC5216-2.1.2-1": {
-      "note": "Forbidden: a resuming server sending certificate, server_key_exchange or certificate_request after server_hello. The units assert only ticket installation (SessionTicketsDisabled false, UnwrapSession nil) and the refusal when resumption is off; no resumed flight is driven or its handshake types read, so extra messages after server_hello pass.",
+      "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). The only unit change is the peer certificate assertion in TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry; still no resumed server flight is read (the red defect test of spec-ike-eap-rfc-defects AC-4 is untagged and outside this verdict). Forbidden: a resuming server sending certificate, server_key_exchange or certificate_request after server_hello. The units assert only ticket installation (SessionTicketsDisabled false, UnwrapSession nil) and the refusal when resumption is off; no resumed flight is driven or its handshake types read, so extra messages after server_hello pass.",
       "requirement_sha": "f0f6ae8c0ada3b5a",
       "tests": {
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "3b6a99b82239605b",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3b6a99b82239605b"
       },
       "units": {
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "dc505710d6e665a9",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
       },
       "verdict": "weak"
@@ -341,7 +341,7 @@
       "note": "Unchanged after comment-only edits. Single-polarity positive (row marker): with the literal label 'client EAP encryption' and the 128-octet export read from the TLS session, the authenticator MSK equals octets 0-63 and the EMSK 64-127 (TLS 1.2); MSKs identical on both ends. Recorded.",
       "requirement_sha": "d3491a145ec72315",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "6124c76d4158f4b1",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "52158d2dcfac6f3e",
         "internal/core/eap/rfc5216_msk_label_test.go::TestRFC5216MSKIsTheExportUnderTheRFCLabel": "3990b6e26fb0e890"
       },
@@ -356,7 +356,7 @@
       "note": "Unchanged after comment-only edits to TestEAPTLSMutualAuthHandshakeSucceeds. Single-polarity positive (row marker): TestRFC5216BothRolesInstallAVersionFloor reads the peer tls.Config tlsClientConfig builds, MinVersion TLS 1.2; the handshake unit asserts the negotiated version >= TLS 1.0. Recorded.",
       "requirement_sha": "3f2b411fe539e697",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "6124c76d4158f4b1",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
         "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "5138149787127b3e"
       },
       "units": {
@@ -369,7 +369,7 @@
       "note": "Unchanged after comment-only edits to TestEAPTLSMutualAuthHandshakeSucceeds. Single-polarity positive (row marker): the tls.Config newTLSMethod installs carries MinVersion TLS 1.2; the handshake unit asserts the authenticator's negotiated version >= TLS 1.0. Recorded.",
       "requirement_sha": "017cf68000dadaf9",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "6124c76d4158f4b1",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
         "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "5138149787127b3e"
       },
       "units": {
@@ -481,34 +481,38 @@
       "verdict": "enforced"
     },
     "RFC5216-5.3-1": {
-      "note": "Narrowed to the server's path-validation SHOULD. Positive sound: a valid peer chain is path-validated and accepted (TestEAPTLSMutualAuthHandshakeSucceeds). Negative confounded: TestEAPTLSServerRejectsUntrustedClientChain gives the peer a certificate from a CA outside the server's ClientCAs, and the same setup in TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate shows ze's peer then sends an EMPTY certificate_list (crypto/tls selects no certificate the certificate_request does not name; the server sets certificate_authorities in TLS 1.2 and 1.3). The authenticator refuses a missing certificate, never path-validating an untrusted chain, so a server that skipped path validation would still pass. A negative must put an untrusted chain on the wire (a peer that sends its certificate regardless, or an injected certificate message).",
+      "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). Server path-validation SHOULD. Positive: a valid peer chain is path-validated and accepted (TestEAPTLSMutualAuthHandshakeSucceeds). Negative no longer confounded: since D-8 the peer sends its untrusted certificate, and TestEAPTLSServerRejectsUntrustedClientChain asserts the authenticator's refusal is a tls.CertificateVerificationError wrapping x509.UnknownAuthorityError whose UnverifiedCertificates[0] is the configured untrusted leaf, besides no EAP-Success and an incomplete handshake; it is distinct from the certless refusal of 2.1.1-1, which asserts NOT a verification error. Records observed red on newTLSMethod for both polarities.",
       "requirement_sha": "aad42ad6fc241725",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "6124c76d4158f4b1",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "6124c76d4158f4b1"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "24154b07f453f130"
       },
       "units": {
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "ff285ebc6f33ea4c"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "cd0a07850a01a5cc"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-5.3-4": {
-      "note": "Peer clause proven both ways: a valid authenticator chain is path-validated by the peer (VerifyPeerCertificate, TestEAPTLSMutualAuthHandshakeSucceeds); a server certificate from an untrusted CA is refused (TestEAPTLSPeerRejectsUntrustedServerChain) and a peer with no trust anchor refuses to start (TestEAPTLSPeerWithoutCARefusesToStart). Server clause ('entire certificate chain minus the root') is weak: the test PKI has no intermediate, so 'the list is the leaf alone' equals chain-minus-root only by construction, and a server that dropped configured intermediates, or sent a configured root, would pass. No negative for that clause. Needs a PKI with an intermediate: assert leaf plus intermediate, no root.",
+      "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). Server clause now exercised with a real intermediate: TestRFC5216ServerSendsItsIntermediateButNotTheRoot configures leaf+intermediate under the peer's root and reads the certificate message off the wire: exactly [leaf, intermediate], the root absent (the root is also the authenticator's ClientCAs anchor, so a server appending its pool would fail), peer validates and reaches EAP-Success. Negative (R1 a): TestRFC5216PeerRefusesAServerChainMissingItsIntermediate puts [leaf] alone on the wire and the peer refuses with x509.UnknownAuthorityError, never concluding. Peer clause also by TestEAPTLSPeerRejectsUntrustedServerChain and TestEAPTLSPeerWithoutCARefusesToStart (record re-observed on the changed startTLSClient). Limit named: Ze sends the chain the operator configures; it does not strip a configured root nor complete a leaf-only configuration, so the minus-the-root property rests on the configured chain.",
       "requirement_sha": "7c0df425b052cea6",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "6124c76d4158f4b1",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain": "6124c76d4158f4b1",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart": "6124c76d4158f4b1",
-        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerSendsItsChainWithoutTheRoot": "17b33557ac5ec62f"
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain": "24154b07f453f130",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart": "24154b07f453f130",
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerSendsItsChainWithoutTheRoot": "17b33557ac5ec62f",
+        "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216PeerRefusesAServerChainMissingItsIntermediate": "3f3d4fd3f9006191",
+        "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216ServerSendsItsIntermediateButNotTheRoot": "3f3d4fd3f9006191"
       },
       "units": {
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain": "d1ccf6928aa1e0a1",
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart": "5f1e66590b7448d1",
-        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerSendsItsChainWithoutTheRoot": "b059f88ccf09695d"
+        "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerSendsItsChainWithoutTheRoot": "b059f88ccf09695d",
+        "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216PeerRefusesAServerChainMissingItsIntermediate": "7cfccd073c625b00",
+        "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216ServerSendsItsIntermediateButNotTheRoot": "46ac10e5f6cccc9d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-5.3-5": {
       "code": {
