@@ -6,6 +6,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -102,8 +103,8 @@
       "note": "HMAC PRFs accept 1..200-octet keys and consume the key",
       "requirement_sha": "a4adab3d42e08661",
       "tests": {
-        "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys": "ce60f877fa4f6f7e",
-        "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys#2": "ce60f877fa4f6f7e"
+        "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys": "c4394c607e6b8ca3",
+        "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys#2": "c4394c607e6b8ca3"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys": "9dae1dd2fe963564",
@@ -112,8 +113,8 @@
       "verdict": "enforced"
     },
     "RFC7296-2.10-2": {
-      "note": "Clause (subject 'Nonces used in IKEv2', \u00a72.10): at least 128 bits, both directions. Send: TestRFC7296EmittedNoncesAreAtLeast128Bits checks all six nonces ze emits (IKE_SA_INIT Ni/Nr, Child SA rekey Ni/Nr, IKE SA rekey Ni/Nr, rekeys decrypted off the wire) are >= 16 octets. Receive: TestNonceLengthBounds accepts 16 and refuses 15 octets with ErrNonceTooShort, the genuine receiving-side negative (R1a). Row text is a subject-less fragment of the \u00a72.10 sentence ('MUST be at least 128 bits in size'); a D-10 row correction to the full sentence span is owed by the author, not a verdict matter.",
-      "requirement_sha": "b2bc95ac2caf9d95",
+      "note": "Re-judged under the D-10 corrected row 'Nonces used in IKEv2 MUST be randomly chosen, MUST be at least 128 bits in size'. The 128-bit floor, both directions: send, TestRFC7296EmittedNoncesAreAtLeast128Bits checks all six emitted nonces (IKE_SA_INIT Ni/Nr, Child SA rekey Ni/Nr, IKE SA rekey Ni/Nr off the wire) are >= 16 octets; receive, TestNonceLengthBounds accepts 16 and refuses 15 octets with ErrNonceTooShort. The randomness clause the span passes through is the verbatim text of RFC7296-2.10-4, whose own tagged units (engine/rfc7296_session_test.go) carry it; this row's units assert the floor alone, as the correction states. Record: GenerateNonce revert observed red, re-recorded for the new row text.",
+      "requirement_sha": "47a6f52fdf17d3f6",
       "tests": {
         "internal/component/ike/engine/rfc7296_nonce_floor_test.go::TestRFC7296EmittedNoncesAreAtLeast128Bits": "b09b338f7ef8b4d2",
         "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds": "459954f82bfe6b71",
@@ -153,19 +154,6 @@
         "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyLandsOnTheRequestSourcePort": "612fb69fb7fad033"
       },
       "verdict": "enforced"
-    },
-    "RFC7296-2.13-2": {
-      "note": "the tags assert SK_* key sizing, which is RFC7296-2.13-3; no supported cipher has invalid key values (AES only), so nothing tests this row's rule. no supported transform has invalid key values (encryptionRegistry is AES CBC/GCM/CCM only, no DES/3DES); the tags assert SK_* key sizing, which is RFC7296-2.13-3",
-      "requirement_sha": "c4272b98c2f98dc3",
-      "tests": {
-        "internal/component/ike/crypto/rfc7296_test.go::TestSKKeyLengthsComeFromTransforms": "ce60f877fa4f6f7e",
-        "internal/component/ike/crypto/rfc7296_test.go::TestSKKeyLengthsComeFromTransforms#2": "ce60f877fa4f6f7e"
-      },
-      "units": {
-        "internal/component/ike/crypto/rfc7296_test.go::TestSKKeyLengthsComeFromTransforms": "6938fceff65b243d",
-        "internal/component/ike/crypto/rfc7296_test.go::TestSKKeyLengthsComeFromTransforms#2": "6938fceff65b243d"
-      },
-      "verdict": "wrong"
     },
     "RFC7296-2.15-2": {
       "note": "The weak finding (use path unexercised) is closed. Parse side: ipsec TestPSKHasNoNullTerminatorAdded (parseAuthConfig keeps the PSK octets, adds and strips nothing). Use side, new engine/rfc7296_psk_terminator_test.go: positive TestRFC7296PSKIsUsedWithoutANullTerminator compares computePSKAuth's AUTH with an independent stdlib HMAC-SHA2-256 prf(prf(secret,'Key Pad for IKEv2'),SignedOctets) over the secret octets alone (equal) and over secret+0x00 (not equal), and verifyPSKAuth accepts the no-terminator AUTH; negative TestRFC7296PSKWithANullTerminatorAddedIsRefused: verifyPSKAuth refuses the AUTH over secret+0x00 with errAuthFailed, so the receiving side adds no terminator either. Producers read: both pass []byte(sa.PeerCfg.Auth.PSK) to computeAuthFromSharedSecret/verifyAuthFromSharedSecret. Records: computePSKAuth and verifyPSKAuth panic reverts observed red. Judge ran both: PASS. Prose defect, not a proof gap: psktermSecret is 65 octets, while its comment and both claims say 64; the claim wording should be corrected (and the records re-recorded) by the author.",
@@ -222,8 +210,8 @@
       "note": "DeriveChildSAKeys slices recomputed prf+ KEYMAT with both initiator keys before responder keys",
       "requirement_sha": "5420d232f664a6b1",
       "tests": {
-        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "ce60f877fa4f6f7e",
-        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "ce60f877fa4f6f7e"
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "c4394c607e6b8ca3",
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "c4394c607e6b8ca3"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "275a850ead3da96a",
@@ -235,8 +223,8 @@
       "note": "encryption key then integrity key per direction, positional, asserted against recomputed KEYMAT",
       "requirement_sha": "6a907b588d629355",
       "tests": {
-        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "ce60f877fa4f6f7e",
-        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "ce60f877fa4f6f7e"
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "c4394c607e6b8ca3",
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "c4394c607e6b8ca3"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "275a850ead3da96a",
@@ -245,17 +233,25 @@
       "verdict": "enforced"
     },
     "RFC7296-2.18-3": {
-      "note": "TestPropDHNoneRefusedForIKESA covers the responder refusing DH NONE in NegotiateIKE; the initiator half (MUST NOT propose NONE when rekeying) and the rekey context are not asserted",
+      "note": "Both roles now proven on the rekey path itself. Initiator: TestRFC7296IKERekeyInitiatorNeverProposesDHNone decrypts the real initiateIKERekey request at the peer and asserts every proposal's D-H transform is the configured group 14 and the KE payload is group 14 (a new exchange); forced toward the violation (configured group NONE) initiateIKERekey returns an error, no bytes, and consumes no message ID. Responder: TestRFC7296IKERekeyResponderRefusesDHNone rewrites only the D-H transform of the real rekey request to NONE, sets local policy to NONE too so nothing else can refuse, and asserts errors.Is ErrDHGroupNone with no SA and no response; the unmodified request is accepted with a new SA. Crypto TestPropDHNoneRefusedForIKESA keeps the NegotiateIKE-level pair. Records: initiateIKERekey, respondIKERekey, NewDHExchange, acceptDHGroup reverts observed red; the crypto-level tags carry none.",
       "requirement_sha": "d527c452043c2ad9",
       "tests": {
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropDHNoneRefusedForIKESA": "08f2f5dac8da8a2b",
-        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropDHNoneRefusedForIKESA#2": "08f2f5dac8da8a2b"
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropDHNoneRefusedForIKESA#2": "08f2f5dac8da8a2b",
+        "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyInitiatorNeverProposesDHNone": "eadd00f6007682c4",
+        "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyInitiatorNeverProposesDHNone#2": "eadd00f6007682c4",
+        "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyResponderRefusesDHNone": "eadd00f6007682c4",
+        "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyResponderRefusesDHNone#2": "eadd00f6007682c4"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropDHNoneRefusedForIKESA": "bfa24950423107a5",
-        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropDHNoneRefusedForIKESA#2": "bfa24950423107a5"
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropDHNoneRefusedForIKESA#2": "bfa24950423107a5",
+        "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyInitiatorNeverProposesDHNone": "1ea8ed2b44bbf42f",
+        "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyInitiatorNeverProposesDHNone#2": "1ea8ed2b44bbf42f",
+        "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyResponderRefusesDHNone": "7d180b999a8991e1",
+        "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyResponderRefusesDHNone#2": "7d180b999a8991e1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-2.2-3": {
       "note": "finishResponderEstablish advances only the inbound counter; responder's first request id 0 is classified as new by the initiator",
@@ -602,8 +598,8 @@
       "verdict": "enforced"
     },
     "RFC7296-2.5-7": {
-      "note": "Every RESERVED field of a payload body Ze decodes is now covered: AUTH 1-3, KE 2-3, ID 1-3, TS 1-3, CP 1-3, Proposal 1, Transform 1 and 5 set to 0xff decode without error to the DeepEqual value of the zero body (encoder checked to send them zero); generic payload header flags and the CP attribute R bit keep their HEAD tags. Negative (control against a decoder that ignores everything): the adjacent defined octet at 0xff changes the decode or is refused. Payloads with no RESERVED field (Notify, Delete, Nonce, CERT, EAP, SK) have nothing to ignore; the IKE header X flag bits are \u00a73.1's row. Row text is the pronoun fragment 'their content ...' whose subject is 2.5-6's; a D-10 row correction is owed by the author.",
-      "requirement_sha": "ed8723e2d3199649",
+      "note": "Re-judged under the D-10 corrected row, which now quotes the whole Section 2.5 sentence (set to zero, and content ignored). Receive clause, this row's obligation: TestRFC7296EveryReservedOctetIsIgnoredOnReceipt parses AUTH, KE, ID, TS, CP bodies and Proposal/Transform substructures with every RESERVED octet at 0xff and asserts no error and DeepEqual to the clean decode; TestRFC7296DefinedOctetBesideReservedIsNotIgnored flips the adjacent defined octet and requires a changed decode or a refusal. Set-to-zero clause: the same positive unit asserts the encoder sends each RESERVED octet as zero for those bodies, and the sending obligation is also RFC7296-2.5-6's row. Generic header flags (wire/rfc7296_test.go) and the CP attribute R bit (rfc7296_cp_test.go) keep their tags. Records: payload_auth ReadFrom and payload_ke ReadFrom reverts observed red, re-recorded for the new row text.",
+      "requirement_sha": "1a2026957a70d0c1",
       "tests": {
         "internal/component/ike/wire/rfc7296_cp_test.go::TestConfigAttributeReservedBitIgnoredOnReceipt": "7ea878f0c1bb3f8e",
         "internal/component/ike/wire/rfc7296_cp_test.go::TestConfigAttributeReservedBitIgnoredOnReceipt#2": "7ea878f0c1bb3f8e",
@@ -640,15 +636,19 @@
       "verdict": "enforced"
     },
     "RFC7296-2.6-1": {
-      "note": "D-8 fixed: SATable.lookupInbound (called by both receive loops, dispatchInbound and dispatchNATTInbound) maps a packet by its full SPI pair; one half decides only on a zero SPI (retransmitted IKE_SA_INIT request by initiator SPI; IKE_SA_INIT response to the half-open (i,0) SA, which also keeps the non-zero-responder-SPI INVALID_KE/COOKIE response reachable, sa_init_retry resets the key). Positive: two SAs sharing an initiator SPI each reached by their own pair, response reaches the half-open SA, zero-rSPI retransmit reaches the responder SA. Negative: (shared, stranger) and (stranger, first) map to no SA; the pre-fix fallback fails it. Wire header tags keep the SPI pair round-trip and short-header refusal. Residual: the tests call lookupInbound directly, not the receive loops, so a fallback re-added in register.go itself would stay green.",
+      "note": "The earlier residual is closed. New TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops runs the real receive loops over loopback UDP, dispatchInbound (port 500) and dispatchNATTInbound (non-ESP marker): a datagram with the established SA's initiator SPI and a different non-zero responder SPI, sent first, is never delivered to the SA's session (the first delivered datagram must carry the SA's own responder SPI, and no second one arrives); the datagram with the full pair is delivered. Ordering on loopback and the single dispatch goroutine make 'not delivered' distinguishable from 'delayed'. Kept: lookupInbound units TestRFC7296IKESPIPairIdentifiesTheIKESA / TestRFC7296UnknownIKESPIPairMapsToNoSA (full-pair map, zero-rSPI exceptions) and wire header round-trip/short-header tags. Records: dispatchInbound, dispatchNATTInbound, lookupInbound reverts observed red.",
       "requirement_sha": "64fb033e8e542797",
       "tests": {
+        "internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go::TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops": "60305fa0579f053d",
+        "internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go::TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops#2": "60305fa0579f053d",
         "internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go::TestRFC7296IKESPIPairIdentifiesTheIKESA": "a7568870aefb0c20",
         "internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go::TestRFC7296UnknownIKESPIPairMapsToNoSA": "a7568870aefb0c20",
         "internal/component/ike/wire/header_test.go::TestDecodeTruncatedHeader": "ca60d932fbc393ad",
         "internal/component/ike/wire/header_test.go::TestHeaderRoundtrip": "ca60d932fbc393ad"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go::TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops": "996852d0bfed79eb",
+        "internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go::TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops#2": "996852d0bfed79eb",
         "internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go::TestRFC7296IKESPIPairIdentifiesTheIKESA": "fc725779f8e1d608",
         "internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go::TestRFC7296UnknownIKESPIPairMapsToNoSA": "8e863293ec140266",
         "internal/component/ike/wire/header_test.go::TestDecodeTruncatedHeader": "5033372fa93a1158",
@@ -1274,17 +1274,19 @@
       "verdict": "enforced"
     },
     "RFC7296-3.3.5-5": {
-      "note": "Clauses: for such transforms the Key Length attribute MUST always be included (sender); proposals not containing it MUST be rejected (receiver). The receiver clause is asserted (AES-CBC and AES-CTR offers without Key Length refused with ErrKeyLengthMissing, accepted with it). The sender clause has no assertion: no Ze-built proposal is checked for a Key Length attribute on AES-CBC/CTR.",
+      "note": "Whole row proven. Sender clause (MUST be always included): new TestRFC7296OffersAlwaysCarryTheRequiredKeyLength builds the IKE offer (buildWireIKEProposals) and the ESP offer (espProposalToWire) for all 10 configurable AES ciphers (CBC, GCM, CCM 8/12/16 at 128/256) and asserts exactly one Key Length attribute equal to the configured size; an omitted, duplicated or wrong attribute is red (single-polarity by nature: a builder has no violating input). Receiver clause (proposals not containing it MUST be rejected): crypto TestPropKeyLengthRequiredTransformRejectedWithoutIt, AES-CBC/CTR offers without the attribute refused with ErrKeyLengthMissing and accepted with it. Ze builds no AES-CTR offer. Records: encAttrs revert observed red on the sender unit; the crypto receiver tags carry no record.",
       "requirement_sha": "92c60c00c9c96b95",
       "tests": {
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt": "08f2f5dac8da8a2b",
-        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt#2": "08f2f5dac8da8a2b"
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt#2": "08f2f5dac8da8a2b",
+        "internal/component/ike/engine/rfc7296_keylength_sender_test.go::TestRFC7296OffersAlwaysCarryTheRequiredKeyLength": "d90ab0c96b1c2a73"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt": "2147dde0c243ba79",
-        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt#2": "2147dde0c243ba79"
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt#2": "2147dde0c243ba79",
+        "internal/component/ike/engine/rfc7296_keylength_sender_test.go::TestRFC7296OffersAlwaysCarryTheRequiredKeyLength": "375918fbbc5f6f7a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-3.3.6-5": {
       "note": "Judged 2026-09-30 at the producers after the D-8 fix: wire Transform.AttrsUnderstood (attrFormats, Key Length only); appendIKECombinations and espProposalMatches drop a transform carrying an unknown attribute and keep its siblings, and refuse the proposal only when an offered type loses every transform (IKEProposal.UnacceptableTransformType -> ErrTransformUnacceptable in ikeProposalComplete; ESP offered!=usable). This matches Section 3.3.6: the transform is unacceptable, other transforms of the same type are processed as usual, and a type with nothing acceptable leaves no complete set to select. Negative TestRFC7296UnacceptableTransformAloneRefusesTheProposal: unknown ENCR id alone, and each IKE type (ENCR/PRF/INTEG/D-H) and ESP type (ENCR/INTEG/ESN) carrying attribute 99 alone is refused, with a per-type control without the attribute accepted, so the attribute is the only difference (isolated); this failed before the fix. Positive TestRFC7296UnacceptableTransformLeavesSiblingsOnOffer: the unknown-id and unknown-attribute transform beside an understood sibling, both orders, IKE accepted with the sibling's ENCR and ESP matched (catches an over-reaction that refuses the type or proposal). ESP response is built from config, so no unacceptable attribute is echoed. HEAD crypto/engine tags remain supplementary. Records: appendIKECombinations +, espProposalMatches -, observed red.",
@@ -1385,17 +1387,21 @@
       "verdict": "enforced"
     },
     "RFC7296-5-2": {
-      "note": "asserts LookupIntegrity/LookupEncryption refuse none/null names and no registry entry maps AUTH_NONE; NegotiateIKE is never given a peer offer carrying ENCR_NULL or AUTH_NONE beside a non-AEAD cipher, and specifiedIntegrity (proposal.go) admits AUTH_NONE",
+      "note": "The negotiation path is now exercised. New TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher: NegotiateIKE (responder) and VerifyAcceptedIKE (initiator) each refuse an otherwise complete IKE proposal carrying AUTH_NONE beside AES-CBC, and one carrying ENCR_NULL (ID 11), with local policy holding the identical proposal so only the forbidden value can refuse; the AES-CBC/HMAC-SHA2-256-128 proposal is accepted by both. Producer read: ikeProposalComplete refuses AUTH_NONE with a non-AEAD cipher; ENCR_NULL is refused as an unspecified cipher. Residual: the negative asserts err != nil, not a specific error. HEAD unit TestIKENeverNegotiatesNullAlgorithms (registry lookups) stays tagged; its 'negative' tag asserts supported names resolve, which is a control and not a violating input, so it should be retagged (author's own note). Records: ikeProposalComplete and NegotiateIKE reverts observed red.",
       "requirement_sha": "0636fb68d1c52210",
       "tests": {
-        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms": "ce60f877fa4f6f7e",
-        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms#2": "ce60f877fa4f6f7e"
+        "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher": "01df3cd088abf968",
+        "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher#2": "01df3cd088abf968",
+        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms": "c4394c607e6b8ca3",
+        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms#2": "c4394c607e6b8ca3"
       },
       "units": {
+        "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher": "9adf83ccc5cf992e",
+        "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher#2": "9adf83ccc5cf992e",
         "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms": "04bc32fb68231a7d",
         "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms#2": "04bc32fb68231a7d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-5-3": {
       "note": "NegotiateIKE refuses a registered 64-bit PRF; prfOutputAcceptable floor at 128; every specified PRF at or above it",

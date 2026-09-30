@@ -110,13 +110,6 @@ func TestTransformRegistryStatesKeySizes(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7296-2.13-2 positive -- the transform fixes how a key is derived from arbitrary
-// values, and the caller does not. DeriveSKKeys sizes every SK_* slice from the negotiated
-// transforms' own KeyLength fields (keys.go:45-90). A change of the integrity transform from
-// sha256 to sha512 therefore resizes SK_ai and SK_ar alone.
-// RFC requirement: RFC7296-2.13-2 negative -- the derivation is not a free-form truncation of one
-// stream. The same seed with the same transforms reproduces the keys byte for byte.
-//
 // RFC requirement: RFC7296-2.13-3 positive -- the preferred key size gives the length of SK_d, SK_pi
 // and SK_pr. DeriveSKKeys takes skDLen from the PRF's OutputLength (keys.go:51-57) and
 // prfKeyLen from its KeyLength, so all three hold that PRF's own size.

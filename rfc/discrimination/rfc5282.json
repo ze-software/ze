@@ -343,6 +343,17 @@
       "break": "body of DeriveSKKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5282-7.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/crypto/rfc5282_ccm_keys_test.go::TestRFC5282CCMIntegrityKeysAreZeroOctets",
+      "unit-sha": "af1553ca2d816274",
+      "claim-sha": "d48e0449a394e231",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/keys.go::DeriveSKKeys",
+      "producer-sha": "2312053627bc0bcf",
+      "break": "body of DeriveSKKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5282-7.1-2",
       "polarity": "positive",
       "unit": "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADEncryptionKeysCarryTheirSalt",
@@ -359,6 +370,17 @@
       "unit": "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADEncryptionKeysCarryNoSalt",
       "unit-sha": "ba40f22a99afedfd",
       "claim-sha": "b8402ae14d5e4348",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/keys.go::encKeyMaterialLen",
+      "producer-sha": "04402ade258d3213",
+      "break": "body of encKeyMaterialLen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-7.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/crypto/rfc5282_ccm_keys_test.go::TestRFC5282CCMEncryptionKeysCarryTheirSalt",
+      "unit-sha": "b148ddb3cb73a21e",
+      "claim-sha": "7afdd4d50d99f810",
       "route": "revert",
       "producer": "internal/component/ike/crypto/keys.go::encKeyMaterialLen",
       "producer-sha": "04402ade258d3213",

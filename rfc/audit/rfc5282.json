@@ -177,30 +177,34 @@
       "verdict": "enforced"
     },
     "RFC5282-7.1-1": {
-      "note": "Clause 'When AES GCM or AES CCM is used ... each key MUST be treated as having a size of zero'. AES GCM: TestRFC5282AEADIntegrityKeysAreZeroOctets asserts zero-length SK_ai/SK_ar and the SK_ei offset; TestRFC5282NonAEADIntegrityKeysAreDerived is the negative. AES CCM: no tagged unit derives a CCM key hierarchy, so a CCM derivation reserving integrity key material turns nothing red.",
+      "note": "Both ciphers the clause names are now proven. AES GCM: TestRFC5282AEADIntegrityKeysAreZeroOctets (zero-length SK_ai/SK_ar, SK_ei at the prf+ offset right after SK_d). AES CCM: new TestRFC5282CCMIntegrityKeysAreZeroOctets derives every CCM Transform ID (8/12/16) at 128 and 256 bits and asserts SK_ai/SK_ar zero octets AND SK_ei/SK_er at stream offsets 32 and 32+(n+3) computed independently of the producer, so a derivation that returned empty slices while still consuming integrity material turns red. Negative: TestRFC5282NonAEADIntegrityKeysAreDerived (non-AEAD keeps its integrity keys). Records: DeriveSKKeys revert observed red on all three units (panic reverts; the offset assertions are what discriminate a mis-cut stream).",
       "requirement_sha": "a57346841362cf06",
       "tests": {
         "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADIntegrityKeysAreZeroOctets": "7023705f0a1c4b4b",
-        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADIntegrityKeysAreDerived": "7023705f0a1c4b4b"
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADIntegrityKeysAreDerived": "7023705f0a1c4b4b",
+        "internal/component/ike/crypto/rfc5282_ccm_keys_test.go::TestRFC5282CCMIntegrityKeysAreZeroOctets": "8e85c13476398244"
       },
       "units": {
         "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADIntegrityKeysAreZeroOctets": "517da2ba6e76e666",
-        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADIntegrityKeysAreDerived": "619697a93a2bbb58"
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADIntegrityKeysAreDerived": "619697a93a2bbb58",
+        "internal/component/ike/crypto/rfc5282_ccm_keys_test.go::TestRFC5282CCMIntegrityKeysAreZeroOctets": "44fff702a561d908"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5282-7.1-2": {
-      "note": "Both bullets are obligations. AES GCM: TestRFC5282AEADEncryptionKeysCarryTheirSalt asserts 20/36 octets and a key-then-salt round trip; TestRFC5282NonAEADEncryptionKeysCarryNoSalt is the negative. AES CCM bullet (19 octets at 128 bits, key then 3 octets of salt): no 7.1-2 tagged unit asserts it; encKeyMaterialLen's CCM branch could size the key wrong with no 7.1-2 unit red.",
+      "note": "Both bullets proven. AES GCM bullet: TestRFC5282AEADEncryptionKeysCarryTheirSalt (20/36 octets, key-then-salt round trip). AES CCM bullet: new TestRFC5282CCMEncryptionKeysCarryTheirSalt, every CCM ID at 128/256 bits: SK_ei and SK_er are exactly cipher key + 3 octets (19/35), and a SealIKEAEAD output is opened by a ccm instance built in the test from key[:n] with nonce = trailing 3 salt octets || 8-octet IV, which is the RFC 4309 Section 7.1 KEYMAT format and Section 4 nonce; a 4-octet GCM salt or salt-first layout fails the length or the open. Negative: TestRFC5282NonAEADEncryptionKeysCarryNoSalt. Records: SealIKEAEAD and encKeyMaterialLen reverts observed red. Residual: the opener uses ze's own internal/core/ccm package, so it checks the key split, not the CCM primitive itself.",
       "requirement_sha": "bebed250d8147013",
       "tests": {
         "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADEncryptionKeysCarryTheirSalt": "7023705f0a1c4b4b",
-        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADEncryptionKeysCarryNoSalt": "7023705f0a1c4b4b"
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADEncryptionKeysCarryNoSalt": "7023705f0a1c4b4b",
+        "internal/component/ike/crypto/rfc5282_ccm_keys_test.go::TestRFC5282CCMEncryptionKeysCarryTheirSalt": "8e85c13476398244"
       },
       "units": {
         "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADEncryptionKeysCarryTheirSalt": "0c8faefce387f26b",
-        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADEncryptionKeysCarryNoSalt": "32f5cdea277e76fc"
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADEncryptionKeysCarryNoSalt": "32f5cdea277e76fc",
+        "internal/component/ike/crypto/rfc5282_ccm_keys_test.go::TestRFC5282CCMEncryptionKeysCarryTheirSalt": "4f0e368fa13ae81c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5282-7.3-1": {
       "note": "AES GCM: TestRFC5282AEADProposalCarriesTheKeyLengthAttribute (IKE and ESP rails, exactly one attribute), TestRFC5282AEADOfferWithoutAKeyLengthIsRefused (ErrKeyLengthMissing). AES CCM: TestRFC5282AEADCCMProposalCarriesTheKeyLengthAttribute asserts IDs 14/15/16 x 128/256 each carry exactly one Key Length attribute of the key size from buildWireIKEProposals; ESP does not offer CCM (ipsec.EncryptionImplementedESP excludes it). Residual observation: the receive-side refusal names CCM in keyLengthRequired but only a GCM offer is driven.",

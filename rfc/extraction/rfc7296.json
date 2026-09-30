@@ -4,8 +4,8 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc7296.txt",
   "source-sha": "a6f1a101b818977b",
-  "signed-off": "2026-08-18",
-  "reviewer": "six /ze-implement agents, one per section range, spec-rfcgate-1b-rfc7296-pilot AC-5; merged and re-checked in the main thread",
+  "signed-off": "2026-09-30",
+  "reviewer": "six /ze-implement agents, one per section range, spec-rfcgate-1b-rfc7296-pilot AC-5; merged and re-checked in the main thread; site 2.13:2 re-walked by the spec-rfc-verdict-fix-ike-eap crypto author",
   "sections": [
     {
       "id": "front",
@@ -1392,9 +1392,9 @@
     {
       "id": "2.13:2",
       "quote": "For algorithms for which not all values are valid keys (such as DES or 3DES with key parity), the algorithm by which keys are derived from arbitrary values MUST be specified by the cryptographic transform.",
-      "disposition": "mapped",
-      "mapped-to": "RFC7296-2.13-2",
-      "reason": "The sentence requires the transform to specify how keys are derived when not all values are valid keys, which is the row."
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The sentence binds the specification of a cryptographic transform: the transform's defining document must state how keys are derived from arbitrary values, and no implementation fills that role. Ze implements no transform the condition names either: encryptionRegistry (`internal/component/ike/crypto/transform.go`) holds AES CBC, GCM and CCM only, for which every value of the fixed size is a valid key. Row RFC7296-2.13-2 was retired on 2026-09-30."
     },
     {
       "id": "2.13:3",
@@ -2586,5 +2586,5 @@
       "reason": "Section 5's EAP rule: the server authenticates to the client with a public key before EAP begins, whatever the EAP method offers. RFC7296-2.16-11 states the same pairing obligation and cites this section."
     }
   ],
-  "resign-reason": "Section 2.2's counter paragraph stated an obligation with no capitalised keyword, so the rfc2119 register derived no site for it and the walk recorded only that the paragraph had no keyword. Ze violated it: a responder-role SA took the peer's request id as its own next request id, so every request it raised was numbered where a conforming peer expected none. Recorded as RFC7296-2.2-3 under unsourced-ids."
+  "resign-reason": "Site 2.13:2 was re-walked against the §2.13 text. Its MUST binds the specification of a cryptographic transform to state a key derivation for algorithms with invalid key values, a role no implementation fills, so the site is now excluded as binds-another-role and row RFC7296-2.13-2 is retired; exclusions rise by one."
 }
