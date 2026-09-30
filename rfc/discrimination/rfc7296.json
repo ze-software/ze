@@ -1131,7 +1131,7 @@
       "claim-sha": "59a5158f1c0e4a44",
       "route": "revert",
       "producer": "internal/component/ike/engine/register.go::dispatchNATTInbound",
-      "producer-sha": "0f5b1a839cb2bc13",
+      "producer-sha": "86735a1e9a714925",
       "break": "body of dispatchNATTInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1142,7 +1142,7 @@
       "claim-sha": "a23b0820a0121be1",
       "route": "revert",
       "producer": "internal/component/ike/engine/register.go::dispatchInbound",
-      "producer-sha": "b38a7872bbf3e6d2",
+      "producer-sha": "bcb55817cc27ca97",
       "break": "body of dispatchInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
