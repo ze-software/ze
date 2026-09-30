@@ -93,10 +93,11 @@ func TestOSPFNSSABorderRouterDefaultPBit(t *testing.T) {
 		db := ospflsdb.New(nil)
 		require.True(t, db.Install(nssa, type7LSA(t, "0.0.0.0", "0.0.0.0", "3.3.3.3", 10, true)))
 
-		// RFC requirement: RFC3101-2.4-4 positive -- an NSSA border router
-		// can install a received Type-7 default whose P-bit is set.
-		// RFC requirement: RFC3101-2.5-1 negative -- a regular NSSA does
-		// not suppress Type-7 defaults when summary import is enabled.
+		// RFC requirement: RFC3101-2.5-1 negative -- neither skip condition
+		// holds (the Type-7 default's P-bit is set and the NSSA imports
+		// summaries), so the border router installs the default rather than
+		// skipping it: an implementation that skipped every Type-7 default on a
+		// border router fails here.
 		routes := ComputeExternal(ExternalInput{
 			Source: db, Root: root, Routes: routeTable, BorderRouters: []BorderRouterEntry{nssaASBR(t, nssa, "3.3.3.3")},
 			NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: true, MaxPaths: 8,
@@ -109,8 +110,13 @@ func TestOSPFNSSABorderRouterDefaultPBit(t *testing.T) {
 		db := ospflsdb.New(nil)
 		require.True(t, db.Install(nssa, type7LSA(t, "0.0.0.0", "0.0.0.0", "3.3.3.3", 10, true)))
 
-		// RFC requirement: RFC3101-2.5-1 positive -- an NSSA border router
-		// ignores Type-7 defaults when summary import is suppressed.
+		// RFC requirement: RFC3101-2.5-1 positive -- RFC 3101 Section 2.5 step
+		// (3): a border router does nothing with a Type-7 default route when
+		// "The calculating router is a border router and the LSA has its P-bit
+		// clear" or "is suppressing the import of summary routes as Type-3
+		// summary-LSAs". Each condition alone makes the border router skip the
+		// default: here a P-set default with summary import suppressed, and in
+		// the "P-bit clear" subtest a P-clear default with summaries imported.
 		routes := ComputeExternal(ExternalInput{
 			Source: db, Root: root, Routes: routeTable, BorderRouters: []BorderRouterEntry{nssaASBR(t, nssa, "3.3.3.3")},
 			NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: true,
@@ -126,7 +132,7 @@ func TestOSPFNSSABorderRouterDefaultPBit(t *testing.T) {
 		db := ospflsdb.New(nil)
 		require.True(t, db.Install(nssa, type7LSA(t, "0.0.0.0", "0.0.0.0", "3.3.3.3", 10, false)))
 
-		// RFC requirement: RFC3101-2.4-4 negative -- an NSSA border router
+		// The P-bit clear condition of section 2.5 step (3): the border router
 		// does not install a received Type-7 default whose P-bit is clear.
 		routes := ComputeExternal(ExternalInput{
 			Source: db, Root: root, Routes: routeTable, BorderRouters: []BorderRouterEntry{nssaASBR(t, nssa, "3.3.3.3")},
@@ -154,10 +160,11 @@ func TestOSPFNSSANonBorderRouterInstallsPClearDefault(t *testing.T) {
 	db := ospflsdb.New(nil)
 	require.True(t, db.Install(nssa, type7LSA(t, "0.0.0.0", "0.0.0.0", "3.3.3.3", 10, false)))
 
-	// RFC requirement: RFC3101-2.4-4 negative -- the install rule binds an NSSA
-	// border router, so a router that is not one takes the P-clear default.
-	// RFC requirement: RFC3101-2.5-1 negative -- the suppressed-summary rule
-	// likewise binds an NSSA border router only.
+	// RFC requirement: RFC3101-2.5-1 negative -- both skip conditions of
+	// section 2.5 step (3) bind a border router only: a router that is not one,
+	// given a P-clear Type-7 default in an NSSA whose summary import is
+	// suppressed, installs the default, so a skip that ignored the border-router
+	// condition fails here.
 	routes := ComputeExternal(ExternalInput{
 		Source: db, Root: root, Routes: routeTable, BorderRouters: []BorderRouterEntry{nssaASBR(t, nssa, "3.3.3.3")},
 		NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: false,

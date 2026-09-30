@@ -2,6 +2,50 @@
   "rfc": "rfc5340",
   "records": [
     {
+      "rid": "RFC5340-4.2.1.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits",
+      "unit-sha": "24397542763b2933",
+      "claim-sha": "e22a6e421a03696c",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/encoder_v6.go::neutralToV6Options",
+      "producer-sha": "f2a25e7b941af95e",
+      "break": "body of neutralToV6Options replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5340-4.2.1.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits",
+      "unit-sha": "24397542763b2933",
+      "claim-sha": "aa6b524604dc9807",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/encoder_v6.go::neutralToV6Options",
+      "producer-sha": "f2a25e7b941af95e",
+      "break": "body of neutralToV6Options replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5340-A.3.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend",
+      "unit-sha": "b17d68c1d20c73b1",
+      "claim-sha": "702363a65588d679",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/encoder_v6.go::EncodeHello",
+      "producer-sha": "49adcda56c7babad",
+      "break": "body of EncodeHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5340-A.3.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend",
+      "unit-sha": "b17d68c1d20c73b1",
+      "claim-sha": "c8b3482ac84b52e0",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/encoder_v6.go::EncodeHello",
+      "producer-sha": "49adcda56c7babad",
+      "break": "body of EncodeHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5340-A.4.7-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding",

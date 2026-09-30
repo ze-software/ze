@@ -1,12 +1,13 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5340-2.8-3": {
       "note": "Forbidden: a Network-LSA that omits a router attached to the link. TestRFC5340NetworkLSAListsAttachedRouters drives v6OriginateNetwork, decodes the installed Network-LSA and asserts got[self] (the DR) and got[full] (a Full neighbor), each red on omission; got[twoWay] false and Len 2 bound the list to the routers RFC 2328 12.4.2 counts as attached (fully adjacent), which RFC 5340 leaves unchanged.",
       "requirement_sha": "446d8d14acf2b688",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters": "d7d0fa7f73eb7f92",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters#2": "d7d0fa7f73eb7f92"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters": "0dbded42a8f289aa",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters#2": "0dbded42a8f289aa"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters": "8ffe65e2132664d4",
@@ -18,8 +19,8 @@
       "note": "Forbidden: a Link-LSA that omits one of the router's addresses on the link. TestRFC5340LinkLSAListsLinkAddresses decodes the originated Link-LSA and asserts the link-local fe80::1 and both global prefixes 2001:db8:1::/64 and 2001:db8:2::/64, each red on omission; the eth1 half asserts each link's LSA carries its own link-local and prefix and not the other link's.",
       "requirement_sha": "141188dcebe4f393",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses": "d7d0fa7f73eb7f92",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses#2": "d7d0fa7f73eb7f92"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses": "0dbded42a8f289aa",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses#2": "0dbded42a8f289aa"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses": "b794d2eb2e228f3e",
@@ -44,8 +45,8 @@
       "note": "Forbidden: a Hello sent without this interface's own Interface ID. TestRFC5340HelloCarriesInterfaceID sends real Hellos through SendHello and the v6 encoder and asserts Interface ID 42 on eth0 and 43 on eth1 (red on a missing or shared value), and after a neighbor Hello carrying 99 asserts the next sent Hello still carries 42 (red if the neighbor's value is copied in).",
       "requirement_sha": "1827062cd4cc934a",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID": "d7d0fa7f73eb7f92",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID#2": "d7d0fa7f73eb7f92"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID": "0dbded42a8f289aa",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID#2": "0dbded42a8f289aa"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID": "bcd73e2efe9c8eb7",
@@ -57,8 +58,8 @@
       "note": "Forbidden: a Hello whose E, N or DC bit does not follow the area type or the wish to suppress Hellos. TestRFC5340HelloOptionsBits sends Hellos through the real send path and asserts E set and N clear for a regular area, N set and E clear for NSSA, both clear for stub (both directions of each 'if and only if'), and DC zero in all three; ze has no demand-circuit support and never wishes to suppress Hellos, so DC clear is the only correct value.",
       "requirement_sha": "40197c708c35d7c9",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits": "d7d0fa7f73eb7f92",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits#2": "d7d0fa7f73eb7f92"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits": "0dbded42a8f289aa",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits#2": "0dbded42a8f289aa"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits": "bcbc0d7879b85f81",
@@ -67,43 +68,47 @@
       "verdict": "enforced"
     },
     "RFC5340-4.2.1.2-1": {
-      "note": "The sentence governs only the DC-bit in DD packets. TestRFC5340DBDescOptionsBits asserts DC stays clear, which is right since ze never suppresses Hellos, but its positive tag claims the E/V6/R bits, which this sentence does not govern, so the positive polarity proves nothing about this row.",
+      "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): TestRFC5340DBDescOptionsBits tags now claim only the DC-bit: DDs of a regular and a stub area carry DC clear (Ze suppresses no Hellos, so 'if and only if' requires clear), and neutral Options carrying DC handed to the encoder still yield DC clear. Revert records on encoder_v6.go::neutralToV6Options observed red. The 'set when suppressing' direction has no Ze path (no demand circuits).",
       "requirement_sha": "156ed79b0cb0e1d6",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits": "d7d0fa7f73eb7f92",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits#2": "d7d0fa7f73eb7f92"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits": "0dbded42a8f289aa",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits#2": "0dbded42a8f289aa"
       },
       "units": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits": "c82c5794f8980258",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits#2": "c82c5794f8980258"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits": "9835fa21eb3735d5",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits#2": "9835fa21eb3735d5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5340-A.3.1-2": {
-      "note": "Forbidden: acting on a non-zero Reserved octet on receive, and (SHOULD) sending a non-zero one. TestRFC5340ReservedHeaderOctetIgnoredOnReceive dispatches a Hello with Reserved=0xFF and asserts the neighbor forms (receive clause proven, Instance ID still honoured). The quoted send clause 'SHOULD be set to 0 when sending protocol packets' has no assertion: no tagged unit reads the Reserved octet of a packet Ze encodes.",
+      "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): receive clause unchanged (TestRFC5340ReservedHeaderOctetIgnoredOnReceive). Send clause now proven: TestRFC5340ReservedHeaderOctetZeroOnSend reads offset 15 of v6Encoder Hello, DBDesc and LSAck with Instance ID 0 and 0xFF, and a Header.WriteTo over a 0xFF-filled buffer, all 0. Revert records on encoder_v6.go::EncodeHello observed red.",
       "requirement_sha": "34e76e291aebb156",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive": "d7d0fa7f73eb7f92",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive#2": "d7d0fa7f73eb7f92"
+        "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend": "509493c7b6b76283",
+        "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend#2": "509493c7b6b76283",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive": "0dbded42a8f289aa",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive#2": "0dbded42a8f289aa"
       },
       "units": {
+        "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend": "9d93b6e2c67eb715",
+        "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend#2": "9d93b6e2c67eb715",
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive": "e49c1c1e85fbaea0",
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive#2": "e49c1c1e85fbaea0"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5340-A.4.7-1": {
       "code": {
         "internal/plugins/ospf/interface_addr.go::v6UsableForwardingAddress": "e27afd31df40440c",
-        "internal/plugins/ospf/nssa.go::translateNSSAV6": "ddfc14e9f7034e68"
+        "internal/plugins/ospf/nssa.go::translateNSSAV6": "066ee043782ac7f1"
       },
-      "note": "Local origination: v6UsableForwardingAddress rejects fe80::1, ::, ::1, ff02::5 and v6OriginateNSSALSA drops an all-zero address. Translation: translateNSSAV6 (nssa.go) now refuses to translate a received NSSA-LSA whose forwarding address fails v6UsableForwardingAddress. TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding runs translateNSSA on an elected v6 NSSA ABR: a global forwarding address is carried into the Type-5 unchanged, and fe80::2 produces no Type-5. Re-read 2026-09-27 (DF-OSPF-B): translateNSSAV6 changed only in its RFC 3101 Section 3.2 yield test (equivalentType5V6); the A.4.7 forwarding-address gate is unchanged.",
+      "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): translateNSSAV6 changed only at its election call (RFC 3101 3.1 reachability, decided flag); the v6UsableForwardingAddress gate on translated forwarding addresses is unchanged and the tagged units are byte-identical; the fixture declares every router reached. Prior judgement: Local origination: v6UsableForwardingAddress rejects fe80::1, ::, ::1, ff02::5 and v6OriginateNSSALSA drops an all-zero address. Translation: translateNSSAV6 (nssa.go) now refuses to translate a received NSSA-LSA whose forwarding address fails v6UsableForwardingAddress. TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding runs translateNSSA on an elected v6 NSSA ABR: a global forwarding address is carried into the Type-5 unchanged, and fe80::2 produces no Type-5. Re-read 2026-09-27 (DF-OSPF-B): translateNSSAV6 changed only in its RFC 3101 Section 3.2 yield test (equivalentType5V6); the A.4.7 forwarding-address gate is unchanged.",
       "requirement_sha": "567d9d628d7e6098",
       "tests": {
         "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding": "401d880094411be0",
         "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding#2": "401d880094411be0",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal": "d7d0fa7f73eb7f92",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal#2": "d7d0fa7f73eb7f92"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal": "0dbded42a8f289aa",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal#2": "0dbded42a8f289aa"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding": "b720288db81ad089",
@@ -115,15 +120,15 @@
     },
     "RFC5340-A.4.7-2": {
       "code": {
-        "internal/plugins/ospf/nssa.go::translateNSSAV6": "ddfc14e9f7034e68"
+        "internal/plugins/ospf/nssa.go::translateNSSAV6": "066ee043782ac7f1"
       },
-      "note": "Origination selects only a global address (interfaceIPv6ForwardingAddress via v6UsableForwardingAddress). The translator now advertises only a forwarding address that passes the same rule: TestRFC5340TranslatorAdvertisesGlobalForwarding requires the translated Type-5 forwarding address to be global unicast, and requires no Type-5 for fe80::3. Re-read 2026-09-27 (DF-OSPF-B): translateNSSAV6 changed only in its RFC 3101 Section 3.2 yield test (equivalentType5V6); the A.4.7 forwarding-address gate is unchanged.",
+      "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): translateNSSAV6 changed only at its election call; the global-forwarding gate is unchanged. Prior judgement: Origination selects only a global address (interfaceIPv6ForwardingAddress via v6UsableForwardingAddress). The translator now advertises only a forwarding address that passes the same rule: TestRFC5340TranslatorAdvertisesGlobalForwarding requires the translated Type-5 forwarding address to be global unicast, and requires no Type-5 for fe80::3. Re-read 2026-09-27 (DF-OSPF-B): translateNSSAV6 changed only in its RFC 3101 Section 3.2 yield test (equivalentType5V6); the A.4.7 forwarding-address gate is unchanged.",
       "requirement_sha": "a8ad93ff8b26a58b",
       "tests": {
         "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorAdvertisesGlobalForwarding": "401d880094411be0",
         "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorAdvertisesGlobalForwarding#2": "401d880094411be0",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal": "d7d0fa7f73eb7f92",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal#2": "d7d0fa7f73eb7f92"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal": "0dbded42a8f289aa",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal#2": "0dbded42a8f289aa"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorAdvertisesGlobalForwarding": "91f210d793260f04",
@@ -137,8 +142,8 @@
       "note": "Forbidden: selecting a non-global (link-local, unspecified) address as the forwarding address of a P-bit NSSA-LSA. TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress passes the forwarding address straight into v6OriginateNSSALSA (a global, then a zero), so the SELECTION is not under test: forwardingAddressForAF / v6UsableForwardingAddress is not called, and no unit offers a link-local candidate. A selector that returned fe80:: would leave the unit green.",
       "requirement_sha": "0b6d1e6b5460a40c",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress": "d7d0fa7f73eb7f92",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress#2": "d7d0fa7f73eb7f92"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress": "0dbded42a8f289aa",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress#2": "0dbded42a8f289aa"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress": "5096eee2588a1248",
@@ -150,8 +155,8 @@
       "note": "Forbidden: an InfTransDelay of 0, and LSAs transmitted without their age incremented by InfTransDelay. TestRFC5340IPv6InterfaceCostAndTransmitDelay asserts validateConfig refuses transmit-delay 0 (ErrTransmitDelayZero) and accepts 1, which proves the 'greater than 0' clause. The quoted clause 'LSAs contained in the update packet must have their age incremented by this amount before transmission' has no assertion in any tagged unit.",
       "requirement_sha": "8ba60b1cf2b1e805",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceCostAndTransmitDelay": "d7d0fa7f73eb7f92",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceCostAndTransmitDelay#2": "d7d0fa7f73eb7f92"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceCostAndTransmitDelay": "0dbded42a8f289aa",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceCostAndTransmitDelay#2": "0dbded42a8f289aa"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceCostAndTransmitDelay": "570a1f3e6d505912",
@@ -163,8 +168,8 @@
       "note": "Forbidden: accepting a neighbor whose HelloInterval differs on the common link. TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink asserts ReceiveDecodedHello accepts a matching HelloInterval (empty reason) and drops DefaultHelloInterval+1 with reason hello-interval; accepting the mismatch turns it red.",
       "requirement_sha": "6dddca691c081f86",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "d7d0fa7f73eb7f92",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink#2": "d7d0fa7f73eb7f92"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "0dbded42a8f289aa",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink#2": "0dbded42a8f289aa"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "b93ef0d62e7e8927",
@@ -176,8 +181,8 @@
       "note": "Forbidden: accepting a neighbor whose RouterDeadInterval differs on the common link. TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink asserts a matching RouterDeadInterval is accepted (empty reason) and DefaultDeadInterval+1 is dropped with reason dead-interval; accepting the mismatch turns it red. The 'multiple of the HelloInterval' clause is a lower-case should.",
       "requirement_sha": "629dfc0baf4601d4",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "d7d0fa7f73eb7f92",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink#2": "d7d0fa7f73eb7f92"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "0dbded42a8f289aa",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink#2": "0dbded42a8f289aa"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "b93ef0d62e7e8927",

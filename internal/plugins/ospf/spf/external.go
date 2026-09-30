@@ -149,8 +149,8 @@ func ComputeExternalWith(in ExternalInput, read ExternalReader) []RouteEntry {
 			}
 			if rec, ok := read(area, h); ok {
 				if in.NSSABorderRouter && rec.Prefix.Bits() == 0 {
-					// RFC requirement: RFC3101-2.4-4 -- an NSSA border
-					// router MUST reject a P-clear Type-7 default.
+					// RFC requirement: RFC3101-2.5-1 -- an NSSA border
+					// router does nothing with a P-clear Type-7 default.
 					if rec.Pref == prefType7P0 {
 						continue
 					}

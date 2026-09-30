@@ -66,18 +66,12 @@ func TestAHSAIdentifiedBySPIAndProtocol(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC4302-2.4-5 positive -- RFC 4302 Section 2.4: "The indication of
-// whether source and destination address matching is required to map inbound IPsec
-// traffic to SAs MUST be set either as a side effect of manual SA configuration or via
-// negotiation using an SA management protocol, e.g., IKE or Group Domain of
-// Interpretation (GDOI) [RFC3547]." Ze negotiates no AH SA, so the manual RFC 4552
-// configuration is what sets it: buildIPsecSA gives the AH state an explicit selector,
-// and the body asserts that selector exists and carries the ::/0 source and destination
-// prefixes that say address matching is not required for this SA.
-// RFC requirement: RFC4302-2.4-5 negative -- the indication that is set narrows rather
-// than admitting everything: the same selector names upper protocol 89, so traffic that
-// is not OSPF cannot map to this AH SA, and an installer that left the selector's upper
-// protocol at the 0 wildcard fails here.
+// TestAHSAAddressMatchIndication checks the AH state's traffic selector: it exists,
+// carries ::/0 source and destination prefixes, and names upper protocol 89, so traffic
+// that is not OSPF cannot use this AH SA once the kernel has found it. The selector
+// filters traffic on an SA already found; it does not decide the inbound lookup key, so
+// the RFC 4302 section 2.4 address-match indication is proven by
+// TestRFC4302AddressMatchIndicationSetByManualConfig instead.
 func TestAHSAAddressMatchIndication(t *testing.T) {
 	sa := buildIPsecSA(testIfIndex, ospfv3transport.AllSPFRouters, ipsecSharedDir, ahIPsec(256))
 	if sa.Sel == nil {

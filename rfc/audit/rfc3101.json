@@ -1,6 +1,8 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -84,16 +86,18 @@
       "verdict": "enforced"
     },
     "RFC3101-2.4-2": {
-      "note": "Forbidden: a P-set Type-7 with a zero forwarding address. lsdb/nssa_pbit_test.go TestOSPFNSSAPBitBoundaryPolicy asserts the P-set, zero-FA request is not originated (LookupLSA exists -> Fatal, line 27) and a P-set, non-zero-FA request keeps P (line 37); origination_v6_nssa_default_test.go TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress asserts no v3 P-set default without a usable address (line 175). The 'may be 0.0.0.0' clause is a permission and has no forbidden behaviour.",
+      "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): TestOSPFv3NSSADefaultPBitFollowsForwardingAddress now carries a 2.4-2 negative (was a misplaced 2.4-4 tag): a P-set default keeps its non-zero forwarding address beside P and is flushed, not originated P-set without one, once the address is lost. The lsdb TestOSPFNSSAPBitBoundaryPolicy pair and TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress are unchanged. Prior judgement: Forbidden: a P-set Type-7 with a zero forwarding address. lsdb/nssa_pbit_test.go TestOSPFNSSAPBitBoundaryPolicy asserts the P-set, zero-FA request is not originated (LookupLSA exists -> Fatal, line 27) and a P-set, non-zero-FA request keeps P (line 37); origination_v6_nssa_default_test.go TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress asserts no v3 P-set default without a usable address (line 175). The 'may be 0.0.0.0' clause is a permission and has no forbidden behaviour.",
       "requirement_sha": "42d84fa39e6de394",
       "tests": {
         "internal/plugins/ospf/lsdb/nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "8d222a236fcd72a2",
         "internal/plugins/ospf/lsdb/nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "8d222a236fcd72a2",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "5c329e9905971538"
+        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress": "6e7d1420848b435e",
+        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "6e7d1420848b435e"
       },
       "units": {
         "internal/plugins/ospf/lsdb/nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "6e5aeb67d7c8c758",
         "internal/plugins/ospf/lsdb/nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "6e5aeb67d7c8c758",
+        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress": "ced5bacc36accdcc",
         "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "71efafdc760b612f"
       },
       "verdict": "enforced"
@@ -112,31 +116,19 @@
       "verdict": "enforced"
     },
     "RFC3101-2.4-4": {
-      "note": "Positives (nssa_ac14_16_test.go TestOSPFNSSABorderRouterDefaultsEveryArea, origination_v6_nssa_default_test.go TestOSPFv3NSSABorderRouterOriginatesDefault) prove the border-router Type-7 default is P-clear. Every negative is misplaced: spf/external_nssa_test.go and nssa_install_gate_v6_test.go test the INSTALL rule (a Type-7 default is installed by a border router iff P is set, now in RFC3101-2.5-1's quote), and TestOSPFv3NSSADefaultPBitFollowsForwardingAddress asserts a P-set default produced on a dual-area ABR engine. No negative shows a border router refusing to originate a P-set default.",
+      "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): positives TestOSPFNSSABorderRouterDefaultsEveryArea (v4) and TestOSPFv3NSSABorderRouterOriginatesDefault (v6) assert the border router's Type-7 default is P-clear; negative TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport pushes every P-set trigger (NSSA default-originate plus a retained default import from an nssa-propagate source) and asserts applyNSSADefaults still installs the default P-clear. The misplaced install-rule negatives moved to RFC3101-2.5-1. Judge-run overlay mutants in applyNSSADefaults: ABR taking the internal-router propagate decision (line 152 'if !isABR' -> 'if true') reds the negative; 'propagate := true' reds both positives. Four stale 2.4-4 records remain for units that lost the tag (orphans, not gate-named).",
       "requirement_sha": "5580f41ed54eeabb",
       "tests": {
         "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "49a610561289e458",
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "fa91ec30c975b4aa",
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit#2": "fa91ec30c975b4aa",
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "fa91ec30c975b4aa",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "5c329e9905971538",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress": "5c329e9905971538",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "c63776e4626bed9e",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "c63776e4626bed9e",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "c63776e4626bed9e"
+        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "6e7d1420848b435e",
+        "internal/plugins/ospf/rfc3101_border_default_pbit_test.go::TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport": "2b69215e56d2b8cb"
       },
       "units": {
         "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "eb4d5bf09d6bb264",
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "1b866046b65a51fd",
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit#2": "1b866046b65a51fd",
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "dd1d34afcd287a22",
         "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "c90da797563d21c8",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress": "78d6ca47020cf2f3",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "77fe2af9cf5788c2",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "77fe2af9cf5788c2",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "a328a86413deaf7b"
+        "internal/plugins/ospf/rfc3101_border_default_pbit_test.go::TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport": "e645ac7412a82308"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC3101-2.4-5": {
       "note": "Forbidden: a border router leaving an attached NSSA without a default. nssa_ac14_16_test.go TestOSPFNSSABorderRouterDefaultsEveryArea requires one self Type-7 default in the regular NSSA (line 33) on an ABR with two NSSAs; origination_v6_nssa_default_test.go TestOSPFv3NSSABorderRouterOriginatesDefault requires the v3 0x2007 default (line 66); spf/area_type_test.go TestOSPFNSSANoSummaryDefaultInjection requires the Type-3 default in the no-summary NSSA (line 133). Negatives: an internal NSSA router originates none (nssa_ac14_16_test.go line 54, v6 line 175). The interop check checkNSSADefault is also tagged.",
@@ -145,8 +137,8 @@
         "internal/le/interoplab/bgp/check_rfc.go::checkNSSADefault": "f04334a58fd00e7c",
         "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "49a610561289e458",
         "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSAInternalRouterOriginatesNoBorderDefault": "49a610561289e458",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "5c329e9905971538",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "5c329e9905971538",
+        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "6e7d1420848b435e",
+        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "6e7d1420848b435e",
         "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "cd0b5106bcb1bcdc",
         "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc"
       },
@@ -162,23 +154,25 @@
       "verdict": "enforced"
     },
     "RFC3101-2.5-1": {
-      "note": "The row quotes both skip conditions of section 2.5 step (3). The summary-suppression condition is enforced (spf/external_nssa_test.go TestOSPFNSSABorderRouterDefaultPBit, nssa_install_gate_v6_test.go, with border-router-only negatives). The P-bit-clear condition is exercised only by tests tagged RFC3101-2.4-4, so under this id it carries no tag.",
+      "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): both skip conditions of section 2.5 step (3) now carry tags: positives TestOSPFNSSABorderRouterDefaultPBit / TestOSPFv3NSSABorderRouterDefaultPBit skip a P-set default under summary suppression and (P-bit clear subtest) a P-clear default with summaries imported; negatives in the same units install a P-set default with summaries imported, and TestOSPFNSSANonBorderRouterInstallsPClearDefault (v4, v6) show both conditions bind a border router only. Six revert records on spf/external.go::ComputeExternalWith, observed red; the ComputeExternalWith comment now names 2.5-1 for the P-clear skip.",
       "requirement_sha": "736cc5e7e9acddb1",
       "tests": {
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "fa91ec30c975b4aa",
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "fa91ec30c975b4aa",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "c63776e4626bed9e",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "c63776e4626bed9e",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "c63776e4626bed9e"
+        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "f93dfb172fe49a83",
+        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit#2": "f93dfb172fe49a83",
+        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "f93dfb172fe49a83",
+        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "3f77f8e2f0df1040",
+        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "3f77f8e2f0df1040",
+        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "3f77f8e2f0df1040"
       },
       "units": {
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "1b866046b65a51fd",
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "dd1d34afcd287a22",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "77fe2af9cf5788c2",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "77fe2af9cf5788c2",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "a328a86413deaf7b"
+        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "b60fee1eef468443",
+        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit#2": "b60fee1eef468443",
+        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "ccc74ac5a45aa007",
+        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "9621c391127ac046",
+        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "9621c391127ac046",
+        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "ef2dede7da97f98a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3101-2.5-2": {
       "note": "Forbidden: taking a Type-7's ASBR entry from another area. nssa_scope_test.go TestNSSAASBRUsesOriginatingArea asserts own-area cost 15 via 192.0.2.9 despite a cheaper backbone entry (line 105); TestNSSAASBRRejectsOtherArea asserts no route when the ASBR is reachable only outside the NSSA, with and without forwarding address (line 120); spf/external_nssa_recalc_test.go repeats both through Computer.Run.",
@@ -203,7 +197,7 @@
       "tests": {
         "internal/plugins/ospf/nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "851652176e157f7d",
         "internal/plugins/ospf/nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "851652176e157f7d",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestExternalForwardingPreservesInternalPreferenceAndECMP": "c63776e4626bed9e"
+        "internal/plugins/ospf/spf/external_nssa_test.go::TestExternalForwardingPreservesInternalPreferenceAndECMP": "3f77f8e2f0df1040"
       },
       "units": {
         "internal/plugins/ospf/nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "19ef876d816003df",
@@ -255,8 +249,8 @@
       "note": "Forbidden: a no-summary NSSA default that is not a Type-3. spf/area_type_test.go TestOSPFNSSANoSummaryDefaultInjection requires the Type-3 default through OriginateSummaries (line 133); origination_v6_nssa_default_test.go TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA asserts no NSSA-LSA default in the no-summary NSSA (line 101) and the inter-area default (line 112). Negatives: a regular NSSA gets no Type-3 default (area_type_test.go lines 94, 154).",
       "requirement_sha": "a624fa41a2040d6a",
       "tests": {
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "5c329e9905971538",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "5c329e9905971538",
+        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "6e7d1420848b435e",
+        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "6e7d1420848b435e",
         "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "cd0b5106bcb1bcdc",
         "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection#2": "cd0b5106bcb1bcdc",
         "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc",
@@ -276,8 +270,8 @@
       "note": "Forbidden: a Type-3 default into an NSSA that imports summaries. spf/area_type_test.go TestOSPFNSSANoSummaryDefaultInjection/regular asserts no summary default through OriginateSummaries (line 154), TestOSPFNSSAType3SummaryImport asserts it through applyAreaTypePolicy (line 94), and the v3 test asserts no inter-area default (line 121). Negatives show the ban is conditional on import (area_type_test.go lines 107, 133).",
       "requirement_sha": "624ecf4c3946e8b6",
       "tests": {
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "5c329e9905971538",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "5c329e9905971538",
+        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "6e7d1420848b435e",
+        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "6e7d1420848b435e",
         "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "cd0b5106bcb1bcdc",
         "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection#2": "cd0b5106bcb1bcdc",
         "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc",
@@ -314,29 +308,41 @@
       "verdict": "weak"
     },
     "RFC3101-3.1-2": {
-      "note": "nssa_test.go TestOSPFNSSANonCandidateDoesNotWedge asserts a lower-Router-ID candidate translates despite a reachable higher-Router-ID NSSA border router with Nt clear; section 3.1 disables a candidate when another listed border router has Nt set OR a higher router ID. The list membership (reachable over the NSSA and as an ASBR over the transit topology) is not tested; TestOSPFNSSATranslatorElection passes the candidate list in directly.",
+      "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): the row quotes the list of border routers 'reachable both over the NSSA and as ASBRs over the AS's transit topology'. The NSSA half is enforced: electNSSATranslator (nssa.go) now skips a listed router the NSSA's completed SPF does not reach (ReachabilitySnapshot.RouterReachable); TestRFC3101UnreachableBorderRouterIsNotListed / TestRFC3101ReachableBorderRouterIsListed are an isolated pair differing only in reachability, TestOSPFNSSATranslatorElection adds the unreachable-higher case; a judge overlay mutant disabling the reachability filter reds the positive and the election test. MISSING: the 'as ASBRs over the AS's transit topology' half is neither implemented nor tested (no check against the SPF border-router/ASBR table), so a router reachable in the NSSA but not as an ASBR over the transit topology still disables the candidate. Needs an R3 split into its own row (gap or implementation) before this row can be enforced. Before any SPF completes for the current config the candidate keeps its prior state (translateNSSA re-runs every tick, so not indefinite; overlap bounded by the next SPF).",
       "requirement_sha": "21fec89cd188b4a1",
       "tests": {
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "f6a6f008a49c864e",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANonCandidateDoesNotWedge": "f6a6f008a49c864e",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection": "f6a6f008a49c864e",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection#2": "f6a6f008a49c864e"
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "a977f5140de4f2b1",
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection": "a977f5140de4f2b1",
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection#2": "a977f5140de4f2b1",
+        "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101ReachableBorderRouterIsListed": "494fe368d0f85aaa",
+        "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101UnreachableBorderRouterIsNotListed": "494fe368d0f85aaa"
       },
       "units": {
         "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "384f0c6935a2fc5b",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANonCandidateDoesNotWedge": "149b399730db6b8c",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection": "4d04ab9c849ed60b",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection#2": "4d04ab9c849ed60b"
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection": "1fd77b8549e7f82c",
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection#2": "1fd77b8549e7f82c",
+        "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101ReachableBorderRouterIsListed": "866e564e59384946",
+        "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101UnreachableBorderRouterIsNotListed": "59a51d09756da274"
       },
-      "verdict": "wrong"
+      "verdict": "weak"
+    },
+    "RFC3101-3.1-4": {
+      "code": {
+        "internal/plugins/ospf/instance.go::setConfig": "4eb674d4ebe43b3c",
+        "internal/plugins/ospf/nssa.go::electNSSATranslator": "ad6c12ce41b38347",
+        "internal/plugins/ospf/nssa.go::nssaABRs": "a21bbd9987ddcf17"
+      },
+      "note": "Judged 2026-09-30 (R31 split of 3.1-2): disclosed deviation, not counted conformant. Section 3.1 disables a candidate when another listed border router 'has bit Nt set or who has a higher router ID', and sets Nt only when NSSATranslatorState is enabled (Always role). Ze sets Nt on every non-never NSSA border router (setConfig ntAreas, instance.go) and nssaABRs lists only B|Nt routers, so a higher-RID Nt-clear router never disables the candidate. Gap demo TestRFC3101HigherRouterIDWithoutNtDisablesCandidate (rfcgap.Demonstrate) observes Ze translating; TestOSPFNSSANonCandidateDoesNotWedge pins the chosen behaviour untagged. Disclosed on the row, the Support remaining text and docs/architecture/ospf/ospf-11-stub-nssa.md. OWNER-GATE item.",
+      "requirement_sha": "2badb24d248e7b97",
+      "verdict": "unimplemented"
     },
     "RFC3101-3.2-1": {
       "note": "Re-judged 2026-09-29. TestOSPFNSSATranslation now asserts the network mask as well as metric, E1, tag and FA, and the advertising router through the lookup key (translator Router ID) and the network through the Link State ID. New TestRFC3101TranslatedType5FollowsSourceFields re-originates the Type-7 with a new mask, E2, metric, FA and tag (clock advanced past MinLSInterval) and reads each new value in the translated Type-5, so a translator that hardcodes, defaults or keeps stale fields goes red. Revert records on translateNSSA for both. The withdraw and P=0 negatives stay (neighbouring section 3.2 steps).",
       "requirement_sha": "017482a6ad8fbfd6",
       "tests": {
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSAPbitNotTranslated": "f6a6f008a49c864e",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation": "f6a6f008a49c864e",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation#2": "f6a6f008a49c864e",
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSAPbitNotTranslated": "a977f5140de4f2b1",
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation": "a977f5140de4f2b1",
+        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation#2": "a977f5140de4f2b1",
         "internal/plugins/ospf/rfc3101_translation_test.go::TestRFC3101TranslatedType5FollowsSourceFields": "ed1fcad648e40d52"
       },
       "units": {

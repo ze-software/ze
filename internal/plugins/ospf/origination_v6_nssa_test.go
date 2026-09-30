@@ -23,6 +23,7 @@ func newV6RedistEngine(t *testing.T, cfgJSON string) (*engine, types.RouterID) {
 	require.NoError(t, err)
 	eng := newEngineWithCodecAF(transport.New(&fakeBackend{}), v6Codec{}, afIPv6Unicast)
 	eng.setConfig(cfg)
+	reachEvery(eng)
 	return eng, cfg.RouterID
 }
 

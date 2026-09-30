@@ -112,6 +112,28 @@
       "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4302-2.4-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302AddressMatchIndicationSetByManualConfig",
+      "unit-sha": "1dbd8d622fa9d24c",
+      "claim-sha": "89f9cdf57404697a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecInterfaceSAs",
+      "producer-sha": "585210642d31eeae",
+      "break": "body of buildIPsecInterfaceSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4302-2.4-5",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302AddressMatchIndicationSetByManualConfig",
+      "unit-sha": "1dbd8d622fa9d24c",
+      "claim-sha": "25ad32bbbb91eada",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecInterfaceSAs",
+      "producer-sha": "585210642d31eeae",
+      "break": "body of buildIPsecInterfaceSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4302-2.4-6",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSPIReservedRangeRefused",
@@ -176,6 +198,28 @@
       "producer": "internal/plugins/ospf/ipsec_install.go::setConfig",
       "producer-sha": "105a438ab75af3a8",
       "break": "line 193: \"ic.IPsec != nil\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC4302-3.4.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302InstalledSPIAHPacketFindsItsSA",
+      "unit-sha": "fa439e80c35b3d5f",
+      "claim-sha": "09823076fcfbf2b9",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecInterfaceSAs",
+      "producer-sha": "585210642d31eeae",
+      "break": "body of buildIPsecInterfaceSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4302-3.4.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302UnknownSPIAHPacketIsDiscardedAndCounted",
+      "unit-sha": "6369adc865765469",
+      "claim-sha": "dfcbc60395ba8bae",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecInterfaceSAs",
+      "producer-sha": "585210642d31eeae",
+      "break": "body of buildIPsecInterfaceSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4302-3.4.3-1",

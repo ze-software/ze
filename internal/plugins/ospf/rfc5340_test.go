@@ -151,13 +151,16 @@ func TestRFC5340HelloOptionsBits(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5340-4.2.1.2-1 positive -- the Database Description Options are encoded
-// from the same neutral Options as the Hello, so an area that sets the E-bit produces a DD
-// carrying E together with V6 and R (v6Encoder.EncodeDBDesc -> packetOptions ->
-// neutralToV6Options, encoder_v6.go:35-41, 77-86, 90-104).
-// RFC requirement: RFC5340-4.2.1.2-1 negative -- the DD Options are not a constant: a stub
-// area's DD clears the E-bit, and the DC-bit is never set in a DD because ze implements no
-// demand circuits (neutralToV6Options sets only V6|R|E|N, encoder_v6.go:77-86).
+// RFC requirement: RFC5340-4.2.1.2-1 positive -- RFC 5340 Section 4.2.1.2: "The DC-bit is
+// set if and only if the router wishes to suppress the sending of Hellos over the
+// interface". Ze never suppresses Hellos (it implements no demand circuits), so every DD it
+// encodes carries the DC-bit clear: the body decodes the DD a regular area and a stub area
+// produce (v6Encoder.EncodeDBDesc -> packetOptions -> neutralToV6Options) and finds DC clear
+// in both. The E, V6 and R assertions beside it check the Options encoding, not this row.
+// RFC requirement: RFC5340-4.2.1.2-1 negative -- the input is pushed toward the violation:
+// neutral Options that carry the OSPFv2 DC-bit are handed to the encoder, and the DD still
+// carries DC clear, because this router suppresses no Hellos; an encoder that copied the
+// bit through fails here.
 func TestRFC5340DBDescOptionsBits(t *testing.T) {
 	enc := v6Encoder{}
 	decode := func(neutral types.Options) ospfv3types.Options {
@@ -178,6 +181,9 @@ func TestRFC5340DBDescOptionsBits(t *testing.T) {
 	stub := decode(types.Options(0))
 	assert.False(t, stub.External(), "a stub area's DD must clear the E-bit")
 	assert.Zero(t, stub&optDC, "the DD DC-bit must stay clear for a stub area too")
+
+	asked := decode(types.Options(0).Set(types.OptionE).Set(types.OptionDC))
+	assert.Zero(t, asked&optDC, "a router that suppresses no Hellos never sets the DD DC-bit, whatever Options it is handed")
 }
 
 // RFC requirement: RFC5340-2.8-3 positive -- the Network-LSA lists ALL routers connected to the

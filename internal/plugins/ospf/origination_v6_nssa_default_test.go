@@ -188,9 +188,11 @@ func TestOSPFv3NSSADefaultPBitFollowsForwardingAddress(t *testing.T) {
 
 	body, ok := decodeV6External(t, eng, nssa, v6NSSAKey(rid, v6NSSADefaultLSID))
 	require.True(t, ok)
-	// RFC requirement: RFC3101-2.4-4 negative -- an internal NSSA router's
-	// Type-7 default may carry the P-bit set, so the border-router rule is
-	// not a blanket clear.
+	// RFC requirement: RFC3101-2.4-2 negative -- RFC 3101 Section 2.3: "If the
+	// P-bit is set, the forwarding address must be non-zero". The origination
+	// boundary, asked for a P-set default, keeps the non-zero forwarding address
+	// beside the P-bit, and once that address is lost (zero, hasFA false) it
+	// flushes the P-set LSA instead of originating it without one.
 	assert.NotZero(t, body.Prefix.Options&ospfv3types.OptPrefixP, "a P-set default keeps the bit")
 	assert.True(t, body.HasForwardingAddr)
 	assert.Equal(t, fa, body.ForwardingAddr)

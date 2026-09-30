@@ -78,24 +78,31 @@ func TestOSPFv3NSSABorderRouterDefaultPBit(t *testing.T) {
 	}
 
 	t.Run("P-bit set", func(t *testing.T) {
-		// RFC requirement: RFC3101-2.4-4 positive -- an NSSA border router
-		// installs a received Type-7 default whose P-bit is set, and on OSPFv3
-		// that bit rides in the prefix options (RFC 5340 App A.4.8).
+		// RFC requirement: RFC3101-2.5-1 negative -- neither skip condition
+		// holds (the OSPFv3 Type-7 default's P-bit, carried in the prefix
+		// options per RFC 5340 App A.4.8, is set and the NSSA imports
+		// summaries), so the border router installs the default rather than
+		// skipping it.
 		routes := compute(v6NSSADefaultSource(t, asbr, true), true, false)
 		require.Len(t, routes, 1)
 		assert.Equal(t, defaultPrefix, routes[0].Prefix)
 	})
 
 	t.Run("P-bit clear", func(t *testing.T) {
-		// RFC requirement: RFC3101-2.4-4 negative -- an NSSA border router
-		// refuses a received OSPFv3 Type-7 default whose P-bit is clear.
+		// The P-bit clear condition of RFC 3101 section 2.5 step (3): the
+		// border router skips a received OSPFv3 Type-7 default whose P-bit is
+		// clear.
 		assert.Empty(t, compute(v6NSSADefaultSource(t, asbr, false), true, false))
 	})
 
 	t.Run("summary import suppressed", func(t *testing.T) {
-		// RFC requirement: RFC3101-2.5-1 positive -- an NSSA border router
-		// that suppresses Type-3 summary import ignores an OSPFv3 Type-7
-		// default even when its P-bit is set.
+		// RFC requirement: RFC3101-2.5-1 positive -- RFC 3101 Section 2.5 step
+		// (3): a border router does nothing with a Type-7 default route when
+		// "The calculating router is a border router and the LSA has its P-bit
+		// clear" or "is suppressing the import of summary routes as Type-3
+		// summary-LSAs". Each condition alone makes it skip an OSPFv3 default:
+		// here a P-set default with summary import suppressed, and in the "P-bit
+		// clear" subtest a P-clear default with summaries imported.
 		assert.Empty(t, compute(v6NSSADefaultSource(t, asbr, true), true, true))
 	})
 }
@@ -109,10 +116,11 @@ func TestOSPFv3NSSANonBorderRouterInstallsPClearDefault(t *testing.T) {
 	nssa := types.AreaID{0, 0, 0, 1}
 	nextHop := netip.MustParseAddr("fe80::2")
 
-	// RFC requirement: RFC3101-2.4-4 negative -- the install rule binds an
-	// NSSA border router, so a router that is not one takes the P-clear default.
-	// RFC requirement: RFC3101-2.5-1 negative -- the suppressed-summary rule
-	// likewise binds an NSSA border router only.
+	// RFC requirement: RFC3101-2.5-1 negative -- both skip conditions of
+	// section 2.5 step (3) bind a border router only: a router that is not one,
+	// given a P-clear OSPFv3 Type-7 default in an NSSA whose summary import is
+	// suppressed, installs the default, so a skip that ignored the border-router
+	// condition fails here.
 	routes := v6Strategy{}.ComputeExternal(ospfspf.ExternalInput{
 		Source: v6NSSADefaultSource(t, asbr, false), Root: types.RouterID{1, 1, 1, 1},
 		NSSAAreas: []types.AreaID{nssa},

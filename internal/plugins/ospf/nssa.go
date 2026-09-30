@@ -219,30 +219,70 @@ func wantsType7Default(isABR, noSummary, defaultOriginate, hasForwardingAddr boo
 	return defaultOriginate && hasForwardingAddr
 }
 
+// routerReachability is the completed-SPF view the translator election reads. The
+// production source is ospfspf.ReachabilitySnapshot; tests substitute a fixed view.
+type routerReachability interface {
+	Ready() bool
+	RouterReachable(area types.AreaID, id types.RouterID) bool
+}
+
+// spfReachability is the production nssaReachabilityFn: the last completed SPF run, or
+// an empty (not Ready) snapshot when no SPF computer exists.
+func (e *engine) spfReachability() routerReachability {
+	if e.spf == nil {
+		return ospfspf.ReachabilitySnapshot{}
+	}
+	return e.spf.Reachability()
+}
+
 // electNSSATranslator reports whether self is the elected Type 7 -> Type 5 translator
 // among the NSSA's ABRs. RFC 3101 Section 3.5: role `never` never translates; `always`
 // always translates; `candidate` translates iff self has the highest Router ID among
-// the candidate ABRs (the higher Router ID wins, analogous to DR election).
-func electNSSATranslator(self types.RouterID, role string, abrs []types.RouterID) bool {
+// the listed candidate ABRs (the higher Router ID wins, analogous to DR election).
+// decided is false when the candidate's list cannot be built because no SPF run has
+// completed for the current configuration: the caller then keeps the translator state
+// it had, rather than electing itself over an empty list it never computed.
+func (e *engine) electNSSATranslator(self types.RouterID, role string, area types.AreaID, abrs []types.RouterID) (elected, decided bool) {
 	switch role {
 	case translateRoleNever:
-		return false
+		return false, true
 	case translateRoleAlways:
-		return true
+		return true, true
+	}
+	reach := e.nssaReachabilityFn()
+	if !reach.Ready() {
+		return false, false
 	}
 	for _, r := range abrs {
+		// RFC 3101 Section 3.1: "An NSSA border router whose NSSA's NSSATranslatorRole is
+		// set to Candidate must maintain a list of the NSSA's border routers that are
+		// reachable both over the NSSA and as ASBRs over the AS's transit topology."
+		// RFC requirement: RFC3101-3.1-2 -- a router the NSSA's SPF does not reach is not
+		// on the list, so it cannot disable the candidate.
+		if !reach.RouterReachable(area, r) {
+			continue
+		}
 		if bytes.Compare(r[:], self[:]) > 0 {
-			return false
+			return false, true
 		}
 	}
-	return true
+	return true, true
+}
+
+// nssaTranslatorActive reports the translator state the last decided election left for
+// area, used while the election cannot be decided.
+func (e *engine) nssaTranslatorActive(area types.AreaID) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.translatorState[area].active
 }
 
 // nssaABRs returns the Router IDs of the NSSA area's routers whose Router-LSA carries every
-// bit in flags. With B|Nt it is the translator-election candidate set: RFC 3101 §3.5 makes
-// only routers advertising the Nt-bit candidates, so a higher-Router-ID ABR configured
-// `translate never` (Nt clear) does not wedge translation off for a willing lower-Router-ID
-// candidate. With B alone it is the NSSA's border routers, the "NSSA translators" of RFC 3101
+// bit in flags. With B|Nt it is the translator-election candidate set, before the
+// reachability filter electNSSATranslator applies. Requiring Nt is a disclosed deviation
+// from RFC 3101 Section 3.1 (RFC3101-3.1-4, a {gap} row): the RFC disables a candidate for
+// any listed router with a higher Router ID, so a higher-Router-ID ABR configured
+// `translate never` (Nt clear) would leave the NSSA with no translator. With B alone it is the NSSA's border routers, the "NSSA translators" of RFC 3101
 // Section 3.2 step (2) (owner decision D-12).
 func (e *engine) nssaABRs(db *ospflsdb.LSDB, area types.AreaID, flags uint8) []types.RouterID {
 	var abrs []types.RouterID
@@ -393,8 +433,12 @@ func (e *engine) translateNSSA(now time.Time) {
 		}
 		for _, n := range nssas {
 			p := policyByArea[n.area]
-			elected := electNSSATranslator(self, p.role, e.nssaABRs(db, n.area, packet.RouterFlagB|packet.RouterFlagNt))
-			if !e.translatorEffective(n.area, elected, now, p.stability) {
+			elected, decided := e.electNSSATranslator(self, p.role, n.area, e.nssaABRs(db, n.area, packet.RouterFlagB|packet.RouterFlagNt))
+			effective := e.nssaTranslatorActive(n.area)
+			if decided {
+				effective = e.translatorEffective(n.area, elected, now, p.stability)
+			}
+			if !effective {
 				continue
 			}
 			// RFC 3101 Section 3.2: the Type-5s that higher-Router-ID NSSA translators
@@ -509,8 +553,12 @@ func (e *engine) translateNSSAV6(now time.Time) {
 		}
 		for _, n := range nssas {
 			p := policyByArea[n.area]
-			elected := electNSSATranslator(self, p.role, e.nssaABRsV6(db, n.area, ospfv3packet.RouterFlagB|ospfv3packet.RouterFlagNt))
-			if !e.translatorEffective(n.area, elected, now, p.stability) {
+			elected, decided := e.electNSSATranslator(self, p.role, n.area, e.nssaABRsV6(db, n.area, ospfv3packet.RouterFlagB|ospfv3packet.RouterFlagNt))
+			effective := e.nssaTranslatorActive(n.area)
+			if decided {
+				effective = e.translatorEffective(n.area, elected, now, p.stability)
+			}
+			if !effective {
 				continue
 			}
 			// RFC 3101 Section 3.2 (RFC 5340 Section 4.4.3.6 carries it to OSPFv3).

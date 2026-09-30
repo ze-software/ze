@@ -115,8 +115,11 @@ type engine struct {
 	// opaqueReachableFn is the RFC 5250 §5 originator-reachability seam for Type-11
 	// opaque LSAs; set to spfRouterReachable in newEngine, overridable in tests.
 	opaqueReachableFn func(types.RouterID) bool
-	bgpls             bgplsSource
-	auth              *authStore
+	// nssaReachabilityFn is the RFC 3101 §3.1 translator-list reachability seam; set to
+	// spfReachability in newEngine, overridable in tests.
+	nssaReachabilityFn func() routerReachability
+	bgpls              bgplsSource
+	auth               *authStore
 	// state is attached before configuration; I/O starts only when interfaces
 	// start after the SDK handshake. Detached engines have no persistent state.
 	state     stateClient
@@ -267,6 +270,7 @@ func newEngineWithCodecAF(t Transport, codec Codec, af addressFamily) *engine {
 	e.installStubHandlers()
 	e.installAuthHooks()
 	e.opaqueReachableFn = e.spfRouterReachable
+	e.nssaReachabilityFn = e.spfReachability
 	e.ted = newTED()
 	// RFC 5250 sec 5: the TED consults live SPF reachability so a Type-11 inter-AS entry
 	// flips usable/unusable as its originator becomes reachable or not.
@@ -497,9 +501,10 @@ func (e *engine) setConfig(cfg ospfConfig) {
 		ntAreas := make(map[types.AreaID]bool, len(cfg.Areas))
 		for _, area := range cfg.Areas {
 			areaTypes[area.AreaID] = string(area.AreaType)
-			// RFC 3101 §3.5: advertise the Nt-bit for NSSAs whose translate role is not
-			// `never`, so the highest-Router-ID candidate (not a higher-RID `never` ABR)
-			// is elected the Type 7 -> Type 5 translator.
+			// Advertise the Nt-bit for NSSAs whose translate role is not `never`, so the
+			// highest-Router-ID candidate (not a higher-RID `never` ABR) is elected the
+			// Type 7 -> Type 5 translator. RFC 3101 Section 3.1 sets Nt only for the
+			// Always role: this is the disclosed deviation RFC3101-3.1-4.
 			if area.AreaType == types.AreaTypeNSSA && area.NSSATranslateRole != translateRoleNever {
 				ntAreas[area.AreaID] = true
 			}
