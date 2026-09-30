@@ -19,6 +19,8 @@ import (
 func TestVRRPRedirectSourceFollowsVirtualMAC(t *testing.T) {
 	// RFC requirement: RFC3768-8.1-1 positive -- two non-owner Master dataplanes on one LAN return redirects sourced from the distinct VIP selected by the received destination virtual MAC, despite a reverse route through the real interface.
 	// RFC requirement: RFC3768-8.1-1 negative -- a packet addressed to the physical router MAC is redirected from the physical router address, not either virtual router's VIP.
+	// RFC requirement: RFC5798-8.1.1-2 positive -- two non-owner Master dataplanes on one LAN (per-group virtual-MAC macvlan, virtual address and the product's sysctl recipe, none of which reads the group's VRRP version) return redirects sourced from the distinct virtual address that the received destination virtual MAC selects, despite a reverse route through the real interface.
+	// RFC requirement: RFC5798-8.1.1-2 negative -- a packet addressed to the physical router MAC is redirected from the physical router address, not either virtual router's address, so the capture tells a redirect source chosen by the virtual router the packet was sent to from one that is not.
 	w := newGatewayWire(t)
 	gatewaySysctl(t, "ipv4/icmp_errors_use_inbound_ifaddr", "0")
 	gatewaySysctl(t, "ipv4/conf/all/send_redirects", "1")

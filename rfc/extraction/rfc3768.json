@@ -523,10 +523,8 @@
     {
       "id": "8.2:1",
       "quote": "When a host sends an ARP request for one of the virtual router IP addresses, the Master virtual router MUST respond to the ARP request with the virtual MAC address for the virtual router.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "Restates the Master ARP obligation mapped at site 6.4.3:2; RFC3768-6.4.3-1 cites both Section 6.4.3 and Section 8.2.",
-      "mapped-to": "RFC3768-6.4.3-1"
+      "disposition": "mapped",
+      "mapped-to": "RFC3768-8.2-4"
     },
     {
       "id": "8.2:2",

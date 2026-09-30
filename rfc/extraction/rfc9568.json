@@ -210,7 +210,8 @@
       "sites": 0,
       "disposition": "walked",
       "unsourced-ids": [
-        "RFC9568-5.2.8-2"
+        "RFC9568-5.2.8-2",
+        "RFC9568-5.2.8-3"
       ]
     },
     {
@@ -777,10 +778,8 @@
     {
       "id": "8.1.2:1",
       "quote": "When a host sends an ARP request for one of the Virtual Router IPv4 addresses, the Active Router MUST respond to the ARP request with an ARP response that indicates the Virtual Router MAC address for the Virtual Router.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "Restates the Section 6.4.3 Active-state obligation to answer ARP for a virtual IPv4 address with the Virtual Router MAC; RFC9568-6.4.3-1 already carries it and cites both sections.",
-      "mapped-to": "RFC9568-6.4.3-1"
+      "disposition": "mapped",
+      "mapped-to": "RFC9568-8.1.2-6"
     },
     {
       "id": "8.1.2:2",
@@ -809,10 +808,8 @@
     {
       "id": "8.2.2:1",
       "quote": "When a host sends an ND Neighbor Solicitation message for a Virtual Router IPv6 address, the Active Router MUST respond to the ND Neighbor Solicitation message with the Virtual Router MAC address for the Virtual Router.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "Restates the Section 6.4.3 Active-state obligation to answer a Neighbor Solicitation for a virtual IPv6 address with the Virtual Router MAC; RFC9568-6.4.3-3 already carries it and cites both sections.",
-      "mapped-to": "RFC9568-6.4.3-3"
+      "disposition": "mapped",
+      "mapped-to": "RFC9568-8.2.2-8"
     },
     {
       "id": "8.2.2:2",

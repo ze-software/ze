@@ -156,6 +156,28 @@
       "break": "body of verifyReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9568-5.2.8-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/packet/rfc9568_ipv6_pseudo_header_test.go::TestDecodeV3IPv6ChecksumCoversPseudoHeader",
+      "unit-sha": "dc6c2ba67997df48",
+      "claim-sha": "71ba68eec35767a2",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/packet/checksum.go::pseudoSumV6",
+      "producer-sha": "e90042b48d67e0fa",
+      "break": "body of pseudoSumV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-5.2.8-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/packet/rfc9568_ipv6_pseudo_header_test.go::TestDecodeV3IPv6ChecksumCoversPseudoHeader",
+      "unit-sha": "dc6c2ba67997df48",
+      "claim-sha": "9b982061c4d82db5",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/packet/checksum.go::verifyReceived",
+      "producer-sha": "6396f2227fd4181f",
+      "break": "body of verifyReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9568-5.2.9-2",
       "polarity": "positive",
       "unit": "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily",
@@ -750,6 +772,50 @@
       "break": "body of build replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9568-8.1.2-6",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly",
+      "unit-sha": "b874fc33c340c00c",
+      "claim-sha": "fd47d12ce6a7c4d1",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/ownerfilter.go::ownerARPReplyTerm",
+      "producer-sha": "8024f9611f90edfc",
+      "break": "body of ownerARPReplyTerm replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.1.2-6",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly",
+      "unit-sha": "b874fc33c340c00c",
+      "claim-sha": "cdd49cbee40a663d",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/ownerfilter.go::ownerFilterTables",
+      "producer-sha": "fb7f88e51d55c670",
+      "break": "body of ownerFilterTables replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.1.2-6",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly",
+      "unit-sha": "b700c87dc50de836",
+      "claim-sha": "5c23f6547a447c63",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
+      "producer-sha": "cd7a5179f145bb82",
+      "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.1.2-6",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly",
+      "unit-sha": "b700c87dc50de836",
+      "claim-sha": "d224592a3a3540bf",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
+      "producer-sha": "cd7a5179f145bb82",
+      "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9568-8.2.2-1",
       "polarity": "positive",
       "unit": "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly",
@@ -858,6 +924,50 @@
       "producer": "internal/plugins/vrrp/engine.go::build",
       "producer-sha": "c1f6e6b2d8672994",
       "break": "body of build replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.2.2-8",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly",
+      "unit-sha": "6a65cad00850e8b2",
+      "claim-sha": "69a8763944fc8bd5",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
+      "producer-sha": "cd7a5179f145bb82",
+      "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.2.2-8",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly",
+      "unit-sha": "6a65cad00850e8b2",
+      "claim-sha": "34f2377fdc8511ac",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
+      "producer-sha": "cd7a5179f145bb82",
+      "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.2.2-8",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly",
+      "unit-sha": "b874fc33c340c00c",
+      "claim-sha": "be466fbfa1ff9f2e",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/ownerfilter.go::ownerNDAdvertTerm",
+      "producer-sha": "afb4d47d636aef28",
+      "break": "body of ownerNDAdvertTerm replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.2.2-8",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly",
+      "unit-sha": "b874fc33c340c00c",
+      "claim-sha": "fc1a1b5baea0539d",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/ownerfilter.go::ownerFilterTables",
+      "producer-sha": "fb7f88e51d55c670",
+      "break": "body of ownerFilterTables replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

@@ -49,6 +49,16 @@ func TestVRRPOwnerAnswersWithVirtualMACOnly(t *testing.T) {
 	// RFC requirement: RFC5798-8.2.2-1 negative -- control: without the filter the parent advertises its physical MAC for the owned address (ownerFilterTables ownerfilter.go).
 	// RFC requirement: RFC9568-8.2.2-1 positive -- with the owner filter applied, every Neighbor Advertisement for the address owner's IPv6 virtual address carries the Virtual Router MAC in its Target Link-Layer Address option, and none the physical MAC (ownerNDAdvertTerm ownerfilter.go).
 	// RFC requirement: RFC9568-8.2.2-1 negative -- control: without the filter the parent, which holds the owned address as a real address, advertises its physical MAC for it (ownerFilterTables ownerfilter.go).
+	// RFC requirement: RFC9568-8.1.2-6 positive -- with the owner filter applied, a LAN host's ARP request for the address owner's virtual address is answered with ARP replies whose sender hardware address is the Virtual Router MAC (ownerARPReplyTerm ownerfilter.go).
+	// RFC requirement: RFC9568-8.1.2-6 negative -- control: without the filter the same request is answered with the parent's physical MAC, which the capture observes (ownerFilterTables ownerfilter.go).
+	// RFC requirement: RFC5798-8.1.2-6 positive -- with the owner filter applied, a LAN host's ARP request for the address owner's virtual address is answered with ARP replies carrying the virtual router MAC (ownerARPReplyTerm ownerfilter.go).
+	// RFC requirement: RFC5798-8.1.2-6 negative -- control: without the filter the same request is answered with the parent's physical MAC, which the capture observes (ownerFilterTables ownerfilter.go).
+	// RFC requirement: RFC3768-8.2-4 positive -- with the owner filter applied, a LAN host's ARP request for the address owner's virtual address is answered with ARP replies carrying the virtual router MAC (ownerARPReplyTerm ownerfilter.go).
+	// RFC requirement: RFC3768-8.2-4 negative -- control: without the filter the same request is answered with the parent's physical MAC, which the capture observes (ownerFilterTables ownerfilter.go).
+	// RFC requirement: RFC9568-8.2.2-8 positive -- with the owner filter applied, a LAN host's Neighbor Solicitation for the address owner's IPv6 virtual address is answered with Neighbor Advertisements whose Target Link-Layer Address option carries the Virtual Router MAC (ownerNDAdvertTerm ownerfilter.go).
+	// RFC requirement: RFC9568-8.2.2-8 negative -- control: without the filter the parent answers the same solicitation with its physical MAC (ownerFilterTables ownerfilter.go).
+	// RFC requirement: RFC5798-8.2.2-8 positive -- with the owner filter applied, a LAN host's Neighbor Solicitation for the address owner's IPv6 virtual address is answered with Neighbor Advertisements whose Target Link-Layer Address option carries the virtual router MAC (ownerNDAdvertTerm ownerfilter.go).
+	// RFC requirement: RFC5798-8.2.2-8 negative -- control: without the filter the parent answers the same solicitation with its physical MAC (ownerFilterTables ownerfilter.go).
 	w := newGatewayWire(t)
 	if err := firewall.LoadBackend("nft"); err != nil {
 		t.Skipf("nft firewall backend unavailable: %v", err)

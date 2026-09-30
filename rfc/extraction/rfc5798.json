@@ -306,7 +306,10 @@
     {
       "id": "8.1.1",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5798-8.1.1-1"
+      ]
     },
     {
       "id": "8.1.2",
@@ -326,7 +329,10 @@
     {
       "id": "8.2.1",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5798-8.2.1-1"
+      ]
     },
     {
       "id": "8.2.2",
@@ -436,7 +442,10 @@
     {
       "id": "A.2",
       "sites": 2,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5798-A.2-3"
+      ]
     },
     {
       "id": "A.3",
@@ -726,15 +735,13 @@
       "id": "8.1.1:1",
       "quote": "If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address.",
       "disposition": "mapped",
-      "mapped-to": "RFC5798-8.1.1-1"
+      "mapped-to": "RFC5798-8.1.1-2"
     },
     {
       "id": "8.1.2:1",
       "quote": "When a host sends an ARP request for one of the virtual router IPv4 addresses, the Virtual Router Master MUST respond to the ARP request with an ARP response that indicates the virtual MAC address for the virtual router.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "Section 8.1.2 restates the Master ARP obligation of Section 6.4.3 step (610), which site 6.4.3:2 maps. The half that is NEW here, the prohibition on answering with the physical MAC, is the separate site 8.1.2:2.",
-      "mapped-to": "RFC5798-6.4.3-1"
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.1.2-6"
     },
     {
       "id": "8.1.2:2",
@@ -758,15 +765,13 @@
       "id": "8.2.1:1",
       "quote": "If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address.",
       "disposition": "mapped",
-      "mapped-to": "RFC5798-8.2.1-1"
+      "mapped-to": "RFC5798-8.2.1-2"
     },
     {
       "id": "8.2.2:1",
       "quote": "When a host sends an ND Neighbor Solicitation message for the virtual router IPv6 address, the Virtual Router Master MUST respond to the ND Neighbor Solicitation message with the virtual MAC address for the virtual router.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "Section 8.2.2 restates the Master Neighbor Solicitation obligation of Section 6.4.3 step (625), which site 6.4.3:4 maps. The half that is NEW here, the prohibition on answering with the physical MAC, is the separate site 8.2.2:2.",
-      "mapped-to": "RFC5798-6.4.3-3"
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.2.2-8"
     },
     {
       "id": "8.2.2:2",
