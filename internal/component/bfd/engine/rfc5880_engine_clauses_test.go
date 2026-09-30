@@ -188,10 +188,15 @@ func TestRFC5880EchoSteadySpacingHonorsPeerFloor(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.8.16-1 positive -- the administrative disable
-// procedure at the engine: after handle.Shutdown the session is AdminDown with
+// RFC requirement: RFC5880-6.8.16-5 positive -- the administrative disable
+// steps at the engine: after handle.Shutdown the session is AdminDown with
 // bfd.LocalDiag 7 (Administratively Down), and the transmission of Echo packets
-// ceases: an echo tick one second later, twenty Echo intervals on, sends none.
+// ceases. The first echo is returned before the disable, so the echo detector
+// stays clear and a tick has no reason to skip the send other than the state:
+// ticks every millisecond for 100 ms, twice the peer's 50 ms Required Min Echo
+// RX, send nothing, and the session is still AdminDown with diag 7 after them.
+// An engine that kept the echo schedule of an AdminDown session would send at
+// 50 ms.
 func TestRFC5880AdminDisableCeasesEchoes(t *testing.T) {
 	l, echoCT, key := rfc5880EchoLoop(t)
 	m := machineFor(t, l, key)
@@ -200,6 +205,7 @@ func TestRFC5880AdminDisableCeasesEchoes(t *testing.T) {
 	if !echoCT.sent {
 		t.Fatal("precondition: the first echo must leave on the first tick")
 	}
+	rfc5880ReturnEcho(l, key, echoCT)
 
 	h := &handle{loop: l, key: key}
 	if err := h.Shutdown(); err != nil {
@@ -211,9 +217,56 @@ func TestRFC5880AdminDisableCeasesEchoes(t *testing.T) {
 	if got := m.LocalDiag(); got != packet.DiagAdminDown {
 		t.Fatalf("bfd.LocalDiag after Shutdown = %v, want Administratively Down (7)", got)
 	}
-	echoCT.sent = false
-	rfc5880EchoTick(l, t0.Add(time.Second))
-	if echoCT.sent {
-		t.Fatal("an echo left after the session was administratively disabled")
+	for at := time.Millisecond; at <= 100*time.Millisecond; at += time.Millisecond {
+		echoCT.sent = false
+		rfc5880EchoTick(l, t0.Add(at))
+		if echoCT.sent {
+			t.Fatalf("an echo left %v after the session was administratively disabled", at)
+		}
+	}
+	if got := m.State(); got != packet.StateAdminDown {
+		t.Fatalf("state after the echo ticks = %s, want AdminDown", got)
+	}
+	if got := m.LocalDiag(); got != packet.DiagAdminDown {
+		t.Fatalf("bfd.LocalDiag after the echo ticks = %v, want Administratively Down (7)", got)
+	}
+}
+
+// RFC requirement: RFC5880-6.8.16-5 negative -- the peer keeps asking for
+// echoes after the local disable: every 10 ms it sends Up with the
+// discriminator it learned and a 50 ms Required Min Echo RX Interval, the input
+// that sets an echo schedule on an Up session. The disabled session still
+// ceases Echo transmission: ticks every millisecond for 100 ms send nothing,
+// and the session stays AdminDown with diag 7, so the peer's packets neither
+// re-enable the session nor restart its echoes.
+func TestRFC5880AdminDisableIgnoresPeerEchoRequest(t *testing.T) {
+	l, echoCT, key := rfc5880EchoLoop(t)
+	m := machineFor(t, l, key)
+	t0 := time.Now()
+	rfc5880EchoTick(l, t0)
+	if !echoCT.sent {
+		t.Fatal("precondition: the first echo must leave on the first tick")
+	}
+	rfc5880ReturnEcho(l, key, echoCT)
+
+	h := &handle{loop: l, key: key}
+	if err := h.Shutdown(); err != nil {
+		t.Fatalf("Shutdown: %v", err)
+	}
+	for at := time.Millisecond; at <= 100*time.Millisecond; at += time.Millisecond {
+		if at%(10*time.Millisecond) == 0 {
+			rfc5880PeerUp(l, key, m.LocalDiscriminator(), false, 50_000)
+		}
+		echoCT.sent = false
+		rfc5880EchoTick(l, t0.Add(at))
+		if echoCT.sent {
+			t.Fatalf("an echo left %v after the disable, on the peer's request", at)
+		}
+	}
+	if got := m.State(); got != packet.StateAdminDown {
+		t.Fatalf("state after the peer's Up packets = %s, want AdminDown", got)
+	}
+	if got := m.LocalDiag(); got != packet.DiagAdminDown {
+		t.Fatalf("bfd.LocalDiag after the peer's Up packets = %v, want Administratively Down (7)", got)
 	}
 }

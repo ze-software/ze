@@ -17,11 +17,10 @@ import (
 	"github.com/ze-software/ze/internal/component/bfd/transport"
 )
 
-// RFC requirement: RFC5883-5-1 positive -- multihop BFD Control packets MUST
-// use UDP destination port 4784 (RFC 5883 sec 5). The producer
-// newUDPTransport (internal/component/bfd/bfd.go:355-359) selects
-// transport.UDPPortMultiHopControl (=4784, internal/component/bfd/transport/udp.go:48)
-// when the loop's HopMode is api.MultiHop.
+// TestRFC5883MultiHopControlPort pins that newUDPTransport binds the multihop
+// Control socket to transport.UDPPortMultiHopControl, which is 4784. The port a
+// sent datagram reaches is observed by
+// TestRFC5883MultiHopControlSentToPort4784OnTheWire.
 func TestRFC5883MultiHopControlPort(t *testing.T) {
 	tr := newUDPTransport(api.MultiHop, "", "")
 	if got := tr.Bind.Port(); got != transport.UDPPortMultiHopControl {
@@ -32,11 +31,10 @@ func TestRFC5883MultiHopControlPort(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5883-5-1 negative -- a multihop session MUST NOT reuse
-// the single-hop 3784 port; the mode selector in newUDPTransport
-// (internal/component/bfd/bfd.go:357-359) diverts MultiHop away from
-// UDPPortSingleHopControl. The single-hop path keeps 3784 as the contrast, so
-// this pins port selection to the mode rather than a constant either way.
+// TestRFC5883MultiHopControlPortNotSingleHop pins that the mode selector in
+// newUDPTransport binds MultiHop away from UDPPortSingleHopControl while the
+// single-hop path keeps 3784. The wire form is
+// TestRFC5883SingleHopControlNeverAddressesPort4784.
 func TestRFC5883MultiHopControlPortNotSingleHop(t *testing.T) {
 	mh := newUDPTransport(api.MultiHop, "", "").Bind.Port()
 	if mh == transport.UDPPortSingleHopControl {
@@ -47,11 +45,9 @@ func TestRFC5883MultiHopControlPortNotSingleHop(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5883-5-2 positive -- single-hop and multihop bind
-// SEPARATE UDP ports so RX sockets demux by session type; the single-hop
-// socket binds the RFC 5881 port 3784. Producer newUDPTransport
-// (internal/component/bfd/bfd.go:356) defaults to
-// transport.UDPPortSingleHopControl for api.SingleHop.
+// TestRFC5883SingleHopControlPort pins that newUDPTransport binds the
+// single-hop Control socket to the RFC 5881 port 3784, so the single-hop and
+// multihop RX sockets are separate.
 func TestRFC5883SingleHopControlPort(t *testing.T) {
 	sh := newUDPTransport(api.SingleHop, "", "").Bind.Port()
 	if sh != transport.UDPPortSingleHopControl {
@@ -62,11 +58,9 @@ func TestRFC5883SingleHopControlPort(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5883-5-2 negative -- the multihop socket binds a port
-// DISTINCT from single-hop, so a single-hop and a multihop session never
-// collapse onto one socket. newUDPTransport (internal/component/bfd/bfd.go:355-359)
-// yields a different port per mode; equal ports would mean one shared socket
-// and is the failure this negative excludes.
+// TestRFC5883SeparatePortsPerMode pins that newUDPTransport yields a different
+// bound port per mode, so a single-hop and a multihop session never collapse
+// onto one socket.
 func TestRFC5883SeparatePortsPerMode(t *testing.T) {
 	sh := newUDPTransport(api.SingleHop, "", "").Bind.Port()
 	mh := newUDPTransport(api.MultiHop, "", "").Bind.Port()

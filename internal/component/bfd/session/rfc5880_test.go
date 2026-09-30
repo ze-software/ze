@@ -1084,12 +1084,16 @@ func TestRFC5880TransmitDeadlineClampsBadJitter(t *testing.T) {
 // Section 6.8.16 -- administrative control
 // ---------------------------------------------------------------------
 
-// RFC requirement: RFC5880-6.8.16-1 positive -- the administrative
-// enable/disable procedure is followed. AdminDown
-// (internal/component/bfd/session/fsm.go:180-188) moves the session to
-// AdminDown with the operator's diagnostic and notifies; AdminEnable
-// (fsm.go:192-201) returns it to Down, clears bfd.LocalDiag, and restores the
-// slow-start transmit interval so the handshake restarts from the beginning.
+// RFC requirement: RFC5880-6.8.16-5 positive -- the disable steps held by the
+// Machine: AdminDown (internal/component/bfd/session/fsm.go) sets
+// bfd.SessionState to AdminDown and bfd.LocalDiag to the operator's diagnostic
+// (Administratively Down). The third step, ceasing Echo transmission, is the
+// engine's and is asserted by engine TestRFC5880AdminDisableCeasesEchoes.
+// RFC requirement: RFC5880-6.8.16-4 positive -- the enable step: AdminEnable
+// (fsm.go) sets bfd.SessionState to Down from AdminDown, clears
+// bfd.LocalDiag, and restores the slow-start transmit interval so the
+// handshake restarts from the beginning. Exactly two notifications fire, one
+// per transition.
 func TestRFC5880AdministrativeDisableEnable(t *testing.T) {
 	clk := newFakeClock()
 	m, rec := newMachine(t, clk)
@@ -1119,11 +1123,12 @@ func TestRFC5880AdministrativeDisableEnable(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.8.16-1 negative -- the procedure is guarded on
-// both ends rather than firing on every call: AdminDown returns early when the
-// session is already AdminDown (fsm.go:181-183) and AdminEnable returns early
-// when the session is not AdminDown (fsm.go:193-195), so neither emits a
-// spurious transition or clobbers an existing diagnostic.
+// RFC requirement: RFC5880-6.8.16-4 negative -- the enable step applies to a
+// session that was administratively disabled, and to no other: AdminEnable on
+// a session that is merely Down (fsm.go) keeps its diagnostic (Control
+// Detection Time Expired) and notifies nothing. The body also asserts the
+// disable guard: a second AdminDown on an AdminDown session notifies nothing
+// and keeps the first diagnostic.
 func TestRFC5880AdministrativeCallsAreGuarded(t *testing.T) {
 	clk := newFakeClock()
 	m, rec := newMachine(t, clk)

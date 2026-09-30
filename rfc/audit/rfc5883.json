@@ -1,5 +1,6 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5883-3-1": {
       "note": "RA-BFD strict re-read 2026-09-27 (stale after DF-BFD-4). The row quotes RFC 5883 Section 3 verbatim: \"Finally, the Echo function MUST NOT be used over multiple hops.\" (rfc5883.txt line 132). Forbidden: a multi-hop session that runs Echo. A session's DesiredMinEchoTxInterval, and the Required Min Echo RX it advertises (session.go Init), come only from a profile through profileConfig.applyTo, and every entry passes profileConfig.permitsMode. Red: TestRFC5883MultiHopEchoRejected Fatalf when pluginConfig.validate accepts an echo profile on a multi-hop pinned session; TestRFC5883ClientMultiHopEchoProfileRefused Fatal when EnsureSession returns a handle for a multi-hop client request naming an echo profile, or lacks the `enables echo` refusal. Positive, same profile on single hop: TestRFC5883SingleHopEchoAccepted (validate) and TestRFC5883ClientSingleHopEchoProfileAccepted (EnsureSession), so a blanket echo refusal fails. The engine holds no second guard (engine.go NewLoopWithEcho comment).",
@@ -7,8 +8,8 @@
       "tests": {
         "internal/component/bfd/enabled_test.go::TestRFC5883ClientMultiHopEchoProfileRefused": "504347332d010b20",
         "internal/component/bfd/enabled_test.go::TestRFC5883ClientSingleHopEchoProfileAccepted": "504347332d010b20",
-        "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopEchoRejected": "b3c8c3000af40294",
-        "internal/component/bfd/rfc5883_test.go::TestRFC5883SingleHopEchoAccepted": "b3c8c3000af40294"
+        "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopEchoRejected": "ba279384b03d7bf9",
+        "internal/component/bfd/rfc5883_test.go::TestRFC5883SingleHopEchoAccepted": "ba279384b03d7bf9"
       },
       "units": {
         "internal/component/bfd/enabled_test.go::TestRFC5883ClientMultiHopEchoProfileRefused": "2010d122e6a995ab",
@@ -45,28 +46,15 @@
       "verdict": "enforced"
     },
     "RFC5883-5-1": {
-      "note": "Re-read 2026-09-27. Forbidden: a multihop Control packet sent to a UDP destination port other than 4784. Both units assert only newUDPTransport(...).Bind.Port(), the LOCAL port. The destination port is derived in UDP.Send via u.destination(out) from Bind.Port (transport/udp.go), but no tagged unit asserts the destination port of a packet ze sends, so a change to destination() stays green.",
+      "note": "Judge 2026-09-30. \u00a75 \"...except that the UDP destination port MUST have a value of 4784.\" TestRFC5883MultiHopControlSentToPort4784OnTheWire observes the multihop datagram at :4784 (IPv4) and [::1]:4784 (IPv6); negative TestRFC5883SingleHopControlNeverAddressesPort4784 sees single-hop Control at :3784 and silence at :4784; Port+1 overlay reddens them. Weak because the tests bind fixed host ports (127.88.81.1/.2 :3784/:4784, [::1]:4784) in the root network namespace, so they fail when a running ze holds 0.0.0.0:3784 on the test host and collide with a parallel run of the package; the obligation is observable in a rootless user+net namespace (sadSelNetns pattern, internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go), and the verdict stays weak until the units move there.",
       "requirement_sha": "0bcd1b4e35b7a0e2",
       "tests": {
-        "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopControlPort": "b3c8c3000af40294",
-        "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopControlPortNotSingleHop": "b3c8c3000af40294"
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883MultiHopControlSentToPort4784OnTheWire": "0134bd9af506d4b0",
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883SingleHopControlNeverAddressesPort4784": "0134bd9af506d4b0"
       },
       "units": {
-        "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopControlPort": "27239d774d9649d6",
-        "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopControlPortNotSingleHop": "65532ca960335b05"
-      },
-      "verdict": "weak"
-    },
-    "RFC5883-5-2": {
-      "note": "Re-read 2026-09-27; the quote is 5-1's MUST plus the demultiplexing sentence. Forbidden: multihop Control packets not sent to 4784 (and so not separable from single-hop 3784). TestRFC5883SingleHopControlPort and TestRFC5883SeparatePortsPerMode assert only the bound local ports differ; no tagged unit asserts the destination port of a sent packet.",
-      "requirement_sha": "46108f36e81594b8",
-      "tests": {
-        "internal/component/bfd/rfc5883_test.go::TestRFC5883SeparatePortsPerMode": "b3c8c3000af40294",
-        "internal/component/bfd/rfc5883_test.go::TestRFC5883SingleHopControlPort": "b3c8c3000af40294"
-      },
-      "units": {
-        "internal/component/bfd/rfc5883_test.go::TestRFC5883SeparatePortsPerMode": "abd8c2a7b9b47aa3",
-        "internal/component/bfd/rfc5883_test.go::TestRFC5883SingleHopControlPort": "1a7bc742ff64715e"
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883MultiHopControlSentToPort4784OnTheWire": "697b4ee5651337f7",
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883SingleHopControlNeverAddressesPort4784": "1473b5b3b781582f"
       },
       "verdict": "weak"
     },
@@ -74,8 +62,8 @@
       "note": "Re-read 2026-09-27; the quote is the same \u00a73 sentence as RFC5883-3-1 and the same two units carry it. Forbidden: Echo used over multiple hops; TestRFC5883MultiHopEchoRejected fails when validate accepts it, TestRFC5883SingleHopEchoAccepted is the scoping contrast.",
       "requirement_sha": "03fdcefb3e140eb7",
       "tests": {
-        "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopEchoRejected": "b3c8c3000af40294",
-        "internal/component/bfd/rfc5883_test.go::TestRFC5883SingleHopEchoAccepted": "b3c8c3000af40294"
+        "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopEchoRejected": "ba279384b03d7bf9",
+        "internal/component/bfd/rfc5883_test.go::TestRFC5883SingleHopEchoAccepted": "ba279384b03d7bf9"
       },
       "units": {
         "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopEchoRejected": "b8c712631580734b",

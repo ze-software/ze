@@ -17,12 +17,10 @@ import (
 	"github.com/ze-software/ze/internal/component/bfd/transport"
 )
 
-// RFC requirement: RFC5881-4-1 positive -- BFD Control packets MUST be
-// transmitted in UDP with destination port 3784. newUDPTransport
-// (internal/component/bfd/bfd.go:356,360) binds the single-hop Control socket
-// to transport.UDPPortSingleHopControl, and UDP.Send
-// (internal/component/bfd/transport/udp.go:225) targets Bind.Port, so 3784 is
-// both the bound and the destination port.
+// TestRFC5881ControlDestPort3784 pins the configuration the wire test relies
+// on: newUDPTransport binds the single-hop Control socket to
+// transport.UDPPortSingleHopControl, which is 3784. The port a sent datagram
+// reaches is observed by TestRFC5881ControlSentToPort3784OnTheWire.
 func TestRFC5881ControlDestPort3784(t *testing.T) {
 	tr := newUDPTransport(api.SingleHop, "", "")
 	if got := tr.Bind.Port(); got != transport.UDPPortSingleHopControl {
@@ -33,11 +31,9 @@ func TestRFC5881ControlDestPort3784(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5881-4-1 negative -- 3784 is the Control port
-// specifically, not a constant applied to every BFD socket. The Echo transport
-// (internal/component/bfd/bfd.go:394) binds transport.UDPPortEcho, which is not
-// 3784, so a non-Control socket does not carry the Control destination port.
-// Without this the positive could pass on code that hard-coded 3784 everywhere.
+// TestRFC5881ControlPortNotUsedForEcho pins that the Echo transport does not
+// bind the Control port 3784. The wire form is
+// TestRFC5881EchoTransportNeverAddressesControlPort.
 func TestRFC5881ControlPortNotUsedForEcho(t *testing.T) {
 	echo := newEchoTransport("", "")
 	if echo.Bind.Port() == transport.UDPPortSingleHopControl {
@@ -45,10 +41,9 @@ func TestRFC5881ControlPortNotUsedForEcho(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5881-4-5 positive -- BFD Echo packets MUST be transmitted
-// in UDP with destination port 3785. newEchoTransport
-// (internal/component/bfd/bfd.go:394) binds the Echo socket to
-// transport.UDPPortEcho, and UDP.Send (transport/udp.go:225) targets Bind.Port.
+// TestRFC5881EchoDestPort3785 pins that newEchoTransport binds the Echo socket
+// to transport.UDPPortEcho, which is 3785. The port a sent Echo reaches is
+// observed by TestRFC5881EchoSentToPort3785OnTheWire.
 func TestRFC5881EchoDestPort3785(t *testing.T) {
 	echo := newEchoTransport("", "")
 	if got := echo.Bind.Port(); got != transport.UDPPortEcho {
@@ -59,10 +54,9 @@ func TestRFC5881EchoDestPort3785(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5881-4-5 negative -- 3785 is the Echo port specifically.
-// The Control transport (internal/component/bfd/bfd.go:356) binds 3784, not the
-// Echo port, so the Echo destination port is not applied to the Control socket.
-// Without this the positive could pass on code that hard-coded 3785 everywhere.
+// TestRFC5881EchoPortNotUsedForControl pins that the Control transport does
+// not bind the Echo port 3785. The wire form is
+// TestRFC5881ControlTransportNeverAddressesEchoPort.
 func TestRFC5881EchoPortNotUsedForControl(t *testing.T) {
 	tr := newUDPTransport(api.SingleHop, "", "")
 	if tr.Bind.Port() == transport.UDPPortEcho {
@@ -70,13 +64,10 @@ func TestRFC5881EchoPortNotUsedForControl(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5881-4-3 positive -- the same UDP source port MUST be
-// used for all Control packets in a session. Each (vrf,mode) loop binds ONE UDP
-// socket (internal/component/bfd/bfd.go:355-367) and UDP.Send reuses that one
-// socket for every transmission (internal/component/bfd/transport/udp.go:218-228,
-// conn.WriteToUDP), so the source port is the single fixed Bind.Port for the
-// whole session -- there is no per-packet source-port selection that could make
-// two Control packets differ.
+// TestRFC5881SingleSourcePortPerSession pins that the single-hop Control
+// transport binds one fixed port, the same across constructions. The source
+// port of sent packets is observed by
+// TestRFC5881ControlSourcePortFixedOnTheWire.
 func TestRFC5881SingleSourcePortPerSession(t *testing.T) {
 	tr := newUDPTransport(api.SingleHop, "", "")
 	// A single AddrPort, not a range: one socket, one source port.

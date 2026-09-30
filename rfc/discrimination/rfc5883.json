@@ -44,6 +44,28 @@
       "producer": "internal/component/bfd/api/events.go::Key",
       "producer-sha": "c74d9afe0c996b38",
       "break": "body of Key replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5883-5-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883MultiHopControlSentToPort4784OnTheWire",
+      "unit-sha": "285c9681b7135534",
+      "claim-sha": "c3e3073a13d876ca",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/udp.go::destination",
+      "producer-sha": "ed6f4947370582ff",
+      "break": "body of destination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5883-5-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883SingleHopControlNeverAddressesPort4784",
+      "unit-sha": "f0deb28c01951bd6",
+      "claim-sha": "32b433f4c0753a2e",
+      "route": "revert",
+      "producer": "internal/component/bfd/bfd.go::newUDPTransport",
+      "producer-sha": "bee71cc1be5fb490",
+      "break": "body of newUDPTransport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

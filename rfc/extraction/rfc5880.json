@@ -301,8 +301,9 @@
       "id": "6.8.16",
       "sites": 1,
       "disposition": "walked",
-      "reason": "Administrative Control. One site, the enable and disable procedure. The transmission after entering AdminDown is advisory.",
+      "reason": "Administrative Control. One site, the enable and disable procedure, whose enable step and disable steps are two rows. The transmission after entering AdminDown is advisory.",
       "unsourced-ids": [
+        "RFC5880-6.8.16-4",
         "RFC5880-6.8.16-2",
         "RFC5880-6.8.16-3"
       ]
@@ -1285,8 +1286,8 @@
       "id": "6.8.16:1",
       "quote": "When this is desired, the following procedure MUST be followed:",
       "disposition": "mapped",
-      "mapped-to": "RFC5880-6.8.16-1",
-      "reason": "The lead-in that binds the administrative enable and disable procedure. RFC5880-6.8.16-1 declares the procedure as one obligation."
+      "mapped-to": "RFC5880-6.8.16-5",
+      "reason": "The lead-in that binds the administrative enable and disable procedure. The procedure's steps are the obligations: the disable steps are RFC5880-6.8.16-5, and the enable step RFC5880-6.8.16-4 is listed in the section's unsourced-ids, because this one site binds both."
     },
     {
       "id": "6.8.17:1",

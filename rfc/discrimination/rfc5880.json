@@ -673,15 +673,59 @@
       "break": "body of CheckDetection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC5880-6.8.16-1",
+      "rid": "RFC5880-6.8.16-4",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeCallsAreGuarded",
+      "unit-sha": "936eff17b4b2197a",
+      "claim-sha": "09981ce518a11a46",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/fsm.go::AdminEnable",
+      "producer-sha": "1c36e28288dac228",
+      "break": "body of AdminEnable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.16-4",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable",
+      "unit-sha": "b1c56491428873f7",
+      "claim-sha": "0d23ecebb11f7db7",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/fsm.go::AdminEnable",
+      "producer-sha": "1c36e28288dac228",
+      "break": "body of AdminEnable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.16-5",
       "polarity": "positive",
       "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableCeasesEchoes",
-      "unit-sha": "ff1b0066b05008c3",
-      "claim-sha": "c037968d28f895a6",
+      "unit-sha": "314aa08fd31dcde1",
+      "claim-sha": "50d563336728d6a9",
       "route": "revert",
-      "producer": "internal/component/bfd/session/timers.go::ClearEchoSchedule",
-      "producer-sha": "07279895939c8880",
-      "break": "body of ClearEchoSchedule replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bfd/engine/echo.go::echoTickLocked",
+      "producer-sha": "5057ffa7987b508f",
+      "break": "body of echoTickLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.16-5",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableIgnoresPeerEchoRequest",
+      "unit-sha": "dea728b096e019bb",
+      "claim-sha": "bc6a7d9fc0698489",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/echo.go::echoTickLocked",
+      "producer-sha": "5057ffa7987b508f",
+      "break": "body of echoTickLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.16-5",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable",
+      "unit-sha": "b1c56491428873f7",
+      "claim-sha": "30f92a05a1ccc4e5",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/fsm.go::AdminDown",
+      "producer-sha": "6bfdcdaa2aa608fb",
+      "break": "body of AdminDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.8.3-1",
