@@ -26,6 +26,17 @@
     {
       "rid": "RFC4303-2-1",
       "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_esp_test.go::TestRFC4301ChildSAIsInstalledAsESP",
+      "unit-sha": "b3fd04e3080b22f4",
+      "claim-sha": "1fbcf2407efd73c3",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::installChildSA",
+      "producer-sha": "00d35a0a4eb4f737",
+      "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4303-2-1",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber",
       "unit-sha": "ca8f825ae96efac8",
       "claim-sha": "86ffc7588a6cf9c5",
@@ -187,6 +198,28 @@
       "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
       "producer-sha": "30c3ee956902c48e",
       "break": "line 117: \"\u003c\" -\u003e \"\u003e\""
+    },
+    {
+      "rid": "RFC4303-2.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4303_inbound_key_linux_test.go::TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA",
+      "unit-sha": "b666675a1e452bcd",
+      "claim-sha": "fe3eeed555a90981",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::installChildSA",
+      "producer-sha": "00d35a0a4eb4f737",
+      "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4303-2.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4303_inbound_key_test.go::TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress",
+      "unit-sha": "438968e46fbe3319",
+      "claim-sha": "79120dabf54fc505",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::installChildSA",
+      "producer-sha": "00d35a0a4eb4f737",
+      "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4303-2.1-2",

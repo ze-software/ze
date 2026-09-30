@@ -28,19 +28,21 @@
       "verdict": "unimplemented"
     },
     "RFC4303-2-1": {
-      "note": "Re-judged. OSPFv3 manual SAs are proven end to end on real XFRM: TestRFC4303ESPPacketOnTheWireCarriesProtocol50 (netns, aes128+sha256 esp, OSPF to ff02::5 captured on AF_PACKET, IPv6 Next Header == 50) and the R1(b) negative TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH (null cipher + sha256, the AH-shaped input, still 50 on the wire), plus TestIPsecSAProtocolNumber (SAParams.Proto 50); ipsecProtoNumber revert records observed red. The old ah->51 negative proves RFC4302-2-1 and was rightly removed. Stays weak on the whole-stack reading: Ze fills this role on a second producer, the IKE Child SA install (engine/child.go installChildSA, Proto: protoESP, inbound and outbound), and no test tagged to this row would go red if that producer installed another protocol. Owed: tag the IKE producer, e.g. engine/rfc4301_esp_test.go TestRFC4301ChildSAIsInstalledAsESP (asserts Proto 50 on both SAs from createFirstChildSA) as an RFC4303-2-1 positive with a revert record on installChildSA; the backend-to-wire step (xfrmStateFromParams) is shared and already proven by the OSPF probe.",
+      "note": "Re-judged (was weak: the IKE Child SA producer was untagged). Both producers Ze fills are now covered. OSPFv3 manual SAs: TestRFC4303ESPPacketOnTheWireCarriesProtocol50 (netns, IPv6 Next Header 50 captured on the wire), negative TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH (null cipher + sha256, the AH-shaped input, still 50 on the wire), TestIPsecSAProtocolNumber; ipsecProtoNumber revert records observed red. IKE Child SA: TestRFC4301ChildSAIsInstalledAsESP (tag only, body unchanged, D-15) asserts Proto 50 on the inbound and the outbound SA createFirstChildSA installs; installChildSA is the one SAParams builder of the engine (callers: first Child SA and CREATE_CHILD_SA), revert record observed red. The IKE side is single-polarity by construction: protoESP is a constant and IKEv2 offers no input that selects another protocol, so the row's negative stays the OSPF one. The SAParams-to-kernel step (dataplane xfrmStateFromParams) is shared by both producers and proven on the wire by the OSPF probe; the VPP backend is asserted only at the SAParams boundary Ze owns.",
       "requirement_sha": "2af799f338be795e",
       "tests": {
+        "internal/component/ike/engine/rfc4301_esp_test.go::TestRFC4301ChildSAIsInstalledAsESP": "13fc15f78a76bf95",
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "976d07eeb9539b2b",
         "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303ESPPacketOnTheWireCarriesProtocol50": "1b959a720a9dcc8e",
         "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH": "1b959a720a9dcc8e"
       },
       "units": {
+        "internal/component/ike/engine/rfc4301_esp_test.go::TestRFC4301ChildSAIsInstalledAsESP": "a696d6f37369aabe",
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "48e6e7401d9679b4",
         "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303ESPPacketOnTheWireCarriesProtocol50": "33320dc1c2381ac9",
         "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH": "bcc62677e870d43d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4303-2.1-1": {
       "note": "Re-read 2026-09-29 after RFC3948-2.1-1 tag lines were added above six units of rfc4303_peer_spi_test.go; no assertion changed. Every producer of an SPI Ze sends is now proven, both polarities. Ze's own SPI (SAi2/SAr2/rekey inbound): TestGenerateESPSPISkipsTheReservedZero scripts three zero draws and pins the first non-zero, discriminated by the spi != 0 mutant. The peer's SPI Ze sends on (rfc4303_peer_spi_test.go): initiator SAr2, responder SAi2, rekey request, rekey response each refuse 0 (no establish, no Child SA, no ESP state) through the real encrypted exchange, and each positive pins the exact peer SPI 0x0a0b0c0d on the outbound state; the same edited message on both sides isolates the SPI. Initiator negative also catches removal of the createFirstChildSA refusal (it asserts initiatorFirstChildSA fails with no ESP state). Responder negative's outSPI^1 break is the silent-substitution defect the initiator had; deleting either redundant refusal alone leaves it green, removing both reddens it. OSPF: TestIPsecSPIZeroRefused refuses spi 0 and accepts 4294967295. Caveats, not gaps: TestGenerateESPSPI (100 random draws, P(0)~2^-32) cannot fail on its own, and TestIPsecSPIBoundary's 255/256 pair tests the IANA 1..255 reservation, a neighbouring rule; both are redundant with the discriminating tests above.",
@@ -84,19 +86,23 @@
       "verdict": "enforced"
     },
     "RFC4303-2.1-2": {
-      "note": "Re-judged (was wrong: the old tags asserted the traffic selector, not the lookup key; they were removed). OSPFv3 manual SAs now proven at the lookup key: TestRFC4303InboundESPSAKeyedOnConfiguredDestination (every installed state carries the configured SPI, proto 50, a configured destination {local fe80::1, ff02::5, ff02::6}, each once, source unspecified); netns probes on real XFRM: positive TestRFC4303InboundESPMapsByConfiguredDestination (ESP to fe80::1 from another source finds the SA: XfrmInNoStates +0, XfrmInStateProtoError +1, nothing reaches OSPF), negative TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA (same SPI to fe80::2, XfrmInNoStates +1). buildIPsecSA revert records observed red. So the manual-configuration branch of the sentence is enforced. Stays weak on the whole-stack reading: the IKE Child SA producer (engine/child.go installChildSA, inbound SA Src=child.RemoteAddr Dst=child.LocalAddr) is the negotiation branch Ze also fills, and no test tagged to this row covers it. Owed: an engine test tagged RFC4303-2.1-2 positive asserting the inbound SA createFirstChildSA installs is keyed on the negotiated inbound SPI, ESP and the negotiated local address, plus a negative (netns, mirroring the OSPF probe: ESP under that SPI to a local address other than the negotiated one maps to no SA, XfrmInNoStates +1), each with a revert record on installChildSA.",
+      "note": "Re-judged (was weak: the negotiation branch, the IKE Child SA, had no test). Manual-configuration branch unchanged: OSPFv3 TestRFC4303InboundESPSAKeyedOnConfiguredDestination plus the netns pair TestRFC4303InboundESPMapsByConfiguredDestination / TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA, buildIPsecSA revert records observed red. Negotiation branch: positive TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress (the single inbound SA carries the negotiated ChildInboundSPI, proto 50 and Dst = the negotiated local address, so a Src/Dst swap goes red); negative TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA on real XFRM in a rootless netns (control to negotiated 10.250.0.1: delivered, XfrmInNoStates +0; same SPI and packet to 10.250.0.3: not delivered, XfrmInNoStates +1). Judge re-ran it once under -race: body ran in the child namespace and passed; judge mutation (negative packet aimed at the negotiated address) went red on the not-delivered assertion, so the negative is not vacuous. installChildSA revert records observed red for both. The indication itself (destination matched, source not) is XFRM's (daddr, spi, proto) state lookup keyed on what Ze negotiated, so both branches are proven for every role Ze fills; VPP backend inbound lookup is asserted only at the SAParams boundary.",
       "requirement_sha": "126e1e0efcd369e0",
       "tests": {
+        "internal/component/ike/engine/rfc4303_inbound_key_linux_test.go::TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA": "2196e60f6cf78cd0",
+        "internal/component/ike/engine/rfc4303_inbound_key_test.go::TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress": "1a09d00bc755e80d",
         "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPMapsByConfiguredDestination": "1b959a720a9dcc8e",
         "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA": "1b959a720a9dcc8e",
         "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303InboundESPSAKeyedOnConfiguredDestination": "01b10f93731e39a0"
       },
       "units": {
+        "internal/component/ike/engine/rfc4303_inbound_key_linux_test.go::TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA": "531395a7afe99695",
+        "internal/component/ike/engine/rfc4303_inbound_key_test.go::TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress": "80b679257fb017bb",
         "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPMapsByConfiguredDestination": "7d737a0ac5e6b270",
         "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA": "27157bcd97512612",
         "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303InboundESPSAKeyedOnConfiguredDestination": "d29b114c82c680df"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4303-2.2.1-2": {
       "note": "Forbidden behaviour: keying an SA with ESN that the SA management protocol did not negotiate. Negative: TestEsnInitiatorRefusesAnESNValueItNeverOffered requires verifyAcceptedOffer to return errAcceptedOfferESN for an answer selecting ESN (and for two ESN values), t.Fatalf otherwise. Positive: the offered non-ESN value is accepted and the offer is pinned to the single value. Ze never offers ESN and manual OSPFv3 SAs set none, so no un-negotiated ESN path exists.",

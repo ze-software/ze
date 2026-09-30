@@ -1,6 +1,7 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- Child SA install
 // Related: child.go -- installChildSA, the producer
 // RFC: rfc/short/rfc4301.md -- ESP support (Section 3.2)
+// RFC: rfc/short/rfc4303.md -- protocol 50 on the ESP SAs (Section 2)
 package engine
 
 import (
@@ -16,6 +17,7 @@ import (
 // PREVENTS: a Child SA that reaches the kernel under another protocol number, which the
 // peer, having negotiated ESP, would drop.
 // RFC requirement: RFC4301-3.2-1 positive -- an IKE-keyed Child SA installs an inbound and an outbound ESP (protocol 50) association carrying an encryption key.
+// RFC requirement: RFC4303-2-1 positive -- both SAs Ze installs for an IKE Child SA, inbound and outbound, carry IP protocol number 50 as their protocol.
 func TestRFC4301ChildSAIsInstalledAsESP(t *testing.T) {
 	sa := testSA()
 	dp := &mockDP{}
