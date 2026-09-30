@@ -37,6 +37,11 @@
 //
 // The bart package detects the interface satisfaction automatically at
 // runtime using type assertions.
+//
+// Input Preconditions:
+//
+// Zoned IP addresses have no effect on lookup results; zone identifiers
+// are unconditionally stripped during lookup.
 package bart
 
 import (

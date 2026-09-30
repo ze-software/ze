@@ -16,7 +16,7 @@ import (
 
 // check implements the check verb for gopls.
 type check struct {
-	app      *application
+	app      *Application
 	Severity string `flag:"severity" help:"minimum diagnostic severity (hint, info, warning, or error)"`
 }
 
@@ -113,7 +113,7 @@ func (c *check) Run(ctx context.Context, args ...string) error {
 			if diag.Severity > severityCutoff { // lower severity value => greater severity, counterintuitively
 				continue
 			}
-			if err := print(file.uri, diag.Range, diag.MessageString()); err != nil {
+			if err := print(file.uri, diag.Range, diag.Message); err != nil {
 				return err
 			}
 			for _, rel := range diag.RelatedInformation {

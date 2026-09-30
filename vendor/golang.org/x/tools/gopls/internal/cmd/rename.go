@@ -10,12 +10,13 @@ import (
 	"fmt"
 
 	"golang.org/x/tools/gopls/internal/protocol"
+	"golang.org/x/tools/gopls/internal/tool"
 )
 
 // rename implements the rename verb for gopls.
 type rename struct {
 	EditFlags
-	app *application
+	app *Application
 }
 
 func (r *rename) Name() string      { return "rename" }
@@ -41,7 +42,7 @@ rename-flags:
 // - otherwise, prints the new versions to stdout.
 func (r *rename) Run(ctx context.Context, args ...string) error {
 	if len(args) != 2 {
-		return commandLineErrorf("rename expects 2 arguments (position, new name)")
+		return tool.CommandLineErrorf("rename expects 2 arguments (position, new name)")
 	}
 	r.app.editFlags = &r.EditFlags
 	cli, _, err := r.app.connect(ctx)

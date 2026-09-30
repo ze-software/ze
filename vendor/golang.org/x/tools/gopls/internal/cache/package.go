@@ -13,14 +13,12 @@ import (
 	"slices"
 	"sync"
 
-	"golang.org/x/tools/go/types/objectpath"
 	"golang.org/x/tools/gopls/internal/cache/metadata"
 	"golang.org/x/tools/gopls/internal/cache/methodsets"
 	"golang.org/x/tools/gopls/internal/cache/parsego"
 	"golang.org/x/tools/gopls/internal/cache/testfuncs"
 	"golang.org/x/tools/gopls/internal/cache/xrefs"
 	"golang.org/x/tools/gopls/internal/protocol"
-	"golang.org/x/tools/gopls/internal/util/asm"
 	"golang.org/x/tools/gopls/internal/util/safetoken"
 )
 
@@ -52,7 +50,6 @@ type syntaxPackage struct {
 	fset            *token.FileSet // for now, same as the snapshot's FileSet
 	goFiles         []*parsego.File
 	compiledGoFiles []*parsego.File
-	asmFiles        []*asm.File
 	diagnostics     []*Diagnostic
 	parseErrors     []scanner.ErrorList
 	typeErrors      []types.Error
@@ -71,16 +68,16 @@ type syntaxPackage struct {
 	_tests    *testfuncs.Index // only used by the tests method
 }
 
-func (p *syntaxPackage) xrefs(enc *objectpath.Encoder) *xrefs.Index {
+func (p *syntaxPackage) xrefs() *xrefs.Index {
 	p.xrefsOnce.Do(func() {
-		p._xrefs = xrefs.NewIndex(enc, p.types, p.typesInfo, p.compiledGoFiles, p.asmFiles)
+		p._xrefs = xrefs.NewIndex(p.compiledGoFiles, p.types, p.typesInfo)
 	})
 	return p._xrefs
 }
 
-func (p *syntaxPackage) methodsets(enc *objectpath.Encoder) *methodsets.Index {
+func (p *syntaxPackage) methodsets() *methodsets.Index {
 	p.methodsetsOnce.Do(func() {
-		p._methodsets = methodsets.NewIndex(enc, p.fset, p.types)
+		p._methodsets = methodsets.NewIndex(p.fset, p.types)
 	})
 	return p._methodsets
 }
@@ -214,21 +211,4 @@ func (p *Package) ParseErrors() []scanner.ErrorList {
 // package, if any.
 func (p *Package) TypeErrors() []types.Error {
 	return p.pkg.typeErrors
-}
-
-func (p *Package) AsmFiles() []*asm.File {
-	return p.pkg.asmFiles
-}
-
-func (p *Package) AsmFile(uri protocol.DocumentURI) (*asm.File, error) {
-	return p.pkg.AsmFile(uri)
-}
-
-func (pkg *syntaxPackage) AsmFile(uri protocol.DocumentURI) (*asm.File, error) {
-	for _, af := range pkg.asmFiles {
-		if af.Mapper.URI == uri {
-			return af, nil
-		}
-	}
-	return nil, fmt.Errorf("no parsed file for %s in %v", uri, pkg.id)
 }

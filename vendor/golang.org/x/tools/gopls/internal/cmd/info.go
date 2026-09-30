@@ -18,11 +18,12 @@ import (
 	"golang.org/x/tools/gopls/internal/debug"
 	"golang.org/x/tools/gopls/internal/doc"
 	licensespkg "golang.org/x/tools/gopls/internal/licenses"
+	"golang.org/x/tools/gopls/internal/tool"
 )
 
 // help implements the help command.
 type help struct {
-	app *application
+	app *Application
 }
 
 func (h *help) Name() string      { return "help" }
@@ -42,7 +43,7 @@ $ gopls help remote sessions         # help on 'remote sessions' subcommand
 
 // Run prints help information about a subcommand.
 func (h *help) Run(ctx context.Context, args ...string) error {
-	find := func(cmds []command, name string) command {
+	find := func(cmds []tool.Application, name string) tool.Application {
 		for _, cmd := range cmds {
 			if cmd.Name() == name {
 				return cmd
@@ -52,31 +53,27 @@ func (h *help) Run(ctx context.Context, args ...string) error {
 	}
 
 	// Find the subcommand denoted by args (empty => h.app).
-	var cmd command = h.app
+	var cmd tool.Application = h.app
 	for i, arg := range args {
 		cmd = find(getSubcommands(cmd), arg)
 		if cmd == nil {
-			return commandLineErrorf(
+			return tool.CommandLineErrorf(
 				"no such subcommand: %s", strings.Join(args[:i+1], " "))
 		}
 	}
 
 	// 'gopls help cmd subcmd' is equivalent to 'gopls cmd subcmd -h'.
-	// parseFlags prints the usage information when it sees the -h flag.
-	//
-	// TODO(hyangah): should we treat `gopls help cmd` and `gopls cmd -h`
-	// differently? For example, `gopls help cmd` can give a long help
-	// that explains a lot more details (DetailedHelp) than
-	// `gopls cmd -h` outputs (ShortHelp).
-	parseFlags(cmd, []string{"-h"})
-	return nil
+	// The flag package prints the usage information (defined by tool.Run)
+	// when it sees the -h flag.
+	fs := flag.NewFlagSet(cmd.Name(), flag.ExitOnError)
+	return tool.Run(ctx, fs, h.app, append(args[:len(args):len(args)], "-h"))
 }
 
 // version implements the version command.
 type version struct {
 	JSON bool `flag:"json" help:"outputs in json format."`
 
-	app *application
+	app *Application
 }
 
 func (v *version) Name() string      { return "version" }
@@ -101,7 +98,7 @@ func (v *version) Run(ctx context.Context, args ...string) error {
 }
 
 type apiJSON struct {
-	app *application
+	app *Application
 }
 
 func (j *apiJSON) Name() string      { return "api-json" }
@@ -124,7 +121,7 @@ func (j *apiJSON) Run(ctx context.Context, args ...string) error {
 }
 
 type licenses struct {
-	app *application
+	app *Application
 }
 
 func (l *licenses) Name() string      { return "licenses" }

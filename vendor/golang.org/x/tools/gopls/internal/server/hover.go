@@ -8,7 +8,6 @@ import (
 	"context"
 
 	"golang.org/x/tools/gopls/internal/file"
-	"golang.org/x/tools/gopls/internal/goasm"
 	"golang.org/x/tools/gopls/internal/golang"
 	"golang.org/x/tools/gopls/internal/label"
 	"golang.org/x/tools/gopls/internal/mod"
@@ -36,8 +35,6 @@ func (s *server) Hover(ctx context.Context, params *protocol.HoverParams) (_ *pr
 	defer release()
 
 	switch snapshot.FileKind(fh) {
-	case file.Asm:
-		return goasm.Hover(ctx, snapshot, fh, params.Range)
 	case file.Mod:
 		return mod.Hover(ctx, snapshot, fh, params.Range)
 	case file.Go:

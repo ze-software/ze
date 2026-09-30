@@ -10,52 +10,54 @@ go 1.27.0
 
 require (
 	charm.land/bubbles/v2 v2.2.1
-	charm.land/bubbletea/v2 v2.0.9
+	charm.land/bubbletea/v2 v2.0.10
 	charm.land/lipgloss/v2 v2.0.6
 	charm.land/ssh v0.4.3
-	charm.land/wish/v2 v2.0.3
+	charm.land/wish/v2 v2.0.4
 	filippo.io/mlockexe v1.0.0
 	github.com/a-h/templ v0.3.1020
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be
-	github.com/beevik/ntp v1.5.0
+	github.com/beevik/ntp v1.6.0
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/cilium/ebpf v0.22.0
 	github.com/creack/pty v1.1.24
-	github.com/gaissmai/bart v0.29.0
+	github.com/gaissmai/bart v0.30.0
 	github.com/gokrazy/tools v0.0.0-20260703063348-3fe400c13246
 	github.com/gokrazy/updater v0.0.0-20260620140544-0a84d8ab3878
-	github.com/golangci/golangci-lint/v2 v2.13.2
+	github.com/golangci/golangci-lint/v2 v2.14.0
 	github.com/google/nftables v0.3.0
 	github.com/insomniacslk/dhcp v0.0.0-20260719225207-c76316d4aa82
 	github.com/mdlayher/genetlink v1.4.0
 	github.com/mdlayher/netlink v1.11.2
-	github.com/mdlayher/packet v1.1.2
+	github.com/mdlayher/packet v1.2.0
 	github.com/miekg/dns v1.1.73
 	github.com/muesli/reflow v0.3.0
 	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/goyang v1.6.3
 	github.com/packetcap/go-pcap v0.0.0-20251215121130-f2cf9f991e7c
 	github.com/prometheus/client_golang v1.24.1
-	github.com/prometheus/common v0.70.1
+	github.com/prometheus/client_model v0.6.2
+	github.com/prometheus/common v0.71.0
 	github.com/prometheus/procfs v0.22.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/sivchari/gomu v0.2.1
 	github.com/stretchr/testify v1.12.1
 	github.com/vishvananda/netlink v1.3.1
 	github.com/vishvananda/netns v0.0.5
-	github.com/yuin/goldmark v1.8.5
+	github.com/yuin/goldmark v1.8.6
 	go.fd.io/govpp v0.13.0
-	golang.org/x/crypto v0.56.0
-	golang.org/x/mod v0.40.0
-	golang.org/x/net v0.58.0
-	golang.org/x/sys v0.47.0
-	golang.org/x/term v0.45.0
-	golang.org/x/text v0.41.0
-	golang.org/x/tools v0.49.0
-	golang.org/x/tools/gopls v0.0.0-20260827201838-8471f958f05f // first Go 1.27-compatible revision after v0.23.0
-	golang.org/x/vuln v1.7.0
+	golang.org/x/crypto v0.57.0
+	golang.org/x/mod v0.41.0
+	golang.org/x/net v0.59.0
+	golang.org/x/sync v0.23.0
+	golang.org/x/sys v0.48.0
+	golang.org/x/term v0.46.0
+	golang.org/x/text v0.42.0
+	golang.org/x/tools v0.50.0
+	golang.org/x/tools/gopls v0.23.0 // first Go 1.27-compatible revision after v0.23.0
+	golang.org/x/vuln v1.8.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
-	google.golang.org/grpc v1.83.2
+	google.golang.org/grpc v1.84.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.6.2
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
@@ -65,13 +67,13 @@ require (
 require (
 	4d63.com/gocheckcompilerdirectives v1.4.0 // indirect
 	4d63.com/gochecknoglobals v0.2.2 // indirect
-	charm.land/log/v2 v2.0.0 // indirect
-	codeberg.org/chavacava/garif v0.2.0 // indirect
+	charm.land/log/v2 v2.0.1 // indirect
+	codeberg.org/chavacava/garif v0.2.1 // indirect
 	codeberg.org/polyfloyd/go-errorlint v1.9.0 // indirect
 	dev.gaijin.team/go/exhaustruct/v4 v4.0.0 // indirect
-	dev.gaijin.team/go/exhaustruct/v5 v5.0.3 // indirect
+	dev.gaijin.team/go/exhaustruct/v5 v5.2.0 // indirect
 	dev.gaijin.team/go/golib v0.8.1 // indirect
-	github.com/4meepo/tagalign v1.4.3 // indirect
+	github.com/4meepo/tagalign v1.4.4 // indirect
 	github.com/Abirdcfly/dupword v0.1.8 // indirect
 	github.com/AdminBenni/iota-mixing v1.0.0 // indirect
 	github.com/AlwxSin/noinlineerr v1.0.6 // indirect
@@ -86,7 +88,7 @@ require (
 	github.com/OpenPeeDeeP/depguard/v2 v2.2.1 // indirect
 	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
-	github.com/alecthomas/go-check-sumtype v0.3.1 // indirect
+	github.com/alecthomas/go-check-sumtype v0.5.1-0.20260828200218-ae6904d28606 // indirect
 	github.com/alexkohler/nakedret/v2 v2.0.6 // indirect
 	github.com/alexkohler/prealloc v1.1.0 // indirect
 	github.com/alfatraining/structtag v1.0.0 // indirect
@@ -112,7 +114,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charithe/durationcheck v0.0.11 // indirect
 	github.com/charmbracelet/keygen v0.5.4 // indirect
-	github.com/charmbracelet/ultraviolet v0.0.0-20260811164956-006e29f97886 // indirect
+	github.com/charmbracelet/ultraviolet v0.0.0-20260906173415-0277a179edd9 // indirect
 	github.com/charmbracelet/x/ansi v0.11.8 // indirect
 	github.com/charmbracelet/x/conpty v0.2.0 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
@@ -138,8 +140,8 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/ftrvxmtrx/fd v0.0.0-20150925145434-c6d800382fff // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
-	github.com/ghostiam/protogetter v0.3.21 // indirect
-	github.com/go-critic/go-critic v0.14.4 // indirect
+	github.com/ghostiam/protogetter v1.0.1 // indirect
+	github.com/go-critic/go-critic v0.15.0 // indirect
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/go-toolsmith/astcast v1.1.0 // indirect
 	github.com/go-toolsmith/astcopy v1.1.0 // indirect
@@ -151,8 +153,8 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/go-xmlfmt/xmlfmt v1.1.3 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/godoc-lint/godoc-lint v0.11.2 // indirect
-	github.com/gofrs/flock v0.13.0 // indirect
+	github.com/godoc-lint/godoc-lint v0.11.4 // indirect
+	github.com/gofrs/flock v0.13.1 // indirect
 	github.com/gokrazy/gokapi v0.0.0-20251205165548-0927bab199d4 // indirect
 	github.com/gokrazy/internal v0.0.0-20260625065634-6994f9152c44 // indirect
 	github.com/golangci/asciicheck v0.5.0 // indirect
@@ -192,10 +194,10 @@ require (
 	github.com/kulti/thelper v0.7.1 // indirect
 	github.com/kunwardeep/paralleltest v1.0.15 // indirect
 	github.com/ldez/exptostd v0.4.5 // indirect
-	github.com/ldez/gomoddirectives v0.9.0 // indirect
+	github.com/ldez/gomoddirectives v0.10.0 // indirect
 	github.com/ldez/grignotin v0.10.1 // indirect
 	github.com/ldez/structtags v0.6.1 // indirect
-	github.com/ldez/tagliatelle v0.7.2 // indirect
+	github.com/ldez/tagliatelle v0.8.0 // indirect
 	github.com/ldez/usetesting v0.5.0 // indirect
 	github.com/leonklingele/grouper v1.1.2 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
@@ -209,9 +211,9 @@ require (
 	github.com/matoous/godox v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
-	github.com/mattn/go-runewidth v0.0.27 // indirect
-	github.com/mdlayher/socket v0.6.0 // indirect
-	github.com/mgechev/revive v1.15.0 // indirect
+	github.com/mattn/go-runewidth v0.0.30 // indirect
+	github.com/mdlayher/socket v0.7.0 // indirect
+	github.com/mgechev/revive v1.17.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modelcontextprotocol/go-sdk v1.6.1 // indirect
@@ -220,20 +222,19 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nakabonne/nestif v0.3.1 // indirect
 	github.com/natefinch/atomic v1.0.1 // indirect
-	github.com/nishanths/exhaustive v0.12.0 // indirect
+	github.com/nishanths/exhaustive v0.13.0 // indirect
 	github.com/nishanths/predeclared v0.2.2 // indirect
 	github.com/nunnatsa/ginkgolinter v0.24.0 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
-	github.com/pires/go-proxyproto v0.12.0 // indirect
-	github.com/prometheus/client_model v0.6.2 // indirect
+	github.com/pires/go-proxyproto v0.15.0 // indirect
 	github.com/quasilyte/go-ruleguard v0.4.5 // indirect
 	github.com/quasilyte/go-ruleguard/dsl v0.3.23 // indirect
 	github.com/quasilyte/gogrep v0.5.0 // indirect
 	github.com/quasilyte/regex/syntax v0.0.0-20210819130434-b3f0c404a727 // indirect
 	github.com/quasilyte/stdinfo v0.0.0-20220114132959-f7386bf02567 // indirect
-	github.com/raeperd/recvcheck v0.3.0 // indirect
+	github.com/raeperd/recvcheck v0.3.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/ryancurrah/gomodguard v1.4.1 // indirect
@@ -243,12 +244,12 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
 	github.com/sashamelentyev/interfacebloat v1.1.0 // indirect
 	github.com/sashamelentyev/usestdlibvars v1.29.0 // indirect
-	github.com/securego/gosec/v2 v2.28.0 // indirect
+	github.com/securego/gosec/v2 v2.29.0 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/sivchari/containedctx v1.0.3 // indirect
 	github.com/sonatard/noctx v0.5.1 // indirect
-	github.com/sourcegraph/go-diff v0.8.0 // indirect
+	github.com/sourcegraph/go-diff v0.9.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
@@ -260,8 +261,8 @@ require (
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
 	github.com/tetafro/godot v1.5.6 // indirect
-	github.com/timakin/bodyclose v0.0.0-20260129054331-73d1f95b84b4 // indirect
-	github.com/timonwong/loggercheck v0.11.0 // indirect
+	github.com/timakin/bodyclose v0.0.0-20260723120731-857993a2939c // indirect
+	github.com/timonwong/loggercheck v0.12.0 // indirect
 	github.com/tomarrell/wrapcheck/v2 v2.12.0 // indirect
 	github.com/tommy-muehle/go-mnd/v2 v2.5.1 // indirect
 	github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923 // indirect
@@ -270,7 +271,7 @@ require (
 	github.com/uudashr/gocognit v1.2.1 // indirect
 	github.com/uudashr/iface v1.5.1 // indirect
 	github.com/xen0n/gosmopolitan v1.3.0 // indirect
-	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
+	github.com/xo/terminfo v1.0.0 // indirect
 	github.com/yagipy/maintidx v1.0.0 // indirect
 	github.com/yeya24/promlinter v0.3.0 // indirect
 	github.com/ykadowak/zerologlint v0.1.5 // indirect
@@ -279,21 +280,20 @@ require (
 	go-simpler.org/musttag v0.14.0 // indirect
 	go-simpler.org/sloglint v0.12.0 // indirect
 	go.augendre.info/arangolint v0.4.0 // indirect
-	go.augendre.info/fatcontext v0.10.0 // indirect
+	go.augendre.info/fatcontext v0.10.1 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto/x509roots/fallback v0.0.0-20260630172432-7626c5025624 // indirect
-	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
+	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba // indirect
 	golang.org/x/exp/typeparams v0.0.0-20260812173653-3d80eb74bc5b // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/telemetry v0.0.0-20260811182544-a038080d80e5 // indirect
+	golang.org/x/telemetry v0.0.0-20260908163034-4bcc4b2ee518 // indirect
 	golang.zx2c4.com/wireguard v0.0.0-20231211153847-12269c276173 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260819154853-08b0e4226688 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	mvdan.cc/gofumpt v0.11.0 // indirect
+	mvdan.cc/gofumpt v0.12.0 // indirect
 	mvdan.cc/unparam v0.0.0-20260823230713-2fa3d841b0c8 // indirect
 	mvdan.cc/xurls/v2 v2.6.0 // indirect
 )

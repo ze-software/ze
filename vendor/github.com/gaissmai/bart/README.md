@@ -1,5 +1,6 @@
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/gaissmai/bart)
 [![Go Reference](https://pkg.go.dev/badge/github.com/gaissmai/bart.svg)](https://pkg.go.dev/github.com/gaissmai/bart#section-documentation)
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/gaissmai/bart)](https://coderabbit.ai)
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go)
 [![CI](https://github.com/gaissmai/bart/actions/workflows/go.yml/badge.svg)](https://github.com/gaissmai/bart/actions/workflows/go.yml)
 [![Coverage Status](https://coveralls.io/repos/github/gaissmai/bart/badge.svg)](https://coveralls.io/github/gaissmai/bart)
@@ -144,24 +145,23 @@ For maximum performance, specify the CPU feature set when compiling.
 See the [Go minimum requirements](https://go.dev/wiki/MinimumRequirements#architectures) for details.
 
 ```bash
-# On ARM64, Go auto-selects CPU instructions.
 # Example for AMD64, choose v2/v3/v4 to match your CPU features.
 GOAMD64=v3 go build
+
+# On ARM64, Go auto-selects CPU instructions.
+
 ```
 Critical loops over these fixed-size bitsets can be unrolled for additional speed,
 ensuring predictable memory access and efficient use of CPU pipelines.
 
 ```go
 func (b *BitSet256) popcnt() (cnt int) {
-  cnt += bits.OnesCount64(b[0])
-  cnt += bits.OnesCount64(b[1])
-  cnt += bits.OnesCount64(b[2])
-  cnt += bits.OnesCount64(b[3])
-  return
+  return bits.OnesCount64(b[0]) +
+      bits.OnesCount64(b[1]) +
+      bits.OnesCount64(b[2]) +
+      bits.OnesCount64(b[3])
 }
 ```
-Future Go versions with SIMD intrinsics for `uint64` vectors may unlock
-additional speedups on compatible hardware.
 
 ## Concurrency model
 
@@ -191,11 +191,11 @@ heap allocations on a modern CPU.
 ## API
 
 BART has a rich API for CRUD, lookup, comparison, iteration,
-serialization and persistence. 
+serialization and persistence.
 
-**Table** and **Fast** expose the identical API, while **Lite** deviates in
-its methods from the common API when it comes to the payload, since *Lite*
-has no payload.
+**Table** and **Fast** expose the identical API, while **Lite** deviates from
+the common API since it carries no payload. Additionally, **Lite** provides
+specialized methods like `Aggregate` to compact ACL prefixes in-place.
 
 ```go
 import "github.com/gaissmai/bart"
@@ -268,12 +268,12 @@ goos: linux
 goarch: amd64
 pkg: github.com/gaissmai/bart
 cpu: AMD Ryzen 7 PRO 4750U with Radeon Graphics
-BenchmarkFullFastMatch4/Lookup         	129484557	         9.274 ns/op
-BenchmarkFullFastMatch6/Lookup         	65185531	        17.99 ns/op
-BenchmarkFullFastMiss4/Lookup          	92448910	        12.81 ns/op
-BenchmarkFullFastMiss6/Lookup          	64323817	        18.66 ns/op
+BenchmarkFullFastMatch4/Lookup         	36917803	        31.57 ns/op
+BenchmarkFullFastMatch6/Lookup         	24484578	        48.67 ns/op
+BenchmarkFullFastMiss4/Lookup          	46067090	        24.90 ns/op
+BenchmarkFullFastMiss6/Lookup          	30606994	        38.88 ns/op
 PASS
-ok  	github.com/gaissmai/bart	6.647s
+ok  	github.com/gaissmai/bart	6.466s
 ```
 
 ## Compatibility Guarantees
