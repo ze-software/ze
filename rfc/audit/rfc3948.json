@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC3948-2.1-1": {
@@ -119,17 +119,21 @@
       "verdict": "unimplemented"
     },
     "RFC3948-5.2-1": {
-      "note": "Forbidden behaviour: two transport-mode clients behind one NAT whose traffic descriptions overlap both admitted with nothing deciding which SA carries the traffic. TestPolicyOwnerRefusesASecondPeerOnOneSelector refuses only a second claim on an identical selector (0.0.0.0/0 tunnel, same fields), which is the XFRM policy-identity rule, a neighbouring one. TestPolicyOwnerSeparatesDistinctSelectors (positive) asserts that overlapping descriptions ARE admitted: Dst 192.0.2.0/24 against 0.0.0.0/0, and a port-500 or port-4500 selector against an any-port one, all overlap, so its tag prose ('do NOT overlap') is false and the unit pins the non-compliant behaviour. Transport mode is never exercised.",
+      "note": "Ze disallows the conflicting connection (policyOwners.claim, dataplane/policy_owner.go): a transport-mode claim is refused when a DIFFERENT owner holds a transport-mode selector that overlaps it (same dir/if_id, overlapping prefixes, protocol any-or-equal, masked ports agreeing). Owner is the configured peer name and a peer holds one live IKE SA (a second client on one peer config replaces the first), so two concurrent clients behind one NAT are two owners. Negative TestRFC3948TransportConflictingConnectionIsDisallowed: second client's overlapping transport claim (any vs tcp/80, tcp/80 vs any, inbound tcp-any vs tcp/80) at one NAT address refused with TransportSelectorConflictError naming both, no record kept; red at HEAD by reading (identical-key check only). Positive TestRFC3948TransportDisjointConnectionsAreAdmitted: disjoint descriptions (tcp/80 vs tcp/443, tcp vs udp) admitted, same client's overlap admitted. Supplementary: TestPolicyOwnerRefusesASecondPeerOnOneSelector (identical selector refused) and TestPolicyOwnerSeparatesDistinctSelectors (tunnel-mode identity bounded by selector), prose now narrowed to what they assert. Not exercised: clients at DIFFERENT addresses with overlapping ports admitted (prefixesOverlap forced true stays green), and tunnel mode not being compared; neither is the RFC obligation itself. Records are whole-body panic breaks of claim.",
       "requirement_sha": "fd1e619290abf417",
       "tests": {
-        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerRefusesASecondPeerOnOneSelector": "142bcb55c13cb951",
-        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerSeparatesDistinctSelectors": "142bcb55c13cb951"
+        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerRefusesASecondPeerOnOneSelector": "81c0ba611fffe9f3",
+        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerSeparatesDistinctSelectors": "81c0ba611fffe9f3",
+        "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportConflictingConnectionIsDisallowed": "b68dc46cec622d8e",
+        "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportDisjointConnectionsAreAdmitted": "b68dc46cec622d8e"
       },
       "units": {
-        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerRefusesASecondPeerOnOneSelector": "6931f1d16c880a9d",
-        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerSeparatesDistinctSelectors": "488da6f10f6c0b16"
+        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerRefusesASecondPeerOnOneSelector": "686f1eed84057d8e",
+        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerSeparatesDistinctSelectors": "9001cc1bf9b56c6f",
+        "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportConflictingConnectionIsDisallowed": "fd18651adff48d5a",
+        "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportDisjointConnectionsAreAdmitted": "25e726fc63d847e7"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc3948"

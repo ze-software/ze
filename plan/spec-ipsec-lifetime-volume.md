@@ -144,6 +144,7 @@ range, and carry those bounds into the schema and boundary tests.
 | AC-4 | `life-bytes` near uint64 max | accepted, not truncated |
 | AC-5 | no volume leaves | time-only behaviour unchanged |
 | AC-6 | volume below configured minimum | config verify rejects |
+| AC-7 | the two ends' byte counters disagree (packet loss, or the peer counts differently) | each end rekeys on its own counter reaching its soft limit, and a peer that rekeys first is accepted without error; RFC4301-4.4.2.1-3 re-judged `enforced` ("implementations MUST be able to handle having the counters at the ends of an SA get out of synch", RFC 4301 §4.4.2.1). Moved here from spec-rfc-verdict-fix-ike-eap under P-3, 2026-09-30 |
 
 ## End-to-End User Stories (MANDATORY for new features)
 

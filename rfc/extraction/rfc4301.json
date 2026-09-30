@@ -4,9 +4,9 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc4301.txt",
   "source-sha": "263fd9a78175c888",
-  "signed-off": "2026-09-29",
+  "signed-off": "2026-09-30",
   "reviewer": "claude",
-  "resign-reason": "Re-walked 2026-09-29 for sites 5.1:2 and 5.2:4 only: both sentences bind a packet that crosses the IPsec boundary a second time for nested-SA processing (section 5.1 step 4, section 5.2), a role Ze does not fill, so both are excluded as binds-another-role and rows RFC4301-5.1-2 and RFC4301-5.2-5 are retired (rfc/corrections/rfc4301.md, ruling R15). Exclusions rise from 12 to 14. Every other decision is carried forward unchanged from the 2026-09-27 walk, whose heading-reader re-sign reason stays in the git history of this file.",
+  "resign-reason": "Re-walked 2026-09-30 for site 4.4.1:10 only: the sentence binds only an SPD entry that is decorrelated, and section 4.4.1 states \"This RFC does not require a compliant implementation to make use of decorrelation.\" Ze keeps an ordered SPD and never decorrelates it, so the site is excluded as feature-out-of-scope and row RFC4301-4.4.1-9 is retired (rfc/corrections/rfc4301.md). Exclusions rise from 14 to 15. Every other decision is carried forward unchanged from the 2026-09-29 walk, whose re-sign reason stays in the git history of this file.",
   "sections": [
     {
       "id": "front",
@@ -593,8 +593,9 @@
     {
       "id": "4.4.1:10",
       "quote": "Note that when an SPD entry is decorrelated all the resulting entries MUST be linked together, so that all members of the group derived from an individual, SPD entry (prior to decorrelation) can all be placed into caches and into the SAD at the same time.",
-      "disposition": "mapped",
-      "mapped-to": "RFC4301-4.4.1-9"
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Decorrelation is optional, and the obligation binds only an SPD entry that is decorrelated. Section 4.4.1 states: \"This RFC does not require a compliant implementation to make use of decorrelation.\" Ze keeps the SPD ordered and never decorrelates it: xfrmPolicyFromParams (internal/component/ike/dataplane/xfrm_linux.go) writes each SPD entry as one kernel XFRM policy carrying its priority, and the kernel performs the ordered search, so no decorrelated group exists to link."
     },
     {
       "id": "4.4.1:11",

@@ -130,7 +130,6 @@ func TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong(t *testing.T) 
 
 // RFC requirement: RFC4301-3.1-1 positive -- a tunnel mode entry (gateway) and a transport mode entry (host) each build with the mode the kernel applies.
 // RFC requirement: RFC4301-4.4-1 positive -- the SPD entry Ze installs carries a selector, a disposition, a direction and an order, the externally observable fields of the Section 4.4 model.
-// RFC requirement: RFC4301-4.4.1-9 positive -- one entry builds exactly one kernel policy, so there is no decorrelated group to link.
 // RFC requirement: RFC4301-4.4.1-10 positive -- the entry carries the priority the kernel's ordered search reads.
 // RFC requirement: RFC4301-4.4.1.1-3 positive -- an entry requiring one port carries that exact port, so a fragment without ports cannot match it.
 // RFC requirement: RFC4301-5.1-1 positive -- the outbound entry carries the out direction, the selector and the ESP tunnel template the kernel's outbound steps read.
@@ -193,7 +192,6 @@ func TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate(t *test
 
 // RFC requirement: RFC4301-3.1-1 negative -- an entry whose mode is neither tunnel nor transport is refused and no policy is built.
 // RFC requirement: RFC4301-4.4-1 negative -- an entry whose selector the kernel cannot express is refused rather than installed widened.
-// RFC requirement: RFC4301-4.4.1-9 negative -- a refused entry builds no policy, so nothing partial reaches the ordered database.
 // RFC requirement: RFC4301-4.4.1-10 negative -- a refused entry never reaches the kernel's ordered search at any priority.
 // RFC requirement: RFC4301-4.4.1.1-3 negative -- a port mask the selector cannot carry exactly is refused rather than widened to any port, so no entry that would admit a portless fragment is built.
 // RFC requirement: RFC4301-5.1-1 negative -- an outbound entry with a port mask the selector cannot express is refused.

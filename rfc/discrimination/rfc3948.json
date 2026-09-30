@@ -143,6 +143,50 @@
       "producer": "internal/component/ike/engine/child.go::childPolicyParams",
       "producer-sha": "96cd5283ad39b417",
       "break": "body of childPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-5.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerRefusesASecondPeerOnOneSelector",
+      "unit-sha": "41c0e7ddbb99db72",
+      "claim-sha": "0f724adb8948cbba",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/policy_owner.go::claim",
+      "producer-sha": "3cda1f66ab06f786",
+      "break": "body of claim replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-5.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerSeparatesDistinctSelectors",
+      "unit-sha": "e0e2b0655f99547e",
+      "claim-sha": "81d4148e040f4aab",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/policy_owner.go::claim",
+      "producer-sha": "3cda1f66ab06f786",
+      "break": "body of claim replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-5.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportConflictingConnectionIsDisallowed",
+      "unit-sha": "9fdcc1fad5b5c052",
+      "claim-sha": "9ca0b1df9ca18bea",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/policy_owner.go::claim",
+      "producer-sha": "3cda1f66ab06f786",
+      "break": "body of claim replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-5.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportDisjointConnectionsAreAdmitted",
+      "unit-sha": "de6366fffe4e7441",
+      "claim-sha": "b76f3a0ebcdec7d1",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/policy_owner.go::claim",
+      "producer-sha": "3cda1f66ab06f786",
+      "break": "body of claim replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

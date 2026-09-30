@@ -37,10 +37,9 @@ func siteSelector(t *testing.T, cidr string, dir SADir, owner string) SPParams {
 // peer's traffic into its own tunnel, which the XFRM upsert allows and the kernel cannot
 // refuse because a policy's identity there is its selector alone.
 //
-// RFC requirement: RFC3948-5.2-1 negative -- ze handles the conflicting connection of
-// RFC 3948 Section 5.2 by DISALLOWING it: two clients whose traffic descriptions overlap
-// resolve to one kernel policy, and the second claim is refused instead of taking the
-// first client's traffic over.
+// RFC requirement: RFC3948-5.2-1 negative -- the identical case of a conflicting
+// connection: a second owner's claim on a selector equal in every field to one a first
+// owner holds is refused with PolicyOwnedError naming both, and the first owner keeps it.
 func TestPolicyOwnerRefusesASecondPeerOnOneSelector(t *testing.T) {
 	var owners policyOwners
 
@@ -260,10 +259,9 @@ func TestPolicyOwnerRefusesAForeignDeleteBeforeTheKernel(t *testing.T) {
 // installs that the kernel would have accepted (the two directions of one Child SA are
 // the everyday case).
 //
-// RFC requirement: RFC3948-5.2-1 positive -- the other half of handling the Section 5.2
-// conflict: two clients behind one NAT whose traffic descriptions do NOT overlap are both
-// admitted, so the refusal above is bounded by the actual conflict rather than by the
-// clients sharing an outer address.
+// RFC requirement: RFC3948-5.2-1 positive -- the identity refusal is bounded by the
+// selector: a second owner's tunnel-mode selector that differs from the held one in
+// direction, destination prefix, protocol, either port, interface index or if_id is admitted.
 func TestPolicyOwnerSeparatesDistinctSelectors(t *testing.T) {
 	var owners policyOwners
 

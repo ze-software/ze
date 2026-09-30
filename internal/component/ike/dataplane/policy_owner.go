@@ -80,11 +80,19 @@ func cidrKey(n *net.IPNet, ipv6 bool) string {
 // Safe for concurrent use: one PeerSession goroutine per peer reaches it.
 type policyOwners struct {
 	mu     sync.Mutex
-	owners map[policySelectorKey]string
+	owners map[policySelectorKey]policyHolder
+}
+
+// policyHolder is the record for one claimed selector: who installed it, and whether
+// it is a transport-mode policy, which claim compares for overlap as well as identity.
+type policyHolder struct {
+	owner     string
+	transport bool
 }
 
 // claim records p's owner against p's selector, and REFUSES when a different owner
-// already holds it.
+// already holds it, or, for a transport-mode policy, when a different owner holds a
+// transport-mode selector that overlaps it.
 //
 // The same owner re-claiming its own selector succeeds and is what a Child SA rekey
 // does: newRekeyedChild (engine/rekey.go) inherits every selector field from the
@@ -104,14 +112,93 @@ func (o *policyOwners) claim(p SPParams) (created bool, err error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	held, existed := o.owners[key]
-	if existed && held != p.Owner {
-		return false, &PolicyOwnedError{Selector: key, HeldBy: held, Wanted: p.Owner}
+	if existed && held.owner != p.Owner {
+		return false, &PolicyOwnedError{Selector: key, HeldBy: held.owner, Wanted: p.Owner}
+	}
+	transport := p.Mode == ModeTransport
+	if transport {
+		// RFC 3948 Section 5.2: "If the <traffic desc1> overlaps <traffic desc2>, then
+		// simple filter lookups may not be sufficient to determine which SA has to be
+		// used to send traffic. Implementations MUST handle this situation, either by
+		// disallowing conflicting connections, or by other means."
+		//
+		// Ze disallows the connection. Two clients behind one NAT reach this node from
+		// one address, so their transport selectors differ only in the protocol and
+		// ports, and an overlap would leave the kernel's ordered search to hand one
+		// client's traffic to the other client's SA. Tunnel mode is not compared: its
+		// inner selectors are the operator's prefixes, where an overlap ordered by
+		// priority is a deliberate configuration.
+		for other, holder := range o.owners {
+			if !holder.transport {
+				continue
+			}
+			if holder.owner == p.Owner {
+				continue
+			}
+			if selectorsOverlap(key, other) {
+				return false, &TransportSelectorConflictError{
+					Selector: key, Overlaps: other, HeldBy: holder.owner, Wanted: p.Owner,
+				}
+			}
+		}
 	}
 	if o.owners == nil {
-		o.owners = make(map[policySelectorKey]string)
+		o.owners = make(map[policySelectorKey]policyHolder)
 	}
-	o.owners[key] = p.Owner
+	o.owners[key] = policyHolder{owner: p.Owner, transport: transport}
 	return !existed, nil
+}
+
+// selectorsOverlap reports whether one packet can match both selectors: the same
+// direction and if_id, overlapping address prefixes on both sides, a protocol either
+// side leaves open or both name, and port matches that agree on every bit both masks
+// test. An interface index of zero matches every interface.
+func selectorsOverlap(a, b policySelectorKey) bool {
+	if a.dir != b.dir {
+		return false
+	}
+	if a.ifID != b.ifID {
+		return false
+	}
+	if a.ifIndex != 0 && b.ifIndex != 0 && a.ifIndex != b.ifIndex {
+		return false
+	}
+	if a.upperProto != 0 && b.upperProto != 0 && a.upperProto != b.upperProto {
+		return false
+	}
+	if !portsOverlap(a.srcPort, b.srcPort) {
+		return false
+	}
+	if !portsOverlap(a.dstPort, b.dstPort) {
+		return false
+	}
+	if !prefixesOverlap(a.src, b.src) {
+		return false
+	}
+	return prefixesOverlap(a.dst, b.dst)
+}
+
+// portsOverlap reports whether some port satisfies both masked matches. The kernel
+// matches (port ^ selector.port) & mask == 0, so two matches share a port exactly
+// when they agree on every bit both masks test.
+func portsOverlap(a, b PortMatch) bool {
+	return (a.Port^b.Port)&a.Mask&b.Mask == 0
+}
+
+// prefixesOverlap reports whether two CIDR keys share an address. Two prefixes
+// overlap exactly when one contains the other's network address. A key that does not
+// parse is a Ze defect, since cidrKey wrote it, and is treated as overlapping so the
+// refusal fails closed.
+func prefixesOverlap(a, b string) bool {
+	_, an, errA := net.ParseCIDR(a)
+	if errA != nil {
+		return true
+	}
+	_, bn, errB := net.ParseCIDR(b)
+	if errB != nil {
+		return true
+	}
+	return an.Contains(bn.IP) || bn.Contains(an.IP)
 }
 
 // release reports whether the caller may delete p's policy from the kernel, and drops
@@ -129,8 +216,8 @@ func (o *policyOwners) release(p SPParams) error {
 
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if held, ok := o.owners[key]; ok && held != p.Owner {
-		return &PolicyOwnedError{Selector: key, HeldBy: held, Wanted: p.Owner}
+	if held, ok := o.owners[key]; ok && held.owner != p.Owner {
+		return &PolicyOwnedError{Selector: key, HeldBy: held.owner, Wanted: p.Owner}
 	}
 	delete(o.owners, key)
 	return nil
@@ -173,9 +260,9 @@ func (o *policyOwners) deleteThenRelease(p SPParams, del func() error) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	if held, ok := o.owners[key]; ok && held != p.Owner {
+	if held, ok := o.owners[key]; ok && held.owner != p.Owner {
 		// A refused delete must not reach the kernel.
-		return &PolicyOwnedError{Selector: key, HeldBy: held, Wanted: p.Owner}
+		return &PolicyOwnedError{Selector: key, HeldBy: held.owner, Wanted: p.Owner}
 	}
 	delErr := del()
 	if delErr != nil && !errors.Is(delErr, syscall.ENOENT) {
@@ -215,7 +302,7 @@ func (o *policyOwners) ownerOf(p SPParams) (string, bool) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	held, ok := o.owners[key]
-	return held, ok
+	return held.owner, ok
 }
 
 // PolicyOwnedError reports that a policy selector belongs to a different installer.
@@ -235,6 +322,30 @@ func (e *PolicyOwnedError) Error() string {
 	b.Str(" is installed for ").Str(ownerLabel(e.HeldBy))
 	b.Str(", so it cannot also be installed for ").Str(ownerLabel(e.Wanted))
 	b.Str("; the kernel identifies a policy by its selector alone, so one selector carries one tunnel")
+	return b.String()
+}
+
+// TransportSelectorConflictError reports a transport-mode policy whose selector
+// overlaps a transport-mode policy a DIFFERENT installer holds.
+//
+// It is the RFC 3948 Section 5.2 conflict: two clients behind one NAT reach the server
+// from one address, so their transport SAs differ only in the protocol and port
+// description, and an overlap leaves the kernel's ordered search to pick one client's
+// SA for the other client's traffic. Ze disallows the second connection.
+type TransportSelectorConflictError struct {
+	Selector policySelectorKey
+	Overlaps policySelectorKey
+	HeldBy   string
+	Wanted   string
+}
+
+func (e *TransportSelectorConflictError) Error() string {
+	var b textbuf.Buffer
+	b.Str("xfrm: transport-mode policy selector ").Str(e.Selector.String())
+	b.Str(" for ").Str(ownerLabel(e.Wanted))
+	b.Str(" overlaps ").Str(e.Overlaps.String())
+	b.Str(" installed for ").Str(ownerLabel(e.HeldBy))
+	b.Str("; two transport SAs to one address with overlapping traffic descriptions cannot be told apart (RFC 3948 Section 5.2)")
 	return b.String()
 }
 

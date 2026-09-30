@@ -261,6 +261,17 @@ Two peers whose selectors overlap would otherwise take each other's kernel
 policy. `policyOwners.claim` refuses a claim when the policy is already held by
 another owner.
 
+Transport mode is compared for overlap as well as identity. Two clients behind
+one NAT reach the server from one address, so their transport-mode selectors
+differ only in protocol and ports (RFC 3948 Section 5.2). When a different owner
+holds a transport-mode selector that overlaps the claimed one, `claim` refuses
+with `TransportSelectorConflictError`, which disallows the conflicting
+connection. Without this, the kernel's ordered search would send the overlap to
+whichever client's SA ranks first. Tunnel-mode selectors are compared for
+identity only, because an overlap between operator prefixes that priority orders
+is a deliberate configuration.
+<!-- source: internal/component/ike/dataplane/policy_owner.go -- policyOwners.claim, selectorsOverlap, TransportSelectorConflictError -->
+
 **A guard keyed on inequality is inert when both sides are empty.** The claim
 refuses on `held != p.Owner`. Delete the owner at either producer and every
 claim compares an empty string against an empty string, so the two-peer takeover
