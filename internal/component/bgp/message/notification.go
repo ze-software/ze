@@ -292,6 +292,24 @@ func (n *Notification) ShutdownMessage() (string, error) {
 // accepts up to 255 (the maximum a single length byte can encode).
 const MaxShutdownMessageLen = 128
 
+// BuildCeaseData builds the Data field of a Cease NOTIFICATION Ze sends with
+// the given subcode. Only Administrative Shutdown and Administrative Reset carry
+// a Shutdown Communication; every other subcode gets no data, so msg never
+// reaches the wire under a subcode the RFC does not allow. Every sender of a
+// Cease NOTIFICATION MUST build its data here.
+func BuildCeaseData(subcode uint8, msg string) []byte {
+	// RFC 8203 Section 2 / RFC 9003 Section 2: "The Error Subcode value MUST be
+	// one of the following values: 2 ("Administrative Shutdown") or 4
+	// ("Administrative Reset")."
+	if subcode == NotifyCeaseAdminShutdown {
+		return BuildShutdownData(msg)
+	}
+	if subcode == NotifyCeaseAdminReset {
+		return BuildShutdownData(msg)
+	}
+	return nil
+}
+
 // BuildShutdownData builds the Data field for a Cease NOTIFICATION with
 // a shutdown communication message per RFC 8203 Section 2.
 // Format: 1-byte length + UTF-8 message (up to 128 bytes).

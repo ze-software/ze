@@ -101,7 +101,15 @@ RFC 4271 Section 4.2
 | Opt Parm Len | 1 | Length of optional parameters |
 | Optional Parameters | Variable | Capabilities |
 
+When the Optional Parameters exceed 255 octets, or are framed with two-octet
+Parameter Lengths, Ze writes the RFC 9072 extended form: Opt Parm Len and the
+next octet are both 255, a two-octet Extended Opt. Parm. Length follows, and
+each parameter carries a two-octet Parameter Length. The body ahead of the
+parameters is then 13 octets instead of 10, and the message ends with the last
+parameter.
+
 <!-- source: internal/component/bgp/message/open.go -- Open struct -->
+<!-- source: internal/component/bgp/message/open.go -- writeToExtended -->
 
 ### Optional Parameters
 

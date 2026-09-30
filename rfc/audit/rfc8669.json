@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC8669-3-1": {
       "note": "Clause 'ignored': a validator rejecting an unknown TLV type goes red at message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored require.Equal(RFC7606ActionNone). Clause 'propagated unmodified': the only byte-equality assertion runs after ValidateUpdateRFC7606, not after any forward or re-advertise path, so a forward rail that strips or rewrites the unknown TLV (or drops the whole attribute, as applyFactsNextHop does on a next-hop change) turns nothing red. The propagation half has no assertion.",
@@ -35,17 +35,21 @@
       "verdict": "weak"
     },
     "RFC8669-3.1-4": {
-      "note": "RA33 strict re-audit: weak. Reception clause proven: a Reserved 0xFF Label-Index yields RFC7606ActionNone with unchanged bytes. The quoted transmission clause ('MUST be clear on transmission') has no assertion in this row's tagged units, and the units tagged RFC8669-3.1-3 leave the SRGB-path Label-Index encoder unasserted (see 3.1-3).",
+      "note": "Transmission: every EncodePrefixSID shape (bare, all-ones index, SRGB-leading) has Label-Index Reserved 0. Reception: Reserved 0xFF gives Action None, no discard, bytes unchanged, ParsePrefixSID ok. Judge break (Reserved 1 in the SRGB-path encoder): red.",
       "requirement_sha": "766845e506eae9e5",
       "tests": {
+        "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception": "ed31817182a67ebb",
+        "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception#2": "ed31817182a67ebb",
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexNonZeroReservedIgnored": "c396cd02e76541ca",
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexReservedAndFlagsZeroAccepted": "c396cd02e76541ca"
       },
       "units": {
+        "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception": "1727fbdcee1646c6",
+        "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception#2": "1727fbdcee1646c6",
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexNonZeroReservedIgnored": "d8b4711cce14ab9e",
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexReservedAndFlagsZeroAccepted": "f4b89a3d0c38a5d4"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8669-3.1-5": {
       "note": "RA33 strict re-audit: weak. Forbidden: non-zero Label-Index Flags emitted. sid[4:6]=={0,0} is asserted only for EncodePrefixSID's simple Label-Index path; the Label-Index TLV that parsePrefixSIDWithSRGB (prefixsid.go:120) builds is not inspected by any tagged unit, so non-zero Flags there stay green.",
@@ -59,17 +63,21 @@
       "verdict": "weak"
     },
     "RFC8669-3.1-6": {
-      "note": "RA33 strict re-audit: weak. Reception clause proven: Flags 0xFFFF yields RFC7606ActionNone with unchanged bytes. The quoted transmission clause has no assertion in this row's tagged units, and RFC8669-3.1-5's unit misses the SRGB-path Label-Index encoder.",
+      "note": "Same unit: Label-Index Flags 0 on every encoded shape; received Flags 0xFFFF ignored with bytes unchanged and ParsePrefixSID ok.",
       "requirement_sha": "923a1b0e03387b29",
       "tests": {
+        "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception": "ed31817182a67ebb",
+        "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception#2": "ed31817182a67ebb",
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexNonZeroFlagsIgnored": "c396cd02e76541ca",
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexReservedAndFlagsZeroAccepted": "c396cd02e76541ca"
       },
       "units": {
+        "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception": "1727fbdcee1646c6",
+        "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception#2": "1727fbdcee1646c6",
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexNonZeroFlagsIgnored": "9bb303402e764ffb",
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexReservedAndFlagsZeroAccepted": "f4b89a3d0c38a5d4"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8669-3.2-1": {
       "note": "Non-compliant behaviour: non-zero Originator SRGB Flags emitted. config/rfc8669_test.go::TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission asserts require.Equal([]byte{0,0}, srgb[3:5]) on EncodePrefixSID output. Single-polarity marker present.",
@@ -83,17 +91,21 @@
       "verdict": "enforced"
     },
     "RFC8669-3.2-2": {
-      "note": "RA33 strict re-audit: weak. Reception clause: SRGB Flags 0xFFFF yields RFC7606ActionNone (no byte-unchanged assertion, unlike 3.1-4/3.1-6). The quoted transmission clause ('MUST be clear on transmission') has no assertion in this row's tagged units; it is proven only by the unit tagged RFC8669-3.2-1.",
+      "note": "Same unit: SRGB Flags 0 on send including all-ones base/range; received SRGB Flags 0xFFFF ignored, bytes unchanged (the assertion the earlier note missed). Judge break (SRGB Flags 1): red.",
       "requirement_sha": "67eb1f44573c65f2",
       "tests": {
+        "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception": "ed31817182a67ebb",
+        "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception#2": "ed31817182a67ebb",
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669SRGBFlagsZeroAccepted": "c396cd02e76541ca",
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669SRGBNonZeroFlagsIgnored": "c396cd02e76541ca"
       },
       "units": {
+        "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception": "1727fbdcee1646c6",
+        "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception#2": "1727fbdcee1646c6",
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669SRGBFlagsZeroAccepted": "81f204421b0ee317",
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669SRGBNonZeroFlagsIgnored": "ba12537f8edc0fc4"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8669-3.2-4": {
       "note": "RA33 strict re-audit: weak. The unit proves only that the SRv6 extractor steps over TLV type 3. The {single-polarity} premise that the only SRGB code is the config-side encoder is false: attribute/prefixsid_wire.go validatePrefixSIDTLVs refuses an Originator SRGB whose length is not 2 + 6N, and the JSON formatter decodes it, regardless of AFI/SAFI. No tagged unit covers an SRGB on a non-labeled-unicast route through those paths.",

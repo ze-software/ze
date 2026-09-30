@@ -35,6 +35,50 @@
       "break": "body of nextHopOctets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4760-3-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref",
+      "unit-sha": "74b2e78beed56b8a",
+      "claim-sha": "d176f585ebd4492f",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+      "producer-sha": "756a92a659351a10",
+      "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4760-3-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref",
+      "unit-sha": "74b2e78beed56b8a",
+      "claim-sha": "9d30f137022b2158",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+      "producer-sha": "756a92a659351a10",
+      "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4760-3-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref",
+      "unit-sha": "74b2e78beed56b8a",
+      "claim-sha": "ac62f950f258c2ba",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+      "producer-sha": "756a92a659351a10",
+      "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4760-3-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref",
+      "unit-sha": "74b2e78beed56b8a",
+      "claim-sha": "e75d1660c0542e3b",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+      "producer-sha": "756a92a659351a10",
+      "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4760-8-2",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated",

@@ -2,6 +2,72 @@
   "rfc": "rfc8669",
   "records": [
     {
+      "rid": "RFC8669-3.1-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception",
+      "unit-sha": "0022f3c267bc0b2a",
+      "claim-sha": "22934d7a2583aff2",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid.go::EncodePrefixSID",
+      "producer-sha": "15e1bf769285daa1",
+      "break": "body of EncodePrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8669-3.1-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception",
+      "unit-sha": "0022f3c267bc0b2a",
+      "claim-sha": "7a688c622499c0d3",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validatePrefixSIDAttr",
+      "producer-sha": "ac23d8300234a864",
+      "break": "body of validatePrefixSIDAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8669-3.1-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception",
+      "unit-sha": "0022f3c267bc0b2a",
+      "claim-sha": "b3cf20507e88d9fb",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid.go::EncodePrefixSID",
+      "producer-sha": "15e1bf769285daa1",
+      "break": "body of EncodePrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8669-3.1-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception",
+      "unit-sha": "0022f3c267bc0b2a",
+      "claim-sha": "e95734eceb00af43",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validatePrefixSIDAttr",
+      "producer-sha": "ac23d8300234a864",
+      "break": "body of validatePrefixSIDAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8669-3.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception",
+      "unit-sha": "0022f3c267bc0b2a",
+      "claim-sha": "7220294c6b64d2a8",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid.go::EncodePrefixSID",
+      "producer-sha": "15e1bf769285daa1",
+      "break": "body of EncodePrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8669-3.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception",
+      "unit-sha": "0022f3c267bc0b2a",
+      "claim-sha": "598f7bf016162498",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validatePrefixSIDAttr",
+      "producer-sha": "ac23d8300234a864",
+      "break": "body of validatePrefixSIDAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8669-8-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain",

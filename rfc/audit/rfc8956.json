@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-27",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8956-3.1-1": {
       "note": "Non-compliant: nonzero padding bits emitted. TestIPv6FlowPrefixPatternAndPadding re-encodes received patterns whose padding is 0xff and asserts fs.Bytes() and WriteTo equal the canonical zero-padded bytes (e.g. 0xff -> 0xfe for 72/65), and asserts a configured 2001:db8:ffff::/33 encodes its last octet as 0x80 with host bits cleared. Both polarities present.",
@@ -83,8 +84,8 @@
       "note": "Non-compliant: a destination with nonzero offset authorizing a FlowSpec route. TestFlowSpecVPNValidationSeparatesAFIAndRD receives an IPv6 VPN FlowSpec with offset 32 under a same-RD covering default and asserts RouteEligible false and no candidates (Fatal 'nonzero destination offset passed IPv6 validation'); the offset-0 destination is authorized by same-RD VPN unicast. The offset check in flowSpecDestination (rib_flowspec_validation.go:118) is shared by SAFI 133 and 134.",
       "requirement_sha": "4b1ebea8abd37a82",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "0cd2d92220c3e9c6",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "0cd2d92220c3e9c6"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "d72a880cb772843d",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "d72a880cb772843d"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "9e74ab56dc7689b6",

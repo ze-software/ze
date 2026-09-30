@@ -48,6 +48,28 @@
     {
       "rid": "RFC7432-8.1.1-2",
       "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7432_es_import_test.go::TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel",
+      "unit-sha": "f347abfcc957d392",
+      "claim-sha": "5e6841528f2bedd8",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination",
+      "producer-sha": "cc25db20715d6580",
+      "break": "body of ValidateEVPNOrigination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7432-8.1.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7432_es_import_test.go::TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel",
+      "unit-sha": "f347abfcc957d392",
+      "claim-sha": "4366c03ca66aa5cc",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination",
+      "producer-sha": "cc25db20715d6580",
+      "break": "body of ValidateEVPNOrigination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7432-8.1.1-2",
+      "polarity": "positive",
       "unit": "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432EthernetSegmentOriginationAccepted",
       "unit-sha": "553ac429e58cd8a1",
       "claim-sha": "c47d69f9756318b5",

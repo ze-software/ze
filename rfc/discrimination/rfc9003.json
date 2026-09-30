@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc9003",
+  "records": [
+    {
+      "rid": "RFC9003-2-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4",
+      "unit-sha": "4d1f843a3c16728a",
+      "claim-sha": "1707967b8a75ef14",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/notification.go::BuildCeaseData",
+      "producer-sha": "c857ecb35297e3a6",
+      "break": "body of BuildCeaseData replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9003-2-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4",
+      "unit-sha": "4d1f843a3c16728a",
+      "claim-sha": "9a381e03f0a62cc3",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/notification.go::BuildCeaseData",
+      "producer-sha": "c857ecb35297e3a6",
+      "break": "body of BuildCeaseData replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

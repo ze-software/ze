@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC5575-4-1": {
       "note": "Forbidden: exchanging flow specification rules without the Multiprotocol (Code 1) capability in OPEN. TestIPv4FlowSpecNegotiatesMultiprotocolCapability only checks the plugin registers ipv4/flow and then builds a capability.Multiprotocol in the test itself, so mp.Code()==1 is tautological; no assertion reads a real OPEN, and nothing goes red if sendOpen omits the capability or flow routes go to a peer that did not negotiate it.",
@@ -54,17 +54,21 @@
       "verdict": "enforced"
     },
     "RFC5575-4-8": {
-      "note": "Two clauses. Encode: TestFlowSpecUpdateIgnoresConfiguredNextHop asserts reach[3]==0 and no valid next hop even with a configured IPv4/IPv6 address, red on a non-empty next hop. Receipt: no tagged unit feeds a received FlowSpec MP_REACH with a non-zero next hop and asserts it is ignored, so a receiver that uses or refuses it stays green.",
+      "note": "Both clauses proven. Encode: flowspec_wire_contract_test asserts a zero-length MP_REACH next hop even with a configured IPv4/IPv6 address. Receipt: TestRFC8955NextHopIgnoredForFlowSpec (tags added, assertions unchanged) drives the real RIB producer and requires identical selected rules/actions whatever next-hop bytes arrive, and that self or non-address bytes cannot exclude or replace the candidate.",
       "requirement_sha": "274b77e34ff118dd",
       "tests": {
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "fd0429028bee0447",
-        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "fd0429028bee0447"
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "fd0429028bee0447",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec": "d72a880cb772843d",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2": "d72a880cb772843d"
       },
       "units": {
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "db3b5bc9d8fbe384",
-        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "db3b5bc9d8fbe384"
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "db3b5bc9d8fbe384",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec": "8e1470a4697c8555",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2": "8e1470a4697c8555"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5575-5.1-1": {
       "note": "Forbidden: an ordering that depends on arrival order. TestFlowSpecPrecedenceFromWire always parses the expected-first rule first, so an arrival-order tie-break still yields Compare(a,b)<0 and Compare(b,a)>0; the negative tag says reversing arrival order cannot reverse precedence, but no case parses the pair in the reverse order or feeds the ordering from two arrival sequences.",

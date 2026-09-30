@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-27",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4659-3.2-1": {
       "note": "Forbidden: an IPv6 VPN route advertised without an MPLS label. internal/component/bgp/plugins/nlri/vpn/vpn_test.go::TestVPNv6WireRoundTrip proves an NLRI built with a label round-trips it; ::TestVPNv6RejectsLabellessEncode refuses a labelless route only at EncodeNLRIHex (errLabelRequiredForVpn has one producer, vpn.go EncodeNLRIHex). No assertion covers the UPDATE advertising path (message BuildVPN with empty Labels) or any other route source, so a labelless VPNv6 advertisement there stays green.",
@@ -18,7 +19,7 @@
       "note": "Forbidden: MP_REACH for a VPNv6 route with AFI != 2 or SAFI != 128. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6: afi != 2 and value[2] != 128 are Errorf. Single-polarity marker.",
       "requirement_sha": "d5385b13e97e1813",
       "tests": {
-        "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6": "a23f0adaac63b3db"
+        "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6": "71711e8ffa2ff74b"
       },
       "units": {
         "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6": "a4f0ba787744350c"
@@ -29,7 +30,7 @@
       "note": "Forbidden: a VPNv6 next hop that is not a VPN-IPv6 address (zero RD + global IPv6) when IPv6 transport is used. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop: nhLen != 24, any non-zero RD byte, and next-hop bytes != the global address are each Errorf. Single-polarity marker.",
       "requirement_sha": "eb9bf089e9b42164",
       "tests": {
-        "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop": "a23f0adaac63b3db"
+        "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop": "71711e8ffa2ff74b"
       },
       "units": {
         "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop": "52de945e3731d8fa"

@@ -1,18 +1,22 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC9003-2-3": {
-      "note": "Re-read 2026-09-27. The sentence constrains the NOTIFICATION that carries a Shutdown Communication: its subcode is 2 or 4. Forbidden: ze sending a Shutdown Communication under another Cease subcode. TestRFC8203Subcode only proves the RECEIVE side (ShutdownMessage decodes for 2 and 4 and not for 3); no tagged unit asserts the subcode of a Cease NOTIFICATION ze builds with a shutdown message.",
+      "note": "Same unit and proof as RFC8203-2-1: BuildCeaseData carries the Shutdown Communication only under subcodes 2 and 4, none under 0,1,3,5..10; the teardown sends its Cease data only through it. Judge break: red.",
       "requirement_sha": "d55d8e1d9e80fc91",
       "tests": {
         "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode": "8a17b6f2d17e6117",
-        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "8a17b6f2d17e6117"
+        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "8a17b6f2d17e6117",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4": "908f887506cc5456",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4#2": "908f887506cc5456"
       },
       "units": {
         "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode": "64cbcc669ed77e11",
-        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "64cbcc669ed77e11"
+        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "64cbcc669ed77e11",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4": "0b83bd8018be51f3",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4#2": "0b83bd8018be51f3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9003-2-4": {
       "note": "Re-read 2026-09-27. Forbidden: a receiver interpreting an invalid UTF-8 Shutdown Communication. TestRFC8203UTF8Invalid fails unless ShutdownMessage errors and returns empty for 0xff 0xfe 0xfd; TestRFC8203UTF8Valid shows valid multibyte text is interpreted.",

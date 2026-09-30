@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc5575",
+  "records": [
+    {
+      "rid": "RFC5575-4-8",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec",
+      "unit-sha": "7feb6279afc8d3d2",
+      "claim-sha": "e07f5591816109f3",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::entryNextHopAddr",
+      "producer-sha": "a2c8bcfda8dc029a",
+      "break": "body of entryNextHopAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5575-4-8",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec",
+      "unit-sha": "7feb6279afc8d3d2",
+      "claim-sha": "0807a441201bc7dd",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::entryNextHopAddr",
+      "producer-sha": "a2c8bcfda8dc029a",
+      "break": "body of entryNextHopAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

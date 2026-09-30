@@ -506,20 +506,17 @@ func (s *Session) teardown(subcode uint8, shutdownMsg string, stopEvent fsm.Even
 	s.mu.Unlock()
 
 	if conn != nil {
-		// Build data per RFC 8203: length byte + message for subcodes 2/4
-		var data []byte
-		if subcode == message.NotifyCeaseAdminShutdown || subcode == message.NotifyCeaseAdminReset {
-			msg := shutdownMsg
-			if msg == "" {
-				msg = message.CeaseSubcodeString(subcode)
-			}
-			data = message.BuildShutdownData(msg)
+		// RFC 8203 Section 2: BuildCeaseData carries the Shutdown
+		// Communication only under subcodes 2 and 4.
+		msg := shutdownMsg
+		if msg == "" {
+			msg = message.CeaseSubcodeString(subcode)
 		}
 
 		s.logNotifyErr(conn,
 			message.NotifyCease,
 			subcode,
-			data,
+			message.BuildCeaseData(subcode, msg),
 		)
 	}
 

@@ -476,6 +476,8 @@ func TestFlowSpecAuthorizationSurvivesRealRPKIDisableAndRefresh(t *testing.T) {
 
 // RFC requirement: RFC8955-4-4 positive -- the real received RIB producer selects identical authorized FlowSpec rules and actions regardless of the advertised MP_REACH next-hop bytes.
 // RFC requirement: RFC8955-4-4 negative -- a self next hop or non-address next-hop bytes cannot exclude the authorized FlowSpec candidate or replace its selected actions.
+// RFC requirement: RFC5575-4-8 positive -- on receipt, the real RIB producer selects identical authorized FlowSpec rules and actions whatever next-hop bytes the MP_REACH carries (§4).
+// RFC requirement: RFC5575-4-8 negative -- received non-zero next-hop bytes, a self address or non-address octets, cannot exclude the FlowSpec candidate or replace its selected actions (§4).
 func TestRFC8955NextHopIgnoredForFlowSpec(t *testing.T) {
 	r, bus := flowValidationFixture(t)
 	peer := netip.MustParseAddr("192.0.2.1")

@@ -413,7 +413,7 @@ func TestOpenPackExtendedParams(t *testing.T) {
 
 	// Should use extended format
 	// Body: Ver(1) + AS(2) + Hold(2) + ID(4) + NonExtLen(1) + NonExtType(1) + ExtLen(2) + Params(300)
-	assert.GreaterOrEqual(t, len(body), 10+4+len(largeParams))
+	assert.Equal(t, 13+len(largeParams), len(body))
 
 	// Check extended format markers
 	// RFC requirement: RFC9072-2-1 positive -- Optional Parameters of 300 octets exceed 255, so the OPEN is encoded with the extended procedure: the Non-Ext markers and 2-octet Extended Opt. Parm. Length are emitted instead of the classic single-octet length.

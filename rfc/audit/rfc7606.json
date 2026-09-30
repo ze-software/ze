@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "reaudit_history": [
     "2026-07-22 re-stamp. Staleness was triggered by a mechanical package-qualifier rename across four of the tagged files, not by any change to what they assert: MessageType and the Type* codes moved from internal/component/bgp/message to the always-on leaf internal/core/bgp/msgtype, the route-action enum from internal/component/bgp/types to internal/core/bgp/routeaction, and internal/component/bgp/plugins/rib/events to internal/core/bgp/ribevents, so MRT/sysrib/FIB keep compiling when the BGP engine is compiled out (//go:build ze_bgp). Scope, measured rather than assumed: 20 files carry rfc7606 tags and only 4 changed in 254772452..HEAD -- plugins/adj_rib_in/rib_test.go, plugins/rib/rib_structured_test.go, reactor/rfc7606_session_structural_test.go, reactor/session_test.go. Every hunk in them is a requalification, an import line, or the 9-line rfc-test-change-approved header; normalizing the diff under the rename leaves ZERO unmatched assertion deletions (the unmatched ADDITIONS are that header and the imports -- an earlier version of this note wrongly claimed the add/delete multisets cancel outright, and wrongly said 18 files). The moved constants keep their values (msgtype.Type* 1..5 and routeaction 0..4 match the originals). No RFC-requirement tag was added, removed, moved to another function, or re-pointed anywhere in that range. No requirement TEXT changed: rfc/short/rfc7606.md and rfc/full/rfc7606.txt are byte-identical since the audit, and the requirement_sha of every verdict below is unchanged -- only the tagged-file fingerprints were refreshed, which stale on ANY edit because tagged_unit_shas hashes the whole enclosing file and keys on file:line (every key shifted exactly +9, the height of the inserted header). The verdicts still describe exactly what they judged. Independently re-derived by a second reviewer, 2026-07-22.",
     "2026-07-29 re-stamp, RFC7606-5.1-2 and RFC7606-5.1-3 only. Neither verdict was re-judged; both fingerprint maps were refreshed after proving what changed under them. (a) test/plugin/rfc7606-relay-one-field.ci: COMMENT-ONLY. Proven mechanically, not asserted -- the 20 directive lines (expect=/action=/reject=/option=/cmd=/stdin=/tmpfs= plus the terminators) are byte-identical to HEAD; the header gained three explanations (which buildFwdBody arm it actually drives, why the notification reject rule was silent, and that scenario 47 now carries a second 5.1-3 binding) and two em dashes became `--`. tagged_unit_shas hashes the whole enclosing file, so a comment stales a verdict about assertions the comment never touched. (b) A NEW key appeared under 5.1-3: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate:28. That is added evidence, which cannot invalidate a verdict about the evidence already there. The requirement text is byte-identical -- the re-stamp script refuses on a requirement_sha mismatch, so this is checked rather than claimed. No other verdict was touched.",
@@ -265,17 +265,21 @@
       "verdict": "enforced"
     },
     "RFC7606-3.g-2": {
-      "note": "The pair distinguishes first-wins from last-wins: TestRFC7606DuplicateAttributeFirstOccurrenceWins (rfc7606_structural_test.go:550) = valid ORIGIN + malformed duplicate => require.Equal(None) (last-wins would error); TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated (:571) = malformed ORIGIN(value 3) first + valid duplicate => TreatAsWithdraw AttrCode 1 Description 'undefined value' (last-wins would return None). A last-wins implementation flips both, so both fail. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. VERDICT CHANGES enforced -> weak. The quote states the rule for \"any other attribute (whether recognized or unrecognized)\". Both tagged units duplicate ORIGIN, a recognized code. ValidateUpdateRFC7606 tracks duplicates in a generic seenCodes [256]bool, so the code covers unrecognized codes today, but a change that skipped duplicate stripping for unrecognized codes would leave both tagged units green. To upgrade: tag an isolated duplicate of an unrecognized optional attribute that asserts the later occurrence is stripped.",
+      "note": "Recognized case held by the HEAD first-wins pair; unrecognized case now proven: TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded (0xF0 twice) requires Action None, DuplicateRanges exactly the later occurrence, and StripAttrRanges leaving mandatory+first byte for byte; the reactor applies StripAttrRanges (session_validation.go).",
       "requirement_sha": "12e83ee6ee94ee1c",
       "tests": {
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded": "a8996fb398de9acf",
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded#2": "a8996fb398de9acf",
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated": "669936946251c215",
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceWins": "669936946251c215"
       },
       "units": {
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded": "eb2bb0246d8e884e",
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded#2": "eb2bb0246d8e884e",
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated": "89d4621d5dfdbb6c",
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceWins": "022af2a0c9578d2d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7606-3.h-1": {
       "note": "TestRFC7606CollectAllErrors (rfc7606_test.go:1393) uses two attribute-discard errors (ATOMIC_AGG + AGGREGATOR) and asserts require.Equal(AttributeDiscard) with DiscardEntries len 2 covering codes 6 and 7 \u2014 fails on escalation or on dropping either entry. The {single-polarity,negative} annotation is sound: 'multiple attribute errors exist' has no error-free instance, so no positive can be constructed. Exact assertion, isolated buffer. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
@@ -340,17 +344,21 @@
       "verdict": "enforced"
     },
     "RFC7606-4-1": {
-      "note": "Negative rfc7606_structural_test.go:248 (TestRFC7606AttributeLengthConflictTreatAsWithdraw) drives a COMMUNITY declaring len 8 with only 4 octets present and asserts require.Equal(TreatAsWithdraw) + require.Equal(AttrCode 8) + Contains('Section 4'); the branch it pins is rfc7606.go:222-231 (pos+attrLen>len). Valid ORIGIN/AS_PATH/NEXT_HOP filler isolates the conflict, and the exact-action assertion would fail on the session-reset over-reaction. Positive rfc7606_test.go:1495 (Baseline_EBGP) pins a conflict-free set to ActionNone. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. VERDICT CHANGES enforced -> weak. The quote is \"In either of these cases, ... MUST be used (unless ...)\", and Section 4 names two cases: the last attribute's length exceeds the Total Attribute Length, and \"fewer than three octets remain (or fewer than four octets, if the Attribute Flags field has the Extended Length bit set) when beginning to parse the attribute\". The tagged negative TestRFC7606AttributeLengthConflictTreatAsWithdraw drives the first case only. The second case is implemented (the \"insufficient data for attribute header\", \"for length\" and \"for extended length\" structuralError returns in ValidateUpdateRFC7606) but no unit tagged RFC7606-4-1 drives it, so removing those branches would leave every tagged unit green. To upgrade: tag an isolated negative with one or two trailing octets that asserts exact TreatAsWithdraw.",
+      "note": "Both Section 4 cases driven: the HEAD unit (last attribute length exceeds the Total Attribute Length) and TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw (1, 2 trailing octets, and 3 with the Extended Length bit) require exact TreatAsWithdraw with 'Section 4'; the mandatory set alone is None.",
       "requirement_sha": "9027ac42bdf73e4d",
       "tests": {
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw": "a8996fb398de9acf",
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw#2": "a8996fb398de9acf",
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "669936946251c215",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "41fae6472d6a1c4d"
       },
       "units": {
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw": "a02beace3815f0ac",
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw#2": "a02beace3815f0ac",
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "6215492127a94045",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "826916eb61da357d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7606-4-2": {
       "note": "Negative rfc7606_structural_test.go:281 asserts exact TreatAsWithdraw + AttrCode for zero-length COMMUNITY(8)/MED(4)/LARGE_COMMUNITY(32). Positives cover the carve-out: rfc7606_test.go:111 accepts empty AS_PATH (len 0) to ActionNone and Baseline_EBGP:1467/1495 accepts ATOMIC_AGGREGATE len 0. Both the 'zero is a syntax error' clause and the 'only AS_PATH/ATOMIC_AGGREGATE may be zero' carve-out are pinned. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote says \"it SHALL be considered a syntax error\" and carries the carve-out sentence (\"only AS_PATH and ATOMIC_AGGREGATE may validly have an attribute length of zero\"). The negatives pin the consequence (exact TreatAsWithdraw per the first paragraph of Section 4 and Section 7) and the positives pin both carve-out attributes. Verdict unchanged.",
@@ -643,17 +651,21 @@
       "verdict": "enforced"
     },
     "RFC7606-7.10-2": {
-      "note": "Positive rfc7606_test.go:1001 (len-8 iBGP) asserts ActionNone; negative rfc7606_test.go:1026 (len-5 iBGP) asserts exact TreatAsWithdraw + AttrCode 10 + \"7.10\". Coverage gap acknowledged in the test comment (1022-1023): only the 'not a multiple of 4' clause is tagged; the zero-length clause is untagged (cascade-confounded), so removing the `length==0` check in validateClusterListAttr (rfc7606.go:538) would not be caught by the tagged tests, though the code does implement both clauses. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. VERDICT CHANGES enforced -> weak. The quote is \"SHALL be considered malformed if its length is not a non-zero multiple of 4\". The tagged negative drives length 5 only; the test comment itself says the zero-length clause is untagged. validateClusterListAttr implements both clauses, but removing its length==0 check would leave every tagged unit green. To upgrade: tag an isolated zero-length iBGP CLUSTER_LIST negative (last attribute, no trailing bytes, as TestRFC7606ExtendedCommunityZeroLength does).",
+      "note": "TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed, isIBGP true: lengths 4, 8 None; 0, 3, 5, 6 exact TreatAsWithdraw, AttrCode 10, '7.10', the attribute last so no cascade. Covers the zero and the multiple clauses.",
       "requirement_sha": "480dc41940e69d4b",
       "tests": {
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed": "a8996fb398de9acf",
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed#2": "a8996fb398de9acf",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPInvalid": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPValid": "41fae6472d6a1c4d"
       },
       "units": {
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed": "be0aa9b6ab82b57b",
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed#2": "be0aa9b6ab82b57b",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPInvalid": "7cbb134dcb6f04ab",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPValid": "56318d1811c98fd3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7606-7.11-1": {
       "note": "Three negatives assert the exact SessionReset + AttrCode 14 + \"7.11\" across families for an inconsistent next-hop length: IPv6 NH_LEN=5 (rfc7606_test.go:557), IPv4 NH_LEN=3 (:609), VPNv4 NH_LEN=4 (:660). Four positives assert ActionNone for consistent lengths (IPv6/16 :504, IPv6/32 :529, IPv4/4 :586, VPNv4/12 :634). validateMPReachNextHop (rfc7606.go:695-720) checks nhLen against the per-AFI/SAFI ValidNextHopLens table, so the reset fires for NH inconsistency specifically, not a structural cascade. Would fail if Ze weakened the action below session reset. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
@@ -692,17 +704,21 @@
       "verdict": "enforced"
     },
     "RFC7606-7.14-1": {
-      "note": "Positive rfc7606_test.go:187 (len-8 Extended Community) asserts ActionNone; negative rfc7606_test.go:218 (len-0) asserts exact TreatAsWithdraw + AttrCode 16 + \"7.14\", isolated as the last attribute with no trailing bytes (comment 212-215). Note: only the zero-length ('non-zero') clause is tagged; the 'not a multiple of 8' clause for nonzero lengths (e.g. 12) is untagged, so dropping the `length%8!=0` check while keeping `==0` in validateExtCommunityAttr (rfc7606.go:551) would pass the tagged tests. The code implements both clauses. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. VERDICT CHANGES enforced -> weak. The quote is \"SHALL be considered malformed if its length is not a non-zero multiple of 8\". The tagged negative TestRFC7606ExtendedCommunityZeroLength drives length 0 only. TestRFC7606ExtendedCommunityLength drives length 5 with exact TreatAsWithdraw and AttrCode 16 but carries no RFC7606-7.14-1 tag, so dropping the length%8 check while keeping ==0 would leave every tagged unit green. To upgrade: tag TestRFC7606ExtendedCommunityLength as the second negative.",
+      "note": "TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed: lengths 8, 16 None; 0, 5, 7, 9, 12, 15 exact TreatAsWithdraw, AttrCode 16, '7.14', attribute last. Judge break (drop the length==0 arm in validateExtCommunityAttr): red.",
       "requirement_sha": "887b1ced683526b4",
       "tests": {
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed": "a8996fb398de9acf",
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed#2": "a8996fb398de9acf",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityValid": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityZeroLength": "41fae6472d6a1c4d"
       },
       "units": {
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed": "0e441ce429d2e920",
+        "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed#2": "0e441ce429d2e920",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityValid": "3a9428bf9308b255",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityZeroLength": "9a48bbdbbba6137c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7606-7.14-2": {
       "note": "Single-polarity (positive-only) argument holds: \u00a77.14 is a MUST NOT prohibition ('MUST NOT treat an unrecognized Extended Community Type or Sub-Type as an error'), so acceptance is the only conforming observation. Positive rfc7606_test.go:247 uses valid length 8 with unrecognized Type 0x3f/Sub-Type 0xee and asserts ActionNone; length kept valid so the 7.14-1 length clause cannot mask the type question. validateExtCommunityAttr (rfc7606.go:550-560) inspects only length, never type, so introducing a type allowlist would flip this test to TreatAsWithdraw and fail it. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",

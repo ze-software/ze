@@ -2009,7 +2009,11 @@ func TestUpdateBuilder_BuildUnicast_GrowMidBuild(t *testing.T) {
 	ub := NewUpdateBuilder(65001, false, true, false)
 
 	// Pad RawAttributeBytes past StandardMaxSize (4096) so attrBytes alloc grows scratch.
-	bigRaw := bytes.Repeat([]byte{0xFE, 0xFD, 0xFC, 0xFB}, 1200) // 4800 bytes
+	// The raw block is one well-formed extended-length attribute (optional
+	// transitive, type 253, the highest code here so it sorts last) of 4800
+	// octets, header included: raw attributes join the type-code order.
+	bigValue := bytes.Repeat([]byte{0xFE, 0xFD, 0xFC, 0xFB}, 1199)
+	bigRaw := append([]byte{0xD0, 0xFD, byte(len(bigValue) >> 8), byte(len(bigValue))}, bigValue...)
 	params := UnicastParams{
 		Prefix:            netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop:           netip.MustParseAddr("192.168.1.1"),

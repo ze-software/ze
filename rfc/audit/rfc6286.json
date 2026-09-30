@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-27",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC6286-2.1-1": {
       "note": "The only tag (config_test zero_router_id_rejected) proves the non-zero clause for a peer-level router-id. No tagged assertion covers the global router-id leaf, or 'the same for every local interface and every BGP peer': Ze accepts a per-peer router-id override (parsePeerFromTree, session router-id), so a configuration giving peers different identifiers is accepted and nothing tagged goes red on it.",
@@ -27,8 +28,8 @@
       "note": "(a) accepting an OPEN whose BGP Identifier is zero; (b) TestOpenValidateBGPIdentifier: zero from internal and from external wantErr with NotifyOpenMessage / NotifyOpenBadBGPID; negative: 1 and 0xFFFFFFFF accepted. The same unit also proves the sentence's second clause (local id from internal rejected, from external accepted). handleOpen and processOpen rails tagged positive too.",
       "requirement_sha": "096d9b6b65628ff0",
       "tests": {
-        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "eabc69b2ca4c66d8",
-        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "eabc69b2ca4c66d8",
+        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "9a2a4c8f9ca41e49",
+        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "9a2a4c8f9ca41e49",
         "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "5792605e48ba6d19",
         "internal/component/bgp/reactor/session_open_validation_test.go::TestProcessOpenRejectsBadBGPIdentifier": "5792605e48ba6d19"
       },
@@ -44,8 +45,8 @@
       "note": "(a) accepting the local identifier from an internal peer, or rejecting it from an external one; (b) TestOpenValidateBGPIdentifier rows 'local identifier from internal peer' wantErr 2/3 and 'from external peer' no error, plus localID+-1 accepted; zero rows cover the first clause. TestHandleOpenRejectsBadBGPIdentifier repeats both polarities on the FSM rail.",
       "requirement_sha": "096d9b6b65628ff0",
       "tests": {
-        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "eabc69b2ca4c66d8",
-        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "eabc69b2ca4c66d8",
+        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "9a2a4c8f9ca41e49",
+        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "9a2a4c8f9ca41e49",
         "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "5792605e48ba6d19",
         "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier#2": "5792605e48ba6d19"
       },

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4271-10-1": {
@@ -16,43 +16,55 @@
       "verdict": "weak"
     },
     "RFC4271-4.1-1": {
-      "note": "The sentence binds the sender. Forbidden: ze writing a marker octet other than 0xFF. TestRFC4271MarkerAllOnesOnSend asserts data[i]==0xFF for KEEPALIVE and NOTIFICATION only; OPEN and UPDATE encoders are not asserted in this row's units. The tagged negative (ParseHeader -> ErrInvalidMarker) proves the Section 6.1 receive check, a neighbouring rule, and the row carries no {single-polarity} marker.",
+      "note": "Sender side. TestRFC4271EveryMessageSentWithAllOnesMarker packs OPEN (classic, extended, >255), UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH into a fresh buffer and at offset 7 of a zero-filled buffer and asserts the 16 marker octets equal 0xFF each time; red if writeHeader writes any other marker. Receive-side (6.1) tags kept.",
       "requirement_sha": "b7d075677edef5c1",
       "tests": {
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker": "65bfdbcba738b5a1",
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker#2": "65bfdbcba738b5a1",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerAllOnesOnSend": "ba18c36b881a0964",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerNotAllOnesRejected": "ba18c36b881a0964"
       },
       "units": {
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker": "adb2ca346668fad8",
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker#2": "adb2ca346668fad8",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerAllOnesOnSend": "768745e3e93b2b59",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerNotAllOnesRejected": "60817552fd110cc9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-4.1-2": {
-      "note": "Sender obligation. TestRFC4271SmallestLengthOnSend asserts the exact Length for a KEEPALIVE and one UPDATE; OPEN and NOTIFICATION Lengths are not asserted. The tagged negative (a padded KEEPALIVE refused as Bad Message Length) is the Section 6.1 receive check, a neighbouring rule, not a violation of what ze sends; no {single-polarity} marker.",
+      "note": "TestRFC4271EveryMessageSentWithSmallestLength asserts, for all five types incl. both RFC 9072 extended OPEN shapes, that the Length field and the octets written equal an independently computed minimum, and that a 0xAA spare tail past it is untouched. Judge break openExtendedFixedLen 13->14: red (the D-8 fix it proves).",
       "requirement_sha": "92f06ef6c4ac6216",
       "tests": {
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength": "65bfdbcba738b5a1",
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength#2": "65bfdbcba738b5a1",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NonSmallestLengthRejected": "ba18c36b881a0964",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271SmallestLengthOnSend": "ba18c36b881a0964"
       },
       "units": {
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength": "3eb327ba16f7e2b1",
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength#2": "3eb327ba16f7e2b1",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NonSmallestLengthRejected": "ca0fa47e5fb7be68",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271SmallestLengthOnSend": "c979e36839787789"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-4.1-3": {
-      "note": "Units prove only the receive bound check (18 -> ErrInvalidLength, 4097/65535 -> 1/2 Bad Message Length, 19..4096 accepted), which is the Section 6.1 rule. The send half of 'MUST always be ... no greater than 4096' (ze never emits a message above 4096 without Extended Message, e.g. an UPDATE the builder must split) has no assertion in a tagged unit.",
+      "note": "Send half: TestRFC4271UpdatesSentWithinLengthBounds feeds the Splitter an UPDATE that needs >4096 (asserted) and requires every emitted chunk's declared Length = octets written, 19..4096, all 1500 prefixes in order. Receive half held by the existing ValidateLength units. Rail proven: message.Splitter; the forward rail (wireu.SplitWireUpdate) is RFC4271-9.2-10's open item.",
       "requirement_sha": "063b29b32af07441",
       "tests": {
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds": "65bfdbcba738b5a1",
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds#2": "65bfdbcba738b5a1",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthOutOfBounds": "ba18c36b881a0964",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthWithinBounds": "ba18c36b881a0964"
       },
       "units": {
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds": "06dd27f977080727",
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds#2": "06dd27f977080727",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthOutOfBounds": "1ca02d5222a7f2eb",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthWithinBounds": "7b7f7116880300cf"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-4.2-2": {
       "note": "positive cases local-smaller, peer-smaller and equal would fail on max() or on always-local; the negative (zero from either side) is a mirror of min rather than a violating input",
@@ -156,13 +168,17 @@
       "verdict": "weak"
     },
     "RFC4271-5-2": {
-      "note": "both tagged units are receive-side (ValidateUpdateRFC7606 accepts ORIGIN+AS_PATH+NEXT_HOP with NLRI, refuses a missing ORIGIN). The sentence binds the sender: no tagged unit asserts that an UPDATE ze builds with NLRI carries all three mandatory attributes",
+      "note": "Tests are sound for the peer-facing rail: TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes requires ORIGIN, AS_PATH, NEXT_HOP in every BuildUnicast UPDATE with body NLRI, stated and bare route, eBGP and iBGP. Weak because the producer still violates the row on a reachable path: BuildUnicast with an IPv4 prefix, IPv6 next hop and no Extended Next Hop writes body NLRI with no NEXT_HOP (reachable through ze bgp encode). Ruling R43 owns the fix; the untagged red TestBuildUnicastIPv4RouteWithIPv6NextHopNeverLeavesWithoutNextHop proves it. Re-judge after R43.",
       "requirement_sha": "3fbee88fc1590d14",
       "tests": {
+        "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes": "ccfcb4be28e1d333",
+        "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes#2": "ccfcb4be28e1d333",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught": "ba18c36b881a0964",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributesAreRecognized": "ba18c36b881a0964"
       },
       "units": {
+        "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes": "5a8f6521eda546f7",
+        "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes#2": "5a8f6521eda546f7",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught": "a110d33edb50a5d4",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributesAreRecognized": "c73c608a6ac8b983"
       },
@@ -205,34 +221,42 @@
       "verdict": "enforced"
     },
     "RFC4271-5-6": {
-      "note": "Positive asserts only that ValidateUpdateRFC7606 returns None for descending and interleaved orders; no unit shows the live receive path indexing and installing out-of-order attributes. The tagged negative (malformed ORIGIN or truncated attribute still treat-as-withdraw) proves RFC 7606 malformation detection, a neighbouring rule; the acceptance obligation carries no {single-polarity} marker.",
+      "note": "TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact builds interleaved and fully descending UPDATEs, asserts ValidateUpdateRFC7606 None and that every attribute via wireu.WireUpdate.Attrs().Get and the NLRI equal the ascending UPDATE's, value by value. A receiver assuming ascending order goes red; the lazy view the reactor uses is exercised, not only the validator.",
       "requirement_sha": "6c94d958426964fa",
       "tests": {
+        "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact": "4070fa8f7934cc62",
+        "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact#2": "4070fa8f7934cc62",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttributesOutOfOrderAccepted": "ba18c36b881a0964",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OutOfOrderDoesNotMaskMalformation": "ba18c36b881a0964"
       },
       "units": {
+        "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact": "3bba169e97c915a2",
+        "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact#2": "3bba169e97c915a2",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttributesOutOfOrderAccepted": "76fdf7d16b9b80b9",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OutOfOrderDoesNotMaskMalformation": "01ab490924abc0a0"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-5-7": {
-      "note": "no negative polarity: the batch and queued announce rails and the MP splitter are asserted only to emit ascending type-code sequences on valid input, and no test drives a non-ascending order and sees it refused or reordered, so the positive alone cannot prove the requirement.",
+      "note": "TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes: BuildUnicast, BuildGroupedUnicast, BuildLabeledUnicast emit strictly ascending codes; with raw config attributes AIGP 26 and type 20 supplied after the builder's own, they still sort before LARGE_COMMUNITY 32 (was appended after, observed red). Producer read: appendRawAttributes wraps each one-attribute raw slice (packRawAttributes) in fullRawAttribute so OrderAttributes places it; header re-encoded from its flags and true length. Originating builders only; forwarded UPDATEs keep the received order.",
       "requirement_sha": "63c781a1e915d623",
       "tests": {
+        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "44135fe8cd8ac400",
+        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "44135fe8cd8ac400",
         "internal/component/bgp/message/update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "125e31687892a371",
         "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "775d197b2c06317e",
         "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "775d197b2c06317e",
         "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "775d197b2c06317e"
       },
       "units": {
+        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "981b14c5f7878196",
+        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "981b14c5f7878196",
         "internal/component/bgp/message/update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "8d9d9ce35844f8cf",
         "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "2323a119f1a1422a",
         "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "2ad378772013fadb",
         "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "073483cbcad85930"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-5.1.2-2": {
       "note": "Positive now covers the forward rail: TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer relays an eBGP-learned route on forwardUpdateCore and asserts two internal destinations receive AS_PATH [65001] byte for byte, which an eBGP prepend applied to an internal peer would turn red (records on forwardUpdateSection). Still missing: (a) no negative violates THIS rule. The as-override destination cannot tempt a modification: applyASOverride replaces the peer AS with the local AS, and for an internal peer both are 65000, so the substitution is an identity and removing the facts.isEBGP guard leaves the path unchanged; the external prepend control proves RFC4271-5.1.2-3, a neighbouring rule. A negative needs an input that would modify an internal peer's AS_PATH (for example an egress AS_PATH prepend or a local-as setting toward an internal peer). (b) the route-server rail (reactorForwardRS) toward an internal peer is not asserted.",

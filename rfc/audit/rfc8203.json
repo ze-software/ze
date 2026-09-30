@@ -1,18 +1,22 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC8203-2-1": {
-      "note": "The sentence constrains the Cease NOTIFICATION that carries a Shutdown Communication: its subcode MUST be 2 or 4. Forbidden behaviour: Ze sending a Shutdown Communication under any other Cease subcode. The sender gate is session_connection.go (BuildShutdownData only for NotifyCeaseAdminShutdown/NotifyCeaseAdminReset), and no tagged unit asserts it. TestRFC8203Subcode asserts only the receive side: ShutdownMessage extracts for 2 and 4 (require.Equal \"hi\") and returns empty for subcode 3 (require.Empty). The sender clause has no assertion that goes red.",
+      "note": "Sender side: TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4 requires BuildCeaseData to return length+message under subcodes 2 and 4 and nothing under 0,1,3,5..10. BuildCeaseData is the teardown's only Cease-data builder (session_connection.go, behaviour unchanged); other Cease senders (max-prefix, collision, policy) send their own non-shutdown data. Judge break (return the message for every subcode): red.",
       "requirement_sha": "28025d6c946dd428",
       "tests": {
         "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode": "8a17b6f2d17e6117",
-        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "8a17b6f2d17e6117"
+        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "8a17b6f2d17e6117",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4": "908f887506cc5456",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4#2": "908f887506cc5456"
       },
       "units": {
         "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode": "64cbcc669ed77e11",
-        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "64cbcc669ed77e11"
+        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "64cbcc669ed77e11",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4": "0b83bd8018be51f3",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4#2": "0b83bd8018be51f3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8203-2-2": {
       "note": "Forbidden behaviour: Ze emitting a Length above 128. TestRFC8203LengthCap feeds a 200-byte message to BuildShutdownData and require.Equal(byte(128), data[0]) goes red if the cap is lost. Receive-side 129-255 acceptance follows RFC 9003 and is covered by the row's {single-polarity: positive} marker.",
@@ -26,17 +30,21 @@
       "verdict": "enforced"
     },
     "RFC8203-2-3": {
-      "note": "The sentence is a sender duty: the field MUST be encoded using UTF-8. Forbidden behaviour: BuildShutdownData emitting invalid UTF-8, from an invalid input string or from a 128-octet cut inside a multibyte character. BuildShutdownData strips invalid UTF-8 (bytes.ToValidUTF8) and walks back to a character boundary, but no tagged unit feeds it invalid UTF-8 or a multibyte string longer than 128 octets. The positive tag (TestRFC8203UTF8Valid) round-trips valid UTF-8, and the negative tag (TestRFC8203UTF8Invalid) proves receive rejection, which is RFC8203-2-4's rule.",
+      "note": "TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8: valid 2/3/4-octet UTF-8 sent octet-exact; stray octets, overlong, surrogate and a 128-octet cut inside a character each yield a field with a consistent length octet, utf8.Valid and <=128 octets; overlong input sent as 'xy'.",
       "requirement_sha": "62b9cd0540b3bece",
       "tests": {
         "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "8a17b6f2d17e6117",
-        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "8a17b6f2d17e6117"
+        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "8a17b6f2d17e6117",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8": "908f887506cc5456",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8#2": "908f887506cc5456"
       },
       "units": {
         "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "2e939366e427c751",
-        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "db8547b1fd85e2e7"
+        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "db8547b1fd85e2e7",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8": "1b7f88382840a524",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8#2": "1b7f88382840a524"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8203-2-4": {
       "note": "Forbidden behaviour: the receiver interpreting an invalid UTF-8 sequence. TestRFC8203UTF8Invalid feeds 0xff 0xfe 0xfd and require.Error plus require.Empty(msg) go red if ShutdownMessage returns decoded text. The negative tag TestRFC8203UTF8Valid proves valid multibyte text is still interpreted (require.Equal \"\u65e5\u672c\u8a9e\").",
@@ -52,17 +60,21 @@
       "verdict": "enforced"
     },
     "RFC8203-6-1": {
-      "note": "Shortest Form is REQUIRED of the encoding on both sides. Receive side: TestRFC8203ShortestFormUTF8 require.Error on the overlong 0xC0 0xAF goes red if ShutdownMessage accepts it, and 0xC3 0xA9 is accepted. Send side: no tagged unit feeds BuildShutdownData an overlong sequence, so Ze emitting a non-shortest-form Shutdown Communication has no assertion that goes red (ToValidUTF8 would strip it, unasserted).",
+      "note": "Same unit: U+00E9 shortest form sent unchanged; the overlong 0xC0 0xAF and surrogate 0xED 0xA0 0x80 never reach the field (utf8.Valid refuses both forms, and the overlong case is asserted exact). Receive side held by the HEAD units.",
       "requirement_sha": "9ddccaa93335c9f3",
       "tests": {
         "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8": "8a17b6f2d17e6117",
-        "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8#2": "8a17b6f2d17e6117"
+        "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8#2": "8a17b6f2d17e6117",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8": "908f887506cc5456",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8#2": "908f887506cc5456"
       },
       "units": {
         "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8": "c15cce559a416898",
-        "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8#2": "c15cce559a416898"
+        "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8#2": "c15cce559a416898",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8": "1b7f88382840a524",
+        "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8#2": "1b7f88382840a524"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc8203"

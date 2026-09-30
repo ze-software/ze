@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC7432-10-1": {
       "note": "row now quotes 'the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address', an obligation on the sender. types_test.go::TestEVPNIPAddressLength only decodes: 0/32/128 accepted, other lengths rejected. No unit re-encodes a MAC/IP route with an IPv4 or IPv6 address and asserts the length octet the encoder writes is 32 or 128, so an encoder writing the octet count (4 or 16) stays green",
@@ -32,7 +32,7 @@
       "verdict": "enforced"
     },
     "RFC7432-5-1": {
-      "note": "row now quotes the §8.1.1 sentence that the ESI MUST be the 10-octet value of §5 (the extraction maps 8.1.1:2 here). types_test.go::TestEVPNESIIsTenOctets decodes and re-encodes a 10-octet ESI on the Ethernet Segment and Ethernet A-D routes and asserts the following field starts after octet ten; the negatives cut the ESI to nine octets and assert ErrEVPNTruncated. ESI is a [10]byte, so no origination path can produce another width",
+      "note": "row now quotes the \u00a78.1.1 sentence that the ESI MUST be the 10-octet value of \u00a75 (the extraction maps 8.1.1:2 here). types_test.go::TestEVPNESIIsTenOctets decodes and re-encodes a 10-octet ESI on the Ethernet Segment and Ethernet A-D routes and asserts the following field starts after octet ten; the negatives cut the ESI to nine octets and assert ErrEVPNTruncated. ESI is a [10]byte, so no origination path can produce another width",
       "requirement_sha": "eca82697be9a41ea",
       "tests": {
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets": "f73c00755f3c5f59",
@@ -62,17 +62,21 @@
       "verdict": "enforced"
     },
     "RFC7432-8.1.1-2": {
-      "note": "the ES-Import presence rule is proven: TestRFC7432EthernetSegmentOriginationAccepted carries the 0x06/0x02 community byte-for-byte and TestRFC7432EthernetSegmentOriginationRefused refuses an ordinary RT or no community with a Type 1 RD. But the row also claims an ESI Label community is not a substitute, and no tagged unit offers the ESI Label (0x06/0x01, same type octet) in place of ES-Import, so a guard that matched only type 0x06 stays green. The untagged config test TestConfiguredEVPNEthernetSegmentRequirements does offer it",
+      "note": "ES-Import presence proven by the HEAD units; the ESI-Label-substitute clause now proven: TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel builds a Type 4 route with ES-Import (extended communities exactly it) and refuses ESI Label 0x06/0x01 (same type octet, asserted) alone or with an RT via ErrEVPNOrigination, no UPDATE.",
       "requirement_sha": "494e104c40b7f28e",
       "tests": {
+        "internal/component/bgp/message/rfc7432_es_import_test.go::TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel": "5575480710fa2cd4",
+        "internal/component/bgp/message/rfc7432_es_import_test.go::TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel#2": "5575480710fa2cd4",
         "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432EthernetSegmentOriginationAccepted": "e5f92edb6c106d39",
         "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432EthernetSegmentOriginationRefused": "e5f92edb6c106d39"
       },
       "units": {
+        "internal/component/bgp/message/rfc7432_es_import_test.go::TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel": "6b419d2abed497d7",
+        "internal/component/bgp/message/rfc7432_es_import_test.go::TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel#2": "6b419d2abed497d7",
         "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432EthernetSegmentOriginationAccepted": "fc3f7b1bc4882f41",
         "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432EthernetSegmentOriginationRefused": "59cd2e3d24a21281"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7432-8.2.1-10": {
       "note": "origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD asserts RD type 1 on the originated per-ES route; TestOriginEthernetADPerESRefusesASTypeRD refuses an AS-specific RD on per-ES and still allows it per-EVI; bgp_routes_evpn_test.go pair repeats both through native config",

@@ -1,0 +1,93 @@
+{
+  "rfc": "rfc9072",
+  "records": [
+    {
+      "rid": "RFC9072-2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams",
+      "unit-sha": "eda9b634499715e6",
+      "claim-sha": "48eb676c85065827",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/open.go::writeToExtended",
+      "producer-sha": "88ac46ccdf758979",
+      "break": "body of writeToExtended replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9072-2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc9072_short_extended_open_test.go::TestRFC9072ShortExtendedOpenIsAccepted",
+      "unit-sha": "248b7e804c6a609c",
+      "claim-sha": "2aefdcb043b3b1e4",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/open.go::UnpackOpen",
+      "producer-sha": "3c949155f7d6d078",
+      "break": "body of UnpackOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9072-2-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc9072_short_extended_open_test.go::TestRFC9072ShortExtendedOpenIsAccepted",
+      "unit-sha": "248b7e804c6a609c",
+      "claim-sha": "8f8d2c19d1183388",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/open.go::UnpackOpen",
+      "producer-sha": "3c949155f7d6d078",
+      "break": "body of UnpackOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9072-2-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams",
+      "unit-sha": "eda9b634499715e6",
+      "claim-sha": "99bb0e9de4a7eb54",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/open.go::writeToExtended",
+      "producer-sha": "88ac46ccdf758979",
+      "break": "body of writeToExtended replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9072-2-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams",
+      "unit-sha": "eda9b634499715e6",
+      "claim-sha": "6f9d9661c8f257f7",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/open.go::writeToExtended",
+      "producer-sha": "88ac46ccdf758979",
+      "break": "body of writeToExtended replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9072-3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams",
+      "unit-sha": "eda9b634499715e6",
+      "claim-sha": "6a2c050bdafb3814",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/open.go::writeToExtended",
+      "producer-sha": "88ac46ccdf758979",
+      "break": "body of writeToExtended replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9072-3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker",
+      "unit-sha": "a86f1f4a32661a4e",
+      "claim-sha": "9e8752c018d5ebcb",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOptionalParams",
+      "producer-sha": "adb4f80e5d6c2cd9",
+      "break": "body of buildOptionalParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9072-3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker",
+      "unit-sha": "a86f1f4a32661a4e",
+      "claim-sha": "75bf33307b9d8b91",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOptionalParams",
+      "producer-sha": "adb4f80e5d6c2cd9",
+      "break": "body of buildOptionalParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

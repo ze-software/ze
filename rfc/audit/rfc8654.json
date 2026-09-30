@@ -1,5 +1,6 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8654-3-1": {
       "note": "Non-compliant: an extended-message peer whose malformed UPDATE resets the session instead of RFC 7606 handling. The tagged units call ValidateUpdateRFC7606 directly with no session and no Extended Message negotiation: the positive asserts a well-formed MP_REACH gets ActionNone, the negative that a COMMUNITY length conflict is treat-as-withdraw. They prove RFC 7606 behaviour in isolation, not that the extended-message session path applies it.",
@@ -40,8 +41,8 @@
       "note": "Non-compliant: an UPDATE on the wire larger than the negotiated maximum. TestSendUpdateWithSplitBoundsAnOversizePayload drives Peer.sendUpdateWithSplit with an over-4096 payload to a non-extended peer and asserts every wire frame length <= 4096 with the NLRI preserved; TestSendUpdateWithSplitTracksTheNegotiatedMaximum asserts the bound is 65535 when negotiated; BuildUnicastWithMaxSize refuses an oversize build (ErrUpdateTooLarge). Both polarities.",
       "requirement_sha": "a3e1fd65268f54e7",
       "tests": {
-        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_Fits": "a23f0adaac63b3db",
-        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_TooLarge": "a23f0adaac63b3db",
+        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_Fits": "71711e8ffa2ff74b",
+        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_TooLarge": "71711e8ffa2ff74b",
         "internal/component/bgp/message/update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize": "e87970ac24f6e98d",
         "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesBoundsAnOversizeGroup": "ced3ad313c9ae5a7",
         "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesLeavesAFittingGroupWhole": "ced3ad313c9ae5a7",
@@ -90,30 +91,38 @@
       "verdict": "enforced"
     },
     "RFC8654-5-4": {
-      "note": "RFC 4271 error handling for a bad length is a NOTIFICATION Message Header Error / Bad Message Length whose Data carries the erroneous Length field, followed by closing the connection. The tagged unit asserts only ErrorCode and ErrorSubcode on the returned error; the Data field and the send-and-close are unasserted, and no session-level test is tagged.",
+      "note": "RFC 4271 handling proven end to end: TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling on an established session without Extended Message sends an UPDATE header Length 4097 and requires NOTIFICATION 1/2 with Data 0x1001 on the wire, ReadAndProcess erroring, and the connection closed (EOF). The bounds unit asserts code/subcode/Data; positive on the HEAD TestValidateLengthWithMax.",
       "requirement_sha": "df841e66398cf2dd",
       "tests": {
         "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
-        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "4eb31663a97bb3a8"
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "4eb31663a97bb3a8",
+        "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability": "a02a160d574b5b88",
+        "internal/component/bgp/reactor/rfc8654_bad_length_session_test.go::TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling": "a1acece001388bd1"
       },
       "units": {
         "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "6d34dfe53245e5aa",
-        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "6d34dfe53245e5aa"
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "6d34dfe53245e5aa",
+        "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability": "f19941543f406be2",
+        "internal/component/bgp/reactor/rfc8654_bad_length_session_test.go::TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling": "9b1834b1126fc396"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8654-6-1": {
-      "note": "The quote carries the lower bound 19 and the upper bound 4096/65535 by type and advertisement. Upper bounds are asserted in TestValidateLengthWithMax (UPDATE/NOTIFICATION/ROUTE-REFRESH 4097 rejected without extended, 65535 accepted with; OPEN capped). No tagged case has a length below 19; the negative tag is KEEPALIVE of 20, the RFC 4271 per-type rule, a neighbouring obligation.",
+      "note": "TestRFC8654LengthBoundsPerTypeAndCapability: per-type floors accepted in both capability states, 0 and 18 refused for every type, 4096 accepted and 4097 refused without the capability, 65535 accepted for UPDATE/NOTIFICATION/ROUTE-REFRESH with it, OPEN 4097/65535 refused with it; every refusal Bad Message Length with the erroneous Length as Data. KEEPALIVE's cap is held by its exact-19 per-type check (HEAD unit).",
       "requirement_sha": "e3cfe43c3eb21f36",
       "tests": {
         "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
-        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "4eb31663a97bb3a8"
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "4eb31663a97bb3a8",
+        "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability": "a02a160d574b5b88",
+        "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability#2": "a02a160d574b5b88"
       },
       "units": {
         "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "6d34dfe53245e5aa",
-        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "6d34dfe53245e5aa"
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "6d34dfe53245e5aa",
+        "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability": "f19941543f406be2",
+        "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability#2": "f19941543f406be2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc8654"

@@ -1,5 +1,8 @@
 {
   "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8955-3-1": {
@@ -162,8 +165,8 @@
       "note": "table over the received-UPDATE path asserts eligibility, candidate availability and the selected install event for each of rules a, b and c (missing destination, missing covering unicast, originator mismatch, foreign more-specific) and for the feasible cases, including the RFC 9117 updates",
       "requirement_sha": "c2145bef30dd5201",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "0cd2d92220c3e9c6",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "0cd2d92220c3e9c6"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "d72a880cb772843d",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "d72a880cb772843d"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "a1b576b3043ebced",
@@ -175,8 +178,8 @@
       "note": "the row now quotes RFC 8955 Section 6 itself: an eBGP route's AS_PATH must carry the neighbouring AS (the peer's ASN) in the left-most position. The tagged unit TestFlowSpecAuthorizationFromReceivedUpdates proves the neighbouring rule RFC 9117 Section 4.2 put in its place (the rule's leftmost AS_SEQUENCE ASN equals the covering unicast route's), and its case 'external authorized through route server' (peerAS 65100, leftmost ASN 65001, want true) asserts acceptance of exactly the input the RFC 8955 sentence forbids. No tagged assertion goes red when an eBGP FlowSpec route lacks the peer AS leftmost. The tags belong on an RFC 9117 Section 4.2 row, which no summary in rfc/short holds",
       "requirement_sha": "e3d91b02d7ef324e",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "0cd2d92220c3e9c6",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "0cd2d92220c3e9c6"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "d72a880cb772843d",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "d72a880cb772843d"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "a1b576b3043ebced",
@@ -188,8 +191,8 @@
       "note": "drives unicast add of a foreign more-specific, its withdraw, loss and return of the covering route, validation eligibility flips and session down, asserting a withdraw or reinstall event for the retained rule at each step without a new FlowSpec UPDATE",
       "requirement_sha": "508626fc308dfc4f",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "0cd2d92220c3e9c6",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "0cd2d92220c3e9c6"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "d72a880cb772843d",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "d72a880cb772843d"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "c358ea038139731d",

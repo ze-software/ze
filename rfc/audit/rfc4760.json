@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC4760-3-1": {
       "note": "Clause \"MUST be set to 0\": (a) forbidden: an MP_REACH_NLRI whose Reserved octet is non-zero on send, e.g. inherited from a pooled buffer. (b) rfc4760_reserved_test.go TestRFC4760ReservedIsWrittenNotInherited asserts buf[reserved]==0 over a 0xAA-poisoned buffer at a non-zero offset for six next-hop forms, and TestRFC4760ReservedSurvivesBufferReuse asserts 0 where the previous encode left 0x11; both go red if MPReachNLRI.WriteTo stops writing the octet. Single-polarity marker on the row: there is no non-zero form Ze could emit to reject.",
@@ -42,30 +42,38 @@
       "verdict": "enforced"
     },
     "RFC4760-3-3": {
-      "note": "The sentence binds the SENDER: an UPDATE carrying MP_REACH_NLRI MUST carry ORIGIN and AS_PATH, on eBGP and iBGP. (a) forbidden: Ze emitting an MP_REACH_NLRI UPDATE without ORIGIN or AS_PATH. (b) no tagged unit asserts it: TestRFC4760MPReachRequiresOriginAndASPath drives only the RECEIVE validator ValidateUpdateRFC7606 (treat-as-withdraw on a missing attribute, which is RFC 7606 Section 3(d) handling), and never inspects an UPDATE Ze builds. The eBGP/iBGP clause is not exercised on either side.",
+      "note": "TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref: BuildUnicast of an IPv6 route stating ORIGIN, and a bare route stating neither ORIGIN nor AS_PATH, on eBGP and iBGP, always carries MP_REACH_NLRI with ORIGIN and AS_PATH (genuine negative, R1b). BuildUnicast rail; CommitService/RIB-replay rails not driven.",
       "requirement_sha": "ade8a0848a8c0383",
       "tests": {
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "4fd22a76523fea93",
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "4fd22a76523fea93",
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath": "1dc5ff0bda5321c3",
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath#2": "1dc5ff0bda5321c3"
       },
       "units": {
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "42fd5e2e5acc59c9",
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "42fd5e2e5acc59c9",
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath": "dea6e5b17a79fb40",
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath#2": "dea6e5b17a79fb40"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4760-3-4": {
-      "note": "(a) forbidden: an iBGP UPDATE carrying MP_REACH_NLRI with no LOCAL_PREF. (b) TestRFC4760IBGPMPReachCarriesLocalPref \"ibgp includes local_pref\" asserts codes[5] on UpdateBuilder.BuildUnicast for an IPv6 route, which goes red on that builder. Weak because the negative tag proves a neighbouring rule: \"ebgp omits local_pref\" is RFC 4271 Section 5.1.5 (LOCAL_PREF not sent to external peers), and no input in it violates this requirement; the row has no single-polarity marker. Only the BuildUnicast rail is covered; the CommitService and RIB-replay rails that also emit MP_REACH are not.",
+      "note": "Same unit: every iBGP MP_REACH UPDATE carries LOCAL_PREF, including the bare route with no LOCAL_PREF value (genuine negative); the HEAD eBGP-omits unit stays as a neighbour. BuildUnicast rail.",
       "requirement_sha": "8c68c072463e59b6",
       "tests": {
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "4fd22a76523fea93",
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "4fd22a76523fea93",
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref": "1dc5ff0bda5321c3",
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref#2": "1dc5ff0bda5321c3"
       },
       "units": {
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "42fd5e2e5acc59c9",
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "42fd5e2e5acc59c9",
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref": "0e1674e7025d1d59",
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref#2": "0e1674e7025d1d59"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4760-7-1": {
       "note": "(a) forbidden: after an incorrect MP_REACH_NLRI or MP_UNREACH_NLRI, routes of that AFI/SAFI from the neighbor stay installed. Ze answers with session reset (RFC 7606 Section 3(j)). (b) The trigger is asserted: TestRFC4760IncorrectMPAttributeResetsTheSession (RFC7606ActionSessionReset for a bad next-hop length and a short MP_UNREACH), TestRFC4760IncorrectMPReach/MPUnreachDeletesTheNeighborsRoutes (session reaches Idle, NOTIFICATION code 3), negatives keep Established. The deletion is asserted separately: TestHandleState_PeerDown deletes the PeerRIB on a hand-built state \"down\" event. No tagged unit asserts the link between them, that the reset session delivers the peer-down event which clears the RIB, so a reactor that goes Idle without notifying the RIB keeps the routes and every tagged unit stays green. The reactor tests assert Idle and assume it deletes routes.",

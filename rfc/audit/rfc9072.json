@@ -1,66 +1,74 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC9072-2-1": {
-      "note": "The envelope is asserted: TestOpenPackExtendedParams fails unless 300 octets of OptionalParams produce Non-Ext OP Len 0xFF, Non-Ext OP Type 0xFF and a 2-octet length of 300. But 'the procedure below' also gives every parameter a two-octet Parameter Length, and both units hand the encoder caller-built OptionalParams (TestOpenPackExtendedParams passes 300 unframed bytes with ExtendedParams unset; the negative sets ExtendedParams and 2-octet framing by hand and asserts the round trip). No tagged unit drives ze's OPEN builder with more than 255 octets of capabilities and asserts the parameters come out in the extended framing, which is the interop defect the negative's own comment names.",
+      "note": "Unit changed only by D-15: TestOpenPackExtendedParams now asserts the exact extended body (13+params, the off-by-one D-8 fix) plus the markers and 2-octet length. Still weak: the procedure's two-octet Parameter Length per parameter is not asserted in this row's units (the reactor TestRFC9072ParameterType255OnlyAsTheExtendedMarker parses it but is tagged to 3-2 only). Row is in the child spec's Blocked-by list.",
       "requirement_sha": "a19a7161810084e8",
       "tests": {
-        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "eabc69b2ca4c66d8",
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "9a2a4c8f9ca41e49",
         "internal/component/bgp/message/rfc9072_extended_open_test.go::TestTheExtendedEnvelopeAndItsParametersAgree": "5e1d5078b11393d9"
       },
       "units": {
-        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "2fc897548a5794cc",
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "cbb4380d23e4e649",
         "internal/component/bgp/message/rfc9072_extended_open_test.go::TestTheExtendedEnvelopeAndItsParametersAgree": "8480aa5620c244dd"
       },
       "verdict": "weak"
     },
     "RFC9072-2-2": {
-      "note": "TestOpenUnpackExtendedParams accepts the extended-form cases with Extended Opt. Parm. Length 0 and 6 (no error, 0 and 6 parameter octets) and decodes a standard OPEN classically. The table declares wantExtended for the extended cases but the loop never asserts it, so an UnpackOpen that returned the 6 octets with ExtendedParams false, leaving the capability parser to misread the 2-octet Parameter Length, stays green. Acceptance of the OPEN is proven only as far as UnpackOpen returning no error.",
+      "note": "TestRFC9072ShortExtendedOpenIsAccepted: an extended OPEN with 9 parameter octets decodes with no error, ExtendedParams true, parameters exact, ASN4 4200000001 parsed; a classic reading of the same octets does not recover it; the classic OPEN of the same capability decodes ExtendedParams false to the same capability.",
       "requirement_sha": "1603ca9a90ef6018",
       "tests": {
-        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams": "eabc69b2ca4c66d8",
-        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams#2": "eabc69b2ca4c66d8",
-        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams#3": "eabc69b2ca4c66d8"
+        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams": "9a2a4c8f9ca41e49",
+        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams#2": "9a2a4c8f9ca41e49",
+        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams#3": "9a2a4c8f9ca41e49",
+        "internal/component/bgp/message/rfc9072_short_extended_open_test.go::TestRFC9072ShortExtendedOpenIsAccepted": "286267e09c971f00",
+        "internal/component/bgp/message/rfc9072_short_extended_open_test.go::TestRFC9072ShortExtendedOpenIsAccepted#2": "286267e09c971f00"
       },
       "units": {
         "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams": "912f11a2cea36703",
         "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams#2": "912f11a2cea36703",
-        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams#3": "912f11a2cea36703"
+        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams#3": "912f11a2cea36703",
+        "internal/component/bgp/message/rfc9072_short_extended_open_test.go::TestRFC9072ShortExtendedOpenIsAccepted": "2af40e5926689a4a",
+        "internal/component/bgp/message/rfc9072_short_extended_open_test.go::TestRFC9072ShortExtendedOpenIsAccepted#2": "2af40e5926689a4a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9072-2-3": {
-      "note": "{single-polarity: positive} carried on the row. Forbidden: a Non-Ext OP Len of 0 on an extended-format OPEN. TestOpenPackExtendedParams packs 300 octets of parameters and fails unless body[9]==0xFF, which covers both the SHOULD (255) and the MUST NOT (0).",
+      "note": "{single-polarity: positive} on the row. TestOpenPackExtendedParams requires body[9]==0xFF and now the exact body length; writeToExtended writes the constant.",
       "requirement_sha": "97db2fe55e7c6056",
       "tests": {
-        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "eabc69b2ca4c66d8"
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "9a2a4c8f9ca41e49"
       },
       "units": {
-        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "2fc897548a5794cc"
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "cbb4380d23e4e649"
       },
       "verdict": "enforced"
     },
     "RFC9072-2-4": {
-      "note": "{single-polarity: positive} carried on the row: writeToExtended writes the constant. Forbidden: a Non-Ext OP Type other than 255 on an extended OPEN. TestOpenPackExtendedParams fails unless body[10] == 0xFF for a 300-octet parameter set.",
+      "note": "{single-polarity: positive} on the row. TestOpenPackExtendedParams requires body[10]==0xFF; writeToExtended writes the constant.",
       "requirement_sha": "792327ad94a5d5d6",
       "tests": {
-        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "eabc69b2ca4c66d8"
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "9a2a4c8f9ca41e49"
       },
       "units": {
-        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "2fc897548a5794cc"
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "cbb4380d23e4e649"
       },
       "verdict": "enforced"
     },
     "RFC9072-3-2": {
-      "note": "{single-polarity: positive} carried on the row. The only assertion is body[10] == 0xFF, the permitted use of 255. The forbidden behaviour is emitting 255 as an optional-parameter type elsewhere; the unit hands the encoder opaque OptionalParams (bytes i % 256, which contain 255) and asserts nothing about parameter types, and the builder the annotation relies on to emit only type 2 is not driven by any tagged unit.",
+      "note": "Marker removed; genuine negative (R1b): TestRFC9072ParameterType255OnlyAsTheExtendedMarker builds capabilities full of 0xFF (AS 0xFFFFFFFF, AFI 0xFFFF, SAFI 0xFF) through buildOptionalParams and requires no parameter type 255 and framing ending exactly at the end, classic below 256 octets, extended above; positive body[10]==0xFF on TestOpenPackExtendedParams.",
       "requirement_sha": "0ec0274767359d45",
       "tests": {
-        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "eabc69b2ca4c66d8"
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "9a2a4c8f9ca41e49",
+        "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker": "fd6e9d60c2a40d6d",
+        "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker#2": "fd6e9d60c2a40d6d"
       },
       "units": {
-        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "2fc897548a5794cc"
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "cbb4380d23e4e649",
+        "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker": "ee8ae6c79a2e8e84",
+        "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker#2": "ee8ae6c79a2e8e84"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc9072"

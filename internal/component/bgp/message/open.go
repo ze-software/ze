@@ -104,8 +104,7 @@ func (o *Open) Len(_ *EncodingContext) int {
 	// and written under another overruns: an OPEN whose parameters carry the RFC
 	// 9072 two-octet framing needs the extended envelope even below 256 octets.
 	if o.ExtendedParams || optLen > 255 {
-		// RFC 9072: Extended format adds 4 bytes (NonExtLen + NonExtType + ExtLen)
-		return HeaderLen + 10 + 4 + optLen
+		return HeaderLen + openExtendedFixedLen + optLen
 	}
 	return HeaderLen + 10 + optLen
 }
@@ -152,10 +151,22 @@ func (o *Open) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 	return totalLen
 }
 
+// openExtendedFixedLen is the OPEN body ahead of the Optional Parameters in the
+// RFC 9072 extended format: Version (1), My AS (2), Hold Time (2), BGP
+// Identifier (4), Non-Ext OP Len (1), Non-Ext OP Type (1) and Extended Opt.
+// Parm. Length (2). The classic body has 10, because its one length octet sits
+// where Non-Ext OP Len does.
+const openExtendedFixedLen = 13
+
 // writeToExtended writes OPEN with RFC 9072 extended format.
 func (o *Open) writeToExtended(buf []byte, off int) int {
 	optLen := len(o.OptionalParams)
-	totalLen := HeaderLen + 10 + 4 + optLen
+	// RFC 4271 Section 4.1: "the Length field MUST have the smallest value
+	// required, given the rest of the message." RFC 9072 Section 2: the
+	// "Extended Optional Parameters Length field ... is an unsigned integer
+	// indicating the total length of the Optional Parameters field in octets",
+	// so the parameters end the message.
+	totalLen := HeaderLen + openExtendedFixedLen + optLen
 	writeHeader(buf, off, msgtype.TypeOPEN, totalLen)
 
 	bodyOff := off + HeaderLen

@@ -348,25 +348,17 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 		attrs = append(attrs, lcs)
 	}
 
+	// Raw attributes (already packed, pass-through from config) join the sort.
+	attrs = appendRawAttributes(attrs, p.RawAttributeBytes)
+
 	// Sort attributes by type code per RFC 4271 Appendix F.3
 	sort.Slice(attrs, func(i, j int) bool {
 		return attrs[i].Code() < attrs[j].Code()
 	})
 
 	// Write sorted attributes into scratch-backed buffer.
-	attrSize := attribute.AttributesSize(attrs)
-	// Calculate raw attributes size
-	rawSize := 0
-	for _, raw := range p.RawAttributeBytes {
-		rawSize += len(raw)
-	}
-	attrBytes := ub.alloc(attrSize + rawSize)
-	off := attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
-
-	// Append raw attributes (already packed, pass-through from config)
-	for _, raw := range p.RawAttributeBytes {
-		off += copy(attrBytes[off:], raw)
-	}
+	attrBytes := ub.alloc(attribute.AttributesSize(attrs))
+	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
 
 	return &Update{
 		PathAttributes: attrBytes,
@@ -603,7 +595,7 @@ func (r *rawAttribute) CheckedWriteTo(buf []byte, off int) (int, error) {
 // packAttributesOrderedInto packs attributes in the order
 // attribute.OrderAttributes decides: MP_UNREACH first, then every other
 // attribute by type code, MP_REACH included.
-// Appends rawAttrs after the ordered block, pass-through for raw config bytes.
+// rawAttrs (pass-through config bytes) take their place in that order too.
 //
 // Result is a sub-slice of ub.scratch. See the Update type doc for the
 // scratch-aliasing lifetime invariant.
@@ -611,15 +603,25 @@ func (ub *UpdateBuilder) packAttributesOrderedInto(attrs []attribute.Attribute, 
 	if len(attrs) == 0 && len(rawAttrs) == 0 {
 		return nil
 	}
-	attrSize := attribute.AttributesSize(attrs)
-	rawSize := 0
-	for _, r := range rawAttrs {
-		rawSize += len(r)
-	}
-	result := ub.alloc(attrSize + rawSize)
-	off := attribute.WriteAttributesOrdered(attrs, result, 0)
-	for _, r := range rawAttrs {
-		off += copy(result[off:], r)
-	}
+	attrs = appendRawAttributes(attrs, rawAttrs)
+	result := ub.alloc(attribute.AttributesSize(attrs))
+	attribute.WriteAttributesOrdered(attrs, result, 0)
 	return result
+}
+
+// RFC 4271 Section 5: "The sender of an UPDATE message SHOULD order path
+// attributes within the UPDATE message in ascending order of attribute type."
+// appendRawAttributes adds each pre-packed raw attribute (one complete
+// attribute, header included, per slice) to attrs, so the caller's ordering
+// places it by its type code rather than after the ordered block.
+func appendRawAttributes(attrs []attribute.Attribute, rawAttrs [][]byte) []attribute.Attribute {
+	if len(rawAttrs) == 0 {
+		return attrs
+	}
+	held := make([]fullRawAttribute, len(rawAttrs))
+	for i, raw := range rawAttrs {
+		held[i] = fullRawAttribute{data: raw}
+		attrs = append(attrs, &held[i])
+	}
+	return attrs
 }

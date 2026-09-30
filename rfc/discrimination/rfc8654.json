@@ -2,6 +2,39 @@
   "rfc": "rfc8654",
   "records": [
     {
+      "rid": "RFC8654-3-2",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageWireIsCode6Length0",
+      "unit-sha": "2b002f74a68b9f73",
+      "claim-sha": "4fa97e6ad8081cf1",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/capability.go::writeCapabilityTo",
+      "producer-sha": "ed9af8768217102a",
+      "break": "body of writeCapabilityTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-3-3",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageNonZeroLengthRefused",
+      "unit-sha": "ed94785bf948d0c0",
+      "claim-sha": "3e8d3d8c8c821678",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/capability.go::parseZeroLengthCapability",
+      "producer-sha": "215540971eebc6bf",
+      "break": "body of parseZeroLengthCapability replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-3-3",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageWireIsCode6Length0",
+      "unit-sha": "2b002f74a68b9f73",
+      "claim-sha": "2d4496ed38b91932",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/capability.go::parseZeroLengthCapability",
+      "producer-sha": "215540971eebc6bf",
+      "break": "body of parseZeroLengthCapability replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8654-4-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/message/update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize",
@@ -11,6 +44,50 @@
       "producer": "internal/component/bgp/message/update_split.go::SplitMPReachNLRIWithAddPath",
       "producer-sha": "08bdacae42899067",
       "break": "body of SplitMPReachNLRIWithAddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-5-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability",
+      "unit-sha": "7528545bc057de0d",
+      "claim-sha": "8f5c972bfd222abf",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/header.go::ValidateLengthWithMax",
+      "producer-sha": "cf11b57952aab385",
+      "break": "body of ValidateLengthWithMax replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-5-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8654_bad_length_session_test.go::TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling",
+      "unit-sha": "e505f6a0e2320bce",
+      "claim-sha": "b4745def98d4faee",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_read.go::readAndProcessMessage",
+      "producer-sha": "96883a494ecdc315",
+      "break": "body of readAndProcessMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-6-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability",
+      "unit-sha": "7528545bc057de0d",
+      "claim-sha": "f2eb1a6a5d979c72",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/header.go::ValidateLengthWithMax",
+      "producer-sha": "cf11b57952aab385",
+      "break": "body of ValidateLengthWithMax replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-6-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability",
+      "unit-sha": "7528545bc057de0d",
+      "claim-sha": "df38ac8dc7462a00",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/header.go::ValidateLengthWithMax",
+      "producer-sha": "cf11b57952aab385",
+      "break": "body of ValidateLengthWithMax replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
