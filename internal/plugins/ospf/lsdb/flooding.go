@@ -117,7 +117,11 @@ type retransmitEntry struct {
 	area types.AreaID
 	key  types.LSAKey
 	lsa  packet.LSAHeader
-	raw  []byte
+	// held is the queued database copy, aging from the moment it was queued: its LS age at
+	// any later time is the database copy's age at that time (both age one second per
+	// second from the same value, and both stop at MaxAge), so a retransmission leaves with
+	// the age the LSA reached while it sat on the list (RFC 2328 Section 14).
+	held *Entry
 	sent bool
 	last time.Time
 }
@@ -389,14 +393,16 @@ func (d *LSDB) floodExcept(incoming string, sender types.RouterID, area types.Ar
 			}
 		}
 		if queued {
+			// RFC 2328 Section 13.3 (5).
+			out := floodCopy(lsa, iface.TransmitDelay)
 			if nonBroadcast {
 				// Fan out one unicast copy per Flood-eligible neighbor (RFC 2328 §13.3);
 				// the built LSA buffer is reused for each send.
 				for _, dst := range unicast {
-					d.sendLSUpdate(iface.Name, dst, iface.AreaID, []packet.LSA{lsa})
+					d.sendLSUpdate(iface.Name, dst, iface.AreaID, []packet.LSA{out})
 				}
 			} else {
-				d.sendLSUpdate(iface.Name, floodDestination(*iface), iface.AreaID, []packet.LSA{lsa})
+				d.sendLSUpdate(iface.Name, floodDestination(*iface), iface.AreaID, []packet.LSA{out})
 			}
 			if onReceiving {
 				floodedBack = true
@@ -471,10 +477,11 @@ func (d *LSDB) queueRetransmit(area types.AreaID, nbr NeighborKey, h packet.LSAH
 	}
 	owned := make([]byte, len(raw))
 	copy(owned, raw)
+	now := d.now()
 	// RFC 2328 §13.5: a flooded LSA is retransmitted every RxmtInterval until acknowledged;
 	// the FIRST retransmission waits a full interval after the initial flood. Stamp the queue
 	// time so RetransmitTick does not resend on its very next tick (last left zero would).
-	lst[key] = &retransmitEntry{area: area, key: key, lsa: h, raw: owned, last: d.now()}
+	lst[key] = &retransmitEntry{area: area, key: key, lsa: h, held: newEntry(h, owned, now, false), last: now}
 	return true
 }
 
@@ -540,9 +547,7 @@ func (d *LSDB) RetransmitTick(now time.Time) int {
 			if !entry.last.IsZero() && now.Sub(entry.last) < interval {
 				continue
 			}
-			raw := make([]byte, len(entry.raw))
-			copy(raw, entry.raw)
-			if len(raw) < types.LSAHeaderLen {
+			if len(entry.held.raw) < types.LSAHeaderLen {
 				delete(lst, key)
 				continue
 			}
@@ -553,11 +558,15 @@ func (d *LSDB) RetransmitTick(now time.Time) int {
 			// 2328 sec 13.5 reliable flooding. The neutral header was captured at queue time
 			// (entry.lsa); the encoders re-emit RawBytes verbatim, so no body decode is
 			// needed (mirrors Entry.LSA and the flood-send path).
-			age, _ := types.LSAgeFromBytes(raw[:2])
-			age = age.Add(firstNonZero(iface.TransmitDelay, 1))
-			age.WriteTo(raw, 0)
+			//
+			// RFC 2328 Section 14: "An LSA's LS age field is incremented while it is
+			// contained in a router's database." The copy on the list is the database copy
+			// (Section 13 step 8), so it leaves with the age it reached while held, plus
+			// InfTransDelay per Section 13.3 (5); Raw stops the sum at MaxAge.
+			delay := firstNonZero(iface.TransmitDelay, 1)
+			raw := entry.held.Raw(now, delay)
 			hdr := entry.lsa
-			hdr.Age = age
+			hdr.Age = entry.held.age(now).Add(delay)
 			lsa := packet.LSA{Header: hdr, Body: raw[types.LSAHeaderLen:], RawBytes: raw}
 			entry.sent = true
 			entry.last = now
@@ -744,6 +753,26 @@ func (d *LSDB) packetEncoder() PacketEncoder {
 		return d.encoder
 	}
 	return v4PacketEncoder{}
+}
+
+// floodCopy returns the copy of lsa that goes into an outgoing Link State Update on an
+// interface whose InfTransDelay is transmitDelay. lsa itself is left untouched: it is the
+// copy queued for retransmission, which ages while held and gets its own increment when
+// RetransmitTick sends it, so the bump is counted once per transmission.
+//
+// RFC 2328 Section 13.3 (5): "The LSA's LS age must be incremented by InfTransDelay (which
+// must be > 0) when it is copied into the outgoing Link State Update packet (until the LS
+// age field reaches the maximum value of MaxAge)." LSAge.Add stops at MaxAge, and an unset
+// delay counts as 1 so the increment is never 0 (the retransmit path uses the same floor).
+func floodCopy(lsa packet.LSA, transmitDelay uint16) packet.LSA {
+	raw := make([]byte, len(lsa.RawBytes))
+	copy(raw, lsa.RawBytes)
+	out := lsa
+	out.Header.Age = lsa.Header.Age.Add(firstNonZero(transmitDelay, 1))
+	out.Header.Age.WriteTo(raw, 0)
+	out.Body = raw[types.LSAHeaderLen:]
+	out.RawBytes = raw
+	return out
 }
 
 func (d *LSDB) sendDirectLSUpdate(iface string, dst netip.Addr, area types.AreaID, entry *Entry, transmitDelay uint16) {

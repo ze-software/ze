@@ -147,8 +147,9 @@ func TestOSPFRetransmitTimer(t *testing.T) {
 	if len(tx.sends) != 1 || tx.sends[0].pkt.LSUpdate == nil {
 		t.Fatalf("retransmit send = %+v", tx.sends)
 	}
-	if tx.sends[0].pkt.LSUpdate.LSAs[0].RawBytes[1] != 1 {
-		t.Fatalf("transmit delay not applied to age: % x", tx.sends[0].pkt.LSUpdate.LSAs[0].RawBytes[:2])
+	// Queued at age 0, held 6 s (RFC 2328 Section 14 ages it while held), InfTransDelay 1.
+	if tx.sends[0].pkt.LSUpdate.LSAs[0].RawBytes[1] != 7 {
+		t.Fatalf("retransmitted age is not held age 6 + transmit delay 1: % x", tx.sends[0].pkt.LSUpdate.LSAs[0].RawBytes[:2])
 	}
 	db.ReceiveAck(AckInput{Interface: "eth1", AreaID: area("0.0.0.0"), RouterID: rid("3.3.3.3"), Ack: packet.LSAck{Headers: []packet.LSAHeader{lsa.Header}}})
 	if len(db.retransmit) != 0 {

@@ -140,7 +140,9 @@ func (e *engine) deriveRICapabilities(scope OpaqueScope, area types.AreaID, ifac
 }
 
 // riScopeHasTE reports whether the router runs RFC 3630 traffic engineering in one RI flooding
-// scope. AS scope: any interface with active TE, or a configured TE router address. Area
+// scope. AS scope: any interface with active TE. A configured TE router address alone does
+// not count: teOriginateType1 originates no TE LSA without an active TE interface, so the
+// router runs no RFC 3630 TE anywhere and claiming the bit would not reflect it. Area
 // scope: an interface of that area with active TE, and the backbone also when TE is active
 // but no intra-area TE interface exists, because teOriginateType1 then advertises the TE
 // Router-Address into the backbone. Link scope: that interface has active TE. The answer is
@@ -157,7 +159,10 @@ func riScopeHasTE(cfg ospfConfig, scope OpaqueScope, area types.AreaID, iface st
 	case OpaqueScopeArea:
 		return areaHasTE(cfg, area)
 	case OpaqueScopeAS:
-		return cfg.HasTERouterAddress || anyInterfaceHasTE(cfg)
+		// RFC 7770 Section 2.4: "the TLV MUST accurately reflect the OSPF router's
+		// capabilities in the scope advertised." The AS is every area, so the answer is
+		// whether TE runs on any interface.
+		return anyInterfaceHasTE(cfg)
 	}
 	panic("BUG: riScopeHasTE: unknown opaque scope")
 }

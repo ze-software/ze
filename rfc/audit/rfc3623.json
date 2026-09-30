@@ -50,9 +50,9 @@
     },
     "RFC3623-5-3": {
       "code": {
-        "internal/plugins/ospf/lsdb/link_scope.go::floodLink": "8a4cfafc2fa299f1"
+        "internal/plugins/ospf/lsdb/link_scope.go::floodLink": "6d0cdb5cfd671474"
       },
-      "note": "floodLink sends a Grace-LSA originated in restart in a Link State Update even when no neighbor qualified for the retransmit list. TestRFC3623RestartGraceLSAFloodedToAllSPFRouters asserts one send with no neighbor while restarting and none outside restart; red observed with the restart branch disabled (scratch DF-OSPF-B/red-gr.log).",
+      "note": "Producer change re-read: floodLink now sends floodCopy(lsa, TransmitDelay) (RFC 2328 13.3 (5) age bump) on the restart branch instead of the database copy; the branch condition and destination (allSPFRoutersFor) are unchanged. floodLink sends a Grace-LSA originated in restart in a Link State Update even when no neighbor qualified for the retransmit list. TestRFC3623RestartGraceLSAFloodedToAllSPFRouters asserts one send with no neighbor while restarting and none outside restart; revert record on lsdb/link_scope.go::floodLink re-recorded against the new body and observed red. TestUnplannedGraceLSAPerActiveInterface pins one Grace-LSA per active interface. Single-polarity positive per the row annotation.",
       "requirement_sha": "f5f95d9986f91745",
       "tests": {
         "internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go::TestRFC3623RestartGraceLSAFloodedToAllSPFRouters": "c18573d417c1737d",

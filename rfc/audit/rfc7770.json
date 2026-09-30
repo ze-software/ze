@@ -13,23 +13,31 @@
       "verdict": "enforced"
     },
     "RFC7770-2.4-2": {
-      "note": "Area scope is enforced both ways: rfc7770_ri_scope_test.go TestRFC7770AreaRICapabilitiesFollowTheArea fails if the backbone RI LSA (TE on eth0 in area 0) leaves TE clear or the area 0.0.0.5 RI LSA (no TE interface) sets it; revert records on ri.go::areaHasTE (+) and ri.go::deriveRICapabilities (-) observed red. AS scope: TestRICapabilityBitsFromState (-, no TE) and TestRICapabilityTEBitFromConfig (+) hold, unrecorded. Missing: (1) the link-scope branch of riScopeHasTE has no assertion, so returning the router-wide answer for a Type-9 RI LSA survives every test; (2) at AS scope a router-address alone (HasTERouterAddress, no active TE interface) claims TE although teOriginateType1 originates no TE LSA (anyTEActive false), and TestRICapabilityTEBitFromConfig sets both, so neither source is isolated.",
+      "note": "All three scopes proven both ways. Area: TestRFC7770AreaRICapabilitiesFollowTheArea (backbone RI with TE on eth0 sets TE; area 0.0.0.5 RI with no TE interface clear; records areaHasTE +, deriveRICapabilities -). Link: TestRFC7770LinkRICapabilitiesFollowTheInterface (same area, eth0 TE Type-9 RI sets TE, eth1 Type-9 RI clear; records riScopeHasTE +/-). AS: TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns isolates each source: router-address 9.9.9.9 alone (premise asserted: teOriginateType1 originates no TE LSA) leaves the AS RI TE clear, a TE interface alone sets it (records anyInterfaceHasTE +, riScopeHasTE -). D-8 defect verified at the producer and fixed: the AS case was HasTERouterAddress || anyInterfaceHasTE while teOriginateType1 gates on anyTEActive, so a router address alone claimed TE with no TE LSA anywhere; now anyInterfaceHasTE (TE.active(), the same test as anyTEActive). Older whole-router tags (TestRICapabilityBitsFromState, TestRICapabilityTEBitFromConfig) remain as supplementary AS-scope proof.",
       "requirement_sha": "7df59214bc473f02",
       "tests": {
-        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea": "daec9bdb88530f02",
-        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea#2": "daec9bdb88530f02",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns": "24591289f17f3d58",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns#2": "24591289f17f3d58",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea": "24591289f17f3d58",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea#2": "24591289f17f3d58",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770LinkRICapabilitiesFollowTheInterface": "24591289f17f3d58",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770LinkRICapabilitiesFollowTheInterface#2": "24591289f17f3d58",
         "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState": "bae5b63e3ddea225",
         "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState#2": "bae5b63e3ddea225",
         "internal/plugins/ospf/ri_test.go::TestRICapabilityTEBitFromConfig": "bae5b63e3ddea225"
       },
       "units": {
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns": "4a4a7e79c5dd5b08",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns#2": "4a4a7e79c5dd5b08",
         "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea": "6a09345a8ceb45f9",
         "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea#2": "6a09345a8ceb45f9",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770LinkRICapabilitiesFollowTheInterface": "747728d5b8d300e8",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770LinkRICapabilitiesFollowTheInterface#2": "747728d5b8d300e8",
         "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState": "84ccc888758cfb8c",
         "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState#2": "84ccc888758cfb8c",
         "internal/plugins/ospf/ri_test.go::TestRICapabilityTEBitFromConfig": "62cd1b2c5a7ad0d4"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7770-2.6-1": {
       "note": "Forbidden: the type-2 Functional Capabilities TLV carried outside the first instance. ri_registry_test.go TestRITLVRegistered requires buildRIInstances(area scope, backbone) to return exactly one instance whose TLV types are [1, 2, 8], so type-2 is in Instance 0. Re-judged 2026-09-30 after the call-site signature change; assertion unchanged. Single-polarity marker on the row covers the absent negative.",

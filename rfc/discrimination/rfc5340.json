@@ -154,6 +154,28 @@
       "producer": "internal/plugins/ospf/origination_v6_nssa.go::v6OriginateNSSALSA",
       "producer-sha": "b5f8dda8f28cab22",
       "break": "line 136: \"propagate\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC5340-C.3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5340_flood_age_test.go::TestRFC5340FloodIncrementsAgeByInfTransDelay",
+      "unit-sha": "374c47a4f8400013",
+      "claim-sha": "dfb609d5609d1e45",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::floodCopy",
+      "producer-sha": "3020b7dc3a46d43b",
+      "break": "body of floodCopy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5340-C.3-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5340_flood_age_test.go::TestRFC5340FloodIncrementsAgeByInfTransDelay",
+      "unit-sha": "374c47a4f8400013",
+      "claim-sha": "c8634658a8c4b66a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::floodCopy",
+      "producer-sha": "3020b7dc3a46d43b",
+      "break": "body of floodCopy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

@@ -3,6 +3,28 @@
   "records": [
     {
       "rid": "RFC7770-2.4-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns",
+      "unit-sha": "2524549282ced3d2",
+      "claim-sha": "d51ab0a63ffe5cb3",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ri.go::anyInterfaceHasTE",
+      "producer-sha": "709cb2dc0d25ec3a",
+      "break": "body of anyInterfaceHasTE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7770-2.4-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns",
+      "unit-sha": "2524549282ced3d2",
+      "claim-sha": "ba5dd5aa7534ee95",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ri.go::riScopeHasTE",
+      "producer-sha": "380a2d194dd1b043",
+      "break": "body of riScopeHasTE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7770-2.4-2",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea",
       "unit-sha": "20a65622f0420d94",
@@ -22,6 +44,28 @@
       "producer": "internal/plugins/ospf/ri.go::areaHasTE",
       "producer-sha": "e885f0835a690baa",
       "break": "body of areaHasTE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7770-2.4-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770LinkRICapabilitiesFollowTheInterface",
+      "unit-sha": "33a088da03a6ce7b",
+      "claim-sha": "e4c075253d9dd71c",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ri.go::riScopeHasTE",
+      "producer-sha": "380a2d194dd1b043",
+      "break": "body of riScopeHasTE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7770-2.4-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770LinkRICapabilitiesFollowTheInterface",
+      "unit-sha": "33a088da03a6ce7b",
+      "claim-sha": "444427b6b997e0b6",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ri.go::riScopeHasTE",
+      "producer-sha": "380a2d194dd1b043",
+      "break": "body of riScopeHasTE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

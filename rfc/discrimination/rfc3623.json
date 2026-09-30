@@ -75,7 +75,7 @@
       "claim-sha": "0d2f42845f36255a",
       "route": "revert",
       "producer": "internal/plugins/ospf/lsdb/link_scope.go::floodLink",
-      "producer-sha": "788557d47c29db25",
+      "producer-sha": "ff8cf289819f15d5",
       "break": "body of floodLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

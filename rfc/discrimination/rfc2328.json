@@ -222,6 +222,39 @@
       "break": "body of arrivedTooSoonLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2328-13.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFRetransmitTimer",
+      "unit-sha": "e383e3967aa6fb2b",
+      "claim-sha": "4b96c0d3b4016776",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::RetransmitTick",
+      "producer-sha": "fd5005739eef5e38",
+      "break": "body of RetransmitTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13.3-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay",
+      "unit-sha": "6c31e562e52d5ba8",
+      "claim-sha": "20e637e1a7f11dff",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::floodCopy",
+      "producer-sha": "3020b7dc3a46d43b",
+      "break": "body of floodCopy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13.3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay",
+      "unit-sha": "6c31e562e52d5ba8",
+      "claim-sha": "11cd82f70190c5a4",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::floodCopy",
+      "producer-sha": "3020b7dc3a46d43b",
+      "break": "body of floodCopy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2328-13.3-3",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328NBMANeverMulticastsNorReachesTwoWay",

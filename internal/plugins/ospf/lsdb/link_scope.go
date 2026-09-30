@@ -308,13 +308,15 @@ func (d *LSDB) floodLink(ifaceName string, area types.AreaID, key types.LSAKey) 
 		// and no knowledge of previous adjacencies." and "On broadcast networks, this LSA must
 		// be flooded to the AllSPFRouters multicast address (224.0.0.5) since the restarting
 		// router is not aware of its previous DR state."
-		d.sendLSUpdate(iface.Name, allSPFRoutersFor(iface), area, []packet.LSA{lsa})
+		// RFC 2328 Section 13.3 (5).
+		d.sendLSUpdate(iface.Name, allSPFRoutersFor(iface), area, []packet.LSA{floodCopy(lsa, iface.TransmitDelay)})
 		return
 	}
 	if !queued {
 		return
 	}
-	d.sendLSUpdate(iface.Name, floodDestination(iface), area, []packet.LSA{lsa})
+	// RFC 2328 Section 13.3 (5).
+	d.sendLSUpdate(iface.Name, floodDestination(iface), area, []packet.LSA{floodCopy(lsa, iface.TransmitDelay)})
 }
 
 // isGraceLSA reports whether key names a Grace-LSA: the OSPFv2 Type-9 opaque LSA of opaque

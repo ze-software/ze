@@ -12,6 +12,17 @@ LSRefresh and MaxSequenceNumber restart (RFC 2328 Sections 12 to 14).
 - **Retransmit lists live in `lsdb`, not in `neighbor`.** Flooding policy, ack
   policy, purge retention and Type 5 AS-wide scope need one owner.
   <!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, ReceiveAck, RetransmitTick -->
+- **The retransmit list holds the unincremented copy; the sent copy carries
+  InfTransDelay.** RFC 2328 Section 13.3 (5) bumps the LS age when the LSA is
+  copied into an outgoing LS Update, so the normal flood sends `floodCopy`
+  (age plus the interface's InfTransDelay, at least 1, stopping at MaxAge)
+  while the queued copy keeps the database age. The queued copy is held as an
+  `Entry` that ages from queue time, so it stays at the database copy's age
+  while it waits (Section 14 ages an LSA while it is in the database), and
+  `RetransmitTick` sends that age plus InfTransDelay: the bump is counted once
+  per transmission, and a retransmission never leaves younger than it is.
+  <!-- source: internal/plugins/ospf/lsdb/flooding.go -- floodCopy, floodExcept, RetransmitTick -->
+  <!-- source: internal/plugins/ospf/lsdb/link_scope.go -- floodLink -->
 - **Application validation precedes every LS Update disposition.** A malformed
   understood extension LSA is neither stored, acknowledged nor reflooded, even
   when self-originated or MaxAge. Valid companion LSAs continue through the

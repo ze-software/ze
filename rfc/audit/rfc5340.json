@@ -160,17 +160,21 @@
       "verdict": "enforced"
     },
     "RFC5340-C.3-2": {
-      "note": "Forbidden: an InfTransDelay of 0, and LSAs transmitted without their age incremented by InfTransDelay. TestRFC5340IPv6InterfaceCostAndTransmitDelay asserts validateConfig refuses transmit-delay 0 (ErrTransmitDelayZero) and accepts 1, which proves the 'greater than 0' clause. The quoted clause 'LSAs contained in the update packet must have their age incremented by this amount before transmission' has no assertion in any tagged unit.",
+      "note": "Both obligations proven. 'MUST be greater than 0': TestRFC5340IPv6InterfaceCostAndTransmitDelay accepts transmit-delay 1 and refuses 0 with ErrTransmitDelayZero. 'must have their age incremented by this amount before transmission': TestRFC5340FloodIncrementsAgeByInfTransDelay drives the shared lsdb flood path through v6Encoder and decodes the OSPFv3 LS Updates from the wire with ospfv3packet.DecodePacket: a Link-LSA originated at age 0 leaves with 7 (InfTransDelay 7) and its retransmission 5 s later with 12 (held 5 + 7 once), exact values that fail if either send skips the increment; an InfTransDelay of 65535 leaves at MaxAge, never past (the RFC 2328 13.3 (5) cap RFC 5340 keeps). Revert records on lsdb/flooding.go::floodCopy (+/-) observed red. The 'should take into account' sentence is advice on the configured value, not a checkable obligation.",
       "requirement_sha": "8ba60b1cf2b1e805",
       "tests": {
+        "internal/plugins/ospf/rfc5340_flood_age_test.go::TestRFC5340FloodIncrementsAgeByInfTransDelay": "83d10a2a4d2496b8",
+        "internal/plugins/ospf/rfc5340_flood_age_test.go::TestRFC5340FloodIncrementsAgeByInfTransDelay#2": "83d10a2a4d2496b8",
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceCostAndTransmitDelay": "0dbded42a8f289aa",
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceCostAndTransmitDelay#2": "0dbded42a8f289aa"
       },
       "units": {
+        "internal/plugins/ospf/rfc5340_flood_age_test.go::TestRFC5340FloodIncrementsAgeByInfTransDelay": "fa5e8c7e98493ca8",
+        "internal/plugins/ospf/rfc5340_flood_age_test.go::TestRFC5340FloodIncrementsAgeByInfTransDelay#2": "fa5e8c7e98493ca8",
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceCostAndTransmitDelay": "570a1f3e6d505912",
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceCostAndTransmitDelay#2": "570a1f3e6d505912"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5340-C.3-3": {
       "note": "Forbidden: accepting a neighbor whose HelloInterval differs on the common link. TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink asserts ReceiveDecodedHello accepts a matching HelloInterval (empty reason) and drops DefaultHelloInterval+1 with reason hello-interval; accepting the mismatch turns it red.",

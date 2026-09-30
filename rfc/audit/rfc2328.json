@@ -2,6 +2,7 @@
   "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -154,7 +155,7 @@
       "note": "bad-checksum discard is proven on the flooding path (TestRFC2328BadLSChecksumDiscarded), but the unknown-LS-type clause is exercised only through DecodeLSReq (an LS Request decoder, TestDecodeLSReqRejectsMalformed), never an LSA of unknown type inside a Link State Update reaching ReceiveUpdate.",
       "requirement_sha": "777287c8db2b74df",
       "tests": {
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces": "2e057e6acbfc4f57",
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces": "5f02a64139f8d93a",
         "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328BadLSChecksumDiscarded": "ebbf7e5934a7cc96",
         "internal/plugins/ospf/packet/packet_body_test.go::TestDecodeLSReqRejectsMalformed": "e925d44067663451"
       },
@@ -170,7 +171,7 @@
       "requirement_sha": "41dc0469753b2263",
       "tests": {
         "internal/plugins/ospf/lsdb/area_type_test.go::TestOSPFStubFloodFilter": "a8040e2a2e2a44b0",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFStubAreaDropsType5": "2e057e6acbfc4f57"
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFStubAreaDropsType5": "5f02a64139f8d93a"
       },
       "units": {
         "internal/plugins/ospf/lsdb/area_type_test.go::TestOSPFStubFloodFilter": "df85c915bafc46f3",
@@ -257,17 +258,30 @@
       "verdict": "weak"
     },
     "RFC2328-13.3-1": {
-      "note": "Clauses: flooded LSAs go on the adjacency retransmission list (TestOSPFFloodOutOtherInterfaces, TestOSPFFloodQueuesExchangeAndLoadingNeighbors: eth1/Exchange/Loading queued, 2-Way and receiving neighbor not); retransmitted UNTIL acknowledged every RxmtInterval (TestOSPFRetransmitTimer: none at t=0, one at t=6s, list cleared on ack); RxmtInterval configurable per interface. Not proven: only one retransmission happens before the ack, so a producer that retransmits once and gives up stays green; and the 5s interval is the default, never a configured per-interface value, so a hard-coded 5s stays green.",
+      "note": "Unit change re-read: TestOSPFRetransmitTimer's age assertion moved 1 -> 7 because RetransmitTick now sends the held database copy aged while on the list (Section 14) plus InfTransDelay; that is a correct, stricter pin and does not touch 13.3-1's clauses. Clauses: flooded LSAs go on the adjacency retransmission list (TestOSPFFloodOutOtherInterfaces, TestOSPFFloodQueuesExchangeAndLoadingNeighbors: eth1/Exchange/Loading queued, 2-Way and receiving neighbor not); retransmitted until acknowledged every RxmtInterval (TestOSPFRetransmitTimer: none at t=0, one at t=6s, list cleared on ack; revert record on RetransmitTick observed red). Still not proven: only one retransmission happens before the ack, so a producer that retransmits once and gives up stays green; and the 5 s interval is the default, never a configured per-interface value, so a hard-coded 5 s stays green. The two flood-list units carry no discrimination record.",
       "requirement_sha": "d6a44568dd86b581",
       "tests": {
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces": "2e057e6acbfc4f57",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors": "2e057e6acbfc4f57",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFRetransmitTimer": "2e057e6acbfc4f57"
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFRetransmitTimer": "5f02a64139f8d93a"
       },
       "units": {
         "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces": "b4dc922a664c2c10",
         "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors": "83ee1dc511a59967",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFRetransmitTimer": "fb1b82960d22cd91"
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFRetransmitTimer": "eaf3259d54925587"
+      },
+      "verdict": "weak"
+    },
+    "RFC2328-13.3-2": {
+      "note": "Increment and MaxAge cap proven: TestRFC2328FloodIncrementsAgeByInfTransDelay asserts the normal flood out eth1 (InfTransDelay 7) carries stored age 10 + 7 = 17 exactly, the retransmission 5 s later 22 (held age + one increment, not queue-time 17 nor double-counted 29), and an LSA at MaxAge-3 leaves at MaxAge, never past; revert records on lsdb/flooding.go::floodCopy (+/-) observed red. Producer read: floodCopy bumps an owned copy by firstNonZero(delay,1) via LSAge.Add (caps at MaxAge), used by floodExcept and floodLink; RetransmitTick sends held.Raw(now, delay). Missing: the '(which must be > 0)' clause has no 13.3-2 assertion. validateConfigAF refuses transmit-delay 0 (ErrTransmitDelayZero) and floodCopy floors 0 to 1, but no unit tagged 13.3-2 shows either (the refusal is tagged only on RFC5340-C.3-2 for the v6 family). Fix: tag an OSPFv2 transmit-delay 0 refusal (+ accept 1) on 13.3-2, or assert floodCopy with an unset delay still bumps by 1.",
+      "requirement_sha": "5e012251c30276a2",
+      "tests": {
+        "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay": "2d72e9edeec0fdd0",
+        "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay#2": "2d72e9edeec0fdd0"
+      },
+      "units": {
+        "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay": "c394c255f2172405",
+        "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay#2": "c394c255f2172405"
       },
       "verdict": "weak"
     },
@@ -302,8 +316,8 @@
       "requirement_sha": "24e8e5fb97afba29",
       "tests": {
         "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFDRRefloodsBackOutReceivingInterface": "fcd3234658f1748d",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFAckDecisionTable": "2e057e6acbfc4f57",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "2e057e6acbfc4f57"
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFAckDecisionTable": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "5f02a64139f8d93a"
       },
       "units": {
         "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFDRRefloodsBackOutReceivingInterface": "df4470387694a059",
@@ -331,8 +345,8 @@
       "note": "Clauses: delete the MaxAge LSA as soon as a) it is on no retransmission list and b) no neighbor is in Exchange OR Loading. (a) is proven with both polarities by TestOSPFASExternalPurgeRetainedAcrossAreas (kept after the first ack, deleted on the last). (b) is proven only for Loading (TestOSPFPurgeRetainedForExchangeOrLoading); no unit holds a neighbor in Exchange, so a guard that checked Loading alone stays green.",
       "requirement_sha": "c44a7407d2818023",
       "tests": {
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas": "2e057e6acbfc4f57",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "2e057e6acbfc4f57"
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "5f02a64139f8d93a"
       },
       "units": {
         "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas": "7eb73e02547a5a89",
