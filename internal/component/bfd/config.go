@@ -526,16 +526,21 @@ func resolveProfile(req api.SessionRequest, profiles map[string]profileConfig) (
 // checkClientProfile answers the api.CheckProfile seam: a client names a
 // profile at commit and the candidate bfd section decides, through
 // resolveProfile, the same function EnsureSession runs at session start.
-func checkClientProfile(bfdData, profile string, mode api.HopMode) error {
+// authenticated is read from the request resolveProfile returns, so it is the
+// authentication the session would carry.
+func checkClientProfile(bfdData, profile string, mode api.HopMode) (authenticated bool, err error) {
 	if bfdData == "" {
-		return fmt.Errorf("bfd: profile %q is not defined: the config has no bfd section", profile)
+		return false, fmt.Errorf("bfd: profile %q is not defined: the config has no bfd section", profile)
 	}
 	cfg, err := parseBFDSection(bfdData)
 	if err != nil {
-		return err
+		return false, err
 	}
-	_, err = resolveProfile(api.SessionRequest{Profile: profile, Mode: mode}, cfg.profiles)
-	return err
+	resolved, err := resolveProfile(api.SessionRequest{Profile: profile, Mode: mode}, cfg.profiles)
+	if err != nil {
+		return false, err
+	}
+	return resolved.Auth != nil, nil
 }
 
 // permitsMode answers whether a session in mode may use this profile. It is

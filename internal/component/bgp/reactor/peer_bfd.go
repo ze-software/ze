@@ -531,6 +531,12 @@ func (r *Reactor) VerifyPeerBFDProfiles(bgpTree map[string]any, bfdData string) 
 // EnsureSession would refuse it at session start and a non-strict peer would
 // then run with no BFD and a log line as the only trace. The request is built
 // by bfdRequestFor, so the mode checked is the mode the session would use.
+//
+// An EBGP peer whose BFD session runs unauthenticated is accepted with one Warn
+// per check naming the peer (RFC 5882 Section 10.2), and the profile when it
+// names one. A peer that names no profile runs unauthenticated: bfdRequestFor
+// sets no Auth, and resolveProfile in the bfd plugin applies no profile, so no
+// auth block reaches the session.
 func verifyPeerBFDProfiles(bgpTree map[string]any, bfdData string) error {
 	peers, err := PeersFromTree(bgpTree)
 	if err != nil {
@@ -545,12 +551,31 @@ func verifyPeerBFDProfiles(bgpTree map[string]any, bfdData string) error {
 			continue
 		}
 		req := bfdRequestFor(s)
-		if req.Profile == "" {
+		authenticated := false
+		if req.Profile != "" {
+			var err error
+			authenticated, err = api.CheckProfile(bfdData, req.Profile, req.Mode)
+			if err != nil {
+				return fmt.Errorf("peer %s: connection bfd: %w", s.Address, err)
+			}
+		}
+		if authenticated {
 			continue
 		}
-		if err := api.CheckProfile(bfdData, req.Profile, req.Mode); err != nil {
-			return fmt.Errorf("peer %s: connection bfd: %w", s.Address, err)
+		// RFC 5882 Section 10.2: "BFD authentication SHOULD be used and is
+		// strongly encouraged." The Section speaks of a BFD session that
+		// advises an EBGP session, so an IBGP peer gets no warning. The
+		// SHOULD permits the commit; the warning names what it leaves open.
+		if !s.IsEBGP() {
+			continue
 		}
+		if req.Profile == "" {
+			peerLogger().Warn("bfd session of an EBGP peer names no profile, so it has no authentication; RFC 5882 Section 10.2 recommends BFD authentication",
+				"peer", s.Address)
+			continue
+		}
+		peerLogger().Warn("bfd profile of an EBGP peer has no authentication; RFC 5882 Section 10.2 recommends BFD authentication",
+			"peer", s.Address, "profile", req.Profile)
 	}
 	return nil
 }

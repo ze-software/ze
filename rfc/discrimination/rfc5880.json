@@ -1146,6 +1146,28 @@
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5880-6.7.4-9",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/engine/rfc5880_xmit_auth_seq_test.go::TestRFC5880XmitAuthSeqAdvancesForAnOutOfTimerFinal",
+      "unit-sha": "7e510ec68669de7f",
+      "claim-sha": "2ed4bbd64d86492d",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::sendLocked",
+      "producer-sha": "06133e5f2c064cda",
+      "break": "body of sendLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.4-9",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_xmit_auth_seq_test.go::TestRFC5880XmitAuthSeqAdvancesOnStateAndContentChange",
+      "unit-sha": "e5499e44a44607d4",
+      "claim-sha": "37961e344acbfd4d",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/auth.go::AdvanceAuthSeq",
+      "producer-sha": "2ec2d770c43827cf",
+      "break": "body of AdvanceAuthSeq replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5880-6.8.1-12",
       "polarity": "negative",
       "unit": "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880AuthSeqKnownOneDiscardsFirstPacket",

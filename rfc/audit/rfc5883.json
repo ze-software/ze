@@ -1,13 +1,16 @@
 {
   "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5883-3-1": {
       "note": "RA-BFD strict re-read 2026-09-27 (stale after DF-BFD-4). The row quotes RFC 5883 Section 3 verbatim: \"Finally, the Echo function MUST NOT be used over multiple hops.\" (rfc5883.txt line 132). Forbidden: a multi-hop session that runs Echo. A session's DesiredMinEchoTxInterval, and the Required Min Echo RX it advertises (session.go Init), come only from a profile through profileConfig.applyTo, and every entry passes profileConfig.permitsMode. Red: TestRFC5883MultiHopEchoRejected Fatalf when pluginConfig.validate accepts an echo profile on a multi-hop pinned session; TestRFC5883ClientMultiHopEchoProfileRefused Fatal when EnsureSession returns a handle for a multi-hop client request naming an echo profile, or lacks the `enables echo` refusal. Positive, same profile on single hop: TestRFC5883SingleHopEchoAccepted (validate) and TestRFC5883ClientSingleHopEchoProfileAccepted (EnsureSession), so a blanket echo refusal fails. The engine holds no second guard (engine.go NewLoopWithEcho comment).",
       "requirement_sha": "03fdcefb3e140eb7",
       "tests": {
-        "internal/component/bfd/enabled_test.go::TestRFC5883ClientMultiHopEchoProfileRefused": "504347332d010b20",
-        "internal/component/bfd/enabled_test.go::TestRFC5883ClientSingleHopEchoProfileAccepted": "504347332d010b20",
+        "internal/component/bfd/enabled_test.go::TestRFC5883ClientMultiHopEchoProfileRefused": "96acedef6aab9ce8",
+        "internal/component/bfd/enabled_test.go::TestRFC5883ClientSingleHopEchoProfileAccepted": "96acedef6aab9ce8",
         "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopEchoRejected": "ba279384b03d7bf9",
         "internal/component/bfd/rfc5883_test.go::TestRFC5883SingleHopEchoAccepted": "ba279384b03d7bf9"
       },

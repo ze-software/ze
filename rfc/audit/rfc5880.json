@@ -767,9 +767,17 @@
       "verdict": "unimplemented"
     },
     "RFC5880-6.7.4-9": {
-      "note": "Judge 2026-09-30 (phase 8). Untagged SHOULD (unsourced-ids, mirrors 6.7.3-5). Ze meets it by construction: the engine's transmit path (engine/loop.go) calls Machine.AdvanceAuthSeq after every signed packet, bumping bfd.XmitAuthSeq, which covers state changes and content changes. No test is tagged, so nothing would fail if that stopped: implemented-but-unverified.",
+      "note": "Judge 2026-09-30 (re-judge, independent of the author). Row is the Keyed SHA1 \u00a76.7.4 SHOULD, quoted verbatim (rfc5880.txt 1409). engine/rfc5880_xmit_auth_seq_test.go drives a Keyed SHA1 session through the real transmit path (Loop.tick periodic, Loop.handleInbound Final) and parses the Sequence Number of every transmitted packet. + AdvancesOnStateAndContentChange: state clause (Down->Init->Up, preconditions pin the transmitted states, each seq differs) and contents clause (Final with F set, Up, then periodic with F clear, Up: seq differs). - AdvancesForAnOutOfTimerFinal (R1b: forces the producer input toward the violation): the Final sent from handleInbound at the same instant as the previous periodic packet carries a new seq, and every differing consecutive pair carries distinct seqs. Records revert AdvanceAuthSeq (+) and sendLocked (-), observed red; author's targeted overlays (advance only after periodic / only on timer) each red only their own unit, so the two units are not one assertion wearing two hats. MD5 twin 6.7.3-5 not covered here.",
       "requirement_sha": "51f88b2639cb8558",
-      "verdict": "weak"
+      "tests": {
+        "internal/component/bfd/engine/rfc5880_xmit_auth_seq_test.go::TestRFC5880XmitAuthSeqAdvancesForAnOutOfTimerFinal": "1bb25daf7782084d",
+        "internal/component/bfd/engine/rfc5880_xmit_auth_seq_test.go::TestRFC5880XmitAuthSeqAdvancesOnStateAndContentChange": "1bb25daf7782084d"
+      },
+      "units": {
+        "internal/component/bfd/engine/rfc5880_xmit_auth_seq_test.go::TestRFC5880XmitAuthSeqAdvancesForAnOutOfTimerFinal": "a8d196224b8e371d",
+        "internal/component/bfd/engine/rfc5880_xmit_auth_seq_test.go::TestRFC5880XmitAuthSeqAdvancesOnStateAndContentChange": "24250a1351f8f9f3"
+      },
+      "verdict": "enforced"
     },
     "RFC5880-6.8.1-1": {
       "note": "single-polarity positive: Init state is Down.",

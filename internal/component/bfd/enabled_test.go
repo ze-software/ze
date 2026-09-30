@@ -274,7 +274,7 @@ func TestCommitProfileCheckMatchesSessionStart(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := api.CheckProfile(tc.data, tc.profile, tc.mode)
+			_, err := api.CheckProfile(tc.data, tc.profile, tc.mode)
 			if tc.refusal == "" {
 				if err != nil {
 					t.Fatalf("CheckProfile refused an acceptable profile: %v", err)

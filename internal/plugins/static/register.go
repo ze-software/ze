@@ -195,7 +195,7 @@ func checkBFDProfiles(routes []staticRoute, sections []sdk.ConfigSection) error 
 			if nh.BFDProfile == "" {
 				continue
 			}
-			if err := bfdapi.CheckProfile(bfdData, nh.BFDProfile, staticBFDMode); err != nil {
+			if _, err := bfdapi.CheckProfile(bfdData, nh.BFDProfile, staticBFDMode); err != nil {
 				return fmt.Errorf("static route %s next-hop %s: %w", routes[i].Prefix, nh.Address, err)
 			}
 		}

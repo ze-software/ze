@@ -7,21 +7,29 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5882-10.2-1": {
-      "note": "Judge 2026-09-30 (re-judge, independent of the author). Ze's part of the SHOULD is to let an EBGP-advised BFD session run authenticated and to hold it to that. + reactor TestRFC5882EBGPPeerNamesAuthenticatedProfile: an EBGP peer (65000/65001) naming profile secure passes verifyPeerBFDProfiles and startBFDClient's request carries Profile secure and no Auth. + bfd TestRFC5882BGPPeerAuthProfileSignsItsSession: that request shape through pluginService.EnsureSession sends A bit, Auth Type 4, Len 28, Key ID 7 and comes Up with a same-key neighbor. - MismatchedNeighbor and - UnauthenticatedNeighbor (owner ruling 2: handling of a peer PDU with wrong or absent auth): never Up, no fallback; targeted overlays (sha1 Verify digest compare, fsm A-bit check) each red only their own negative. - WithoutAuthRunsUnauthenticated pins Ze's own permitted absence (A clear, Length 24, Up). Records are whole-body reverts; the targeted overlays are the finer proof. The two halves join on the request shape, not in one test (component boundary). No warning is logged when an EBGP peer's BFD runs unauthenticated: acceptable for a SHOULD whose choice is the operator's, since Ze offers auth and never silently degrades it.",
+      "note": "Judge 2026-09-30 (re-judge after the owner-approved commit Warn, independent of the author). Row quotes \u00a710.2 verbatim (rfc5882.txt 810). Ze's part: let an EBGP-advised BFD session run authenticated, hold it to that, and name the unauthenticated case. bfd half unchanged and re-read: + SignsItsSession (A bit, Auth Type 4, Len 28, Key ID 7, Up), - MismatchedNeighbor and - UnauthenticatedNeighbor (never Up, no fallback; overlays red only their own negative), - WithoutAuthRunsUnauthenticated (Ze's permitted absence); reactor + NamesAuthenticatedProfile. New reactor/rfc5882_bfd_auth_warn_test.go over verifyPeerBFDProfiles through the real api.CheckProfile seam (now returning authenticated = resolved.Auth != nil from resolveProfile): - EBGPUnauthenticatedProfileWarns and - EBGPPeerWithoutProfileWarns (commit accepted, exactly one Warn naming peer, profile or its absence, and \u00a710.2); + AuthenticatedOrIBGPProfileDoesNotWarn and + IBGPPeerWithoutProfileDoesNotWarn (0 Warn). Polarity: negatives are the SHOULD-violating inputs and assert their handling; positives are the compliant input and the \u00a710.2 EBGP scope boundary; overlays (Warn removed, IsEBGP gate removed, no-profile branch removed) each red only the matching units. Caveat, journal row silent-fall-through 2026-09-30: engine EnsureSession joins an existing session without comparing req.Auth, so an authenticated profile landing on an unauthenticated shared session runs unauthenticated with no Warn; the commit Warn reads the profile, not the joined session.",
       "requirement_sha": "454495c41f1df8ee",
       "tests": {
         "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesMismatchedNeighbor": "9ff7a7a5b87adb14",
         "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesUnauthenticatedNeighbor": "9ff7a7a5b87adb14",
         "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileSignsItsSession": "9ff7a7a5b87adb14",
         "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerProfileWithoutAuthRunsUnauthenticated": "9ff7a7a5b87adb14",
-        "internal/component/bgp/reactor/rfc5882_bfd_auth_test.go::TestRFC5882EBGPPeerNamesAuthenticatedProfile": "033d8bd0a41bf38a"
+        "internal/component/bgp/reactor/rfc5882_bfd_auth_test.go::TestRFC5882EBGPPeerNamesAuthenticatedProfile": "033d8bd0a41bf38a",
+        "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882AuthenticatedOrIBGPProfileDoesNotWarn": "513acfb597ea8807",
+        "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882EBGPPeerWithoutProfileWarns": "513acfb597ea8807",
+        "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882EBGPUnauthenticatedProfileWarns": "513acfb597ea8807",
+        "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882IBGPPeerWithoutProfileDoesNotWarn": "513acfb597ea8807"
       },
       "units": {
         "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesMismatchedNeighbor": "9b70f406ca9929ee",
         "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesUnauthenticatedNeighbor": "721f023511e8e80b",
         "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileSignsItsSession": "ef9d91536fb011c3",
         "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerProfileWithoutAuthRunsUnauthenticated": "881a0f9e29f74683",
-        "internal/component/bgp/reactor/rfc5882_bfd_auth_test.go::TestRFC5882EBGPPeerNamesAuthenticatedProfile": "1048badd1e12d627"
+        "internal/component/bgp/reactor/rfc5882_bfd_auth_test.go::TestRFC5882EBGPPeerNamesAuthenticatedProfile": "1048badd1e12d627",
+        "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882AuthenticatedOrIBGPProfileDoesNotWarn": "9354d2c1244b218c",
+        "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882EBGPPeerWithoutProfileWarns": "96269e55dd9cefd8",
+        "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882EBGPUnauthenticatedProfileWarns": "c0df3aaaa3366ef2",
+        "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882IBGPPeerWithoutProfileDoesNotWarn": "2b1ebc800bc8d655"
       },
       "verdict": "enforced"
     },

@@ -26,7 +26,10 @@ const ConfigRoot = "bfd"
 // ProfileChecker answers whether the candidate bfd section defines profile
 // and whether a session in mode may use it. bfdData is the Data of the config
 // section whose Root is ConfigRoot, and empty when the candidate has none.
-type ProfileChecker func(bfdData, profile string, mode HopMode) error
+// authenticated reports whether the profile carries an auth block, so a
+// session using it signs its Control packets (RFC 5880 Section 6.7); it is
+// meaningful only when err is nil.
+type ProfileChecker func(bfdData, profile string, mode HopMode) (authenticated bool, err error)
 
 // errNoProfileChecker is the answer when the bfd plugin is not in this build:
 // a profile name then names nothing, and no session could ever use it.
@@ -41,11 +44,12 @@ func SetProfileChecker(fn ProfileChecker) {
 }
 
 // CheckProfile answers whether a client in mode may name profile, given the
-// candidate bfd section. Safe for concurrent use.
-func CheckProfile(bfdData, profile string, mode HopMode) error {
+// candidate bfd section, and whether that profile authenticates its sessions.
+// Safe for concurrent use.
+func CheckProfile(bfdData, profile string, mode HopMode) (authenticated bool, err error) {
 	fn := profileChecker.Load()
 	if fn == nil {
-		return errNoProfileChecker
+		return false, errNoProfileChecker
 	}
 	return (*fn)(bfdData, profile, mode)
 }
