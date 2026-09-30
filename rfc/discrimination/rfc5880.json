@@ -1148,6 +1148,39 @@
     {
       "rid": "RFC5880-6.8.6-15",
       "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandClearBothUp",
+      "unit-sha": "c4dc67ebb3a3aa42",
+      "claim-sha": "d408295e9b25b147",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::tick",
+      "producer-sha": "4d6c5e086edd0eba",
+      "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.6-15",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalNotUpRemoteUp",
+      "unit-sha": "90accbf099dee609",
+      "claim-sha": "d01def31b4766578",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::tick",
+      "producer-sha": "4d6c5e086edd0eba",
+      "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.6-15",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalUpRemoteNotUp",
+      "unit-sha": "e4c86ccf49a01275",
+      "claim-sha": "80c2c4acff2e833e",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::tick",
+      "producer-sha": "4d6c5e086edd0eba",
+      "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.6-15",
+      "polarity": "positive",
       "unit": "internal/component/bfd/engine/rfc5880_demand_periodic_test.go::TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp",
       "unit-sha": "20e4bbf29f62090a",
       "claim-sha": "13de804e5d0fa73b",

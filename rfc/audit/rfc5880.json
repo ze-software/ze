@@ -782,7 +782,7 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.16-3": {
-      "note": "Judge 2026-09-30 (bfd P-4, first verdict). A permission Ze elects not to take. - engine TestRFC5880NoPeriodicTransmitWhileAdminDown: AdminDown sends at the transition and a tick an hour later sends nothing (Loop.tick skips once AdminDownTransmitEnd has passed); record revert loop.go::tick observed red. The test is a correct proof of Ze's election, but no behavior can violate a MAY, so the unit cannot fail on non-compliance; the row carries no positive and no {single-polarity} marker. Not a defect.",
+      "note": "Judge rejudge 2026-09-30 (bfd P-4). The author added {single-polarity: negative} naming TestRFC5880NoPeriodicTransmitWhileAdminDown. The marker's facts are accurate: Loop.tick stops AdminDown Control packets once Machine.AdminDownTransmitEnd passes, the revert record on loop.go::tick is observed red, and a targeted overlay keeping the send past the window reddens the test (6816-3-break). But the row is a MAY Ze does not take: neither transmitting indefinitely nor stopping violates it, so no unit can fail on non-compliance, and enforced would count an optional behavior Ze does not implement as proven. The test pins Ze's election, not compliance. Precedent MAY rows at enforced (RFC7854-x-11, RFC4577-4.1.4-2) prove a permission Ze TAKES by its positive; none proves a declined MAY by a negative. Not a defect; the correct public status is implementation gap for the optional behavior.",
       "requirement_sha": "0a395a36911d8c7e",
       "tests": {
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "ac847ad94fd21520"
@@ -1017,19 +1017,25 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.6-15": {
-      "note": "Judge rejudge 2026-09-30 under owner ruling P-4 (no genuine negative; judged on the positive). The HEAD negative TestRFC5880NoPeriodicTransmitWhileAdminDown is supplementary: it proves the 6.8.16 window and that the 6.8.16-3 MAY is not taken. Producer Loop.tick has no Demand-mode suppression at all, so Ze complies today, but the positives do not pin the full MUST: TestRFC5880PeriodicTransmitWhenRemoteDemandInactive drives D=0 only with the peer in Init (remote not Up), and TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp drives D=1 with local Init/peer Down and local Up/peer Init. Missing: (1) D=0 with bfd.SessionState and bfd.RemoteSessionState both Up, the only state where the first disjunct alone holds (a mutant suppressing periodic TX whenever both ends are Up survives); (2) D=1 with bfd.SessionState not Up while bfd.RemoteSessionState is Up (local Down receiving the peer's Up packet with D=1; a mutant suppressing when D=1 and the remote is Up survives). Each tick asserts one send, periodicity itself being 6.8.7's rows.",
+      "note": "Judge rejudge 2026-09-30 under owner ruling P-4 (no genuine negative; judged on the positive; HEAD negative TestRFC5880NoPeriodicTransmitWhileAdminDown supplementary, it proves the 6.8.16 window). Both gaps the earlier weak verdict named are closed by engine/rfc5880_demand_disjunct_test.go, one positive per disjunct with the other two false, preconditions asserted on m.State()/m.RemoteState(), each tick asserting a send carrying My Discriminator: ClearBothUp (D=0, Up/Up), SetLocalNotUpRemoteUp (D=1, local Down, remote Up), SetLocalUpRemoteNotUp (D=1, local Up, remote Init). Each has a revert record on loop.go::tick observed red, and a targeted overlay per state (skip send when Up/Up, !Up/Up, Up/!Up) reddened only its own test (disj-break1..3). Ze never reads bfd.RemoteDemandMode (stored at session/fsm.go, no reader), so Ze never enters the remote-Demand suppression the complement (D=1, Up/Up) permits: ClearBothUp drives D=0 on the wire and pins the output the MUST demands there; it cannot tell D=0 from D=1 in today's code, but a future suppression keyed on both-Up alone or on an inverted D reddens it. For Ze's role (local sender) every clause of the MUST is proven. HEAD positive TestRFC5880PeriodicTransmitWhenRemoteDemandInactive still has no discrimination record (supplementary).",
       "requirement_sha": "8cdcdb3774df1109",
       "tests": {
+        "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandClearBothUp": "12188412c110b3e7",
+        "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalNotUpRemoteUp": "12188412c110b3e7",
+        "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalUpRemoteNotUp": "12188412c110b3e7",
         "internal/component/bfd/engine/rfc5880_demand_periodic_test.go::TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp": "5162da39b05c3713",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "ac847ad94fd21520",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PeriodicTransmitWhenRemoteDemandInactive": "ac847ad94fd21520"
       },
       "units": {
+        "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandClearBothUp": "450bd1f42bcda7cf",
+        "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalNotUpRemoteUp": "f37d9a81e5905a89",
+        "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalUpRemoteNotUp": "7f7af51228d47e7e",
         "internal/component/bfd/engine/rfc5880_demand_periodic_test.go::TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp": "71131a440c3a8174",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "86520cbe9553aa58",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PeriodicTransmitWhenRemoteDemandInactive": "b39371a5a6575cd4"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.8.6-16": {
       "note": "Forbidden: no immediate F=1/P=0 reply to P=1. TestRFC5880PollAnsweredWithImmediateFinal fails if handleInbound sends nothing, or the reply lacks F or sets P; TestRFC5880NonPollProducesNoImmediateReply fails if a P=0 packet triggers a reply.",
