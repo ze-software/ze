@@ -231,6 +231,28 @@
       "producer": "internal/component/mcp/jwt.go::UnmarshalJSON",
       "producer-sha": "68c6400c8dbed711",
       "break": "body of UnmarshalJSON replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9728-7.1-2",
+      "polarity": "positive",
+      "unit": "cmd/ze/hub/service_mcp_rfc9325_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites",
+      "unit-sha": "312664f30240b3d7",
+      "claim-sha": "0b42b567ca2083f8",
+      "route": "revert",
+      "producer": "cmd/ze/hub/service_mcp.go::loadMCPTLSConfig",
+      "producer-sha": "fa3507b812cc82c6",
+      "break": "body of loadMCPTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9728-7.1-2",
+      "polarity": "negative",
+      "unit": "cmd/ze/hub/service_mcp_rfc9325_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites",
+      "unit-sha": "312664f30240b3d7",
+      "claim-sha": "1f582e369a259eab",
+      "route": "revert",
+      "producer": "cmd/ze/hub/service_mcp.go::loadMCPTLSConfig",
+      "producer-sha": "fa3507b812cc82c6",
+      "break": "body of loadMCPTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

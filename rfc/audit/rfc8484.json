@@ -1,18 +1,22 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC8484-6-2": {
-      "note": "GET data MUST be base64url and carried in the variable 'dns'. Positive TestDoH... GET is answered. The negative TestDoHGetRejectsBadDNSParam sends a missing 'dns' (goes red if another variable name were read) and '*', which is outside both the base64 and base64url alphabets. A server that decoded standard base64 ('+', '/') would still pass: no assertion sends a standard-alphabet value, so the base64url clause is unproven.",
+      "note": "Re-judged 2026-09-30. Both clauses: a query whose ID 0xfbff makes base64url begin '-_' is answered under 'dns' (200 + A); the same octets in standard base64 ('+/') under 'dns' are refused 400 (the '*' of the HEAD negative is in neither alphabet), and the base64url value under 'query' is refused 400. Records: dohRequestBody revert, both polarities observed red.",
       "requirement_sha": "8163061137059f0b",
       "tests": {
-        "internal/core/dnsserver/secure_test.go::TestDoHGetRejectsBadDNSParam": "de781cf97423a3b2",
-        "internal/core/dnsserver/secure_test.go::TestDoHListener": "de781cf97423a3b2"
+        "internal/core/dnsserver/rfc8484_get_base64url_test.go::TestRFC8484GetPayloadIsBase64URLInTheDNSVariable": "f76e956deef6351f",
+        "internal/core/dnsserver/rfc8484_get_base64url_test.go::TestRFC8484GetPayloadIsBase64URLInTheDNSVariable#2": "f76e956deef6351f",
+        "internal/core/dnsserver/secure_test.go::TestDoHGetRejectsBadDNSParam": "fee669cd1008693b",
+        "internal/core/dnsserver/secure_test.go::TestDoHListener": "fee669cd1008693b"
       },
       "units": {
+        "internal/core/dnsserver/rfc8484_get_base64url_test.go::TestRFC8484GetPayloadIsBase64URLInTheDNSVariable": "0ca8820d9f058458",
+        "internal/core/dnsserver/rfc8484_get_base64url_test.go::TestRFC8484GetPayloadIsBase64URLInTheDNSVariable#2": "0ca8820d9f058458",
         "internal/core/dnsserver/secure_test.go::TestDoHGetRejectsBadDNSParam": "51779e94f9ac6222",
         "internal/core/dnsserver/secure_test.go::TestDoHListener": "45d8c8ad2befa23b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc8484"

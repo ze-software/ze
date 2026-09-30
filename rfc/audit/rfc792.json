@@ -1,46 +1,55 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC792-Echo-1": {
-      "note": "Sentence: Type 8 for echo message; 0 for echo reply. TestRFC792EchoRequestType passes the literal 8 to BuildICMPEcho and asserts byte 0 is 8, so it proves the builder copies its argument, not that ze's callers (icmpEcho constant in ping, traceroute) send 8. The reply clause (Type 0) has no Echo-1-tagged assertion; the marker says Linux builds replies, and TestGatewayICMPEchoReply checks it only under Echo-6.",
+      "note": "Re-judged 2026-09-30. Positive: TestRFC792EchoRequestType takes the pair from probe.EchoTypes, which every ping and traceroute caller now uses (ping.go, ping/stream.go, traceroute probe_round.go and stream.go re-read), asserts (8,0) for IPv4, a built request of Type 8 and a Type 0 datagram matched as the reply; vrrp TestGatewayICMPEchoReply asserts the reply the stack forms is Type 0. Negative: ParseEchoReply refuses a Type 8 datagram and an ICMPv6 Type 129 as the IPv4 reply. Records: EchoTypes and ParseEchoReply reverts observed red; the vrrp record breaks Ze's netlink AddAddress, which proves the unit observes the reply of the stack Ze configures (whole-stack rule: Ze forms no reply itself).",
       "requirement_sha": "6fa3c0bc857d4be0",
       "tests": {
-        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "c5fd4a2554d99d53"
+        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "a33adbfdaaf4b8f4",
+        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType#2": "a33adbfdaaf4b8f4",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79"
       },
       "units": {
-        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "799b6e32cff71e8b"
+        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "c5846996807f5493",
+        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType#2": "c5846996807f5493",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC792-Echo-2": {
-      "note": "Span ends 'Code 0': the code is 0 for echo and echo reply. TestRFC792EchoRequestCode asserts byte 1 of a built request is 0, which goes red if the builder wrote a non-zero code. The reply's Code 0 is not asserted by any Echo-2-tagged unit.",
+      "note": "Re-judged 2026-09-30. Code 0 on both messages: probe TestRFC792EchoRequestCode pins byte 1 of the request Ze builds, vrrp TestGatewayICMPEchoReply pins Code 0 on the reply the stack forms for the gateway address Ze installs. {single-polarity} holds: Ze never varies the code, so no non-zero-code echo exists to refuse. vrrp record breaks AddAddress (reachability of the stack reply); the request-side assertion is exact.",
       "requirement_sha": "2923f8d76b399c94",
       "tests": {
-        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "c5fd4a2554d99d53"
+        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "a33adbfdaaf4b8f4",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79"
       },
       "units": {
-        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "d5b109231b5c7514"
+        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "d5b109231b5c7514",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC792-Echo-3": {
-      "note": "Sentence: checksum is the one's complement of the one's complement sum from the Type field. Positive TestRFC792ChecksumValid goes red on a wrong ze checksum (checksumOnesFold != 0xffff). The negative TestRFC792ChecksumRejectsCorruption corrupts a built packet and checks that the TEST helper notices, which exercises no ze code, and the row has no single-polarity marker, so the polarity pair is incomplete.",
+      "note": "Re-judged 2026-09-30. Positive: TestRFC792ChecksumValid (Ze's own request checksum folds to 0xffff) and the stack reply's checksum verifies in TestGatewayICMPEchoReply. Negative: a request whose checksum is not the defined one's complement sum is never answered, beside the valid control. The rejecting branch is Linux's on the address Ze installs, counted under the whole-stack rule; the tag claims the observed stack behaviour, not a Ze branch. TestRFC792ChecksumRejectsCorruption lost this tag correctly (it checked only a test helper). Records break AddAddress.",
       "requirement_sha": "a0f5ea4063259908",
       "tests": {
-        "internal/core/probe/icmp_test.go::TestRFC792ChecksumRejectsCorruption": "c5fd4a2554d99d53",
-        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "c5fd4a2554d99d53"
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "a33adbfdaaf4b8f4",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "6fa365d5d54aea79"
       },
       "units": {
-        "internal/core/probe/icmp_test.go::TestRFC792ChecksumRejectsCorruption": "46ddecc03ca5c888",
-        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "a4ca55fc19375ae9"
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "a4ca55fc19375ae9",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "2e14d56234529006"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC792-Echo-4": {
       "note": "Forbidden: computing the checksum of an odd-length message without one trailing zero pad octet. Red on it: TestRFC792ChecksumOddLength builds an 11-octet echo and asserts checksumOnesFold == 0xffff, which fails if icmpChecksum dropped the last octet or padded it into the low byte. The receive side is Linux; ze verifies no received ICMP checksum. Single-polarity marker on the row.",
       "requirement_sha": "4ee4c5d0dfa6a4c7",
       "tests": {
-        "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "c5fd4a2554d99d53"
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "a33adbfdaaf4b8f4"
       },
       "units": {
         "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "530a366561c98c54"
@@ -48,37 +57,37 @@
       "verdict": "enforced"
     },
     "RFC792-Echo-5": {
-      "note": "First verdict 2026-09-27 (QF-2). Forbidden: an echo reply whose data differs from the request's. TestGatewayICMPEchoReply asserts bytes.Equal(answer[4:], icmp[4:]) on an odd-length request, which goes red on changed data. The negative tag rides the same unit and asserts a corrupt-checksum request is not reflected, the checksum rule (RFC792-Echo-6's negative), a neighbouring rule. Weak: one polarity proves the row.",
+      "note": "Re-judged 2026-09-30. Positive: odd-length data returned byte-for-byte (TestGatewayICMPEchoReply). Negative: TestGatewayICMPEchoReplyToTheQueriedAddress sends 1, 333 and 1400 data octets with distinct bytes, and each reply must carry exactly its own data (bytes.Equal against its own request, no pad, truncation or cross-over), and every request must be answered. Linux forms the reply; the records break Ze's AddAddress, so they prove the units observe the stack answer Ze configures, and the data clause itself rests on the exact assertion. Counted under the whole-stack rule (ai/rules/rfc-compliance.md): Ze fills the gateway role and the stack performs the obligation on its behalf.",
       "requirement_sha": "2638c1cf3ce02daf",
       "tests": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "c769c2a7b09bd13c",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "c769c2a7b09bd13c"
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "6fa365d5d54aea79"
       },
       "units": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "ab5beea4ae3c3eb2",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "ab5beea4ae3c3eb2"
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "59493216366409b7"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC792-Echo-6": {
-      "note": "Sentence: to form a reply, reverse the addresses, change the type to 0, recompute the checksum. The positive in TestGatewayICMPEchoReply asserts all three (address compare, answer[0]==0, gatewayChecksum(answer)==0). The negative (a corrupt-checksum request draws no reply) proves a neighbouring rule, discarding a bad request, not a malformed reply, and the row has no single-polarity marker.",
+      "note": "Re-judged 2026-09-30. Positive: reply reverses addresses, Type 0, recomputed checksum verifies (TestGatewayICMPEchoReply). Negative: a request to the secondary 192.0.2.253 is answered from .253 to the request's source, never from the primary .254 a route-picked source would use (TestGatewayICMPEchoReplyToTheQueriedAddress). Records break AddAddress (stack reply reachability); the address clause is discriminated by the secondary-address design. Whole-stack rule applies as for Echo-5.",
       "requirement_sha": "36d67f4bacdd017c",
       "tests": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "c769c2a7b09bd13c",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "c769c2a7b09bd13c"
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "6fa365d5d54aea79"
       },
       "units": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "ab5beea4ae3c3eb2",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "ab5beea4ae3c3eb2"
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "59493216366409b7"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC792-TimeExceeded-1": {
       "note": "First verdict 2026-09-27 (QF-2). Forbidden: forwarding a datagram whose TTL is zero. TestGatewayICMPTTLDiscard asserts gatewayForwarded(..., zero, false) and (..., one, false), red if either leaves the routed exit; the control asserts TTL two is forwarded unchanged, a distinct assertion. Enforced.",
       "requirement_sha": "8fb4c5bab4c20a06",
       "tests": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard": "c769c2a7b09bd13c",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard#2": "c769c2a7b09bd13c"
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard": "6fa365d5d54aea79",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard#2": "6fa365d5d54aea79"
       },
       "units": {
         "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard": "25918ed447ea1bea",
@@ -90,8 +99,8 @@
       "note": "Forbidden: a gateway forwarding a datagram that needs fragmentation while DF is set. Red on it: gatewayForwarded(t, captured, out, bad, false) in TestGatewayICMPDFDiscard fails if the 900-octet DF datagram appears on the 576-MTU link; the 'may return' clause is checked by gatewayICMP(..., 3, 4). Negative: the DF datagram at MTU and the DF-clear oversize datagram are required to forward (the rule's own boundary).",
       "requirement_sha": "811fdb70a802cd4f",
       "tests": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "c769c2a7b09bd13c",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "c769c2a7b09bd13c"
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "6fa365d5d54aea79",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "6fa365d5d54aea79"
       },
       "units": {
         "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "555d09675e8ddeff",

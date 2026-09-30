@@ -374,17 +374,27 @@ func TestParseSecureLeaves(t *testing.T) {
 }
 
 // VALIDATES: defaults are 853/443//dns-query and a missing node leaves them.
-// RFC requirement: RFC7858-3.1-1 positive -- the default DoT listen port is 853 (the IANA "domain-s" port), so an unconfigured DoT server listens on 853.
+// The DoT port is compared with the literal 853, never with DefaultDoTPort,
+// so a changed constant goes red here.
+// RFC requirement: RFC7858-3.1-1 positive -- the default DoT listen port is the literal 853 (the IANA "domain-s" port), and a config that enables DoT without a listen-port parses to port 853.
 func TestDefaultSecureConfig(t *testing.T) {
+	const domainS = 853
 	sc := DefaultSecureConfig()
-	if sc.DoTPort != DefaultDoTPort || sc.DoHPort != DefaultDoHPort || sc.DoHPath != DefaultDoHPath {
-		t.Fatalf("defaults wrong: %+v", sc)
+	if sc.DoTPort != domainS || sc.DoHPort != DefaultDoHPort || sc.DoHPath != DefaultDoHPath {
+		t.Fatalf("defaults wrong: %+v, want DoT port 853", sc)
 	}
 	if err := ParseSecureLeaves(map[string]any{}, &sc, "test"); err != nil {
 		t.Fatalf("empty node: %v", err)
 	}
 	if sc.DoTEnabled || sc.DoHEnabled {
 		t.Fatalf("empty node enabled a listener: %+v", sc)
+	}
+	enabled := DefaultSecureConfig()
+	if err := ParseSecureLeaves(map[string]any{"tls": map[string]any{"enabled": "true"}}, &enabled, "test"); err != nil {
+		t.Fatalf("tls enabled without listen-port: %v", err)
+	}
+	if !enabled.DoTEnabled || enabled.DoTPort != domainS {
+		t.Fatalf("DoT enabled without listen-port: %+v, want enabled on port 853", enabled)
 	}
 }
 

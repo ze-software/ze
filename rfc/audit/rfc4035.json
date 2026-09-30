@@ -1,16 +1,18 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC4035-3-6": {
-      "note": "TestRFC4035_NoDNSSECAdditionalProcessing covers only the OPT-less query; the sentence also covers a query WITH an OPT whose DO bit is clear, which no unit sends, so the second arm of the condition is unproven (question 4)",
+      "note": "Re-judged 2026-09-30. The second arm is now covered: TestRFC4035DOClearQueryGetsNoDNSSECProcessing sends A, DNSKEY, RRSIG and NSEC queries with an OPT whose DO is clear and asserts no RRSIG/NSEC/DNSKEY in any section and the same Answer/Authority counts as the OPT-less query (the OPT-less arm stays in rfc4035_server_test.go). The comparison is by count, not content; content differences would not be DNSSEC processing, so this does not weaken the proof. Record: answerQuestions revert observed red. {single-polarity} holds: geodns has no DNSSEC path to drive with DO set.",
       "requirement_sha": "ae48aac3a4def396",
       "tests": {
+        "internal/plugins/geodns/rfc4035_do_clear_test.go::TestRFC4035DOClearQueryGetsNoDNSSECProcessing": "e9b5857344920370",
         "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "0d5a4b0eaf3ac272"
       },
       "units": {
+        "internal/plugins/geodns/rfc4035_do_clear_test.go::TestRFC4035DOClearQueryGetsNoDNSSECProcessing": "4f51d31fb48998e8",
         "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "999305cf4ef4fff2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4035-3-8": {
       "note": "TestRFC4035_CDCopiedADIgnored drives the real dnsserver.Authoritative harness: a CD=1 query must draw CD=1 and a CD=0 query CD=0, so both an always-clear and an always-set implementation go red",
@@ -85,39 +87,47 @@
       "verdict": "enforced"
     },
     "RFC4035-4.1-1": {
-      "note": "Forbidden: a security-aware query sent without an OPT, or with DO clear. TestRFC4035_QueryCarriesEDNS0DOAndClearAD fatals on a missing OPT and errors on DO clear, but only under dnssec-validation strict. The row's own marker names permissive mode as security-aware too (SetEdns0(4096, validating) at resolver.go:261), and no tagged unit captures a permissive-mode query, so a regression that set DO only for strict stays green",
+      "note": "Re-judged 2026-09-30. TestRFC4035SecurityAwareQueryInEveryValidatingMode now runs permissive AND strict (the earlier strict-only finding): the query carries an OPT with DO set in both. Record: Resolver.query revert observed red. {single-polarity} holds: an emitted field with no input to refuse.",
       "requirement_sha": "f8b38c66c9f1c8ff",
       "tests": {
+        "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode": "746f59740ccc2275",
         "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "1b164a1a570b2a91"
       },
       "units": {
+        "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode": "c9a01f3e6c6e622b",
         "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "075584d2fc9ab234"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4035-4.1-4": {
-      "note": "Forbidden: an OPT whose sender's UDP payload size is not the size the resolver accepts. The unit pins opt.UDPSize() == 4096 under strict mode only; the clause 'the message size that it is willing to accept' is not tied to the receive side in this unit (the large-response acceptance is TestRFC4035_LargeUDPResponseAccepted, tagged RFC4035-4.1-2, not this id), and permissive mode, security-aware per the row's marker, sends no captured query",
+      "note": "Re-judged 2026-09-30. Same unit: 4096 advertised in both validating modes, and a ~2900-octet uncompressed UDP answer is accepted whole (all 110 records), tying the advertised size to what the receive path accepts (the earlier finding). Record: query revert observed red. {single-polarity} holds.",
       "requirement_sha": "6893035753d68473",
       "tests": {
+        "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode": "746f59740ccc2275",
         "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "1b164a1a570b2a91"
       },
       "units": {
+        "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode": "c9a01f3e6c6e622b",
         "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "075584d2fc9ab234"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4035-4.6-3": {
-      "note": "TestRFC4035_ResponseADBitDisregarded covers the AD bit only; the CD half of the sentence is untested (question 4); the negative's AD=1 reply is a SERVFAIL, which dnssecDecision rejects for its rcode alone, so it would stay green even if ze honoured AD=1 on a NOERROR answer (question 3)",
+      "note": "Re-judged 2026-09-30. Both bits now: under strict validation a NOERROR answer with AD=1 CD=1 yields exactly the records of the clear answer (a resolver requiring or honouring AD would differ), and SERVFAIL with AD, CD or both is refused, so no response bit lets a failure through. Records: query (+) and dnssecDecision (-) reverts observed red.",
       "requirement_sha": "6d85ed1cc63e7cbe",
       "tests": {
+        "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing": "746f59740ccc2275",
+        "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing#2": "746f59740ccc2275",
         "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded": "1b164a1a570b2a91",
         "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded#2": "1b164a1a570b2a91"
       },
       "units": {
+        "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing": "18f9c2b6c5c044e8",
+        "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing#2": "18f9c2b6c5c044e8",
         "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded": "8c57c20275588fc1",
         "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded#2": "8c57c20275588fc1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4035-4.9-1": {
       "note": "an A+RRSIG answer must return exactly the A record and a DNSSEC-only answer (RRSIG, NSEC, DNSKEY) must yield no records and no error, so mishandling either way goes red",

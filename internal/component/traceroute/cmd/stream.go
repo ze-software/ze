@@ -62,15 +62,12 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 
 	trace := probeTraceEnabled()
 
-	icmpEcho := byte(8)
-	icmpEchoReply := byte(0)
+	icmpEcho, icmpEchoReply := probe.EchoTypes(dest)
 	icmpTimeExceeded := byte(11)
 	icmpDestUnreach := byte(3)
 	portUnreach := byte(icmpv4PortUnreach)
 	isV6 := dest.Is6()
 	if isV6 {
-		icmpEcho = 128
-		icmpEchoReply = 129
 		icmpTimeExceeded = 3
 		icmpDestUnreach = 1
 		portUnreach = icmpv6PortUnreach

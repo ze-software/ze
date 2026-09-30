@@ -22,9 +22,22 @@ const (
 	NetworkICMPv6 = "ip6:ipv6-icmp"
 )
 
+// EchoTypes answers the ICMP Type of an Echo Request and of an Echo Reply
+// for the family of dest. It is the one place the ping and traceroute
+// commands learn the two values, so a request is built and a reply is
+// matched on the same pair.
+func EchoTypes(dest netip.Addr) (request, reply byte) {
+	if dest.Is6() {
+		// RFC 4443 Section 4.1: Echo Request "Type 128"; Section 4.2: Echo Reply "Type 129".
+		return 128, 129
+	}
+	// RFC 792 Echo: "Type 8 for echo message; 0 for echo reply message."
+	return 8, 0
+}
+
 // BuildICMPEcho builds an ICMP echo packet of the given type (8 for ICMPv4
-// echo request, 128 for ICMPv6) with the given identifier, sequence number,
-// and payload, and fills in the checksum.
+// echo request, 128 for ICMPv6, as EchoTypes answers) with the given
+// identifier, sequence number, and payload, and fills in the checksum.
 func BuildICMPEcho(typ byte, id, seq uint16, data []byte) []byte {
 	b := make([]byte, 8+len(data))
 	b[0] = typ

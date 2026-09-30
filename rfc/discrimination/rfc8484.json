@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc8484",
+  "records": [
+    {
+      "rid": "RFC8484-6-2",
+      "polarity": "positive",
+      "unit": "internal/core/dnsserver/rfc8484_get_base64url_test.go::TestRFC8484GetPayloadIsBase64URLInTheDNSVariable",
+      "unit-sha": "d28403cf8c049d32",
+      "claim-sha": "8ab4ec60b3277ac5",
+      "route": "revert",
+      "producer": "internal/core/dnsserver/secure.go::dohRequestBody",
+      "producer-sha": "ecd5f4f73536d829",
+      "break": "body of dohRequestBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8484-6-2",
+      "polarity": "negative",
+      "unit": "internal/core/dnsserver/rfc8484_get_base64url_test.go::TestRFC8484GetPayloadIsBase64URLInTheDNSVariable",
+      "unit-sha": "d28403cf8c049d32",
+      "claim-sha": "e0a27e3d32f3d109",
+      "route": "revert",
+      "producer": "internal/core/dnsserver/secure.go::dohRequestBody",
+      "producer-sha": "ecd5f4f73536d829",
+      "break": "body of dohRequestBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

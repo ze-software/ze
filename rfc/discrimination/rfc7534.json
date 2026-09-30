@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc7534",
+  "records": [
+    {
+      "rid": "RFC7534-3.5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/as112/rfc7534_direct_delegation_test.go::TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare",
+      "unit-sha": "fb71435ecf32e72c",
+      "claim-sha": "48eb47f3ee3cb58c",
+      "route": "revert",
+      "producer": "internal/plugins/as112/zones.go::answerQuestions",
+      "producer-sha": "169b27ca0f486289",
+      "break": "body of answerQuestions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7534-3.5-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/as112/zones_test.go::TestZoneAnswer_OutOfZoneRefused",
+      "unit-sha": "d59293d821ee46d3",
+      "claim-sha": "22b5f18d916decd3",
+      "route": "revert",
+      "producer": "internal/plugins/as112/zones.go::answerQuestions",
+      "producer-sha": "169b27ca0f486289",
+      "break": "body of answerQuestions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7534-3.5-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/as112/rfc7534_direct_delegation_test.go::TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare",
+      "unit-sha": "fb71435ecf32e72c",
+      "claim-sha": "067c02f5370c6fc7",
+      "route": "revert",
+      "producer": "internal/plugins/as112/zones.go::answerQuestions",
+      "producer-sha": "169b27ca0f486289",
+      "break": "body of answerQuestions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7534-3.5-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/as112/zones_test.go::TestSOA_RFCMandatedParameters",
+      "unit-sha": "5418dba88ee54653",
+      "claim-sha": "3d369465c7f0ef44",
+      "route": "revert",
+      "producer": "internal/plugins/as112/zones.go::buildSOA",
+      "producer-sha": "6de9a42c278546c6",
+      "break": "body of buildSOA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

@@ -1,12 +1,13 @@
 {
   "audited": "2026-09-28",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7440-3-1": {
       "note": "The sentence formats the RRQ/WRQ, so its ASCII clause binds the request's sender; Ze only receives requests, and no receiver obligation to refuse non-ASCII follows from it. Receiver side, TestRFC7440FieldsAreNULTerminatedASCIIStrings: the Section 3 example parses to foobar/octet/windowsize; a windowsize whose #blocks lacks its NUL is not recognized, and a filename without its NUL is refused (red on a parser taking an unterminated field). Supplementary: every field of the OACK Ze sends is printable ASCII with one NUL (four fields).",
       "requirement_sha": "a77b5523293d4a80",
       "tests": {
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQ": "a94a3042c4c6352a",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQInvalid": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQ": "6534ec721202373b",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQInvalid": "6534ec721202373b",
         "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings": "402f4bee572c1a29",
         "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings#2": "402f4bee572c1a29"
       },

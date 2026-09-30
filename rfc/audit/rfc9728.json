@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -147,17 +147,21 @@
       "verdict": "enforced"
     },
     "RFC9728-7.1-2": {
-      "note": "TestRFC9728MCPServingTLSVersions proves the protocol-version clause of BCP195: TLS 1.2/1.3 reach MCP, TLS 1.0/1.1 do not. The rest of the BCP195 guidance (RFC 9325 cipher-suite rules, e.g. no NULL, RC4 or sub-112-bit suites) has no assertion in a tagged unit.",
+      "note": "Re-judged 2026-09-30. Beyond the HEAD version tags: TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites (ze_mcp) probes the listener startMCPServer opens with loadMCPTLSConfig, ECDSA and RSA certs, with the same tlsprobe assertions as RFC7858-8-1: recommended ECDHE AES-128-GCM selected with null compression and renegotiation_info, every forbidden suite alone never selected, DEFLATE alone refused. Records: loadMCPTLSConfig revert both polarities observed red.",
       "requirement_sha": "0a736695367efbe1",
       "tests": {
+        "cmd/ze/hub/service_mcp_rfc9325_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites": "223e6e02bfd2df6c",
+        "cmd/ze/hub/service_mcp_rfc9325_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites#2": "223e6e02bfd2df6c",
         "cmd/ze/hub/service_mcp_rfc9728_test.go::TestRFC9728MCPServingTLSVersions": "7f675285035f48bf",
         "cmd/ze/hub/service_mcp_rfc9728_test.go::TestRFC9728MCPServingTLSVersions#2": "7f675285035f48bf"
       },
       "units": {
+        "cmd/ze/hub/service_mcp_rfc9325_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites": "731a7fac7db9d9cb",
+        "cmd/ze/hub/service_mcp_rfc9325_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites#2": "731a7fac7db9d9cb",
         "cmd/ze/hub/service_mcp_rfc9728_test.go::TestRFC9728MCPServingTLSVersions": "16316e3e2651e3d8",
         "cmd/ze/hub/service_mcp_rfc9728_test.go::TestRFC9728MCPServingTLSVersions#2": "16316e3e2651e3d8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc9728"

@@ -1,31 +1,35 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC7534-3.5-1": {
-      "note": "Sentence: each node is configured to answer authoritatively for its nominated zones. Forbidden behaviour (a): a nominated zone answered without authority (AA clear) or not answered from zone data; (b) answering for a zone not nominated. Clause (b) is enforced: TestZoneAnswer_OutOfZoneRefused asserts REFUSED, reply.Authoritative false and empty sections for example.com. Clause (a) is not: TestZoneAnswer_ReverseZoneNoData calls answerQuestions directly and asserts NOERROR plus the zone SOA in Authority, but never reads the AA bit (AA is set by the handler, not answerQuestions), so a handler that stopped setting AA for served zones stays green. Only 10.in-addr.arpa. is probed of the nominated set.",
+      "note": "Re-judged 2026-09-30. Positive now covers every served Direct-Delegation zone (>=20 probed) through the real handler: SOA at the apex is AA, NOERROR, the zone's own SOA. Negative TestZoneAnswer_OutOfZoneRefused: a name outside every served zone draws REFUSED with AA clear. Records: answerQuestions revert, positive (author) and negative (judge) observed red.",
       "requirement_sha": "03a38b1e814d657d",
       "tests": {
+        "internal/plugins/as112/rfc7534_direct_delegation_test.go::TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare": "067e1ca0797c0743",
         "internal/plugins/as112/zones_test.go::TestZoneAnswer_OutOfZoneRefused": "99aa05744211cc95",
         "internal/plugins/as112/zones_test.go::TestZoneAnswer_ReverseZoneNoData": "99aa05744211cc95"
       },
       "units": {
+        "internal/plugins/as112/rfc7534_direct_delegation_test.go::TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare": "d780aabfba166d76",
         "internal/plugins/as112/zones_test.go::TestZoneAnswer_OutOfZoneRefused": "392cd26698cb502b",
         "internal/plugins/as112/zones_test.go::TestZoneAnswer_ReverseZoneNoData": "8c2857c3a22d4d1b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7534-3.5-2": {
-      "note": "Sentence: no resource records beyond SOA and NS in a Direct-Delegation zone. Forbidden behaviour: the zone answering any other record type. TestZoneAnswer_ReverseZoneNoData asserts empty Answer only for a PTR query at 10.in-addr.arpa.; TestSOA_RFCMandatedParameters (negative) asserts the SOA parameters and exactly two NS. answerQuestions holds an explicit TXT branch (isHostnameZone) that answers TXT for some zones; no tagged unit queries TXT (or A, AAAA, ANY) at a Direct-Delegation apex, so a broken isHostnameZone that hosts TXT in 10.in-addr.arpa. stays green.",
+      "note": "Re-judged 2026-09-30. Positive: at every Direct-Delegation apex, A/AAAA/TXT/PTR/MX/CNAME/ANY return nothing but SOA/NS in any section, closing the PTR-only finding. Negative TestSOA_RFCMandatedParameters bounds the rule (the zone does carry SOA and NS) rather than violating it; the prohibition itself is proven by the positive across all zones and types. Records: answerQuestions (+, author) and buildSOA (-, judge) reverts observed red.",
       "requirement_sha": "8ec655846f52aae3",
       "tests": {
+        "internal/plugins/as112/rfc7534_direct_delegation_test.go::TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare": "067e1ca0797c0743",
         "internal/plugins/as112/zones_test.go::TestSOA_RFCMandatedParameters": "99aa05744211cc95",
         "internal/plugins/as112/zones_test.go::TestZoneAnswer_ReverseZoneNoData": "99aa05744211cc95"
       },
       "units": {
+        "internal/plugins/as112/rfc7534_direct_delegation_test.go::TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare": "d780aabfba166d76",
         "internal/plugins/as112/zones_test.go::TestSOA_RFCMandatedParameters": "60f297c259c2b561",
         "internal/plugins/as112/zones_test.go::TestZoneAnswer_ReverseZoneNoData": "8c2857c3a22d4d1b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7534-3.5-3": {
       "note": "Single-polarity positive (marker on the row). Sentence: records for the site's RFC 1918-numbered resources are not hosted on the nameserver. Forbidden behaviour: a PTR (or any record) for an RFC 1918 reverse name below a served zone is answered. TestZoneAnswer_ResponseCodeByNamePosition row 1.0.10.in-addr.arpa. PTR asserts Rcode NXDOMAIN (reply.Rcode != tc.rcode) and the loop over Answer and Extra fails on any PTR record, both red if such a record were hosted. answerQuestions has no per-zone branch below the apex (every non-apex name takes the missing path), so the one 10/8 probe covers the uniform path for all RFC 1918 zones.",

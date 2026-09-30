@@ -72,7 +72,18 @@ func checkName(what, name string) error {
 	if name == "" {
 		return nil
 	}
-	for label := range strings.SplitSeq(strings.TrimSuffix(name, "."), ".") {
+	labels := strings.TrimSuffix(name, ".")
+	if labels == "" {
+		return nil // the root name: its one label is the terminating empty one
+	}
+	for label := range strings.SplitSeq(labels, ".") {
+		// RFC 2181 Section 11: "The length of any one label is limited to
+		// between 1 and 63 octets." An empty label inside a name is how
+		// "www..t.example." would reach the wire, and no codec can pack it.
+		if label == "" {
+			return fmt.Errorf("geodns: %s %q has an empty label, each label is 1 to %d octets (RFC 2181 section 11)",
+				what, name, maxLabelOctets)
+		}
 		if len(label) > maxLabelOctets {
 			return fmt.Errorf("geodns: %s %q has a %d-octet label %q, max %d (RFC 1035 section 3.1)",
 				what, name, len(label), label, maxLabelOctets)

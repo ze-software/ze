@@ -389,10 +389,12 @@ func TestGatewayICMPHeaderDiscard(t *testing.T) {
 }
 
 func TestGatewayICMPEchoReply(t *testing.T) {
+	// RFC requirement: RFC792-Echo-1 positive -- the reply Linux forms for a Type 8 request carries Type 0.
+	// RFC requirement: RFC792-Echo-2 positive -- the reply Linux forms carries Code 0.
+	// RFC requirement: RFC792-Echo-3 positive -- the reply's checksum, summed from the ICMP Type over the whole message, verifies.
+	// RFC requirement: RFC792-Echo-3 negative -- a request whose checksum is not the one's complement of the message sum is never answered, alongside the valid request control.
 	// RFC requirement: RFC792-Echo-5 positive -- Linux returns the complete odd-length request data unchanged.
-	// RFC requirement: RFC792-Echo-5 negative -- a corrupt-checksum request is never reflected, alongside the valid request control.
 	// RFC requirement: RFC792-Echo-6 positive -- the observed reply reverses addresses, changes Type 8 to 0, and carries a recomputed valid checksum.
-	// RFC requirement: RFC792-Echo-6 negative -- a corrupt-checksum request produces no reply.
 	w := newGatewayWire(t)
 	gatewaySysctl(t, "ipv4/icmp_echo_ignore_all", "0")
 	gatewayNeighbor(t, w.parent, netip.MustParseAddr("192.0.2.20"), w.peer.Attrs().HardwareAddr)
@@ -439,5 +441,83 @@ func TestGatewayICMPEchoReply(t *testing.T) {
 	}
 	if !replied {
 		t.Fatal("valid Echo Request received no reply")
+	}
+}
+
+// gatewayEchoRequest builds an IPv4 Echo Request from 192.0.2.20 to target
+// carrying data, with valid IP and ICMP checksums.
+func gatewayEchoRequest(target netip.Addr, sequence uint16, data []byte) []byte {
+	request := gatewayDatagram(60+sequence, 28+len(data), 64, 0, nil)
+	request[9] = unix.IPPROTO_ICMP
+	copy(request[16:20], target.AsSlice())
+	request[10], request[11] = 0, 0
+	binary.BigEndian.PutUint16(request[10:], gatewayChecksum(request[:20]))
+	icmp := request[20:]
+	icmp[0], icmp[1], icmp[2], icmp[3] = 8, 0, 0, 0
+	binary.BigEndian.PutUint16(icmp[4:], 0x4321)
+	binary.BigEndian.PutUint16(icmp[6:], sequence)
+	copy(icmp[8:], data)
+	binary.BigEndian.PutUint16(icmp[2:], gatewayChecksum(icmp))
+	return request
+}
+
+// TestGatewayICMPEchoReplyToTheQueriedAddress drives the reply toward the two
+// ways RFC 792's echo rules can break on a multi-address gateway: a request to
+// the secondary address answered from the primary one, and data that is not
+// returned exactly (a short, an odd and a long payload, each with its own
+// bytes). Every request is valid, so a missing reply is a failure too.
+func TestGatewayICMPEchoReplyToTheQueriedAddress(t *testing.T) {
+	// RFC requirement: RFC792-Echo-5 negative -- three requests of 1, 333 and 1400 data octets to one gateway each get back exactly their own data, never another request's data nor a padded or truncated copy.
+	// RFC requirement: RFC792-Echo-6 negative -- a request to the gateway's secondary address 192.0.2.253 is never answered from the primary 192.0.2.254: the reply's source is the request's destination and its destination the request's source.
+	w := newGatewayWire(t)
+	gatewaySysctl(t, "ipv4/icmp_echo_ignore_all", "0")
+	if err := w.backend.AddAddress("gw0", "192.0.2.253/24"); err != nil {
+		t.Fatal(err)
+	}
+	gatewayNeighbor(t, w.parent, netip.MustParseAddr("192.0.2.20"), w.peer.Attrs().HardwareAddr)
+	secondary := netip.MustParseAddr("192.0.2.253")
+	sent := map[uint16][]byte{}
+	for sequence, size := range map[uint16]int{1: 1, 2: 333, 3: 1400} {
+		data := make([]byte, size)
+		for i := range data {
+			data[i] = byte(i*7) ^ byte(sequence)
+		}
+		request := gatewayEchoRequest(secondary, sequence, data)
+		sent[sequence] = request
+		w.send(t, w.parent.Attrs().HardwareAddr, request)
+	}
+	answered := map[uint16]bool{}
+	for _, frame := range gatewayCapturePackets(t, w.fd) {
+		ip := frame.ip
+		if ip[9] != unix.IPPROTO_ICMP {
+			continue
+		}
+		answer := ip[int(ip[0]&15)*4:]
+		if len(answer) < 8 || binary.BigEndian.Uint16(answer[4:6]) != 0x4321 {
+			continue
+		}
+		sequence := binary.BigEndian.Uint16(answer[6:8])
+		request, ok := sent[sequence]
+		if !ok {
+			t.Fatalf("Echo Reply for a sequence never sent: %d", sequence)
+		}
+		if !bytes.Equal(ip[12:16], secondary.AsSlice()) {
+			t.Fatalf("Echo Reply to %s sourced from %x, not from the queried address", secondary, ip[12:16])
+		}
+		if !bytes.Equal(ip[16:20], request[12:16]) {
+			t.Fatalf("Echo Reply sent to %x, not to the request's source", ip[16:20])
+		}
+		if answer[0] != 0 || gatewayChecksum(answer) != 0 {
+			t.Fatalf("invalid Echo Reply header: %x", answer[:8])
+		}
+		if !bytes.Equal(answer[8:], request[28:]) {
+			t.Fatalf("Echo Reply %d returned %d data octets that differ from the %d sent", sequence, len(answer[8:]), len(request[28:]))
+		}
+		answered[sequence] = true
+	}
+	for sequence := range sent {
+		if !answered[sequence] {
+			t.Errorf("Echo Request %d to the secondary address received no reply", sequence)
+		}
 	}
 }

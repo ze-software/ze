@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc7858",
+  "records": [
+    {
+      "rid": "RFC7858-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/core/dnsserver/secure_test.go::TestDefaultSecureConfig",
+      "unit-sha": "df1ec88a1cc07aea",
+      "claim-sha": "7f98052a80a6caf7",
+      "route": "revert",
+      "producer": "internal/core/dnsserver/secure.go::DefaultSecureConfig",
+      "producer-sha": "d10ddaa94a49aa53",
+      "break": "body of DefaultSecureConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7858-3.4-5",
+      "polarity": "positive",
+      "unit": "internal/core/dnsserver/rfc7858_idle_close_test.go::TestRFC7858ServerIdleCloseLeavesTheServerServing",
+      "unit-sha": "01a40b0b486f49f2",
+      "claim-sha": "b47c2cdc11172083",
+      "route": "revert",
+      "producer": "internal/core/dnsserver/secure.go::bindDoT",
+      "producer-sha": "df33770e0ff6c65a",
+      "break": "body of bindDoT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7858-8-1",
+      "polarity": "positive",
+      "unit": "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites",
+      "unit-sha": "fa4814595a9aacaf",
+      "claim-sha": "809afac45c396655",
+      "route": "revert",
+      "producer": "internal/core/selfcert/selfcert.go::NewTLSConfig",
+      "producer-sha": "9e333cd472e00b0e",
+      "break": "body of NewTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7858-8-1",
+      "polarity": "negative",
+      "unit": "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites",
+      "unit-sha": "fa4814595a9aacaf",
+      "claim-sha": "4ff8be4aea8f5e20",
+      "route": "revert",
+      "producer": "internal/core/selfcert/selfcert.go::NewTLSConfig",
+      "producer-sha": "9e333cd472e00b0e",
+      "break": "body of NewTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

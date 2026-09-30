@@ -4,8 +4,8 @@
   "register": "prose",
   "source-path": "rfc/full/rfc1350.txt",
   "source-sha": "37aca32d5dfaf1a8",
-  "signed-off": "2026-08-31",
-  "reviewer": "ze-work agent, spec-rfcgate-6, rfc1350",
+  "signed-off": "2026-09-30",
+  "reviewer": "independent judge, spec-rfc-verdict-fix-services (session 869df689)",
   "sections": [
     {
       "id": "front",
@@ -100,9 +100,9 @@
     {
       "id": "5:2",
       "quote": "If a host receives a octet file and then returns it, the returned file must be identical to the original.",
-      "disposition": "mapped",
-      "mapped-to": "RFC1350-5-2",
-      "reason": "The octet round-trip identity obligation, captured verbatim as RFC1350-5-2 at [MUST]. Ze meets it in serveFile (internal/plugins/tftpserver/handler.go), which reads the file into a blksize buffer and hands those bytes to buildData unchanged, so no octet path transforms a byte."
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "binds a host that receives an octet file and then returns it, which Ze does not implement: the TFTP server refuses WRQ (serve in internal/plugins/tftpserver/handler.go) and Ze has no TFTP client, so it never receives a file. Row RFC1350-5-2 is retired (rfc/corrections/rfc1350.md)"
     },
     {
       "id": "5:3",
@@ -147,5 +147,6 @@
       "reason": "Binds the system administrator who grants file system rights to the TFTP server process, a role RFC 1350 names in the sentence itself: 'care must be taken in the rights granted to a TFTP server process'. The obligation is a deployment decision made outside the protocol and outside ze, and the sentence after it describes the common deployment rather than requiring one: 'TFTP is often installed with controls such that only files that have public read access are available via TFTP and writing files via TFTP is disallowed.' Ze confines every transfer to the configured root through resolvePath (internal/plugins/tftpserver/handler.go) and serves reads only, which is the posture the sentence recommends to that administrator, but the rights on the files themselves are not ze's to grant. rfc/short/rfc1350.md declares no requirement for it."
     }
   ],
-  "register-reason": "Standards Track, July 1992, written before RFC 2119 existed and carrying no key-words paragraph. A capitalised MUST/SHALL/REQUIRED scan over rfc/full/rfc1350.txt returns nothing, so DeriveRegister grades the source 'prose' and the site inventory is the case-insensitive modal scan, which returns the ten lowercase 'must' sentences classified below. The sign-off claims exactly the derived grade. Six of the eleven gated rows rfc/short/rfc1350.md declares carry no modal at all in the source and are declared as unsourced ids on the section each was read from."
+  "register-reason": "Standards Track, July 1992, written before RFC 2119 existed and carrying no key-words paragraph. A capitalised MUST/SHALL/REQUIRED scan over rfc/full/rfc1350.txt returns nothing, so DeriveRegister grades the source 'prose' and the site inventory is the case-insensitive modal scan, which returns the ten lowercase 'must' sentences classified below. The sign-off claims exactly the derived grade. Six of the eleven gated rows rfc/short/rfc1350.md declares carry no modal at all in the source and are declared as unsourced ids on the section each was read from.",
+  "resign-reason": "Re-walked section 5 on 2026-09-30 under ruling R2: site 5:2 ('If a host receives a octet file and then returns it, the returned file must be identical to the original.') binds a host that receives a file and returns it. Ze's TFTP server refuses WRQ (serve, internal/plugins/tftpserver/handler.go, opWRQ answers errIllegalOp) and Ze has no TFTP client, so Ze never receives a file. The site moves from mapped (RFC1350-5-2) to excluded binds-another-role, and the row is retired; exclusions 5 -> 6."
 }

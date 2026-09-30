@@ -1,6 +1,7 @@
 package probe
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net"
@@ -191,10 +192,34 @@ func checksumOnesFold(b []byte) uint16 {
 	return uint16(sum)
 }
 
-// RFC requirement: RFC792-Echo-1 positive -- a ze-built ICMP echo request carries Type 8.
+// VALIDATES: the IPv4 echo pair every ping and traceroute caller takes from
+// EchoTypes is Type 8 for the request it builds and Type 0 for the reply it
+// accepts, and a datagram of the request type is never taken as the reply.
+// RFC requirement: RFC792-Echo-1 positive -- EchoTypes answers Type 8 for an IPv4 request and Type 0 for its reply; the request built with it carries Type 8, and a Type 0 datagram is matched as the reply.
+// RFC requirement: RFC792-Echo-1 negative -- a Type 8 datagram (the request looped back) and an IPv6 Type 129 datagram are refused as an IPv4 echo reply.
 func TestRFC792EchoRequestType(t *testing.T) {
-	if got := BuildICMPEcho(8, 0x1234, 7, []byte("ze-ping"))[0]; got != 8 {
+	request, reply := EchoTypes(netip.MustParseAddr("192.0.2.1"))
+	if request != 8 || reply != 0 {
+		t.Fatalf("IPv4 EchoTypes = (%d, %d), want (8, 0)", request, reply)
+	}
+	pkt := BuildICMPEcho(request, 0x1234, 7, []byte("ze-ping"))
+	if got := pkt[0]; got != 8 {
 		t.Errorf("echo request Type = %d, want 8", got)
+	}
+	answer := bytes.Clone(pkt)
+	answer[0] = 0
+	if id, seq, ok := ParseEchoReply(answer, reply); !ok || id != 0x1234 || seq != 7 {
+		t.Errorf("Type 0 reply not matched: id=%#x seq=%d ok=%v", id, seq, ok)
+	}
+	if _, _, ok := ParseEchoReply(pkt, reply); ok {
+		t.Error("a Type 8 echo message was accepted as the echo reply")
+	}
+	answer[0] = 129
+	if _, _, ok := ParseEchoReply(answer, reply); ok {
+		t.Error("an ICMPv6 Type 129 datagram was accepted as an IPv4 echo reply")
+	}
+	if v6Request, v6Reply := EchoTypes(netip.MustParseAddr("2001:db8::1")); v6Request == 8 || v6Reply == 0 {
+		t.Errorf("IPv6 EchoTypes = (%d, %d) reuses the ICMPv4 values", v6Request, v6Reply)
 	}
 }
 
@@ -215,8 +240,6 @@ func TestRFC792ChecksumValid(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC792-Echo-3 negative -- altering a message byte after the checksum is
-// computed breaks the property, so a corrupted echo does not carry a valid checksum.
 // RFC requirement: RFC1071-1-5 negative -- flipping a payload byte makes the whole-message one's-complement sum no longer fold to 0xffff, so the RFC 1071 verify test rejects it (invariant established by icmpChecksum, probe/icmp.go:34).
 func TestRFC792ChecksumRejectsCorruption(t *testing.T) {
 	pkt := BuildICMPEcho(8, 0x1234, 7, []byte("ze-ping"))

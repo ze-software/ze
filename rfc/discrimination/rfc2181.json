@@ -1,0 +1,93 @@
+{
+  "rfc": "rfc2181",
+  "records": [
+    {
+      "rid": "RFC2181-10.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NSTargetIsNotAnAlias",
+      "unit-sha": "5e82017e6f6bb3dd",
+      "claim-sha": "e3295199dd800b9a",
+      "route": "revert",
+      "producer": "internal/plugins/geodns/server.go::appendNS",
+      "producer-sha": "7a2ab511ba38a3d3",
+      "break": "body of appendNS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2181-11-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NameLimitsBothSidesOfEachBound",
+      "unit-sha": "6a390a884045a188",
+      "claim-sha": "55d08bd3a071716b",
+      "route": "revert",
+      "producer": "internal/plugins/geodns/config.go::checkName",
+      "producer-sha": "2bb29c3e67838c08",
+      "break": "body of checkName replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2181-11-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NameLimitsBothSidesOfEachBound",
+      "unit-sha": "6a390a884045a188",
+      "claim-sha": "f83a87bb94d5336d",
+      "route": "revert",
+      "producer": "internal/plugins/geodns/config.go::checkName",
+      "producer-sha": "2bb29c3e67838c08",
+      "break": "body of checkName replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2181-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181ReplySourcedFromTheQueriedAddress",
+      "unit-sha": "2a6ffcb274ff86f6",
+      "claim-sha": "846ff2549fb39f25",
+      "route": "revert",
+      "producer": "internal/core/dnsserver/manager.go::bind",
+      "producer-sha": "1806132543b520d1",
+      "break": "body of bind replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2181-5.4-2",
+      "polarity": "positive",
+      "unit": "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet",
+      "unit-sha": "309dbc9e28979c38",
+      "claim-sha": "d96eac9a3034aef0",
+      "route": "revert",
+      "producer": "internal/component/resolve/dns/cache.go::put",
+      "producer-sha": "86bd12d0d5340a7e",
+      "break": "body of put replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2181-5.4-2",
+      "polarity": "negative",
+      "unit": "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet",
+      "unit-sha": "309dbc9e28979c38",
+      "claim-sha": "f4f088e7f6664ab9",
+      "route": "revert",
+      "producer": "internal/component/resolve/dns/cache.go::put",
+      "producer-sha": "86bd12d0d5340a7e",
+      "break": "body of put replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2181-8-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound",
+      "unit-sha": "a11bcc0f8dc4a064",
+      "claim-sha": "3f187952ae9f2259",
+      "route": "revert",
+      "producer": "internal/plugins/geodns/config.go::parseTTL",
+      "producer-sha": "c0738ec276eeb37b",
+      "break": "body of parseTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2181-8-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181TTLTransmittedWithSignBitClear",
+      "unit-sha": "c29a1b1f9a1de80b",
+      "claim-sha": "369b87e7dbb8edca",
+      "route": "revert",
+      "producer": "internal/plugins/geodns/config.go::parseTTL",
+      "producer-sha": "c0738ec276eeb37b",
+      "break": "body of parseTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

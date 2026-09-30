@@ -302,12 +302,7 @@ func doPing(dest netip.Addr, count int, timeout time.Duration, opts pingOpts) (m
 }
 
 func doPingCtx(ctx context.Context, dest netip.Addr, count int, timeout time.Duration, opts pingOpts) (map[string]any, error) {
-	icmpEcho := byte(8)
-	icmpEchoReply := byte(0)
-	if dest.Is6() {
-		icmpEcho = 128
-		icmpEchoReply = 129
-	}
+	icmpEcho, icmpEchoReply := probe.EchoTypes(dest)
 
 	conn, err := openProbeConn(ctx, probe.FamilyOf(dest), opts.source, opts.df)
 	if err != nil {

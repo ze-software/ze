@@ -92,12 +92,7 @@ func NewPingSession(ctx context.Context, target string, interval, timeout time.D
 }
 
 func streamPing(ctx context.Context, dest netip.Addr, interval, timeout time.Duration, count, size int, out chan<- map[string]any) {
-	icmpEcho := byte(8)
-	icmpEchoReply := byte(0)
-	if dest.Is6() {
-		icmpEcho = 128
-		icmpEchoReply = 129
-	}
+	icmpEcho, icmpEchoReply := probe.EchoTypes(dest)
 
 	// The stream carries no DF keyword yet, so the mode is named here as off
 	// rather than left to the zero value the probe layer refuses.

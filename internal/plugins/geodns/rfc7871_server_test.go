@@ -74,11 +74,6 @@ func TestRFC7871_NoECSQueryNoECSResponse(t *testing.T) {
 	if responseHasECS(msg) {
 		t.Error("response carries an ECS option though the query had none, with a Tailored Response")
 	}
-	// RFC requirement: RFC7871-7.2.2-1 positive -- a client query with no ECS
-	// option draws a response with no ECS option.
-	if responseHasECS(msg) {
-		t.Error("response carries an ECS option though the client query had none")
-	}
 }
 
 // VALIDATES: a query whose ECS option provides 0 address bits (SOURCE

@@ -35,6 +35,22 @@ check, which reuses the registered `doctor-tls-*` codes. A third authoritative
 DNS plugin gets secure transports and the certificate doctor check with no new
 code.
 
+## TLS policy is BCP 195
+
+Every server TLS configuration comes from `selfcert.NewTLSConfig`, which sets
+TLS 1.2 as the floor and leaves the cipher suites to Go's defaults. Those
+defaults already meet RFC 9325 section 4.1: no NULL, RC4, export, DES or 3DES
+suite, no static RSA or ECDH, no DHE, no TLS compression, and renegotiation_info
+in every TLS 1.2 ServerHello. Go's client cannot offer a suite it does not
+implement, so the tests prove the refusals with a hand-built ClientHello from
+`internal/test/tlsprobe`, for an ECDSA and an RSA certificate. The MCP listener
+in `cmd/ze/hub` builds its own configuration with the same floor and is probed
+the same way. The idle DoT connection closes after the `miekg/dns` default of 8
+seconds.
+
+<!-- source: internal/core/selfcert/selfcert.go -- NewTLSConfig -->
+<!-- source: internal/test/tlsprobe/bcp195.go -- AssertBCP195 -->
+
 ## Port defaults
 
 A secure listener port that binds the plugin's existing addresses is a scalar

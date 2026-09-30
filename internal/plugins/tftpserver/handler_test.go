@@ -332,9 +332,6 @@ func startTestTFTPServer(t *testing.T, rootDir string, maxTransfers int) *net.UD
 // RFC requirement: RFC1350-4-1 positive -- the first DATA block carries block number 1
 // (asserts buf[2:4] == 1; producer numbers from 1 at
 // internal/plugins/tftpserver/handler.go:362).
-// RFC requirement: RFC1350-5-2 positive -- an octet transfer returns the file bytes
-// unchanged (asserts bytes.Equal(buf[4:n], content); producer copies bytes verbatim into
-// DATA at internal/plugins/tftpserver/handler.go:360,373).
 func TestTFTPReadRequest(t *testing.T) {
 	t.Parallel()
 
@@ -395,8 +392,6 @@ func TestTFTPReadRequest(t *testing.T) {
 // (internal/plugins/tftpserver/handler.go:374,382).
 // RFC requirement: RFC1350-4-1 positive -- block numbers are consecutive (1,2,3), asserted
 // gotBlock == block each iteration (internal/plugins/tftpserver/handler.go:362,382).
-// RFC requirement: RFC1350-5-2 positive -- the reassembled octet bytes are identical to the
-// source file, asserted byte-for-byte (internal/plugins/tftpserver/handler.go:360,373).
 func TestTFTPReadLargeFile(t *testing.T) {
 	t.Parallel()
 

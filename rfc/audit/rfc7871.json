@@ -1,33 +1,23 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7871-7.2.1-7": {
-      "note": "TestRFC7871_NoECSQueryNoECSResponse sends an ECS-less query whose packet source selects a tailored A (asserted 10.0.0.5), then asserts the response carries no EDNS0_SUBNET option; adding an ECS option to any geodns response turns it red. Negative polarity is unconstructible (geodns emits no ECS), as the single-polarity marker states.",
+      "note": "Re-judged 2026-09-30: the unit changed only by dropping the retired RFC7871-7.2.2-1 tag and its duplicate assertion; the 7.2.1-7 assertion is unchanged. TestRFC7871_NoECSQueryNoECSResponse sends an ECS-less query whose packet source selects a tailored A (asserted 10.0.0.5), then asserts the response carries no EDNS0_SUBNET option; adding an ECS option to any geodns response turns it red. Negative polarity is unconstructible (geodns emits no ECS), as the single-polarity marker states.",
       "requirement_sha": "c331aee86a557250",
       "tests": {
-        "internal/plugins/geodns/rfc7871_server_test.go::TestRFC7871_NoECSQueryNoECSResponse": "8f3edbe3d47c264f"
+        "internal/plugins/geodns/rfc7871_server_test.go::TestRFC7871_NoECSQueryNoECSResponse": "4f94a9f098243c8d"
       },
       "units": {
-        "internal/plugins/geodns/rfc7871_server_test.go::TestRFC7871_NoECSQueryNoECSResponse": "63719e30cb9e0cc9"
+        "internal/plugins/geodns/rfc7871_server_test.go::TestRFC7871_NoECSQueryNoECSResponse": "b05957a61bf89dcb"
       },
       "verdict": "enforced"
-    },
-    "RFC7871-7.2.2-1": {
-      "note": "the tag sits on a repeat of the 7.2.1-7 assertion; section 7.2.2 binds an Intermediate Nameserver, which geodns is not, so the tagged unit proves nothing for this row. Section 7.2.2 binds an Intermediate Nameserver ('When an Intermediate Nameserver uses ECS ... the server MUST NOT provide one in its response'); geodns is an Authoritative Nameserver and forwards nothing, so the role is not Ze's. The tagged assertion in TestRFC7871_NoECSQueryNoECSResponse is a byte-identical repeat of the 7.2.1-7 check, which is where the authoritative obligation is proved.",
-      "requirement_sha": "c023670fa2ddef51",
-      "tests": {
-        "internal/plugins/geodns/rfc7871_server_test.go::TestRFC7871_NoECSQueryNoECSResponse": "8f3edbe3d47c264f"
-      },
-      "units": {
-        "internal/plugins/geodns/rfc7871_server_test.go::TestRFC7871_NoECSQueryNoECSResponse": "63719e30cb9e0cc9"
-      },
-      "verdict": "wrong"
     },
     "RFC7871-7.5-6": {
       "note": "TestRFC7871_ZeroAddressBitsNotRefused sends an ECS option with SOURCE PREFIX-LENGTH 0 and empty ADDRESS, and asserts Rcode is not REFUSED and the packet-source answer 10.0.0.5 is returned; a refusal on 0 address bits turns it red. Refuse-for-0-bits negative is unconstructible (geodns refuses only when disabled).",
       "requirement_sha": "071c929f39c0da9a",
       "tests": {
-        "internal/plugins/geodns/rfc7871_server_test.go::TestRFC7871_ZeroAddressBitsNotRefused": "8f3edbe3d47c264f"
+        "internal/plugins/geodns/rfc7871_server_test.go::TestRFC7871_ZeroAddressBitsNotRefused": "4f94a9f098243c8d"
       },
       "units": {
         "internal/plugins/geodns/rfc7871_server_test.go::TestRFC7871_ZeroAddressBitsNotRefused": "c8da27c7a9d59775"

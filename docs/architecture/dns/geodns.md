@@ -23,6 +23,14 @@ reference stops the commit.
 <!-- source: internal/plugins/geodns/config.go -- parseConfig, host-set resolution -->
 <!-- source: internal/plugins/geodns/record.go -- addrRecord -->
 
+`parseConfig` also refuses a configured name the wire cannot carry: a label
+that is empty (`www..t.example.`) or longer than 63 octets, and a name longer
+than 255 wire octets (RFC 2181 section 11, RFC 1035 section 3.1). The packer
+would refuse such a name at send time, and that refusal answers nothing, so
+the commit fails instead.
+
+<!-- source: internal/plugins/geodns/config.go -- checkName -->
+
 The record `type` leaf is optional. Without it, each address decides its own
 type: IPv4 gives A, anything else gives AAAA. One host line with a mixed
 address list gives both an A and an AAAA. An explicit `type` constrains the

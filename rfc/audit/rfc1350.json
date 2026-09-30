@@ -1,31 +1,32 @@
 {
-  "audited": "2026-09-28",
+  "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC1350-2-1": {
-      "note": "Forbidden: a non-final DATA block that is not 512 bytes. TestTFTPReadExact512 asserts block 1 of a 512-byte file carries exactly 512 bytes (n-4 != 512 fails) and that the transfer continues to block 2; TestTFTPReadLargeFile asserts three blocks for 1500 bytes. Single-polarity marker: ze is the sender and no input changes its framing.",
+      "note": "Re-judged 2026-09-30: the units changed only by dropping the retired RFC1350-5-2 tag comments; every assertion is unchanged. Forbidden: a non-final DATA block that is not 512 bytes. TestTFTPReadExact512 asserts block 1 of a 512-byte file carries exactly 512 bytes (n-4 != 512 fails) and that the transfer continues to block 2; TestTFTPReadLargeFile asserts three blocks for 1500 bytes. Single-polarity marker: ze is the sender and no input changes its framing.",
       "requirement_sha": "177ec2d28dc9434d",
       "tests": {
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "a94a3042c4c6352a",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a"
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "6534ec721202373b",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "6534ec721202373b"
       },
       "units": {
         "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "98ffa756092d4fbe",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b"
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "240d5ea9ba163958"
       },
       "verdict": "enforced"
     },
     "RFC1350-2-2": {
-      "note": "Forbidden: DATA block 2 before block 1 is ACKed. TestRFC1350LockstepWaitsForTheACK requires block 1 to be exactly octets 0..511, then expectSilence for 1 s with block 1 unacked (red on a server that streams ahead; the ACK timeout is 5 s so no retransmission confounds it), then after ACK 1 block 2 must be octets 512..1023. Both clauses (one block per packet, ACK before the next) are asserted in both polarities. The older handler_test units stay weak on their own.",
+      "note": "Re-judged 2026-09-30: the units changed only by dropping the retired RFC1350-5-2 tag comments; every assertion is unchanged. Forbidden: DATA block 2 before block 1 is ACKed. TestRFC1350LockstepWaitsForTheACK requires block 1 to be exactly octets 0..511, then expectSilence for 1 s with block 1 unacked (red on a server that streams ahead; the ACK timeout is 5 s so no retransmission confounds it), then after ACK 1 block 2 must be octets 512..1023. Both clauses (one block per packet, ACK before the next) are asserted in both polarities. The older handler_test units stay weak on their own.",
       "requirement_sha": "6e51c71ee33b5d30",
       "tests": {
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPConcurrentLimit": "a94a3042c4c6352a",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPConcurrentLimit": "6534ec721202373b",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "6534ec721202373b",
         "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK": "60a1b8ea3f073355",
         "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK#2": "60a1b8ea3f073355"
       },
       "units": {
         "internal/plugins/tftpserver/handler_test.go::TestTFTPConcurrentLimit": "f8798044238d59e6",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "240d5ea9ba163958",
         "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK": "261ca4e70842cd88",
         "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK#2": "261ca4e70842cd88"
       },
@@ -45,15 +46,15 @@
       "verdict": "enforced"
     },
     "RFC1350-4-1": {
-      "note": "Forbidden: a first block other than 1, or a gap or repeat in the numbering. TestTFTPReadRequest asserts buf[2:4] == 1; TestTFTPReadLargeFile asserts gotBlock == block for 1,2,3; TestTFTPReadExact512 asserts block 2 follows block 1. Single-polarity marker: the server assigns the numbers.",
+      "note": "Re-judged 2026-09-30: the units changed only by dropping the retired RFC1350-5-2 tag comments; every assertion is unchanged. Forbidden: a first block other than 1, or a gap or repeat in the numbering. TestTFTPReadRequest asserts buf[2:4] == 1; TestTFTPReadLargeFile asserts gotBlock == block for 1,2,3; TestTFTPReadExact512 asserts block 2 follows block 1. Single-polarity marker: the server assigns the numbers.",
       "requirement_sha": "c3d583281c51b282",
       "tests": {
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "a94a3042c4c6352a"
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "6534ec721202373b",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "6534ec721202373b"
       },
       "units": {
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "fdde8a7e1436845a"
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "240d5ea9ba163958",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "e447b258b2be34db"
       },
       "verdict": "enforced"
     },
@@ -70,25 +71,12 @@
       },
       "verdict": "enforced"
     },
-    "RFC1350-5-2": {
-      "note": "The sentence binds a host that RECEIVES an octet file and later returns it. Ze's TFTP server rejects WRQ (handler.go handleRRQ path only) and never receives a file, so the obligation's round trip cannot occur. TestTFTPReadRequest and TestTFTPReadLargeFile prove a neighbouring rule: the RRQ path sends a stored file's bytes verbatim in octet mode. The tags are misplaced.",
-      "requirement_sha": "cf6a9d5b4e5a1d33",
-      "tests": {
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "a94a3042c4c6352a"
-      },
-      "units": {
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "fdde8a7e1436845a"
-      },
-      "verdict": "wrong"
-    },
     "RFC1350-5-3": {
       "note": "TestRFC1350DataFieldLengthEndsTheTransfer reads into a 64 KiB buffer so an oversize field is seen whole (fails >512); for 1500/1024/0-octet files a 512 block must be followed by the next block (expectData fails otherwise), the transfer must end on the first 0..511 block with expectSilence for 1 s after its ACK (red on DATA after the end), and the reassembled bytes equal the file (red on a short non-final block, which would end the loop early). All three clauses asserted; single-polarity marker holds (Ze is the sender).",
       "requirement_sha": "e9541f5c732b1360",
       "tests": {
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadEmptyFile": "a94a3042c4c6352a",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadEmptyFile": "6534ec721202373b",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "6534ec721202373b",
         "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350DataFieldLengthEndsTheTransfer": "60a1b8ea3f073355"
       },
       "units": {
@@ -102,7 +90,7 @@
       "note": "TestRFC1350LastDATARetransmittedUntilAcknowledged: the last DATA (block 2 of 1000 octets) left unacked must be retransmitted byte for byte within ackTimeout+2 s (red on no retransmission); after ACK 2, expectSilence for ackTimeout+2 s (red on retransmitting past the ACK, the 'until acknowledged' clause the old verdict found missing). The 'or times out' end is the sender's give-up, asserted by the RFC1350-7-1 unit on a single-block (last) DATA.",
       "requirement_sha": "1e3573f72b4f1ee9",
       "tests": {
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "6534ec721202373b",
         "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LastDATARetransmittedUntilAcknowledged": "60a1b8ea3f073355",
         "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LastDATARetransmittedUntilAcknowledged#2": "60a1b8ea3f073355"
       },
@@ -117,7 +105,7 @@
       "note": "Positive TestRFC1350TimeoutEndsTheTransferOfAGonePeer: with no ACK, block 1 must arrive exactly maxRetransmit+1 times then silence past a full ackTimeout+2 s (red on retransmitting forever or on no timeout), and a one-slot server must then serve a new RRQ (red if the failed transfer never releases its slot). Negative TestRFC1350TimeoutThenACKContinuesTheTransfer: an ACK after one timeout-driven retransmission continues to block 2 (red on treating the first timeout as fatal). The old single-polarity test-cost argument is gone from the row.",
       "requirement_sha": "c8b39b85a1e38f5e",
       "tests": {
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "6534ec721202373b",
         "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350TimeoutEndsTheTransferOfAGonePeer": "60a1b8ea3f073355",
         "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350TimeoutThenACKContinuesTheTransfer": "60a1b8ea3f073355"
       },
