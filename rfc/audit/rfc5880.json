@@ -11,6 +11,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -78,58 +79,60 @@
       "verdict": "enforced"
     },
     "RFC5880-6.1-1": {
-      "note": "Judge 2026-09-30 (rejudge, subnet). \u00a76.1 Active role sends regardless of reception. Now driven through the producer, the engine tick (engine/loop.go tick): + engine TestRFC5880ActiveSessionSendsBeforeAnyReception (2s of ticks, no reception, Sends > 0); - engine TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent (peer spoke once, 5s silence past Detection Time, still sends in the next 3s). Both recorded by reverting loop.go::tick, observed red. Session-level tags kept.",
+      "note": "Judge rejudge 2026-09-30 (bfd P-4). Stale only by a tag comment added to session TestRFC5880PassiveRoleSilentUntilReception; bodies unchanged. Proof unchanged: + engine TestRFC5880ActiveSessionSendsBeforeAnyReception (ticks, no reception, Sends > 0); - engine TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent (still sends past Detection Time of silence), both recorded revert loop.go::tick observed red. The new session-level negative (Passive leaves NextTxDeadline unarmed, record revert session.go::Init observed red) is a role contrast that catches arm-for-every-role code, which violates 6.1-2 rather than this row: supplementary, not load-bearing.",
       "requirement_sha": "9235ea6a87c1482a",
       "tests": {
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent": "1a3ca4dc854245d8",
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsBeforeAnyReception": "1a3ca4dc854245d8",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent": "e1685b9301773ecc",
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsBeforeAnyReception": "f0a130b0c8773dbf",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "df2f701c25b0dca8",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "33027aa7f2203d67",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "5a65964a85953f8b"
       },
       "verdict": "enforced"
     },
     "RFC5880-6.1-2": {
-      "note": "Judge 2026-09-30 (rejudge, subnet). \u00a76.1 Passive MUST NOT begin sending until it has received a packet. The withholding producer (tick's next.IsZero() skip) is now driven: + engine TestRFC5880PassiveSessionSilentThroughTicksUntilReception (5s of ticks, 0 Sends); - engine TestRFC5880PassiveSessionSendsOnceThePeerSpoke (silent 2s precondition, then handleInbound, Sends > 0). Records revert loop.go::tick observed red; author overlay removing the skip reds the + (6 packets before reception) while Active tests stay green.",
+      "note": "Judge rejudge 2026-09-30 (bfd P-4). Stale only by the RFC5880-6.1-1 tag comment added to session TestRFC5880PassiveRoleSilentUntilReception; body unchanged. + engine TestRFC5880PassiveSessionSilentThroughTicksUntilReception (5s of ticks, 0 Sends); - engine TestRFC5880PassiveSessionSendsOnceThePeerSpoke; both recorded revert loop.go::tick observed red. Session-level tags unchanged.",
       "requirement_sha": "39a159b0e3368631",
       "tests": {
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSendsOnceThePeerSpoke": "1a3ca4dc854245d8",
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSilentThroughTicksUntilReception": "1a3ca4dc854245d8",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSendsOnceThePeerSpoke": "d354686b957783b8",
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSilentThroughTicksUntilReception": "620536c1be64dd35",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "fb409f03cb73db70",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "33027aa7f2203d67",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "5a65964a85953f8b"
       },
       "verdict": "enforced"
     },
     "RFC5880-6.1-3": {
-      "note": "The obligation binds the pair of systems. Positive asserts only that the default role is Active (m.role after newMachine); the negative shows Passive is selectable, which does not violate the row. Nothing refuses or flags Ze Passive facing a Passive peer, and the row has no {single-polarity} marker: Ze's default is proven, the pair obligation is not.",
+      "note": "Judge rejudge 2026-09-30 under owner ruling P-4 (Thomas, 2026-09-30: 'we can not see the peer', no refusal path exists), so the row is judged on its positive for Ze's role as one system of the pair. + session TestRFC5880ActiveRoleTransmitsWithoutReception: a request with Passive unset gives RoleActive through Init/applyRequest and arms the TX deadline with RemoteDiscr 0; setting RoleActive to RolePassive in applyRequest fails the role assertion directly; record revert session.go::Init observed red (judge, 2026-09-30). The operator default reaches that request unchanged: ze-bfd-conf.yang passive default false, config.go copies p.passive, and single-hop Passive is refused (RFC 5881 Section 3), so Ze takes Active unless the operator opts a multihop profile into Passive, and Active sending is proven at the engine by RFC5880-6.1-1. The HEAD negative TestRFC5880PassiveRoleSilentUntilReception (Passive is selectable) does not violate this row; it is supplementary and proves a neighbouring rule (RFC5880-6.1-1 contrast, 6.1-2). The pair obligation beyond Ze's own role is not observable by Ze.",
       "requirement_sha": "adebdf4c918f4b5b",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "df2f701c25b0dca8",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "fb409f03cb73db70"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "33027aa7f2203d67"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.3-1": {
       "note": "Forbidden: discriminator 0 or a value held by another session. Red: TestRFC5880DiscriminatorsAreNonZeroAndUnique Fatalf on d==0 or a repeat across 32 EnsureSession calls; TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken parks nextDiscr on 0 with 1 and 2 taken and Fatalf if 0, 1 or 2 is returned. 'Opaque' carries no testable behaviour.",
       "requirement_sha": "1fdd8138075ac8f6",
       "tests": {
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken": "0fe06dc2bbe02966",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorsAreNonZeroAndUnique": "0fe06dc2bbe02966"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken": "ac847ad94fd21520",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorsAreNonZeroAndUnique": "ac847ad94fd21520"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken": "b8c705c4718c3093",
@@ -141,8 +144,8 @@
       "note": "Forbidden: P and F both set. Red: TestRFC5880PollPacketHasNoFinalBit Fatalf on c.Final from Build with PollOutstanding; TestRFC5880FinalReplyClearsPollBit Fatalf on f.Poll from BuildFinal with PollOutstanding true, the state where inheriting P would set both. Build and BuildFinal are the only packets sendLocked is handed (engine/loop.go).",
       "requirement_sha": "9b837bd97f06d962",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "e298a947dd60ac25",
@@ -156,8 +159,8 @@
       "requirement_sha": "23be4adfe2ed9de8",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollRidesTheScheduledPacket": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollRidesTheScheduledPacket": "b73d998693d271c3",
@@ -170,8 +173,8 @@
       "note": "Forbidden: D set while DemandMode, local Up or remote Up is false. Red: TestRFC5880DemandBitClearWhenAnyConditionFails Fatalf on Build().Demand with each condition dropped alone and with both states Down; positive TestRFC5880DemandBitSetWhenAllConditionsHold shows D is set when all hold, so the clear cases are not a constant false.",
       "requirement_sha": "7c57c2a6a41a5409",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitClearWhenAnyConditionFails": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitSetWhenAllConditionsHold": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitClearWhenAnyConditionFails": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitSetWhenAllConditionsHold": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitClearWhenAnyConditionFails": "921e0fd1b26116c1",
@@ -437,7 +440,7 @@
       "requirement_sha": "2b16c338c8deef26",
       "tests": {
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "0db40ad53e18e5c2",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "0fe06dc2bbe02966",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "ac847ad94fd21520",
         "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "4991f8b5efadecf0",
         "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded": "ee4106e33861f3d9"
       },
@@ -469,8 +472,8 @@
       "requirement_sha": "b9e08332d4459520",
       "tests": {
         "internal/component/bfd/session/rfc5880_auth_seq_field_test.go::TestRFC5880SequenceFieldIsXmitAuthSeqAcrossTheCounterRange": "0df1fe339d3b5712",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldFollowsAdvance": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldIsXmitAuthSeq": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldFollowsAdvance": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldIsXmitAuthSeq": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_auth_seq_field_test.go::TestRFC5880SequenceFieldIsXmitAuthSeqAcrossTheCounterRange": "ce52ac3db274b855",
@@ -552,7 +555,7 @@
       "requirement_sha": "688d11a4ee42cd94",
       "tests": {
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "0db40ad53e18e5c2",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "0fe06dc2bbe02966",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "ac847ad94fd21520",
         "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "4991f8b5efadecf0",
         "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded": "ee4106e33861f3d9"
       },
@@ -608,7 +611,7 @@
       "note": "single-polarity positive: Init state is Down.",
       "requirement_sha": "bc399e49abeb4c4f",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "05c25578fc1db9d1"
@@ -619,8 +622,8 @@
       "note": "Forbidden: bfd.DetectMult zero. Red: TestRFC5880DetectMultZeroRequestSubstituted Inits with DetectMult 0 and Fatalf if DetectMult()==0 or != DefaultDetectMult; positive keeps the configured 3. Init (session/session.go:256) is the only writer of vars.DetectMult.",
       "requirement_sha": "0e5a8a8651ce1a63",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultConfiguredValue": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultZeroRequestSubstituted": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultConfiguredValue": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultZeroRequestSubstituted": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultConfiguredValue": "43ec829f148de834",
@@ -651,7 +654,7 @@
       "tests": {
         "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionAskedAgainKeepsRemoteState": "4d673e57cff28d5a",
         "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionPreservedForOneDetectionTime": "4d673e57cff28d5a",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880StatePreservedForOneDetectionTime": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880StatePreservedForOneDetectionTime": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionAskedAgainKeepsRemoteState": "fe408f2ae27cd8f4",
@@ -664,7 +667,7 @@
       "note": "single-polarity positive: RemoteSessionState is Down after Init.",
       "requirement_sha": "bc399e49abeb4c4f",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "05c25578fc1db9d1"
@@ -675,8 +678,8 @@
       "note": "same allocator tests as 6.3-1: nonzero and unique LocalDiscr, skip of 0 and taken values.",
       "requirement_sha": "beb1c8df1ef9af60",
       "tests": {
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken": "0fe06dc2bbe02966",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorsAreNonZeroAndUnique": "0fe06dc2bbe02966"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken": "ac847ad94fd21520",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorsAreNonZeroAndUnique": "ac847ad94fd21520"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken": "b8c705c4718c3093",
@@ -689,7 +692,7 @@
       "requirement_sha": "750f5c751756b7d1",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880InitClearsLearnedRemoteDiscr": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880InitClearsLearnedRemoteDiscr": "653238f848f341bc",
@@ -703,9 +706,9 @@
       "requirement_sha": "8cfcec714af32cf8",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteDiscrClearedDespiteInvalidPackets": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedOnDetectionExpiry": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedOnDetectionExpiry": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteDiscrClearedDespiteInvalidPackets": "c2d1d5b3c5502064",
@@ -719,8 +722,8 @@
       "note": "Judge rejudge 2026-09-30 (bfd engine 2). Unit re-read after TestRFC5880InitVariablesAreNotConstants lost its 6.8.1-4 tag (doc comment only, body unchanged). Judgement unchanged: Forbidden: bfd.LocalDiag initialised to anything but 0. TestRFC5880InitVariableDefaults fails on LocalDiag() != DiagNone straight after Init. Negative TestRFC5880InitVariablesAreNotConstants shows the value is an initial value, not a constant: a peer-signalled Down moves it to DiagNeighborSignaledDown.",
       "requirement_sha": "4597dc20147d96e2",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "a5a2b73d55f078ff",
@@ -732,8 +735,8 @@
       "note": "RA-BFD strict re-read 2026-09-27. One clause: bfd.DesiredMinTxInterval initialised to at least 1,000,000 us. Forbidden: Init storing a value below 1 s (here the configured 300 ms). Red: TestRFC5880SlowStartFloorWhileNotUp Fatalf when DesiredMinTxIntervalUs() < 1000000 straight after Init (Init, session.go, assigns SlowStartIntervalUs), and when TransmitInterval is below 1 s while Down. Contrast: TestRFC5880SlowStartFloorLiftedWhenUp fails unless the same accessor reads the configured 300000 at Up, so the positive cannot pass on a constant.",
       "requirement_sha": "24cc2b965bbb1988",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "b6c65bc1a7a3e4b0",
@@ -745,8 +748,8 @@
       "note": "Judge rejudge 2026-09-30 (bfd engine 2). Unit re-read after TestRFC5880InitVariablesAreNotConstants lost its 6.8.1-4 tag (doc comment only, body unchanged). Judgement unchanged: Forbidden: bfd.RemoteMinRxInterval initialised to anything but 1. TestRFC5880InitVariableDefaults fails on RemoteMinRxInterval != 1 after Init. Negative TestRFC5880InitVariablesAreNotConstants shows the value is replaced by the advertised 700000, so the 1 is an initial value.",
       "requirement_sha": "1be29b393319aa00",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "a5a2b73d55f078ff",
@@ -758,8 +761,8 @@
       "note": "Judge rejudge 2026-09-30 (bfd engine 2). Unit re-read after TestRFC5880InitVariablesAreNotConstants lost its 6.8.1-4 tag (doc comment only, body unchanged). Judgement unchanged: Forbidden: bfd.RemoteDemandMode initialised true. TestRFC5880InitVariableDefaults fails on RemoteDemandMode true after Init. Negative TestRFC5880InitVariablesAreNotConstants shows it follows a received D=1, so false is an initial value.",
       "requirement_sha": "af0148874e278084",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "a5a2b73d55f078ff",
@@ -778,12 +781,23 @@
       },
       "verdict": "enforced"
     },
+    "RFC5880-6.8.16-3": {
+      "note": "Judge 2026-09-30 (bfd P-4, first verdict). A permission Ze elects not to take. - engine TestRFC5880NoPeriodicTransmitWhileAdminDown: AdminDown sends at the transition and a tick an hour later sends nothing (Loop.tick skips once AdminDownTransmitEnd has passed); record revert loop.go::tick observed red. The test is a correct proof of Ze's election, but no behavior can violate a MAY, so the unit cannot fail on non-compliance; the row carries no positive and no {single-polarity} marker. Not a defect.",
+      "requirement_sha": "0a395a36911d8c7e",
+      "tests": {
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "ac847ad94fd21520"
+      },
+      "units": {
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "86520cbe9553aa58"
+      },
+      "verdict": "weak"
+    },
     "RFC5880-6.8.16-4": {
       "note": "Judge 2026-09-30 (rejudge, netns+pinning). RFC 5880 \u00a76.8.16 \"If enabling session Set bfd.SessionState to Down\". Positive TestRFC5880AdministrativeDisableEnable asserts exact Down after AdminEnable on an AdminDown session. Negative TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit (R1 b) pushes the inputs toward the violation: Up session disabled, peer keeps sending Up then Init so bfd.RemoteSessionState is Up/Init (asserted as precondition), AdminEnable still lands on Down and Build() announces Down; an overlay adopting RemoteSessionState reds it (author e4-ov7). Old TestRFC5880AdministrativeCallsAreGuarded untagged (asserted a Ze guard, not this row). Revert records on fsm.go::AdminEnable observed red for both.",
       "requirement_sha": "66f31b32ebff29aa",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "9facc85ee86d0975",
@@ -797,7 +811,7 @@
       "tests": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableCeasesEchoes": "836d84530c95a8b2",
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableIgnoresPeerEchoRequest": "836d84530c95a8b2",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableCeasesEchoes": "5012cb3889d587a1",
@@ -812,9 +826,9 @@
       "requirement_sha": "2afbdb9ec892567b",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880SlowStartFloorInEveryStateButUp": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorRestoredOnAdminDown": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorRestoredOnAdminDown": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880SlowStartFloorInEveryStateButUp": "c1f5381cf350b5eb",
@@ -831,8 +845,8 @@
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedForEachIntervalAlone": "73ca576e23cbd659",
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedWhenDownEntryRaisesDesiredMinTx": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NoPollWhenIntervalsUnchanged": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NoPollWhenIntervalsUnchanged": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedForEachIntervalAlone": "26a54d966b13b4a6",
@@ -846,8 +860,8 @@
       "note": "RA-BFD3 first verdict 2026-09-27 (gap closed by DF-BFD-7: desiredMinTxInForceUs, holdDesiredMinTxLocked, releaseDesiredMinTxLocked in timers.go). The sentence has one condition pair (increase AND Up) and one prohibition (actual interval unchanged until the Poll terminates). Forbidden behaviour: TX at the raised interval while the Poll is outstanding. Both writers of an increase in Up are driven by the positive TestRFC5880RaisedDesiredMinTxHeldUntilPollTerminates: echo slow-down (300 ms to 1 s, RemoteMinRx 100 ms) requires TransmitInterval == 300 ms, NextTxDeadline == last TX + 300 ms after AdvanceTxWithJitter, and still +300 ms after a non-Final packet (the Receive reschedule path); Up transition with a 2 s configured interval requires TransmitInterval == 1 s (remote 300 ms) with the Poll outstanding. Each goes red if TransmitInterval reads the live bfd.DesiredMinTxInterval (1 s, 2 s). Negative TestRFC5880RaisedDesiredMinTxAppliedAtFinal: the terminating Final makes TransmitInterval 1 s and moves the pending deadline to last TX + 1 s, red on a hold that is never released or released without rescheduling; a session leaving Up drops the hold (TransmitInterval 1 s slow-start, not the held 300 ms). The only runtime writers of bfd.DesiredMinTxInterval in Up are ApplyEchoSlowdown and onStateChange, both covered; a decrease (revertEchoSlowdownLocked) is not held, as the sentence covers only an increase.",
       "requirement_sha": "12e30fb3c317e5f5",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RaisedDesiredMinTxAppliedAtFinal": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RaisedDesiredMinTxHeldUntilPollTerminates": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RaisedDesiredMinTxAppliedAtFinal": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RaisedDesiredMinTxHeldUntilPollTerminates": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RaisedDesiredMinTxAppliedAtFinal": "00440ebb295d0ff0",
@@ -859,10 +873,10 @@
       "note": "RA-BFD2 strict re-read 2026-09-27 (stale on Receive: echo reschedule and pollSettling added after rescheduleTxLocked, which is still called on every accepted packet). Forbidden: keeping the old, longer wait after a reduction. TestRFC5880RemoteMinRxChangeReschedulesNextTx requires last TX + 400 ms after 900 to 400 ms, and a jittered 900 of 1.2 s rescaled to 300 of 400 ms, already due. TestRFC5880RemoteMinRxReductionHonoredImmediately pins TransmitInterval at 400 ms at once. Negatives: TestRFC5880UnchangedRemoteMinRxKeepsNextTx (no change, deadline kept) and TestRFC5880TransmitIntervalFlooredByLocalDesired (a reduction below the local desired value does not shorten TX). The Demand-mode condition only removes the obligation; Ze runs no Demand mode, so it always honours the reduction.",
       "requirement_sha": "2ebce90286cf6632",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitIntervalFlooredByLocalDesired": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnchangedRemoteMinRxKeepsNextTx": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitIntervalFlooredByLocalDesired": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnchangedRemoteMinRxKeepsNextTx": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "ffcbcc003dae3e02",
@@ -876,10 +890,10 @@
       "note": "RA-BFD2 strict re-read 2026-09-27, raised from weak: the RA-BFD defect is fixed at the producer. Every Poll initiator is choice 1 or choice 3: onStateChange changes both intervals under one PollOutstanding (and can only fire from Down/Init, where Down entry clears PollOutstanding and pollSettling); ApplyEchoSlowdown and revertEchoSlowdownLocked (while Up) return with the flag unchanged unless pollSequenceIdle, which Receive clears only on the Final that ends the Poll (pollSettling set) followed by a packet with F clear. Forbidden second Poll during an outstanding Poll: TestRFC5880EchoSlowdownWaitsForOutstandingPoll (tx and rx stay 10000 during the Up Poll) and TestRFC5880EchoSlowdownRevertWaitsForOutstandingPoll (stays 1000000). Forbidden Poll after the Final before an F-clear packet: both tests assert no Poll and the old intervals. Positive: TestRFC5880EchoSlowdownPollsAfterSettledPoll (P set, both intervals 1000000 in one packet) and TestRFC5880PollInitiatedOnIntervalChange (single packet). Choice 2 is an alternative Ze does not take; Demand mode is not driven, so choice 3 is always available.",
       "requirement_sha": "61937eab8354f704",
       "tests": {
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownPollsAfterSettledPoll": "0fe06dc2bbe02966",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownRevertWaitsForOutstandingPoll": "0fe06dc2bbe02966",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownWaitsForOutstandingPoll": "0fe06dc2bbe02966",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "4808fd133dde65c3"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownPollsAfterSettledPoll": "ac847ad94fd21520",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownRevertWaitsForOutstandingPoll": "ac847ad94fd21520",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownWaitsForOutstandingPoll": "ac847ad94fd21520",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownPollsAfterSettledPoll": "165a4fb4b38e504d",
@@ -895,7 +909,7 @@
       "requirement_sha": "c37aac5a40480499",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteTimingChangeMovesDetectionTimeAtOnce": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteTimingChangeMovesDetectionTimeAtOnce": "24cc801f63e3244e",
@@ -908,8 +922,8 @@
       "requirement_sha": "6694052db4b70630",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880DetectionExpiryFromUpDownDiagOne": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryDownDiagOne": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryIgnoredWhenDown": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryDownDiagOne": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryIgnoredWhenDown": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880DetectionExpiryFromUpDownDiagOne": "7b4e312a6ed5ff2d",
@@ -923,8 +937,8 @@
       "requirement_sha": "6dd9b077f5fb61ca",
       "tests": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes": "836d84530c95a8b2",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoMissDetectedAndReported": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoReturnClearsMissAndFailIsScoped": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoMissDetectedAndReported": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoReturnClearsMissAndFailIsScoped": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes": "5f35cc568d6e73aa",
@@ -950,8 +964,8 @@
       "note": "Forbidden: processing A=0 at an authenticated session. TestRFC5880AuthenticatedSessionDiscardsUnauthenticatedPacket fails unless Receive returns ErrAuthMismatch with the state unchanged; the engine skips Verify for A=0 and relies on this check. Positive TestRFC5880AuthenticatedSessionAcceptsAuthenticatedPacket: A=1 accepted.",
       "requirement_sha": "9405b660f6bfac60",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionAcceptsAuthenticatedPacket": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionDiscardsUnauthenticatedPacket": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionAcceptsAuthenticatedPacket": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionDiscardsUnauthenticatedPacket": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionAcceptsAuthenticatedPacket": "5056347b3821fdbd",
@@ -965,8 +979,8 @@
       "tests": {
         "internal/component/bfd/engine/rfc5880_auth_type_test.go::TestRFC5880AuthenticatedPacketOfAnotherAuthTypeDiscarded": "278872a86df97fcc",
         "internal/component/bfd/engine/rfc5880_auth_type_test.go::TestRFC5880AuthenticatedUnderEachSessionAuthType": "278872a86df97fcc",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880AuthenticatedPacketVerifiedAndDelivered": "0fe06dc2bbe02966",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnauthenticPacketDiscarded": "0fe06dc2bbe02966"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880AuthenticatedPacketVerifiedAndDelivered": "ac847ad94fd21520",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnauthenticPacketDiscarded": "ac847ad94fd21520"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_auth_type_test.go::TestRFC5880AuthenticatedPacketOfAnotherAuthTypeDiscarded": "adbeec6f29fe8b32",
@@ -980,8 +994,8 @@
       "note": "RA-BFD strict re-read 2026-09-27. One clause: a received Required Min Echo RX of zero ends echo transmission. Forbidden: an echo sent after that packet. Red: TestRFC5880EchoCeasesWhenPeerAdvertisesZero Fatal when EchoEnabled stays true, when PrimeEcho leaves the already-armed deadline set, or when EchoInterval is nonzero. The engine sends only from an armed deadline after its own EchoEnabled gate (echoTickLocked, echo.go), and PrimeEcho clears the deadline when echo is off, so removing either gate alone sends nothing and removing PrimeEcho's check reddens this unit. Contrast: TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero keeps echo enabled and armed on a nonzero value.",
       "requirement_sha": "771a6b211318ba08",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoCeasesWhenPeerAdvertisesZero": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoCeasesWhenPeerAdvertisesZero": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoCeasesWhenPeerAdvertisesZero": "d58be07aeade079a",
@@ -993,8 +1007,8 @@
       "note": "Forbidden: a Poll that survives F=1. TestRFC5880FinalTerminatesPoll fails if PollOutstanding stays set after F=1; TestRFC5880NonFinalDoesNotTerminatePoll fails if F=0 clears it, so a clear-on-any-packet mutation goes red.",
       "requirement_sha": "140c100a0d8cbc0d",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalTerminatesPoll": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NonFinalDoesNotTerminatePoll": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalTerminatesPoll": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NonFinalDoesNotTerminatePoll": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalTerminatesPoll": "e878271930434503",
@@ -1003,16 +1017,16 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.6-15": {
-      "note": "Judge rejudge 2026-09-30 (bfd AdminDown). Positive unchanged and complete over the three disjuncts (D=0; D=1 with either end not Up). Still weak under R1 (OWNER-GATE): the negative TestRFC5880NoPeriodicTransmitWhileAdminDown, rewritten under D-15 now that the AdminDown defect is fixed (a packet at the transition, nothing a tick an hour later), proves the 6.8.16 window and the 6.8.16-3 MAY not taken, a neighbouring rule; read literally it asserts silence in a not-Up state this row says MUST send periodically, which Section 6.8.16's own window/MAY qualifies. No genuine negative for this row exists (no input to refuse). The earlier-noted defect (no Control packet at all after Shutdown/Release) is fixed under RFC5880-6.8.16-2.",
+      "note": "Judge rejudge 2026-09-30 under owner ruling P-4 (no genuine negative; judged on the positive). The HEAD negative TestRFC5880NoPeriodicTransmitWhileAdminDown is supplementary: it proves the 6.8.16 window and that the 6.8.16-3 MAY is not taken. Producer Loop.tick has no Demand-mode suppression at all, so Ze complies today, but the positives do not pin the full MUST: TestRFC5880PeriodicTransmitWhenRemoteDemandInactive drives D=0 only with the peer in Init (remote not Up), and TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp drives D=1 with local Init/peer Down and local Up/peer Init. Missing: (1) D=0 with bfd.SessionState and bfd.RemoteSessionState both Up, the only state where the first disjunct alone holds (a mutant suppressing periodic TX whenever both ends are Up survives); (2) D=1 with bfd.SessionState not Up while bfd.RemoteSessionState is Up (local Down receiving the peer's Up packet with D=1; a mutant suppressing when D=1 and the remote is Up survives). Each tick asserts one send, periodicity itself being 6.8.7's rows.",
       "requirement_sha": "8cdcdb3774df1109",
       "tests": {
         "internal/component/bfd/engine/rfc5880_demand_periodic_test.go::TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp": "5162da39b05c3713",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "0fe06dc2bbe02966",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PeriodicTransmitWhenRemoteDemandInactive": "0fe06dc2bbe02966"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "ac847ad94fd21520",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PeriodicTransmitWhenRemoteDemandInactive": "ac847ad94fd21520"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_demand_periodic_test.go::TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp": "71131a440c3a8174",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "72278a0f5dd4d5a1",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "86520cbe9553aa58",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PeriodicTransmitWhenRemoteDemandInactive": "b39371a5a6575cd4"
       },
       "verdict": "weak"
@@ -1021,8 +1035,8 @@
       "note": "Forbidden: no immediate F=1/P=0 reply to P=1. TestRFC5880PollAnsweredWithImmediateFinal fails if handleInbound sends nothing, or the reply lacks F or sets P; TestRFC5880NonPollProducesNoImmediateReply fails if a P=0 packet triggers a reply.",
       "requirement_sha": "a6747ed6e17bfaef",
       "tests": {
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NonPollProducesNoImmediateReply": "0fe06dc2bbe02966",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PollAnsweredWithImmediateFinal": "0fe06dc2bbe02966"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NonPollProducesNoImmediateReply": "ac847ad94fd21520",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PollAnsweredWithImmediateFinal": "ac847ad94fd21520"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NonPollProducesNoImmediateReply": "8f616636aa2e6eff",
@@ -1117,8 +1131,8 @@
       "requirement_sha": "f5e34d76d0e9bf44",
       "tests": {
         "internal/component/bfd/engine/rfc5880_discriminator_select_test.go::TestRFC5880YourDiscriminatorSelectsAmongSessions": "86e3a3cf7ddc5819",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownYourDiscriminatorDiscarded": "0fe06dc2bbe02966",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880YourDiscriminatorSelectsSession": "0fe06dc2bbe02966"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownYourDiscriminatorDiscarded": "ac847ad94fd21520",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880YourDiscriminatorSelectsSession": "ac847ad94fd21520"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_discriminator_select_test.go::TestRFC5880YourDiscriminatorSelectsAmongSessions": "76ac619a7fe66df0",
@@ -1131,8 +1145,8 @@
       "note": "RA-BFD2 strict re-read 2026-09-27 (stale on Receive: additions sit after the discard test, which is still the first statement). Both State values the sentence names are driven: TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive sends Your Discriminator 0 with State Init and Up to local Down, Init and Up, and requires ErrYourDiscriminatorReset, unchanged state and unchanged RemoteDiscr (a guard moved below the field updates goes red on RemoteDiscr). Positive TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown accepts State Down and AdminDown in Down, AdminDown and Up. Local AdminDown is not in the negative loop; the sentence conditions only on the packet's State.",
       "requirement_sha": "f97c1b0e3d385d3f",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown": "756f069fe7854031",
@@ -1144,8 +1158,8 @@
       "note": "Forbidden: processing A=1 at an AuthType-0 session. TestRFC5880UnauthenticatedSessionDiscardsAuthenticatedPacket fails unless Receive returns ErrAuthMismatch and the state stays Down; the engine hands such a packet to Receive because HasAuth is false. Positive TestRFC5880UnauthenticatedSessionAcceptsUnauthenticatedPacket: A=0 accepted.",
       "requirement_sha": "bf5577632350e4b8",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionAcceptsUnauthenticatedPacket": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionDiscardsAuthenticatedPacket": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionAcceptsUnauthenticatedPacket": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionDiscardsAuthenticatedPacket": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionAcceptsUnauthenticatedPacket": "fefd4abc134dc118",
@@ -1159,8 +1173,8 @@
       "tests": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880TickSpacesControlPacketsByLargerInterval": "836d84530c95a8b2",
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880TransmitDeadlineUsesLargerOfBothIntervals": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineClampsBadJitter": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineUsesNegotiatedInterval": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineClampsBadJitter": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineUsesNegotiatedInterval": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880TickSpacesControlPacketsByLargerInterval": "d21db73b30daaf67",
@@ -1175,8 +1189,8 @@
       "requirement_sha": "7d1278dfb842683d",
       "tests": {
         "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitJitteredPerPacket": "dc0c5b53edb17df2",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterIsAppliedPerPacket": "0fe06dc2bbe02966",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterStaysWithinBand": "0fe06dc2bbe02966"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterIsAppliedPerPacket": "ac847ad94fd21520",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterStaysWithinBand": "ac847ad94fd21520"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitJitteredPerPacket": "4ab9c9ac951f58bb",
@@ -1190,8 +1204,8 @@
       "requirement_sha": "e7e5ee252fb3dc02",
       "tests": {
         "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitDetectMultOneWindow": "dc0c5b53edb17df2",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterDetectMultOneWindow": "0fe06dc2bbe02966",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterFloorOnlyForDetectMultOne": "0fe06dc2bbe02966"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterDetectMultOneWindow": "ac847ad94fd21520",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterFloorOnlyForDetectMultOne": "ac847ad94fd21520"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitDetectMultOneWindow": "62896b11b8c02861",
@@ -1204,10 +1218,10 @@
       "note": "RA-BFD3 strict re-read 2026-09-27 after DF-BFD-7 moved settlePoll before the 1 s precondition in TestRFC5880DesiredMinTxChangeReschedulesNextTx (the old order asserted the Section 6.8.3 defect; no assertion removed). Clause 1, recalculated when bfd.DesiredMinTxInterval changes: forbidden is a pending TX still drawn from the old interval. Decrease: after the revert (1 s to 300 ms, RemoteMinRx 100 ms) the final Fatalf requires NextTxDeadline == last TX + 300 ms, red without the rescheduleTxLocked call in revertEchoSlowdownLocked (deadline stays at +1 s). Increase: the precondition Fatalf requires last TX + 1 s once the slow-down Poll has settled, red if TransmitInterval ignored the raised variable. Clause 2, recalculated when bfd.RemoteMinRxInterval changes: TestRFC5880RemoteMinRxChangeReschedulesNextTx requires the pending deadline at +400 ms after 900 to 400 and at +1.2 s after 400 to 1.2 s, red without the Receive reschedule. Clause 3, equal to the greater: 900 remote over 300 local (RemoteMinRxReductionHonoredImmediately), 1.2 s remote over 300 local, 300 local over 1 us remote (TransmitIntervalFlooredByLocalDesired, which is the negative: a remote value below the local target must not shorten TX, and RequiredMinRx alone must not move it). An increase of DesiredMinTx while Up is held until its Poll ends by Section 6.8.3, judged under RFC5880-6.8.3-3.",
       "requirement_sha": "b529e0c4d926fbb0",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DesiredMinTxChangeReschedulesNextTx": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitIntervalFlooredByLocalDesired": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DesiredMinTxChangeReschedulesNextTx": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitIntervalFlooredByLocalDesired": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DesiredMinTxChangeReschedulesNextTx": "1e5e7bce434f1bc9",
@@ -1218,19 +1232,19 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.7-5": {
-      "note": "Judge rejudge 2026-09-30 (bfd engine 2). Engine TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr: a Passive session with RemoteDiscr 0 sends nothing over 5 s of ticks and sends once the peer discriminator is learned. The targeted break the earlier note named, deleting the zero-deadline skip in engine tick, observed red (7 packets sent). Session +/- units unchanged.",
+      "note": "Judge rejudge 2026-09-30 (bfd P-4). Stale only by tag comments added to session TestRFC5880PassiveRoleSilentUntilReception; bodies unchanged. Engine TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr (Passive, RemoteDiscr 0, 5 s of ticks, nothing sent; sends once the discriminator is learned) recorded revert loop.go::tick; session TestRFC5880PassiveSilentOnceRemoteDiscrCleared (+) and TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned (-) recorded revert timers.go::transmitPermitted, all observed red.",
       "requirement_sha": "3729c7cbc96f7652",
       "tests": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr": "836d84530c95a8b2",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveSilentOnceRemoteDiscrCleared": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveSilentOnceRemoteDiscrCleared": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr": "03d82a5544a77ee7",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "df2f701c25b0dca8",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "fb409f03cb73db70",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "33027aa7f2203d67",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveSilentOnceRemoteDiscrCleared": "32af1e66df60c102",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned": "a773a0b323043c81"
       },
@@ -1241,8 +1255,8 @@
       "requirement_sha": "df50cef55ae3cf09",
       "tests": {
         "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880EchoDemultiplexedAmongSessions": "88282a65c3374034",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoDemultiplexedToItsSession": "0fe06dc2bbe02966",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownEchoDropped": "0fe06dc2bbe02966"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoDemultiplexedToItsSession": "ac847ad94fd21520",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownEchoDropped": "ac847ad94fd21520"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880EchoDemultiplexedAmongSessions": "da6af90199897a51",
@@ -1257,8 +1271,8 @@
       "tests": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes": "836d84530c95a8b2",
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineReturnedEchoesKeepSessionUp": "836d84530c95a8b2",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoMissDetectedAndReported": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoReturnClearsMissAndFailIsScoped": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoMissDetectedAndReported": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoReturnClearsMissAndFailIsScoped": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes": "5f35cc568d6e73aa",
@@ -1273,8 +1287,8 @@
       "requirement_sha": "f1d37669da337358",
       "tests": {
         "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880NoEchoTransmittedInInitOrDown": "88282a65c3374034",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoTransmittedWhileUp": "0fe06dc2bbe02966",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoEchoTransmittedWhenNotUp": "0fe06dc2bbe02966"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoTransmittedWhileUp": "ac847ad94fd21520",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoEchoTransmittedWhenNotUp": "ac847ad94fd21520"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880NoEchoTransmittedInInitOrDown": "6cb606c1f8965e41",
@@ -1289,8 +1303,8 @@
       "requirement_sha": "257741ef5146bf9c",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880EchoFollowsLastAdvertisement": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoNotTransmittedWithoutPeerAdvertisement": "4808fd133dde65c3"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoNotTransmittedWithoutPeerAdvertisement": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880EchoFollowsLastAdvertisement": "317e5bc43f8bec13",
@@ -1304,10 +1318,10 @@
       "requirement_sha": "35cb2ed06a7d9aac",
       "tests": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EchoSteadySpacingHonorsPeerFloor": "836d84530c95a8b2",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoLoweredPeerFloorTakesEffect": "0fe06dc2bbe02966",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoRaisedPeerFloorDelaysNextEcho": "0fe06dc2bbe02966",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalHonorsPeerFloor": "4808fd133dde65c3",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalNotBelowLocalTarget": "4808fd133dde65c3"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoLoweredPeerFloorTakesEffect": "ac847ad94fd21520",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoRaisedPeerFloorDelaysNextEcho": "ac847ad94fd21520",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalHonorsPeerFloor": "4ef31a77205319dd",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalNotBelowLocalTarget": "4ef31a77205319dd"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EchoSteadySpacingHonorsPeerFloor": "004978766e2e2801",
@@ -1322,7 +1336,7 @@
       "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). Transmit: IPv4 IP_TTL 255 (TestRFC5880SingleHopTransmitTTLIsMaximum) and NEW IPv6 IPV6_UNICAST_HOPS 255 on a [::1] single-hop socket (TestRFC5880SingleHopTransmitHopLimitIsMaximumIPv6; record revert udp_linux.go::applySocketOptionsV6 observed red). Receive: NEW + TestRFC5880SingleHopReceiveTTLMaxAccepted (TTL 255 delivered, RemoteDiscr set; record revert loop.go::passesTTLGate observed red) beside - TestRFC5880SingleHopReceiveTTLNotMaxDiscarded, so a gate dropping every packet now goes red. Both audit gaps closed.",
       "requirement_sha": "32139905e0aec449",
       "tests": {
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880SingleHopReceiveTTLNotMaxDiscarded": "0fe06dc2bbe02966",
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880SingleHopReceiveTTLNotMaxDiscarded": "ac847ad94fd21520",
         "internal/component/bfd/engine/rfc5880_ttl_accept_test.go::TestRFC5880SingleHopReceiveTTLMaxAccepted": "eee5a7ceba7a97b3",
         "internal/component/bfd/transport/rfc5880_hop_limit_linux_test.go::TestRFC5880SingleHopTransmitHopLimitIsMaximumIPv6": "950e4412e4c4be74",
         "internal/component/bfd/transport/rfc5880_test.go::TestRFC5880SingleHopTransmitTTLIsMaximum": "d9ac1972be20f3fd"

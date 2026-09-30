@@ -391,6 +391,11 @@ func TestRFC5880ActiveRoleTransmitsWithoutReception(t *testing.T) {
 // RFC requirement: RFC5880-6.1-3 negative -- the Active role is not universal:
 // an explicit Passive request produces RolePassive, so a deployment must
 // arrange for at least one end to stay Active.
+// RFC requirement: RFC5880-6.1-1 negative -- sending without reception is the
+// Active role's obligation, not every session's: an explicit Passive request
+// produces RolePassive, and Init leaves its periodic-TX deadline unarmed while
+// RemoteDiscr is still zero. Without this contrast the Active positive could
+// pass on code that armed the timer for every role.
 func TestRFC5880PassiveRoleSilentUntilReception(t *testing.T) {
 	m := newPassiveMachine(t, newFakeClock())
 	if m.role != RolePassive {

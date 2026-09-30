@@ -406,6 +406,10 @@ func TestRFC5880PeriodicTransmitWhenRemoteDemandInactive(t *testing.T) {
 // 6.8.16) has passed. A session put in AdminDown sends at the transition, and a
 // tick an hour later sends nothing. Without this the positive could pass on
 // code that transmitted on every tick regardless of session state.
+// RFC requirement: RFC5880-6.8.16-3 negative -- Ze does not take the MAY to
+// transmit indefinitely after AdminDown: tick (Loop.tick) sends the AdminDown
+// Control packet at the transition, and once the window RFC5880-6.8.16-2 owes
+// has passed it skips the session, so a tick an hour later sends nothing.
 func TestRFC5880NoPeriodicTransmitWhileAdminDown(t *testing.T) {
 	clk := &steppedClock{now: time.Unix(1_000_000, 0)}
 	ct := &captureTransport{}

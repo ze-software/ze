@@ -68,6 +68,17 @@
       "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5880-6.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception",
+      "unit-sha": "ccace5fcdff95ddf",
+      "claim-sha": "5a7c65affd88c94b",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/session.go::Init",
+      "producer-sha": "39bd57d2fe6e92b0",
+      "break": "body of Init replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5880-6.1-2",
       "polarity": "negative",
       "unit": "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSendsOnceThePeerSpoke",
@@ -88,6 +99,17 @@
       "producer": "internal/component/bfd/engine/loop.go::tick",
       "producer-sha": "4d6c5e086edd0eba",
       "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception",
+      "unit-sha": "b4b268297193e572",
+      "claim-sha": "e921185eab0d3298",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/session.go::Init",
+      "producer-sha": "39bd57d2fe6e92b0",
+      "break": "body of Init replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.5-2",
@@ -865,6 +887,17 @@
       "unit": "internal/component/bfd/engine/rfc5880_admindown_transmit_test.go::TestRFC5880AdminDownControlTransmittedForADetectionTime",
       "unit-sha": "7b6c9f4222cba2fd",
       "claim-sha": "0b86610bff9ccaba",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::tick",
+      "producer-sha": "4d6c5e086edd0eba",
+      "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.16-3",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown",
+      "unit-sha": "4ee9f9dcfd0dee94",
+      "claim-sha": "6e5216f75b6259a5",
       "route": "revert",
       "producer": "internal/component/bfd/engine/loop.go::tick",
       "producer-sha": "4d6c5e086edd0eba",
