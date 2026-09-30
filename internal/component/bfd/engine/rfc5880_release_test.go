@@ -31,8 +31,10 @@ func (c *steppedClock) Now() time.Time { return c.now }
 // a session that has received Control packets, the engine keeps it: a tick one
 // nanosecond before LastReceived plus the Detection Time leaves the entry in
 // place in AdminDown, and a peer packet naming its discriminator is counted
-// against it (rxPackets rises). That packet restarts the interval, so the entry
-// is still present one nanosecond before the new deadline and is gone after the
+// against it (rxPackets rises). The peer goes on sending past the window in
+// which the entry's AdminDown packets are owed (RFC 5880 Section 6.8.16), with
+// the entry present at each tick. Each packet restarts the interval, so the
+// entry is still present one nanosecond before the last deadline and is gone after the
 // tick at it: the session map, the discriminator index and the first-packet
 // index no longer hold it, and a further peer packet matches nothing.
 func TestRFC5880ReleasedSessionPreservedForOneDetectionTime(t *testing.T) {
@@ -73,6 +75,16 @@ func TestRFC5880ReleasedSessionPreservedForOneDetectionTime(t *testing.T) {
 	l.handleInbound(inboundControlState(key.Peer, key.Local, key.Interface, discr, packet.StateDown))
 	if entry.rxPackets != rxBefore+1 {
 		t.Fatalf("a peer packet inside the Detection Time did not match the released session: rxPackets %d, want %d", entry.rxPackets, rxBefore+1)
+	}
+
+	// The entry also stays while its AdminDown Control packets are owed (RFC
+	// 5880 Section 6.8.16). The peer keeps talking past that window, so the
+	// last deadline below is the one Section 6.8.1 sets.
+	for !clk.now.After(m.AdminDownTransmitEnd()) {
+		clk.now = clk.now.Add(detect - time.Nanosecond)
+		l.tick()
+		releasedEntry(t, l, key, discr)
+		l.handleInbound(inboundControlState(key.Peer, key.Local, key.Interface, discr, packet.StateDown))
 	}
 
 	clk.now = clk.now.Add(detect - time.Nanosecond)

@@ -204,15 +204,25 @@ func (l *Loop) tick() {
 
 	for key, entry := range l.sessions {
 		if entry.released {
-			// A released session sends nothing and only waits out its
-			// Detection Time (ReleaseSession, RFC 5880 Section 6.8.1).
-			l.retireReleasedLocked(key, entry, now)
-			continue
+			// A released session waits out its Detection Time
+			// (ReleaseSession, RFC 5880 Section 6.8.1) and, in AdminDown,
+			// keeps transmitting below until its peer has been told.
+			if l.retireReleasedLocked(key, entry, now) {
+				continue
+			}
 		}
 		entry.machine.CheckDetection(now)
 
 		if entry.machine.State() == packet.StateAdminDown {
-			continue
+			// RFC 5880 Section 6.8.16: "BFD Control packets SHOULD be
+			// transmitted for at least a Detection Time after transitioning
+			// to AdminDown state in order to ensure that the remote system is
+			// aware of the state change." Past that window the session
+			// falls silent: the Section's MAY to go on indefinitely is not
+			// taken.
+			if !now.Before(entry.machine.AdminDownTransmitEnd()) {
+				continue
+			}
 		}
 		next := entry.machine.NextTxDeadline()
 		if next.IsZero() {

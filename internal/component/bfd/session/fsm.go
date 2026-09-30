@@ -239,7 +239,21 @@ func (m *Machine) AdminDown(diag packet.Diag) {
 	m.vars.SessionState = packet.StateAdminDown
 	m.vars.LocalDiag = diag
 	m.onStateChange(prev)
+	// RFC 5880 Section 6.8.16: "BFD Control packets SHOULD be transmitted for
+	// at least a Detection Time after transitioning to AdminDown state in
+	// order to ensure that the remote system is aware of the state change."
+	// Two Detection Times bear on it: the local one (Section 6.8.4), and the
+	// remote system's, which is our bfd.DetectMult times the interval we now
+	// transmit at. It is read after onStateChange, which has raised
+	// bfd.DesiredMinTxInterval to one second, the value these packets carry.
+	remoteDetect := time.Duration(m.vars.DetectMult) * m.TransmitInterval()
+	m.adminDownTxEnd = m.clk.Now().Add(max(m.DetectionInterval(), remoteDetect))
 }
+
+// AdminDownTransmitEnd returns when the Control packets owed after the last
+// entry into AdminDown may stop (RFC 5880 Section 6.8.16). Meaningful only
+// while the session is in AdminDown.
+func (m *Machine) AdminDownTransmitEnd() time.Time { return m.adminDownTxEnd }
 
 // AdminEnable transitions the session out of AdminDown back to Down so it
 // can begin the handshake again. No-op if not in AdminDown.

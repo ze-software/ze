@@ -866,16 +866,23 @@ func (l *Loop) acquireLocked(entry *sessionEntry) {
 }
 
 // retireReleasedLocked removes a released entry once one Detection Time has
-// passed since the last Control packet it received (RFC 5880 Section 6.8.1).
-// The deadline is read at each tick, so a packet that still arrives restarts
-// it. The caller MUST hold l.mu.
-func (l *Loop) retireReleasedLocked(key api.Key, entry *sessionEntry, now time.Time) {
+// passed since the last Control packet it received (RFC 5880 Section 6.8.1),
+// and not before its AdminDown Control packets are due to stop (Section
+// 6.8.16), so a released session still tells its peer it went AdminDown. The
+// deadline is read at each tick, so a packet that still arrives restarts it.
+// It reports whether the entry was removed. The caller MUST hold l.mu.
+func (l *Loop) retireReleasedLocked(key api.Key, entry *sessionEntry, now time.Time) bool {
 	// RFC 5880 Section 6.8.1
 	deadline := entry.machine.LastReceived().Add(entry.machine.DetectionInterval())
 	if now.Before(deadline) {
-		return
+		return false
+	}
+	// RFC 5880 Section 6.8.16
+	if now.Before(entry.machine.AdminDownTransmitEnd()) {
+		return false
 	}
 	l.removeEntryLocked(key, entry)
+	return true
 }
 
 // removeEntryLocked drops entry from the session map and both lookup indexes,

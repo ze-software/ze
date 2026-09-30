@@ -385,15 +385,78 @@ func TestOSPFBFDDownDrivesNeighborDown(t *testing.T) {
 	waitFor(t, func() bool { return reg.get("ze_ospf_bfd_sessions") == 0 })
 }
 
-// ---- AdminDown treated as Down (AC-6) ----
+// ---- AdminDown takes no OSPF action (RFC 5882 Section 4.2) ----
 
-func TestOSPFBFDAdminDownTreatedAsDown(t *testing.T) {
+// emitRemoteAdminDown delivers the Down a session reports when the NEIGHBOR's
+// own state was AdminDown (api.StateChange.RemoteAdminDown).
+func (h *fakeBFDHandle) emitRemoteAdminDown(t *testing.T) {
+	t.Helper()
+	select {
+	case h.ch <- api.StateChange{Key: h.key, State: packet.StateDown, Diag: packet.DiagNeighborSignaledDown, RemoteAdminDown: true, When: time.Now()}:
+	case <-time.After(time.Second):
+		t.Fatal("timed out emitting StateChange")
+	}
+}
+
+// assertOSPFBFDNoAction emits Up after the change under test and waits for the
+// subscriber to record it. The subscriber handles changes in order and stops at
+// the first it acts on, so reaching Up proves the earlier change was read and
+// not acted on. It then checks the three actions a teardown takes: the neighbor
+// declared down, the session released, the down counter raised.
+func assertOSPFBFDNoAction(t *testing.T, e *engine, reg *bfdMetricRegistry, svc *fakeBFDService, h *fakeBFDHandle, id types.RouterID) {
+	t.Helper()
+	h.emit(t, packet.StateUp, packet.DiagNone)
+	waitFor(t, func() bool {
+		st, ok := e.bfdSessionState(bfdClientKey{iface: "eth0", router: id})
+		return ok && st == packet.StateUp.String()
+	})
+	if snap, ok := e.neighbors.Lookup("eth0", id); !ok || snap.State == "down" {
+		t.Fatalf("OSPF neighbor declared down (present=%v): AdminDown is not a path failure", ok)
+	}
+	if n := svc.release.Load(); n != 0 {
+		t.Fatalf("ReleaseSession calls = %d, want 0", n)
+	}
+	if n := reg.get("ze_ospf_bfd_session_down_total"); n != 0 {
+		t.Fatalf("session_down_total = %d, want 0", n)
+	}
+}
+
+// RFC requirement: RFC5882-4.2-1 positive -- the first arm: when the BFD
+// session transitions from Up to AdminDown, the OSPF client takes no control
+// protocol action. Up then AdminDown are delivered; a later Up is still read,
+// the neighbor is not declared down, the session is not released and
+// ze_ospf_bfd_session_down_total stays 0.
+func TestOSPFBFDAdminDownTakesNoAction(t *testing.T) {
 	svc := newFakeBFDService()
-	e, _ := bfdTestEngine(t, enabledBFD(), svc)
+	e, reg := bfdTestEngine(t, enabledBFD(), svc)
 	id := ridMust(t, bfdTestPeerRID)
 	seedNeighbor(t, e, id, netip.MustParseAddr(bfdTestPeerAddr))
 	e.bfdNeighborFull(fullSnap(id))
-	svc.handleFor(t, svc.firstRequest(t).Key()).emit(t, packet.StateAdminDown, packet.DiagAdminDown)
+	h := svc.handleFor(t, svc.firstRequest(t).Key())
+	h.emit(t, packet.StateUp, packet.DiagNone)
+	h.emit(t, packet.StateAdminDown, packet.DiagAdminDown)
+	assertOSPFBFDNoAction(t, e, reg, svc, h, id)
+}
+
+// RFC requirement: RFC5882-4.2-1 positive -- the second arm: when the session
+// transitions from Up to Down because the remote system indicates AdminDown
+// (RemoteAdminDown set), the OSPF client takes no control protocol action: a
+// later Up is still read and nothing is torn down. Control in the same body: a
+// Down with the same diagnostic whose neighbor was NOT AdminDown is a path
+// failure and still declares the neighbor down, so the arm is not passing on a
+// client that ignores Down altogether.
+func TestOSPFBFDRemoteAdminDownTakesNoAction(t *testing.T) {
+	svc := newFakeBFDService()
+	e, reg := bfdTestEngine(t, enabledBFD(), svc)
+	id := ridMust(t, bfdTestPeerRID)
+	seedNeighbor(t, e, id, netip.MustParseAddr(bfdTestPeerAddr))
+	e.bfdNeighborFull(fullSnap(id))
+	h := svc.handleFor(t, svc.firstRequest(t).Key())
+	h.emit(t, packet.StateUp, packet.DiagNone)
+	h.emitRemoteAdminDown(t)
+	assertOSPFBFDNoAction(t, e, reg, svc, h, id)
+
+	h.emit(t, packet.StateDown, packet.DiagNeighborSignaledDown)
 	waitFor(t, func() bool {
 		snap, ok := e.neighbors.Lookup("eth0", id)
 		return ok && snap.State == "down"

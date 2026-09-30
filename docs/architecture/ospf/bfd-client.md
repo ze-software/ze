@@ -20,10 +20,19 @@ adjacency down inside the BFD detection window instead of the
 - **One long-lived subscriber goroutine per session, never one per event.** It
   drains the state-change channel until the client stops it or the engine closes
   the subscription. This follows `ai/rules/goroutine-lifecycle.md`.
-- **Down and AdminDown both tear the adjacency.** Both mean the forwarding path
-  is unusable. AdminDown means the operator disabled the session the adjacency
-  depends on. The check enumerates the two states explicitly, because a future
-  state value is not readable as "link down" by a range comparison.
+- **Only a path failure tears the adjacency; AdminDown does not.** RFC 5882
+  Section 4.2: "If a BFD session transitions from Up state to AdminDown, or the
+  session transitions from Up to Down because the remote system is indicating
+  that the session is in state AdminDown, clients SHOULD NOT take any control
+  protocol action." A local `AdminDown`, and a `Down` whose
+  `api.StateChange.RemoteAdminDown` is set, are logged at debug and change no
+  OSPF state: one end switched BFD off, and the path may be fine. Any other
+  `Down` (detection time expired, neighbor signaled Down) declares the neighbor
+  down. A path that really fails while BFD is off still drops the adjacency on
+  the RouterDeadInterval, the independent liveness detection Section 3.2
+  assumes. The check names each state explicitly, because a future state value
+  is not readable as "link down" by a range comparison.
+  <!-- source: internal/plugins/ospf/bfd_client.go -- runBFDSubscriber -->
 - **The Down handler drives the existing neighbor-down seam**, not a private
   state transition. Reusing it makes a BFD-driven teardown behave exactly like
   an operator-driven one: same logging, same events, same metrics.

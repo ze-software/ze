@@ -401,21 +401,34 @@ func TestRFC5880PeriodicTransmitWhenRemoteDemandInactive(t *testing.T) {
 }
 
 // RFC requirement: RFC5880-6.8.6-15 negative -- periodic transmission is
-// conditional, not unconditional: tick (loop.go:189-191) skips a session in
-// AdminDown, and (loop.go:192-195) a session with no armed deadline. Without
-// this the positive could pass on code that transmitted on every tick
-// regardless of session state.
+// conditional, not unconditional: tick (Loop.tick) skips a session in AdminDown
+// once the window in which its AdminDown packets are owed (RFC 5880 Section
+// 6.8.16) has passed. A session put in AdminDown sends at the transition, and a
+// tick an hour later sends nothing. Without this the positive could pass on
+// code that transmitted on every tick regardless of session state.
 func TestRFC5880NoPeriodicTransmitWhileAdminDown(t *testing.T) {
-	l, ct, key := newSingleHopLoop(t)
+	clk := &steppedClock{now: time.Unix(1_000_000, 0)}
+	ct := &captureTransport{}
+	l := NewLoop(ct, clk)
+	req := reqFor(addrB, addrA)
+	if _, err := l.EnsureSession(req); err != nil {
+		t.Fatalf("EnsureSession: %v", err)
+	}
+	key := req.Key()
 
 	l.mu.Lock()
 	l.sessions[key].machine.AdminDown(packet.DiagAdminDown)
 	l.mu.Unlock()
+	l.tick()
+	if !ct.sent {
+		t.Fatal("precondition: no AdminDown Control packet at the transition")
+	}
 
+	clk.now = clk.now.Add(time.Hour)
 	ct.sent = false
 	l.tick()
 	if ct.sent {
-		t.Fatal("a session in AdminDown transmitted a periodic Control packet")
+		t.Fatal("a session in AdminDown transmitted a periodic Control packet after its AdminDown window")
 	}
 }
 

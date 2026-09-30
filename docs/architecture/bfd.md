@@ -214,12 +214,30 @@ session that did receive one is kept: RFC 5880 §6.8.1 says its state "MUST be
 preserved for at least one Detection Time (see section 6.8.4) subsequent to
 the receipt of the last BFD Control packet, regardless of the session state".
 The entry is marked released and moved to `AdminDown`, stays in every index so
-the peer's packets still match it, and sends nothing. Each `tick` compares the
-time against `LastReceived() + DetectionInterval()` and removes the entry once
-that time is reached (`retireReleasedLocked`). The deadline is read at each
-tick, so a packet that still arrives from the peer restarts it. While it is
-kept, a released session appears in the engine snapshot (`snapshot.go`) in
-`AdminDown`.
+the peer's packets still match it, and sends AdminDown Control packets for its
+AdminDown window (below). Each `tick` compares the time against
+`LastReceived() + DetectionInterval()` and against `AdminDownTransmitEnd()`,
+and removes the entry once both are reached (`retireReleasedLocked`). The
+deadline is read at each tick, so a packet that still arrives from the peer
+restarts it. While it is kept, a released session appears in the engine
+snapshot (`snapshot.go`) in `AdminDown`.
+
+### Transmitting in AdminDown
+
+RFC 5880 §6.8.16: "BFD Control packets SHOULD be transmitted for at least a
+Detection Time after transitioning to AdminDown state in order to ensure that
+the remote system is aware of the state change." Every entry into `AdminDown`,
+through `Shutdown` or through the last `ReleaseSession`, sends a packet at once
+and sets `Machine.AdminDownTransmitEnd` to the transition time plus the longer
+of two Detection Times: the local one (§6.8.4), and the one the remote system
+derives from our packets, `bfd.DetectMult` times the transmission interval,
+read after the one-second floor for a session that is not Up. Until then `tick`
+sends Control packets with State `AdminDown` and the diagnostic set, at the
+normal jittered cadence. After it the session is silent: the MAY to go on
+indefinitely is not taken. Echo packets stop at the transition, because echo is
+sent only in `Up` (§6.8.9).
+
+<!-- source: internal/component/bfd/session/fsm.go -- AdminDown, AdminDownTransmitEnd -->
 
 A client that asks again for a released session's exact key before it is
 removed revives it (`reviveReleasedLocked`): the same session leaves

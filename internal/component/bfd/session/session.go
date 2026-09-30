@@ -135,6 +135,11 @@ type Machine struct {
 	// bfd.RemoteDiscr (RFC 5880 Section 6.8.7).
 	nextTxAt time.Time
 
+	// adminDownTxEnd is when the Control packets owed after the last entry
+	// into AdminDown may stop (RFC 5880 Section 6.8.16). AdminDown sets it;
+	// it is read only while the session is in AdminDown.
+	adminDownTxEnd time.Time
+
 	// lastTxAt is when AdvanceTxWithJitter last recorded a periodic TX,
 	// txWait is the jittered wait it scheduled from there, and txInterval is
 	// the transmit interval that wait was drawn from. Zero until the first

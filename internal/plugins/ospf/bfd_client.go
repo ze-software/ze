@@ -7,9 +7,10 @@
 //
 // BFD-for-OSPF glue on the unified v2/v3 engine. When an OSPF adjacency reaches Full on a
 // BFD-enabled interface and the in-process BFD engine is available, the engine opens a
-// single-hop BFD session for the neighbor. A BFD Down/AdminDown drives the AF-neutral NSM
-// down seam (neighbor.Table.NeighborDown), declaring the neighbor dead far faster than the
-// RouterDeadInterval timer. BFD is strictly additive: with no BFD plugin, or BFD not enabled
+// single-hop BFD session for the neighbor. A BFD Down caused by a path failure drives the
+// AF-neutral NSM down seam (neighbor.Table.NeighborDown), declaring the neighbor dead far
+// faster than the RouterDeadInterval timer. AdminDown, local or signaled by the neighbor,
+// takes no OSPF action (RFC 5882 Section 4.2). BFD is strictly additive: with no BFD plugin, or BFD not enabled
 // on the interface, OSPF runs exactly as before on the Hello/Dead timers, on both families.
 //
 // The lifecycle, client map, subscriber discipline, and metrics are AF-neutral and shared;
@@ -239,7 +240,8 @@ func (e *engine) startBFDSession(iface string, id types.RouterID, area string, p
 // runBFDSubscriber is the per-session subscriber worker (one per BFD-protected neighbor). It
 // drains the subscription channel until stop is signaled or the channel closes.
 //
-// On Down/AdminDown it declares the OSPF neighbor down through the existing NSM seam. It
+// On a Down that is a path failure it declares the OSPF neighbor down through the existing
+// NSM seam; AdminDown, and a Down the neighbor's AdminDown caused, take no action. It
 // detaches ITSELF from the client map first (without joining, since it IS the subscriber),
 // then calls NeighborDown -- so the resulting NeighborLost release finds nothing and never
 // deadlocks waiting on this goroutine, then returns (closing done). Up/Init are logged at
@@ -269,10 +271,29 @@ func (e *engine) runBFDSubscriber(c *bfdClient, svc api.Service) {
 					"bfd-state", change.State.String())
 				continue
 			}
+			// RFC 5882 Section 4.2: "If a BFD session transitions from Up state to
+			// AdminDown, or the session transitions from Up to Down because the remote
+			// system is indicating that the session is in state AdminDown, clients
+			// SHOULD NOT take any control protocol action." Neither is a path failure:
+			// one end switched BFD off. OSPF keeps its own liveness detection, the
+			// RouterDeadInterval, so a path that really failed still drops the
+			// adjacency on the Dead timer (Section 3.2).
+			if change.State == api.StateAdminDown {
+				e.log.Debug("bfd session administratively down; no ospf action",
+					"interface", c.key.iface, "neighbor", c.key.router.String())
+				continue
+			}
+			// RFC 5882 Section 4.2
+			if change.State == api.StateDown && change.RemoteAdminDown {
+				e.log.Debug("bfd neighbor signaled AdminDown; no ospf action",
+					"interface", c.key.iface, "neighbor", c.key.router.String(),
+					"bfd-diag", change.Diag.String())
+				continue
+			}
 			// RFC 5880 sec 6.8.1: Down carries Diag 1 (Control Detection Time Expired) on a
 			// timer miss and Diag 3 (Neighbor Signaled Session Down) when the peer reports Down.
-			// OSPF treats BOTH StateDown and StateAdminDown as "neighbor down" regardless of Diag.
-			if change.State == api.StateDown || change.State == api.StateAdminDown {
+			// Either is a path failure and declares the neighbor down.
+			if change.State == api.StateDown {
 				e.log.Warn("bfd reported ospf neighbor down; declaring adjacency down",
 					"interface", c.key.iface, "neighbor", c.key.router.String(),
 					"bfd-state", change.State.String(), "bfd-diag", change.Diag.String())
