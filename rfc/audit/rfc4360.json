@@ -1,31 +1,39 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC4360-2-1": {
-      "note": "Forbidden behaviour: declaring two extended communities equal when any of the 8 octets differs (for example comparing only the Type and Sub-Type, or the first 6 octets). TestExtendedCommunityEquality asserts a == b for identical arrays and a != c when the last octet differs, but it applies Go's == to the [8]byte type directly and calls no Ze function. The Ze comparators that decide equality (internal/component/bgp/plugins/rib/rib_replay.go::extCommunitiesEqual, and any community filter match) are never exercised, so a comparator rewritten to compare a[i][:6] stays green. The unit only goes red if the ExtendedCommunity type itself stops being an 8-octet array.",
+      "note": "Judge 2026-09-30. Rib TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets drives extCommunitiesEqual (rib_replay.go), the comparator that decides whether a replayed route's communities changed: + an octet-equal copy is equal; - flipping any one of the 8 octets makes it unequal. ExtendedCommunity is [8]byte, so equality elsewhere is whole-value by type; filter plugins match by policy, not equality, and are not driven.",
       "requirement_sha": "3e688b6744c4f280",
       "tests": {
+        "internal/component/bgp/plugins/rib/rfc4360_equality_test.go::TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets": "b91c64811b214f64",
+        "internal/component/bgp/plugins/rib/rfc4360_equality_test.go::TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets#2": "b91c64811b214f64",
         "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality": "df914436e0bdaf8a",
         "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality#2": "df914436e0bdaf8a"
       },
       "units": {
+        "internal/component/bgp/plugins/rib/rfc4360_equality_test.go::TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets": "f86edae70afc8d20",
+        "internal/component/bgp/plugins/rib/rfc4360_equality_test.go::TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets#2": "f86edae70afc8d20",
         "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality": "91518afa822287a7",
         "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality#2": "91518afa822287a7"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4360-x-1": {
-      "note": "Forbidden behaviour: accepting an Extended Communities attribute whose value is not a whole number of 8-octet communities, truncating the remainder. TestExtendedCommunitiesParseRejectsBadLength drives only a 6-octet value and requires ErrInvalidLength; TestExtendedCommunitiesParse drives 8 octets and requires one community. A mutation of ParseExtendedCommunities from len(data)%8 != 0 to len(data) < 8 keeps both units green while a 12-octet value then parses as one community and silently drops 4 octets. A negative with a length above 8 that is not a multiple of 8 (12 or 20) is missing.",
+      "note": "Judge 2026-09-30. TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities over ParseExtendedCommunities, the registered parser: + 8 and 16 octets yield one and two communities holding the exact octets in order; - 12 and 20 octets are refused with ErrInvalidLength, not truncated.",
       "requirement_sha": "ff3bea0744d23aa8",
       "tests": {
         "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParse": "df914436e0bdaf8a",
-        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParseRejectsBadLength": "df914436e0bdaf8a"
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParseRejectsBadLength": "df914436e0bdaf8a",
+        "internal/core/bgp/attribute/rfc4360_length_test.go::TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities": "faed7ed2466fe06a",
+        "internal/core/bgp/attribute/rfc4360_length_test.go::TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities#2": "faed7ed2466fe06a"
       },
       "units": {
         "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParse": "208ef3b80a16da02",
-        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParseRejectsBadLength": "906b846d1e37aaad"
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParseRejectsBadLength": "906b846d1e37aaad",
+        "internal/core/bgp/attribute/rfc4360_length_test.go::TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities": "7050d45cb3c91691",
+        "internal/core/bgp/attribute/rfc4360_length_test.go::TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities#2": "7050d45cb3c91691"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc4360"

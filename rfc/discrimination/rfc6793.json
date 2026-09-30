@@ -217,6 +217,28 @@
     {
       "rid": "RFC6793-4.2.3-10",
       "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_confed_adjacent_test.go::TestRFC6793ConfedSegmentAdjacentToPrependedIsPrepended",
+      "unit-sha": "2c7b2f539747c2e7",
+      "claim-sha": "8726baab09e30903",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::ReconcileASPathFamily",
+      "producer-sha": "972a1c07729fed4b",
+      "break": "body of ReconcileASPathFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-10",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc6793_confed_adjacent_test.go::TestRFC6793ConfedSegmentAdjacentToPrependedIsPrepended",
+      "unit-sha": "2c7b2f539747c2e7",
+      "claim-sha": "d1d330bfe3e9f68e",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::ReconcileASPathFamily",
+      "producer-sha": "972a1c07729fed4b",
+      "break": "body of ReconcileASPathFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-10",
+      "polarity": "positive",
       "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingConfedSegmentIsPrepended",
       "unit-sha": "ddd656d62f215691",
       "claim-sha": "9b645653cb4e80d6",

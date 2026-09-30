@@ -259,7 +259,6 @@ func TestRFC9012DuplicateSingleInstanceSubTLVs(t *testing.T) {
 	dup := TunnelTLV{TunnelType: teTunnelTypeSRPolicy, Value: teCat(tePreference(100), tePreference(200))}
 	raw := teEncode(dup)
 
-	// RFC requirement: RFC9012-13-7 positive -- with two Preference sub-TLVs the first is the one used and the second is disregarded
 	// RFC requirement: RFC9830-2.4-1 positive -- the Preference sub-TLV is single-instance, so only the first instance is used and the later one is ignored
 	pref, ok := dup.Preference()
 	require.True(t, ok)
@@ -274,7 +273,6 @@ func TestRFC9012DuplicateSingleInstanceSubTLVs(t *testing.T) {
 	require.Len(t, stlvs, 2)
 	assert.Equal(t, raw, teRoundTrip(t, raw))
 
-	// RFC requirement: RFC9012-13-7 negative -- when only the second value is present it is the one returned, so "the first occurrence" is genuinely positional and not a fixed answer
 	// RFC requirement: RFC9830-2.4-1 negative -- the later instance is not discarded on principle: standing alone it IS the instance used, so "only the first" is positional rather than a fixed preference for one value
 	single := TunnelTLV{TunnelType: teTunnelTypeSRPolicy, Value: tePreference(200)}
 	pref, ok = single.Preference()

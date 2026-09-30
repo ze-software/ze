@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC9830-2.1-2": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies. Forbidden: a length octet other than 96 for AFI 1 or other than 192 for AFI 2. Red: assert.Equal(byte(96), v4[0]) and assert.Equal(byte(192), v6[0]) on EncodeNLRIHex output, with assert.Len on the 12/24-octet body. Negative: Parse(AFIIPv6, 12-octet body) require.ErrorIs ErrSRPolicyTruncated, and SplitSRPolicy refuses a 100-bit length.",
@@ -32,53 +32,61 @@
       "verdict": "weak"
     },
     "RFC9830-2.3-1": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830EgressEndpointAndColorSubTLVsIgnored measures 'ignored' through TunnelTLV.Preference, which filters on type 12 and can never read a type-6 or type-4 sub-TLV; ze has no receive-side consumer of either. A speaker that acted on the Color or Tunnel Egress Endpoint sub-TLV (the forbidden behaviour) leaves assert.Equal(want, got) green; only rejection of the attribute (teRoundTrip require.NoError) would go red.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: Color and Tunnel Egress Endpoint sub-TLVs inside the SR Policy TLV change neither verdict nor handling between the clean and dirty runs, and are carried octet-equal.",
       "requirement_sha": "8fa04c271531948b",
       "tests": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830EgressEndpointAndColorSubTLVsIgnored": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830EgressEndpointAndColorSubTLVsIgnored#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830EgressEndpointAndColorSubTLVsIgnored": "a91fe301f73ccc00",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830EgressEndpointAndColorSubTLVsIgnored#2": "a91fe301f73ccc00"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.3-3": {
-      "note": "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved measures 'ignored' of a VXLAN sub-TLV inside Tunnel Type 15 through TunnelTLV.Preference, which reads only type 12 and cannot observe whether any other sub-TLV is used. A speaker that acted on the VXLAN sub-TLV leaves assert.Equal(without, withMeaningless) green; only parse failure goes red.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: RFC 9012 sub-TLVs with no SR Policy applicability (VXLAN, Embedded Label Handling, UDP Destination Port) change neither verdict nor handling, and are carried octet-equal.",
       "requirement_sha": "58c3a539f651edbd",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "b3dc33dfbd302427",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "b3dc33dfbd302427"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4-1": {
-      "note": "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs. Forbidden: using a later instance of a single-instance sub-TLV. Red: assert.Equal(uint32(100), pref) with Preference 100 then 200 fails if the last or any non-first instance is used. Negative: the 200 instance alone is returned, so the choice is positional. Preference is the only single-instance sub-TLV ze reads on receipt (tunnel_encap.go:145), so no other instance can be used.",
+      "note": "Judge 2026-09-30, re-read after the RFC9012-13-7 tag lines left the unit (assertions unchanged). TestRFC9012DuplicateSingleInstanceSubTLVs: + with two Preference sub-TLVs Preference() returns the first (100); - the second value standing alone IS returned (200), so the choice is positional.",
       "requirement_sha": "df21740158624797",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs#2": "933a41681c46181c"
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs#2": "e90db7a4eb5f12a3"
       },
       "units": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "39f4c837d65f3fa6",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs#2": "39f4c837d65f3fa6"
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "0f66262cbfae7a17",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs#2": "0f66262cbfae7a17"
       },
       "verdict": "enforced"
     },
     "RFC9830-2.4-2": {
-      "note": "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs. Forbidden: treating a duplicate Preference as malformed, or using it. Red: require.NoError on ParseTunnelEncap and SubTLVs, require.Len(stlvs, 2), assert.Equal(raw, teRoundTrip) on the duplicate; 'ignored' by assert.Equal(uint32(100), pref) in the same unit. Negative (internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected): a truncated TLV header is refused, so acceptance is a carve-out.",
+      "note": "Judge 2026-09-30, re-read after the RFC9012-13-7 tag lines left the unit (assertions unchanged). TestRFC9012DuplicateSingleInstanceSubTLVs: the duplicate Preference parses without error, both sub-TLVs are enumerated and the attribute round-trips octet-equal, so the ignored instance is not treated as malformed.",
       "requirement_sha": "25fc1827c2d6725e",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "933a41681c46181c"
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "e90db7a4eb5f12a3"
       },
       "units": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "39f4c837d65f3fa6",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "0f66262cbfae7a17",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "2de6a91cf462b5a5"
       },
       "verdict": "enforced"
@@ -123,17 +131,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.1-5": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored proves the receipt half: Preference() reads this sub-TLV, and a receiver that read or refused Flags 0xFF turns assert.Equal(want, got) red; the control (pref 9999) shows the value octets are read. WEAK because the transmission clause (Flags set to zero) has no assertion in any tagged unit; it is proven under RFC9830-2.4.1-4, not tagged here.",
+      "note": "Judge 2026-09-30. Field: Preference Flags. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "f41dbfa5904f7ebe",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored": "19114f867afd4de4",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored#2": "19114f867afd4de4"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.1-6": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV. Forbidden: a non-zero Preference RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]) on the srpDirty encoding. Negative: assert.NotEqual(make([]byte, 6), value).",
@@ -149,30 +165,46 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.1-7": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored proves the receipt half: a receiver that read or refused RESERVED 0xFF turns assert.Equal(want, got) red. WEAK because the transmission clause (RESERVED set to zero) has no assertion in any tagged unit; it is proven under RFC9830-2.4.1-6, not tagged here.",
+      "note": "Judge 2026-09-30. Field: Preference RESERVED. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "fdd22673e5aef626",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored": "19114f867afd4de4",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored#2": "19114f867afd4de4"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.2-10": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the Binding SID TC, S and TTL bits to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.2-9, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the Binding SID TC, S and TTL bits; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: Binding SID TC, S and TTL bits. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "1c56bee834413651",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.2-12": {
       "code": {
@@ -238,17 +270,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.2-8": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the Binding SID RESERVED octet to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.2-7, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the Binding SID RESERVED octet; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: Binding SID RESERVED. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "b969e8d0898ffc18",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.2-9": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV. Forbidden: non-zero TC, S or TTL in the transmitted label stack entry. Red: assert.Equal(byte(0), withBSID[4]&0x0E) (TC), withBSID[4]&0x01 (S), withBSID[5] (TTL). Negative: the 20-bit label reads 0xFFFFF, so the zeroes are field layout, not a small label.",
@@ -288,17 +328,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.3-5": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the SRv6 Binding SID Flags unassigned bits to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.3-4, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the SRv6 Binding SID Flags unassigned bits; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: SRv6 Binding SID unassigned Flags bits. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "8ec033bf8c00276e",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.3-6": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV. Forbidden: a non-zero RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]). Negative: assert.NotEqual(make([]byte, 18), value).",
@@ -314,17 +362,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.3-7": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the SRv6 Binding SID RESERVED octet to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.3-6, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the SRv6 Binding SID RESERVED octet; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: SRv6 Binding SID RESERVED. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "91dc0453a1b19428",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.4-4": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a non-zero Segment List RESERVED octet on transmission. Red: assert.Equal(byte(0), value[0]). Negative: the following sub-TLVs are non-empty (require.NotEmpty(inner)) and the value is not blank.",
@@ -340,17 +396,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.4-5": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the Segment List RESERVED octet to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.4-4, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the Segment List RESERVED octet; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: Segment List RESERVED. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "99de2c9727de54ce",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.4.1-2": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a second Weight sub-TLV in one Segment List. Red: require.Len(weights, 1) on the srpDirty encoding, and require.Error on parseConfigRoute for 'segment-list weight 1 weight 2 ...', so the config path cannot produce a second one.",
@@ -392,17 +456,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.4.1-5": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the Weight Flags octet to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.4.1-4, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the Weight Flags octet; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: Weight Flags. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "ef32cb190ba43e9a",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.4.1-6": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a non-zero Weight RESERVED octet on transmission. Red: assert.Equal(byte(0), weight[1]) on the srpDirty encoding. Negative: assert.NotEqual(make([]byte, 6), weight) with weight[2:6] pinned to 0xCAFEBABE, so the zero is written, not a blank buffer.",
@@ -418,17 +490,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.4.1-7": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the Weight RESERVED octet to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.4.1-6, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the Weight RESERVED octet; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: Weight RESERVED. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "dc3c6fe85c906d02",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.4.2.1-1": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV. Forbidden: a Type A length other than 6 (e.g. the 8-octet total). Red: require.Len(value, 6) on a value srpSegSubs cut at the declared length. Negative: assert.Len(inner, 3), which a length of 8 breaks by swallowing the Type B sub-TLV header that follows.",
@@ -457,17 +537,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.4.2.1-3": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the Type A segment RESERVED octet to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.4.2.1-2, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the Type A segment RESERVED octet; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: Segment Type A RESERVED. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "c5fe89cb321f325a",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.4.2.1-4": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV. Forbidden: S bit set in the transmitted Type A label stack entry. Red: assert.Equal(byte(0), value[4]&0x01). Negative: assert.Equal(uint32(0xFFFFF), label), so every label bit is set beside the clear S bit and the zero is not a blank low octet.",
@@ -483,17 +571,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.4.2.1-5": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the Type A label stack entry S bit to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.4.2.1-4, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the Type A label stack entry S bit; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: Type A label stack entry S bit. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "c7d2d91bc2cf2e0a",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.4.2.2-1": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: a length other than 26 with the Endpoint Behavior and SID Structure, or other than 18 without it. Red: require.Len(value, 26) on the srpDirty segment and require.Len(bare[0], 18) on the bare type-b segment; both clauses have an assertion and the pair shows the length tracks the content.",
@@ -522,17 +618,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.4.2.2-3": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the Type B segment RESERVED octet to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.4.2.2-2, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the Type B segment RESERVED octet; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: Segment Type B RESERVED. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "993f029d82b5c54d",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.4.2.2-4": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: the Endpoint Behavior and SID Structure encoded without an SRv6 SID. Red: require.Error on parseSegmentList and on parseConfigRoute for 'segment endpoint-behavior ...' with no preceding type-b srv6 SID, the only route to a structure ze has. Positive: the structure follows a 16-octet SID (assert.Equal(byte(0xEF), value[17])).",
@@ -563,30 +667,42 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.4.2.3-2": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the unassigned Segment Flags bits (0x6F on a Type A) to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.4.2.3-1, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the unassigned Segment Flags bits (0x6F on a Type A); ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: unassigned Segment Flags bits (Type A and Type B, B-Flag kept per bit). Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "a5f3edb6cff7f9b4",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.4.2.3-3": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the B-Flag on a Type A segment to ones. WEAK : the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the B-Flag on a Type A segment; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Receipt only (the row has no transmission clause): reactor TestRFC9830ReservedFieldsIgnoredOnReceipt carries a Type A segment whose Flags octet has every bit set, the B-Flag included, through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal, same verdict as the run without it. Ze reads no segment flag, so ignoring is observed as verdict plus carry.",
       "requirement_sha": "eda0489b177a2ef7",
       "tests": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.4.2.4-2": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: non-zero Reserved octets in the Endpoint Behavior and SID Structure on transmission. Red: assert.Equal([]byte{0x00, 0x00}, value[20:22]). Negative: endpoint behavior 0xFFFF at value[18:20] and structure 32/16/16/64 at value[22:26], so the zeros are written at the right offset.",
@@ -602,17 +718,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.4.2.4-3": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the SRv6 Endpoint Behavior and SID Structure Reserved octets to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.4.2.4-2, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the SRv6 Endpoint Behavior and SID Structure Reserved octets; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: SRv6 Endpoint Behavior and SID Structure Reserved octets. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "926f23749ae68252",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.6-3": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV. Forbidden: two Priority sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVPriority), 1) for a config naming priority twice. Negative (control): a config with no priority emits none (assert.Empty), so the instance is counted rather than always written; a violating output cannot be built from a conforming encoder.",
@@ -654,17 +778,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.6-6": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the Priority RESERVED octet to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.6-5, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the Priority RESERVED octet; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: Priority RESERVED. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "48454c9e3ae4f0aa",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.7-5": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs. Forbidden: two Candidate Path Name sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVCandidatePathNam), 1) for a config naming the candidate path twice. Negative (control): an unnamed candidate path emits none (assert.Empty); a violating output cannot be built from a conforming encoder.",
@@ -693,17 +825,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.7-7": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the Candidate Path Name RESERVED octet to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.7-6, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the Candidate Path Name RESERVED octet; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: Candidate Path Name RESERVED. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "22348f16b884e989",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.4.8-5": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs. Forbidden: two SR Policy Name sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVPolicyName), 1) for a config naming the policy twice. Negative (control): an unnamed policy emits none (assert.Empty); a violating output cannot be built from a conforming encoder.",
@@ -732,17 +872,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.8-7": {
-      "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead sets the SR Policy Name RESERVED octet to ones. WEAK on two counts: (1) the transmission clause (set to zero) has no assertion in any tagged unit (it is proven under RFC9830-2.4.8-6, not tagged here); (2) the receipt half is measured through TunnelTLV.Preference (tunnel_encap.go:145), which reads only a type-12 sub-TLV of length 6 and so never reads the SR Policy Name RESERVED octet; ze has no receive-side consumer of that field, so a receiver that read it or acted on it leaves every Preference assertion green. Only the round trip (assert.Equal(raw, teRoundTrip)) goes red, and only on rejection or normalisation.",
+      "note": "Judge 2026-09-30. Field: Policy Name RESERVED. Both clauses proven on Ze's real paths. transmission: srpolicy TestRFC9830FieldsToIgnoreAreZeroOnTransmission encodes srpDirty (every configurable value at its maximum) through the config parser and buildTunnelEncap and reads the field at its offset (+ zero; - the neighbouring value field carries the all-ones configuration, so the zero is written, not an untouched buffer); judge break writing 0x80 into Preference Flags turned it red. receipt: reactor TestRFC9830ReservedFieldsIgnoredOnReceipt sends the field as all ones through enforceRFC7606 and the rebuild rail: ActionNone and octet-equal on the wire, same verdict as the zero run (R1(b) push); judge break acting on Preference Flags on receipt turned it red. ",
       "requirement_sha": "f41e7d3decf05a72",
       "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "1062db45a1877ea1",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "1062db45a1877ea1",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "b1e7520900f0bcb3",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "1e7f70c05935f378",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "1e7f70c05935f378"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e40d9128b77120e3",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e40d9128b77120e3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "bb9a9f438e36ae98",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "bb9a9f438e36ae98",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "234ba25c6d50f0eb",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "234ba25c6d50f0eb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-4.2.1-2": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRICarriesAllThreeFields. WEAK: the sentence is a receive-validation rule (Section 4.2.1 'When a BGP speaker receives'). The tagged unit proves the encoder writes Distinguisher, Color and Endpoint at their offsets and that Parse (require.ErrorIs ErrSRPolicyTruncated) and parseConfigRoute (errSRPolicyMissingFields) refuse a body or config missing one, but the session receive path splits with SplitSRPolicy (split.go), which accepts any byte-aligned length, so a received body lacking the Endpoint is carried; no tagged unit drives a received UPDATE, and no assertion goes red on a receiver that accepts it.",

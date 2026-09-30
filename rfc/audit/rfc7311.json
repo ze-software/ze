@@ -1,44 +1,58 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC7311-3-1": {
-      "note": "Forbidden: accepting a Type-1 TLV whose Length is not 11. TestParseAIGPMalformedTruncatedValue is not tagged here; the tagged negative TestParseAIGPMalformedMetricWrongLength asserts an error only for Length 8 (below 11). No tagged assertion rejects a Type-1 TLV with Length above 11 (e.g. 12 with 9 value octets), so a validator written as tlvLen < 11 passes both tagged units. Positive TestParseAIGP pins Type 1, Length 11, metric 100.",
+      "note": "Judge 2026-09-30. TestRFC7311AIGPTLVLengthIsEleven: + WriteTo emits 01 000b and 8 value octets and ParseAIGP reads the metric back; - Type-1 TLVs of Length 12 and 10 are refused by ParseAIGP, the registered parser. Forbidden: accepting a Type-1 TLV whose Length is not 11. Records observed red (AIGPMetricOffset).",
       "requirement_sha": "2c6739873b534578",
       "tests": {
         "internal/core/bgp/attribute/aigp_test.go::TestParseAIGP": "682ca5c47e79ad07",
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedMetricWrongLength": "682ca5c47e79ad07"
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedMetricWrongLength": "682ca5c47e79ad07",
+        "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven": "7b179465862209a9",
+        "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven#2": "7b179465862209a9"
       },
       "units": {
         "internal/core/bgp/attribute/aigp_test.go::TestParseAIGP": "6b490ebba37348d1",
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedMetricWrongLength": "1126e4fad01f8a02"
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedMetricWrongLength": "1126e4fad01f8a02",
+        "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven": "f1296a0ef4f9d818",
+        "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven#2": "f1296a0ef4f9d818"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7311-3-2": {
-      "note": "Forbidden: accepting an attribute value that is not a whole set of TLVs, either a TLV overrunning the value (tagged negative TestParseAIGPMalformedTruncatedValue: assert.Error on Length 11 with 5 value octets) or trailing octets after the last TLV that do not form a TLV. The trailing-octets case (a valid TLV followed by 1 or 2 octets) has no assertion in a tagged unit, so a walker that stops at the last whole TLV passes. Positive TestParseAIGPMultipleTLVs pins two TLVs consuming exactly the value.",
+      "note": "Judge 2026-09-30. TestRFC7311AIGPValueIsWholeTLVSet: + a value of two whole TLVs parses into exactly those two; - one, two or three trailing octets that do not form a TLV are refused. Forbidden: accepting a value that is not a whole set of TLVs.",
       "requirement_sha": "86b51cad859556b6",
       "tests": {
         "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedTruncatedValue": "682ca5c47e79ad07",
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "682ca5c47e79ad07"
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "682ca5c47e79ad07",
+        "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet": "7b179465862209a9",
+        "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet#2": "7b179465862209a9"
       },
       "units": {
         "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedTruncatedValue": "110e6880f1f6bf6d",
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "74ce6b46d01ae615"
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "74ce6b46d01ae615",
+        "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet": "4aae734134dce8ed",
+        "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet#2": "4aae734134dce8ed"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7311-3-3": {
-      "note": "The row quotes the Section 3 MUST that later AIGP TLVs (Type 1 after the first) are passed along unchanged when the attribute is passed along. Both tagged units (TestParseAIGPMultipleTLVs, TestAIGPWriteToMultipleTLVs) carry one Type-1 TLV and one Type-2 TLV and prove the codec keeps an unknown-type TLV through parse and WriteTo: the neighbouring unknown-type rule, not a second Type-1 TLV, and not the forwarding path where the attribute is passed along. No tagged assertion goes red if a forwarded AIGP drops or rewrites its second Type-1 TLV.",
+      "note": "Judge 2026-09-30. Reactor TestRFC7311OtherAIGPTLVsPassedAlongUnchanged drives a received [T1 100][T1 7][T9 abcd] through applyFactsAIGP, buildModifiedPayload and fwdBatchHandler to the socket, transparent and next-hop-self, under a policy replacement that drops the other TLVs (R1(b)); the octets after the first TLV reach the wire unchanged. Codec half TestRFC7311OtherAIGPTLVsSurviveTheCodec. Judge break: OpCopy of received[:11] on both rails turned both subtests red. Supersedes the earlier wrong verdict: the tags now prove the other-TLV passing, not first-TLV use.",
       "requirement_sha": "ccd1ed711d398027",
       "tests": {
+        "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged": "b58e740361a348ac",
+        "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged#2": "b58e740361a348ac",
         "internal/core/bgp/attribute/aigp_test.go::TestAIGPWriteToMultipleTLVs": "682ca5c47e79ad07",
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "682ca5c47e79ad07"
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "682ca5c47e79ad07",
+        "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311OtherAIGPTLVsSurviveTheCodec": "7b179465862209a9"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged": "dc98c15be7a86a7c",
+        "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged#2": "dc98c15be7a86a7c",
         "internal/core/bgp/attribute/aigp_test.go::TestAIGPWriteToMultipleTLVs": "5e582b6e3264ec78",
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "74ce6b46d01ae615"
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "74ce6b46d01ae615",
+        "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311OtherAIGPTLVsSurviveTheCodec": "8cee172e5190f0ea"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC7311-3.2-4": {
       "note": "Forbidden: keeping or passing along an AIGP whose transitive bit is set. TestRFC7606AIGPTransitiveIsDiscarded asserts Action==AttributeDiscard on code 26 with DiscardReasonMalformedValue and require.False(found) for AIGP after ApplyAttrDiscard, with ORIGIN, AS_PATH, NEXT_HOP intact; TestRFC7311AIGPTransitiveDiscardedOnReceive asserts the same through enforceRFC7606 with no error (discard, not reset). Positives with flags 0x80 assert RFC7606ActionNone and the AIGP bytes unchanged, so a codepoint-only check goes red.",

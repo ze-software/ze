@@ -2,6 +2,83 @@
   "rfc": "rfc7311",
   "records": [
     {
+      "rid": "RFC7311-3-1",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven",
+      "unit-sha": "0d2b277c6ebebc6c",
+      "claim-sha": "b055b212a4606538",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/aigp.go::AIGPMetricOffset",
+      "producer-sha": "eed7287839f568d5",
+      "break": "body of AIGPMetricOffset replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3-1",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven",
+      "unit-sha": "0d2b277c6ebebc6c",
+      "claim-sha": "b97df5f32c8344a7",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/aigp.go::AIGPMetricOffset",
+      "producer-sha": "eed7287839f568d5",
+      "break": "body of AIGPMetricOffset replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3-2",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet",
+      "unit-sha": "c2a0c0ea485376e7",
+      "claim-sha": "d856f487360858fa",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/aigp.go::AIGPMetricOffset",
+      "producer-sha": "eed7287839f568d5",
+      "break": "body of AIGPMetricOffset replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3-2",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet",
+      "unit-sha": "c2a0c0ea485376e7",
+      "claim-sha": "7a4ebb109841b92b",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/aigp.go::AIGPMetricOffset",
+      "producer-sha": "eed7287839f568d5",
+      "break": "body of AIGPMetricOffset replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged",
+      "unit-sha": "ccf5f37f4a2af706",
+      "claim-sha": "6b6ae0cebad62f2f",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+      "producer-sha": "906ad89f15437162",
+      "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged",
+      "unit-sha": "ccf5f37f4a2af706",
+      "claim-sha": "5292bf6158866a60",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+      "producer-sha": "906ad89f15437162",
+      "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3-3",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311OtherAIGPTLVsSurviveTheCodec",
+      "unit-sha": "50a3804a997dad4a",
+      "claim-sha": "ece42b055073d9ea",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/aigp.go::ParseAIGP",
+      "producer-sha": "7545844195cd43d6",
+      "break": "body of ParseAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7311-3.2-4",
       "polarity": "positive",
       "unit": "internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPNonTransitiveIsKept",

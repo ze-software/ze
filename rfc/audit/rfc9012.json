@@ -1,200 +1,243 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC9012-13-10": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: an unrecognized sub-TLV changing how the TLV is processed. The units assert on TunnelTLV.Preference, whose only non-test caller is internal/test/decode (the test display decoder): no product path processes any sub-TLV, so the assertion proves a reader Ze never uses. What Ze does with the TLV (parse and carry) is covered by 13-11.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: the TLV with an unrecognized sub-TLV gets the same verdict and handling as the clean TLV (+, - differential of the two runs).",
       "requirement_sha": "b4333e2a81b4313c",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing#2": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing#2": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing": "5c54113fd4e9f845",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing#2": "5c54113fd4e9f845"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-13-11": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: dropping an unrecognized sub-TLV when the route is propagated. TestRFC9012AllSubTLVsPropagate proves ParseTunnelEncap then WriteTo keeps both sub-TLVs, not the route distribution path; the negative compares against an attribute the test built without them, which exercises no Ze behaviour. No {single-polarity} marker.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: the unrecognized sub-TLV remains in the attribute raw (+) and rebuilt (-).",
       "requirement_sha": "970865cc386ad4fe",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate#2": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate#2": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate": "5bd482dea7fba1aa",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate#2": "5bd482dea7fba1aa"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-13-12": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: a malformed sub-TLV handled other than as unrecognized. The units assert that TunnelTLV.Preference skips a wrong-length Preference; Preference's only non-test caller is internal/test/decode (the test display decoder), so no product path processes the sub-TLV and the assertion proves a reader Ze never uses. The carry half (still enumerated and round-tripped) is ParseTunnelEncap then WriteTo, not the distribution path.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: the UDP Destination Port sub-TLV of Length 3 is handled as an unrecognized one: no action, carried; dirty and clean verdicts equal. The codec unit TestRFC9012MalformedSubTLVTreatedAsUnrecognized covers the one sub-TLV Ze reads (Preference).",
       "requirement_sha": "ae6e342552796f6f",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized#2": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized#2": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized": "a794ebe4d8d51aa9",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized#2": "a794ebe4d8d51aa9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-13-16": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: acting on a sub-TLV meaningless for the tunnel type. The units assert TunnelTLV.Preference is unchanged by a VXLAN Encapsulation sub-TLV in a type-15 TLV; Preference's only non-test caller is internal/test/decode (the test display decoder), so no product path processes sub-TLVs and the assertion proves a reader Ze never uses.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: a VXLAN sub-TLV inside an SR Policy TLV changes neither verdict nor handling.",
       "requirement_sha": "6eb9e53c070a2d18",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "b3dc33dfbd302427",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "b3dc33dfbd302427"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-13-18": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: calling a TLV with a meaningless sub-TLV malformed. The positive enforces it: the attribute holding a VXLAN Encapsulation sub-TLV in a type-15 TLV parses and both sub-TLVs enumerate. The negative (truncated TLV header refused) is a framing rule, a neighbouring one, and the row carries no {single-polarity} marker.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: the TLV holding the meaningless sub-TLV gets no RFC 7606 action (+) and is carried on rebuild (-).",
       "requirement_sha": "469cfd0d44defe64",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "2de6a91cf462b5a5",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "b3dc33dfbd302427"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-13-19": {
-      "note": "SB-3 strict re-read 2026-09-27. Clauses: the meaningless sub-TLV is not malformed, and is not removed before distribution. The positive is ParseTunnelEncap then WriteTo on test-built bytes, not the route distribution path. The negative compares two byte strings the test built (with and without the sub-TLV), which exercises no Ze behaviour. No {single-polarity} marker.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: the meaningless sub-TLV is not malformed and is not removed, raw (+) and rebuilt (-).",
       "requirement_sha": "792fe366e5d00a94",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "b3dc33dfbd302427",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "b3dc33dfbd302427"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-13-3": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: calling an attribute with an unrecognized tunnel type malformed. The positive enforces it: TestRFC9012UnrecognizedTunnelTypeIsCarried fails if ParseTunnelEncap (the registered attribute parser, wire.go knownAttrParsers) refuses the 0xFFFE TLV. The negative (TLV length overrun refused) is the framing rule of 13-1/13-2, a neighbouring rule, and the row carries no {single-polarity} marker.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: the 0xFFFE TLV gets no RFC 7606 action (+) and the rebuilt UPDATE still carries it (-).",
       "requirement_sha": "591f3d4d672f65af",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "2de6a91cf462b5a5",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "fbefb1e9b40920c0"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-13-5": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: dropping the unrecognized TLV when the route is propagated. The positive is ParseTunnelEncap then WriteTo on test-built bytes, not the route distribution path. The negative (TestRFC9012UnrecognizedTLVRemovalIsObservable) compares two byte strings the test built, which exercises no Ze behaviour. No {single-polarity} marker.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: the unrecognized-type TLV stays in the attribute forwarded raw (+) and rebuilt (-).",
       "requirement_sha": "2b94c49f2df3ca4c",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTLVRemovalIsObservable": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTLVRemovalIsObservable": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTLVRemovalIsObservable": "4526e26768d2b466",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "fbefb1e9b40920c0"
       },
-      "verdict": "weak"
-    },
-    "RFC9012-13-7": {
-      "note": "the RFC sentence covers the seven RFC 9012 single-instance sub-TLVs (Tunnel Egress Endpoint, Encapsulation, DS, UDP Destination Port, Embedded Label Handling, MPLS Label Stack, Prefix-SID); TestRFC9012DuplicateSingleInstanceSubTLVs duplicates the RFC 9830 Preference sub-TLV (type 12), which is not in that list, and ze decodes none of the seven (TunnelTLV.Preference in internal/core/bgp/attribute/tunnel_encap.go is the only sub-TLV reader). The assertions are correct evidence for RFC9830-2.4-1, which the same lines also tag, not for this row",
-      "requirement_sha": "72c5536aa01a7c62",
-      "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs#2": "933a41681c46181c"
-      },
-      "units": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "39f4c837d65f3fa6",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs#2": "39f4c837d65f3fa6"
-      },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC9012-13-8": {
-      "note": "positive duplicates the RFC 9830 Preference sub-TLV, not one of the RFC 9012 single-instance types the sentence names; ParseTunnelEncap and SubTLVs are type-blind so the behavior likely holds, but no buffer with a duplicated listed type (e.g. two Tunnel Egress Endpoint sub-TLVs) is asserted. The negative (stray trailing octet refused) violates the TLV framing rule, not this one",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: the Tunnel TLV with two Tunnel Egress Endpoint sub-TLVs (one of the section 13 single-instance types, answering the earlier objection) is not malformed (+) and stays whole on rebuild (-).",
       "requirement_sha": "19966c8f02106fc2",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "e90db7a4eb5f12a3"
       },
       "units": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "39f4c837d65f3fa6",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "0f66262cbfae7a17",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "2de6a91cf462b5a5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-13-9": {
-      "note": "the sentence is the duplicate-sub-TLV paragraph's propagation clause; TestRFC9012AllSubTLVsPropagate round-trips one Preference and two unknown sub-TLVs with no duplicate, so an implementation that dropped second occurrences on propagation would pass this unit (duplicate round-trip is asserted only in the 13-8/13-7 unit, with a non-listed type)",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: both Tunnel Egress Endpoint occurrences reach the wire raw (+) and rebuilt (-).",
       "requirement_sha": "3701b8ec3386db8c",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate#2": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate#2": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate": "5bd482dea7fba1aa",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate#2": "5bd482dea7fba1aa"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-3.1-3": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: changing the Tunnel Egress Endpoint Reserved octets on propagation. The positive is ParseTunnelEncap then WriteTo on test-built bytes, not the route distribution path; the negative shows zeroed Reserved octets make different bytes, a comparison of two test-built strings that exercises no Ze behaviour. No {single-polarity} marker.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: non-zero Tunnel Egress Endpoint Reserved octets reach the wire unchanged raw (+) and are not zeroed on rebuild (-).",
       "requirement_sha": "1fa5b1a0043f06c7",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "b123d2005cc5982f",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "b123d2005cc5982f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-3.2.1-2": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: masking the VXLAN R bits on propagation. The positive is ParseTunnelEncap then WriteTo on test-built bytes, not the route distribution path; the negative compares two test-built byte strings, exercising no Ze behaviour. No {single-polarity} marker.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: VXLAN R bits (all ones in the dirty run) reach the wire unmodified raw (+) and rebuilt (-).",
       "requirement_sha": "159921325e956116",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "b123d2005cc5982f",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "b123d2005cc5982f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-3.5-3": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: stripping an ignored Embedded Label Handling sub-TLV before propagation. The positive is ParseTunnelEncap then WriteTo on test-built bytes, not the route distribution path; the negative compares two test-built byte strings, exercising no Ze behaviour. No {single-polarity} marker.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: the Embedded Label Handling sub-TLV, which Ze ignores, is not stripped raw (+) or rebuilt (-).",
       "requirement_sha": "0dca9bfc4e076796",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012EmbeddedLabelHandlingNotStripped": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012EmbeddedLabelHandlingNotStripped#2": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012EmbeddedLabelHandlingNotStripped": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012EmbeddedLabelHandlingNotStripped#2": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012EmbeddedLabelHandlingNotStripped": "c9496f99d8afd74f",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012EmbeddedLabelHandlingNotStripped#2": "c9496f99d8afd74f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-4.3-2": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: changing a Color Extended Community value on propagation. The positive is ParseExtendedCommunities then WriteTo, not the route distribution path; the negative only shows two different colours encode differently, which no propagation behaviour can fail. No {single-polarity} marker.",
+      "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: the Color Extended Community value reaches the wire unchanged raw (+) and rebuilt (-).",
       "requirement_sha": "09bf668af6b0717d",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation": "933a41681c46181c",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation#2": "933a41681c46181c"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "b1e7520900f0bcb3",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "b1e7520900f0bcb3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation": "e90db7a4eb5f12a3",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation#2": "e90db7a4eb5f12a3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "215a6fdac9c66857",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "215a6fdac9c66857",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation": "f387c0e7d216e29b",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation#2": "f387c0e7d216e29b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc9012"
