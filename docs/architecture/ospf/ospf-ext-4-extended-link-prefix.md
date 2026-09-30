@@ -31,7 +31,24 @@ label and no SRGB. Segment Routing attaches to them. The byte layout is in
 - **An Extended Link Opaque LSA carries exactly one Extended Link TLV** (RFC
   7684 Section 3.1). Decode uses the first and counts the extras.
 - **Cross-LSA dedup keeps the STRICTLY lower Opaque ID** (RFC 7684 Section 2).
-  An equal id is a refresh and overwrites.
+  An equal id is a refresh and overwrites. A received entry is keyed by
+  advertising router, source area and prefix: an area-scope LSA lives in one
+  area's database, so the same router's LSAs in two areas dedup separately, and
+  a MaxAge withdrawal removes only the entries of that area's LSA. An AS-scope
+  entry keys with no area. The `resolved-prefixes` rows of `show` carry the
+  `area` of each area-scope or link-scope entry.
+  <!-- source: internal/plugins/ospf/ext.go -- extRecvKey, applyPrefix, withdrawPrefixes -->
+  <!-- source: internal/plugins/ospf/ext_render.go -- snapshot -->
+- **An ABR carries another router's N-Flag between areas.** RFC 7684 Section
+  2.1 says the N-Flag "is preserved when the OSPFv2 Extended Prefix Opaque LSA
+  is propagated between areas." When Ze originates the inter-area Extended
+  Prefix TLV for a summary into area X, it sets N if the prefix is a host prefix
+  it has connected in another area, or if a received area-scope Extended Prefix
+  entry for the prefix in an area other than X carries N. An N-Flag set on a
+  non-host prefix is cleared on receipt, so it is never propagated, and an
+  N-Flag advertised only in area X itself is not carried back into X.
+  <!-- source: internal/plugins/ospf/ext_prefix.go -- selfPrefixAdverts -->
+  <!-- source: internal/plugins/ospf/ext.go -- hostFlagOutside -->
 
 ## Traps
 

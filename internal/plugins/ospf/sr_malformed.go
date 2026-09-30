@@ -109,12 +109,22 @@ func srV3ExtendedLengthInvalid(tlvs []ospfv3packet.ExtendedTLV) bool {
 	return false
 }
 
-// srV3SubTLVLengthInvalid reports whether any RFC 8666 Prefix-SID, Adj-SID or LAN Adj-SID
-// sub-TLV in subs has an invalid length.
+// srV3SubTLVLengthInvalid reports whether any RFC 8666 Prefix-SID, Adj-SID, LAN Adj-SID or
+// SID/Label sub-TLV in subs has an invalid length.
 func srV3SubTLVLengthInvalid(subs []ospfv3packet.ExtendedTLV) bool {
 	for i := range subs {
 		var err error
 		switch subs[i].Type {
+		case sr.V6TypeSIDLabel:
+			// RFC 8666 Section 3.1: "Length: 3 or 4 octets." RFC 8666 Section 10: "For any
+			// new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA
+			// in which it is advertised is considered malformed and MUST be ignored." Ze
+			// reads no SID from this sub-TLV (RFC 8666 names no parent for it), but its
+			// length still condemns the LSA that carries it.
+			if length := len(subs[i].Value); length != 3 && length != 4 {
+				return true
+			}
+			continue
 		case sr.V6TypePrefixSID:
 			_, err = sr.DecodePrefixSIDValueV6(subs[i].Value)
 		case sr.V6TypeAdjSID:

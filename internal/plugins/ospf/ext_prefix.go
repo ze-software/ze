@@ -156,6 +156,13 @@ func (e *engine) selfPrefixAdverts(router types.RouterID) []extPrefixAdvert {
 				flags |= packet.ExtPrefixFlagN
 			}
 		}
+		// RFC 7684 Section 2.1: "The flag is preserved when the OSPFv2 Extended Prefix Opaque
+		// LSA is propagated between areas." The host prefix may belong to another router:
+		// when a router advertised it with the N-Flag in an area other than the one this
+		// summary enters, the inter-area TLV carries the flag on.
+		if e.extRecv.hostFlagOutside(v.Area, prefixKeyBytes(pfx)) {
+			flags |= packet.ExtPrefixFlagN
+		}
 		out = append(out, extPrefixAdvert{prefix: pfx, routeType: packet.ExtRouteTypeInterArea, scope: extPrefixScope(packet.ExtRouteTypeInterArea), area: v.Area, flags: flags})
 	}
 
@@ -221,8 +228,15 @@ func (e *engine) extPrefixOnReceive(r opaqueReceived) {
 	if r.OpaqueType != packet.ExtPrefixOpaqueType {
 		return
 	}
+	// The source area keys the entry, so an ABR can tell a flag advertised in another area
+	// from one advertised in the area a summary enters (RFC 7684 sec 2.1). An AS-scope LSA
+	// belongs to no area and keys with the zero AreaID.
+	area := r.Area
+	if r.Scope == OpaqueScopeAS {
+		area = types.AreaID{}
+	}
 	if r.Withdrawn {
-		e.extRecv.withdrawPrefixes(r.AdvertisingRouter, r.OpaqueID)
+		e.extRecv.withdrawPrefixes(r.AdvertisingRouter, area, r.OpaqueID)
 		e.refreshExtMetrics()
 		return
 	}
@@ -240,7 +254,7 @@ func (e *engine) extPrefixOnReceive(r opaqueReceived) {
 	// whose prefixes were applied before, so those are withdrawn.
 	if srExtPrefixLengthInvalid(&lsa) {
 		e.ext.malformed.With(opaqueTypeLabel(r.OpaqueType)).Inc()
-		e.extRecv.withdrawPrefixes(r.AdvertisingRouter, r.OpaqueID)
+		e.extRecv.withdrawPrefixes(r.AdvertisingRouter, area, r.OpaqueID)
 		e.refreshExtMetrics()
 		return
 	}
@@ -265,7 +279,7 @@ func (e *engine) extPrefixOnReceive(r opaqueReceived) {
 		for _, s := range tlv.SubTLVs {
 			dispatchPrefixSubTLV(s, func() { e.ext.subtlvErrors.With(extRegistryPrefix).Inc() })
 		}
-		e.extRecv.applyPrefix(r.AdvertisingRouter, r.OpaqueID, tlv.RouteType, extNormalizeFlags(tlv), pk, r.Scope)
+		e.extRecv.applyPrefix(r.AdvertisingRouter, area, r.OpaqueID, tlv.RouteType, extNormalizeFlags(tlv), pk, r.Scope)
 	}
 	e.refreshExtMetrics()
 }

@@ -62,6 +62,7 @@ type extLinkDecodedLSA struct {
 // 7684 sec 2 lowest-Opaque-ID dedup) and RFC 5250 sec 5 usability.
 type extResolvedRow struct {
 	AdvertisingRouter string `json:"advertising-router"`
+	Area              string `json:"area,omitempty"`
 	Prefix            string `json:"prefix"`
 	RouteType         string `json:"route-type"`
 	OpaqueID          uint32 `json:"opaque-id"`
@@ -243,8 +244,14 @@ func (r *extReceiver) snapshot(scope OpaqueScope, reachable func(types.RouterID)
 	r.mu.Unlock()
 	rows := make([]extResolvedRow, 0, len(keys))
 	for index, k := range keys {
+		// An AS-scope entry belongs to no area (extRecvKey), so its row names none.
+		area := ""
+		if scope != OpaqueScopeAS {
+			area = k.area.String()
+		}
 		rows = append(rows, extResolvedRow{
 			AdvertisingRouter: k.adv.String(),
+			Area:              area,
 			Prefix:            resolvedPrefixString(k.prefix),
 			RouteType:         extRouteTypeString(entries[index].routeType),
 			OpaqueID:          entries[index].opaqueID,
@@ -254,6 +261,9 @@ func (r *extReceiver) snapshot(scope OpaqueScope, reachable func(types.RouterID)
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].AdvertisingRouter != rows[j].AdvertisingRouter {
 			return rows[i].AdvertisingRouter < rows[j].AdvertisingRouter
+		}
+		if rows[i].Area != rows[j].Area {
+			return rows[i].Area < rows[j].Area
 		}
 		return rows[i].Prefix < rows[j].Prefix
 	})

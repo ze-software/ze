@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8665-10-1": {
@@ -367,7 +367,7 @@
       "verdict": "enforced"
     },
     "RFC8665-9-1": {
-      "note": "Re-judged 2026-09-29 (independent judge). Both gaps of the 2026-09-27 audit are closed. SRGB branch: TestRFC8665LengthInvalidSRGBIgnoresLSA truncates only the SRGB TLV's SID/Label sub-TLV in the body the well-formed case applies and asserts no capability (algorithm, SRGB, SRLB) is taken; negative record on srDecodeRemoteCapabilities. BGP-LS export: TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport is now tagged, its control half carries the Prefix-SID and its malformed half carries none from the LSA (records on extendedV2Prefix). Earlier LSA-level proofs (Prefix-SID, Extended Prefix Range, Adj-SID, LAN Adj-SID, SRLB, SRMS) stand.",
+      "note": "Re-judged 2026-09-30: TestRFC8665LengthBeforeFlagsIgnoresLSA changed only by the lookupPrefix area argument (control lookup asserted before the negative, so the negative stays non-vacuous); its two records re-recorded (srRemotePrefixSIDs +, DecodePrefixSIDValue -) observed red. Earlier judgement stands: SRGB branch (TestRFC8665LengthInvalidSRGBIgnoresLSA), BGP-LS export (TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport) and the LSA-level proofs (Prefix-SID, Extended Prefix Range, Adj-SID, LAN Adj-SID, SRLB, SRMS).",
       "requirement_sha": "2363507fd25d8603",
       "tests": {
         "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA": "ef2971c9ee845d41",
@@ -381,8 +381,8 @@
         "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA#2": "71d30bc409f505ca",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665TruncatedTLVsRejectedWithoutPanic": "279bf468c654f872",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665WellFormedTLVsDecode": "279bf468c654f872",
-        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA": "83e5fc62a1790cf7",
-        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA#2": "83e5fc62a1790cf7"
+        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA": "a57eda77c987d4f1",
+        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA#2": "a57eda77c987d4f1"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA": "2869be4a64da8e5e",
@@ -396,8 +396,8 @@
         "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA#2": "f1271a8538e3fd01",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665TruncatedTLVsRejectedWithoutPanic": "84b313b3d7dbb4f4",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665WellFormedTLVsDecode": "22d8770ac38fe4af",
-        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA": "ac5e7002c90370da",
-        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA#2": "ac5e7002c90370da"
+        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA": "4ef21c7e98d0d463",
+        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA#2": "4ef21c7e98d0d463"
       },
       "verdict": "enforced"
     }

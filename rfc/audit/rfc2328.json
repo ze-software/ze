@@ -100,17 +100,21 @@
       "verdict": "enforced"
     },
     "RFC2328-12.2-1": {
-      "note": "Forbidden: a lookup that ignores any element of the (LS type, Link State ID, Advertising Router) triple. TestRFC2328LookupByTriple proves the full triple finds the instance; TestRFC2328LookupNeedsFullTriple varies only the Advertising Router. A lookup that ignored LS type or Link State ID is not caught: no unit installs two LSAs differing only in type or only in Link State ID.",
+      "note": "Forbidden: a lookup that ignores any element of the (LS type, Link State ID, Advertising Router) triple. + TestRFC2328LookupTellsApartLSAsSharingTwoElements: three LSAs from 4.4.4.4 (Router 4.4.4.4; Summary 4.4.4.4 differing only in type; Summary 9.9.9.9 differing only in LSID) each found by its own triple with its own sequence. - TestRFC2328LookupMissesWhenOneElementDiffers: a triple differing in LS type alone, LSID alone, or Advertising Router alone finds nothing. Records on lsdb.go::Lookup observed red; TestRFC2328LookupByTriple/NeedsFullTriple unchanged.",
       "requirement_sha": "ff1fe39c2f7cc844",
       "tests": {
         "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328LookupByTriple": "1f2e47ae6a5f8fdb",
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328LookupNeedsFullTriple": "1f2e47ae6a5f8fdb"
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328LookupNeedsFullTriple": "1f2e47ae6a5f8fdb",
+        "internal/plugins/ospf/lsdb/rfc2328_lookup_triple_test.go::TestRFC2328LookupMissesWhenOneElementDiffers": "24a0673d180030dd",
+        "internal/plugins/ospf/lsdb/rfc2328_lookup_triple_test.go::TestRFC2328LookupTellsApartLSAsSharingTwoElements": "24a0673d180030dd"
       },
       "units": {
         "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328LookupByTriple": "607cf228b4afa5b0",
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328LookupNeedsFullTriple": "ee34ba499f9bcfd8"
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328LookupNeedsFullTriple": "ee34ba499f9bcfd8",
+        "internal/plugins/ospf/lsdb/rfc2328_lookup_triple_test.go::TestRFC2328LookupMissesWhenOneElementDiffers": "8174e385d7515acb",
+        "internal/plugins/ospf/lsdb/rfc2328_lookup_triple_test.go::TestRFC2328LookupTellsApartLSAsSharingTwoElements": "40e0c15567e0a01a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-12.4-1": {
       "note": "Forbidden: keeping a self-originated summary-LSA for a destination that became unreachable. The units call FlushStaleSummaryLSAs directly with a hand-built keep set (empty vs containing the key) and prove MaxAge plus reflood vs no flush. Nothing makes a destination unreachable: the step from an unreachable route to its key leaving the keep set is not exercised, so a caller that kept unreachable destinations in the set stays green.",
@@ -423,12 +427,14 @@
       "verdict": "weak"
     },
     "RFC2328-16.2-2": {
-      "note": "MaxAge and self-originated skips are asserted for summary and AS-external LSAs, but the LSInfinity clause is only tested by a composed cost saturating at LSInfinity; no unit feeds an LSA whose advertised cost is LSInfinity.",
+      "note": "Closes the earlier gap (advertised LSInfinity unfed). + TestRFC2328SummaryAdvertisingLSInfinitySkipped: summary cost 20 through an ABR 10 away installs one route; - the same summary with cost LSInfinity installs none. MaxAge and self-originated skips stay on rfc2328_test.go; composed-cost saturation on interarea_test. Records: + v4SummaryReader, - ComputeInterAreaWith, observed red. Note: the advertised-cost check (v4SummaryReader, interarea.go:189) is subsumed by the composed-cost check (ComputeInterAreaWith, interarea.go:153), because clampMetric saturates any sum with an LSInfinity term to LSInfinity; a mutant removing only :189 stays green, but no input then installs a route, so the behaviour the clause demands is enforced by the unit either way. The AS-external tags on external_test/rfc2328_test prove s16.4 neighbours and are supplementary.",
       "requirement_sha": "c98d70765b1a001e",
       "tests": {
         "internal/plugins/ospf/spf/external_test.go::TestOSPFExternalLSInfinityDropped": "9c93a2a5f3cb7b7e",
         "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaLSInfinityDropped": "8afc978a14b338b7",
         "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaRoute": "8afc978a14b338b7",
+        "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped": "7df20734b224cbd1",
+        "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped#2": "7df20734b224cbd1",
         "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328ExternalSkipsMaxAgeAndSelf": "d7fb83f76cbdc96f",
         "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328InterAreaSkipsMaxAgeAndSelfSummary": "d7fb83f76cbdc96f"
       },
@@ -436,10 +442,12 @@
         "internal/plugins/ospf/spf/external_test.go::TestOSPFExternalLSInfinityDropped": "e47cac897259923f",
         "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaLSInfinityDropped": "c508f57cfa4224b0",
         "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaRoute": "5aa46c8359efbb42",
+        "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped": "bf29a1252208a3b5",
+        "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped#2": "bf29a1252208a3b5",
         "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328ExternalSkipsMaxAgeAndSelf": "5ecbe37f628d0f51",
         "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328InterAreaSkipsMaxAgeAndSelfSummary": "6af8ccc083c346f0"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-16.4-1": {
       "note": "intra-area over external and E1 over E2 are asserted; inter-area over external and the smallest type-2 metric among E2 paths are not.",
@@ -615,17 +623,21 @@
       "verdict": "enforced"
     },
     "RFC2328-A.1-2": {
-      "note": "the positive shows only an elected Backup joining AllDRouters; the Designated Router join is not asserted.",
+      "note": "Both halves now asserted. + TestOSPFElectedDRJoinsAllDRouters: priority 5 vs 2 -> StateDR and exactly one JoinAllDRouters(eth0), no leave; TestOSPFElectedBDRJoinsAllDRouters keeps the BDR join. - the same unit: priority dropped to 0, re-election -> DROther and LeaveAllDRouters(eth0); TestOSPFDROtherDoesNotJoinAllDRouters keeps the never-joined case. Records on iface.go::runElectionLocked observed red; author's overlay making membership BDR-only turned the DR positive red. Judge lint fix (unparam on the shared electWith helper): the unit's neighbour priority is 2, not 1; records re-recorded.",
       "requirement_sha": "30623d7528561f5f",
       "tests": {
+        "internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go::TestOSPFElectedDRJoinsAllDRouters": "192176f0d0cd7d26",
+        "internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go::TestOSPFElectedDRJoinsAllDRouters#2": "192176f0d0cd7d26",
         "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFDROtherDoesNotJoinAllDRouters": "5f75ed219587e64e",
         "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFElectedBDRJoinsAllDRouters": "5f75ed219587e64e"
       },
       "units": {
+        "internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go::TestOSPFElectedDRJoinsAllDRouters": "bc2e06a2e3571464",
+        "internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go::TestOSPFElectedDRJoinsAllDRouters#2": "bc2e06a2e3571464",
         "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFDROtherDoesNotJoinAllDRouters": "9c55266719f8fb1e",
         "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFElectedBDRJoinsAllDRouters": "62cbb477549a1045"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-A.3.1-1": {
       "note": "Forbidden: accepting or emitting a Version other than 2. Red: TestOSPFHeaderRejectsBadVersionAndLength fails unless DecodeHeader returns ErrBadVersion for Version 3. Other polarity: TestOSPFHeaderRoundTrip fails unless every packet type written by WriteTo decodes, which needs the emitted Version octet to equal 2. One clause, both polarities.",

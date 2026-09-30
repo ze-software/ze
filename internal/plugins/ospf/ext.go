@@ -240,10 +240,14 @@ func (o *extOriginator) linkIDFor(key extLinkKey) uint32 {
 	return o.nextLinkID
 }
 
-// extRecvKey keys a received Extended Prefix attribute set by advertising router and prefix,
-// for the RFC 7684 sec 2 lowest-Opaque-ID cross-LSA dedup.
+// extRecvKey keys a received Extended Prefix attribute set by advertising router, source area
+// and prefix, for the RFC 7684 sec 2 lowest-Opaque-ID cross-LSA dedup. An area-scope LSA lives
+// in one area's database, so the same router's LSAs in two areas are two independent sets and
+// the dedup runs within each. area is the source area of an area-scope (Type 10) or link-scope
+// (Type 9) LSA; an AS-scope (Type 11) LSA belongs to no area and keys with the zero AreaID.
 type extRecvKey struct {
 	adv    types.RouterID
+	area   types.AreaID
 	prefix [5]byte
 }
 
@@ -272,11 +276,12 @@ type extReceiver struct {
 func newExtReceiver() *extReceiver { return &extReceiver{prefixes: map[extRecvKey]extRecvEntry{}} }
 
 // applyPrefix records the attributes for one received Extended Prefix TLV, keeping the entry
-// from the lowest Opaque ID when the same (router, prefix) appears across LSAs (RFC 7684 sec 2).
-func (r *extReceiver) applyPrefix(adv types.RouterID, opaqueID uint32, routeType, flags uint8, prefix [5]byte, scope OpaqueScope) {
+// from the lowest Opaque ID when the same (router, area, prefix) appears across LSAs (RFC 7684
+// sec 2).
+func (r *extReceiver) applyPrefix(adv types.RouterID, area types.AreaID, opaqueID uint32, routeType, flags uint8, prefix [5]byte, scope OpaqueScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	key := extRecvKey{adv: adv, prefix: prefix}
+	key := extRecvKey{adv: adv, area: area, prefix: prefix}
 	if cur, ok := r.prefixes[key]; ok && cur.opaqueID < opaqueID {
 		return // an existing strictly-lower Opaque ID wins (RFC 7684 sec 2)
 	}
@@ -286,22 +291,49 @@ func (r *extReceiver) applyPrefix(adv types.RouterID, opaqueID uint32, routeType
 	r.prefixes[key] = extRecvEntry{opaqueID: opaqueID, routeType: routeType, flags: flags, scope: scope}
 }
 
-// withdrawPrefixes removes every resolved entry contributed by (adv, opaqueID) when its LSA is
-// MaxAge-purged (RFC 2328 sec 14).
-func (r *extReceiver) withdrawPrefixes(adv types.RouterID, opaqueID uint32) {
+// withdrawPrefixes removes every resolved entry contributed by the LSA (adv, area, opaqueID)
+// when it is MaxAge-purged (RFC 2328 sec 14). An Opaque ID names an LSA within one area's
+// database, so the same ID from the same router in another area is left alone.
+func (r *extReceiver) withdrawPrefixes(adv types.RouterID, area types.AreaID, opaqueID uint32) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for k, e := range r.prefixes {
-		if k.adv == adv && e.opaqueID == opaqueID {
+		if k.adv == adv && k.area == area && e.opaqueID == opaqueID {
 			delete(r.prefixes, k)
 		}
 	}
 }
 
-// lookupPrefix returns the resolved entry for (adv, prefix), for tests and `show`.
-func (r *extReceiver) lookupPrefix(adv types.RouterID, prefix [5]byte) (extRecvEntry, bool) {
+// lookupPrefix returns the resolved entry for (adv, area, prefix), for tests.
+func (r *extReceiver) lookupPrefix(adv types.RouterID, area types.AreaID, prefix [5]byte) (extRecvEntry, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	e, ok := r.prefixes[extRecvKey{adv: adv, prefix: prefix}]
+	e, ok := r.prefixes[extRecvKey{adv: adv, area: area, prefix: prefix}]
 	return e, ok
+}
+
+// hostFlagOutside reports whether a received area-scope Extended Prefix entry for prefix, in
+// an area other than target, carries the N-Flag. extPrefixOnReceive has already cleared an
+// N-Flag set on a non-host prefix (extNormalizeFlags), so a true answer is always a host
+// prefix. An ABR reads it when it originates the inter-area Extended Prefix TLV for a prefix
+// it summarizes into target (RFC 7684 sec 2.1). An area-scope entry is always usable (RFC
+// 5250 sec 5 restricts only Type 11), so no reachability is consulted.
+func (r *extReceiver) hostFlagOutside(target types.AreaID, prefix [5]byte) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for k, e := range r.prefixes {
+		if k.prefix != prefix {
+			continue
+		}
+		if e.scope != OpaqueScopeArea {
+			continue
+		}
+		if k.area == target {
+			continue
+		}
+		if e.flags&packet.ExtPrefixFlagN != 0 {
+			return true
+		}
+	}
+	return false
 }

@@ -34,10 +34,10 @@ func TestExtPrefixSameOpaqueIDRefreshUpdates(t *testing.T) {
 	r := newExtReceiver()
 	adv := types.RouterID{3, 3, 3, 3}
 	prefix := [5]byte{10, 2, 2, 2, 32}
-	r.applyPrefix(adv, 1, packet.ExtRouteTypeIntraArea, 0, prefix, OpaqueScopeArea)
+	r.applyPrefix(adv, types.BackboneArea, 1, packet.ExtRouteTypeIntraArea, 0, prefix, OpaqueScopeArea)
 	// Same Opaque ID 1, refreshed: now inter-area with the N-Flag. Must overwrite.
-	r.applyPrefix(adv, 1, packet.ExtRouteTypeInterArea, packet.ExtPrefixFlagN, prefix, OpaqueScopeArea)
-	e, ok := r.lookupPrefix(adv, prefix)
+	r.applyPrefix(adv, types.BackboneArea, 1, packet.ExtRouteTypeInterArea, packet.ExtPrefixFlagN, prefix, OpaqueScopeArea)
+	e, ok := r.lookupPrefix(adv, types.BackboneArea, prefix)
 	if !ok {
 		t.Fatalf("prefix not stored")
 	}
@@ -45,8 +45,8 @@ func TestExtPrefixSameOpaqueIDRefreshUpdates(t *testing.T) {
 		t.Fatalf("same-Opaque-ID refresh dropped: flags=%#x routeType=%d", e.flags, e.routeType)
 	}
 	// AC-9 preserved: a strictly-lower existing Opaque ID still wins over a higher incoming one.
-	r.applyPrefix(adv, 5, packet.ExtRouteTypeIntraArea, 0, prefix, OpaqueScopeArea)
-	if e2, _ := r.lookupPrefix(adv, prefix); e2.opaqueID != 1 {
+	r.applyPrefix(adv, types.BackboneArea, 5, packet.ExtRouteTypeIntraArea, 0, prefix, OpaqueScopeArea)
+	if e2, _ := r.lookupPrefix(adv, types.BackboneArea, prefix); e2.opaqueID != 1 {
 		t.Fatalf("lowest Opaque ID must win: got %d want 1", e2.opaqueID)
 	}
 }
@@ -59,7 +59,7 @@ func TestExtPrefixNFlagIgnoredNonHost(t *testing.T) {
 		OpaqueType: packet.ExtPrefixOpaqueType, OpaqueID: 1, Scope: OpaqueScopeArea, AdvertisingRouter: adv,
 		Body: extPrefixBody(packet.ExtRouteTypeIntraArea, 24, packet.ExtPrefixFlagN, [4]byte{10, 1, 1, 0}), Reachable: true,
 	})
-	e, ok := eng.extRecv.lookupPrefix(adv, [5]byte{10, 1, 1, 0, 24})
+	e, ok := eng.extRecv.lookupPrefix(adv, types.BackboneArea, [5]byte{10, 1, 1, 0, 24})
 	if !ok {
 		t.Fatalf("prefix not stored")
 	}
@@ -73,7 +73,7 @@ func TestExtPrefixNFlagIgnoredNonHost(t *testing.T) {
 		OpaqueType: packet.ExtPrefixOpaqueType, OpaqueID: 2, Scope: OpaqueScopeArea, AdvertisingRouter: adv,
 		Body: extPrefixBody(packet.ExtRouteTypeIntraArea, 32, packet.ExtPrefixFlagN, [4]byte{10, 9, 9, 9}), Reachable: true,
 	})
-	h, _ := eng.extRecv.lookupPrefix(adv, [5]byte{10, 9, 9, 9, 32})
+	h, _ := eng.extRecv.lookupPrefix(adv, types.BackboneArea, [5]byte{10, 9, 9, 9, 32})
 	// RFC requirement: RFC7684-2.1-1 positive -- the N-Flag set on a /32 host prefix is
 	// retained on receive; normalization is confined to non-host prefixes.
 	if h.flags&packet.ExtPrefixFlagN == 0 {
@@ -93,13 +93,13 @@ func TestExtPrefixLowestOpaqueIDWins(t *testing.T) {
 	}
 	recv(5, packet.ExtPrefixFlagA) // higher Opaque ID first
 	recv(2, 0)                     // lower Opaque ID wins
-	e, ok := eng.extRecv.lookupPrefix(adv, key)
+	e, ok := eng.extRecv.lookupPrefix(adv, types.BackboneArea, key)
 	if !ok || e.opaqueID != 2 {
 		t.Fatalf("lowest Opaque ID must win, got %+v ok=%v", e, ok)
 	}
 	// A later higher Opaque ID does not displace the lower one.
 	recv(9, 0)
-	e, _ = eng.extRecv.lookupPrefix(adv, key)
+	e, _ = eng.extRecv.lookupPrefix(adv, types.BackboneArea, key)
 	if e.opaqueID != 2 {
 		t.Fatalf("higher Opaque ID displaced the lower, got %d", e.opaqueID)
 	}
@@ -117,7 +117,7 @@ func TestExtPrefixDuplicateInLSAFirstWins(t *testing.T) {
 	eng.extPrefixOnReceive(opaqueReceived{
 		OpaqueType: packet.ExtPrefixOpaqueType, OpaqueID: 1, Scope: OpaqueScopeArea, AdvertisingRouter: adv, Body: body, Reachable: true,
 	})
-	e, ok := eng.extRecv.lookupPrefix(adv, [5]byte{10, 3, 3, 0, 24})
+	e, ok := eng.extRecv.lookupPrefix(adv, types.BackboneArea, [5]byte{10, 3, 3, 0, 24})
 	if !ok || e.routeType != packet.ExtRouteTypeIntraArea {
 		t.Fatalf("first Extended Prefix TLV instance must win, got %+v ok=%v", e, ok)
 	}
@@ -133,7 +133,7 @@ func TestExtPrefixType11UnreachableUnusable(t *testing.T) {
 	eng.extPrefixOnReceive(opaqueReceived{
 		OpaqueType: packet.ExtPrefixOpaqueType, OpaqueID: 1, Scope: OpaqueScopeAS, AdvertisingRouter: adv, Body: body, Reachable: false,
 	})
-	e, ok := eng.extRecv.lookupPrefix(adv, key)
+	e, ok := eng.extRecv.lookupPrefix(adv, types.BackboneArea, key)
 	if !ok {
 		t.Fatalf("Type-11 prefix not stored")
 	}
@@ -163,7 +163,7 @@ func TestExtPrefixMalformedCounted(t *testing.T) {
 	if reg.counts["ze_ospf_ext_malformed_total|7"] == 0 {
 		t.Fatalf("malformed body did not increment ze_ospf_ext_malformed_total: %v", reg.counts)
 	}
-	if _, ok := eng.extRecv.lookupPrefix(adv, [5]byte{}); ok {
+	if _, ok := eng.extRecv.lookupPrefix(adv, types.BackboneArea, [5]byte{}); ok {
 		t.Fatalf("malformed LSA must not store any prefix attribute")
 	}
 }

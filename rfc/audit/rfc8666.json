@@ -6,28 +6,29 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8666-10-1": {
-      "code": {
-        "internal/plugins/ospf/sr/codec_v6.go::DecodeAdjSIDValueV6": "46977e3e2729b9ba",
-        "internal/plugins/ospf/sr/codec_v6.go::DecodeExtPrefixRangeValueV6": "d037c2c499400626",
-        "internal/plugins/ospf/sr/codec_v6.go::DecodeLANAdjSIDValueV6": "bb0a7a24daf45bd7",
-        "internal/plugins/ospf/sr/codec_v6.go::DecodePrefixSIDValueV6": "9ad67636c31ab28c",
-        "internal/plugins/ospf/sr_malformed.go::srV3ExtendedLengthInvalid": "e0a00b76fff68391"
-      },
-      "note": "RA-OSPF2 strict re-audit 2026-09-27 (independent of DF-OSPF-E). RFC 8666 Section 10 (rfc8666.txt, s10): 'For any new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored.' Kept weak; DF-OSPF-E's gaps confirmed. Proven through the IPv6 Prefix-SID reader (srRemotePrefixSIDsV6, len(sids) != 0 goes red): Prefix-SID one octet too long (TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA), too short, length-and-flags, Extended Prefix Range carrying a length-and-flags-invalid Prefix-SID (TestRFC8666LengthBeforeFlagsIgnoresLSA), with positive polarity for well-formed and flag-only cases. Unproven: the Adj-SID and LAN Adj-SID clauses are asserted only on the gate srV3ExtendedLengthInvalid, never on a reader that ignores the LSA; LAN Adj-SID too short has no case; the SID/Label sub-TLV (s3.1) has no LSA-level case.",
+      "note": "Re-judged 2026-09-30. RFC 8666 s10 read: 'if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored.' The three gaps of the 2026-09-27 audit are closed. Adj-SID and LAN Adj-SID at a reader: TestRFC8666AdjSIDLengthInvalidIgnoredByReader installs real E-Router-LSAs and reads the BGP-LS export (sentinel LSA proves the snapshot is current): + well-formed Adj-SID/LAN Adj-SID exported with attr 1099/1100; - each one octet long or two short exports no link from the router (records on srV3ExtendedLengthInvalid). SID/Label (s3.1 'Length: 3 or 4 octets'): D-8 defect fixed in sr_malformed.go srV3SubTLVLengthInvalid (type 7 had no case); TestRFC8666SIDLabelLengthInvalidIgnoresLSA + length 3/4 keeps the Prefix-SID, - length 2/5 yields none (red before the fix; records on srV3SubTLVLengthInvalid). Prefix-SID and Extended Prefix Range stay on rfc8666_malformed_test and sr_length_before_flags_test with records.",
       "requirement_sha": "bf2fa94be562ee36",
       "tests": {
         "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA": "b49f5c425b220588",
         "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA#2": "b49f5c425b220588",
-        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA": "83e5fc62a1790cf7",
-        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA#2": "83e5fc62a1790cf7"
+        "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666AdjSIDLengthInvalidIgnoredByReader": "7f4be4877ca1d132",
+        "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666AdjSIDLengthInvalidIgnoredByReader#2": "7f4be4877ca1d132",
+        "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666SIDLabelLengthInvalidIgnoresLSA": "7f4be4877ca1d132",
+        "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666SIDLabelLengthInvalidIgnoresLSA#2": "7f4be4877ca1d132",
+        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA": "a57eda77c987d4f1",
+        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA#2": "a57eda77c987d4f1"
       },
       "units": {
         "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA": "c24d181943c907ac",
         "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA#2": "c24d181943c907ac",
+        "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666AdjSIDLengthInvalidIgnoredByReader": "f27a5806808518ba",
+        "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666AdjSIDLengthInvalidIgnoredByReader#2": "f27a5806808518ba",
+        "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666SIDLabelLengthInvalidIgnoresLSA": "e75b0cf9b4a7cccd",
+        "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666SIDLabelLengthInvalidIgnoresLSA#2": "e75b0cf9b4a7cccd",
         "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA": "bcc42817caef5319",
         "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA#2": "bcc42817caef5319"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8666-11-1": {
       "note": "malformed values are rejected with an error (not only no panic) by every v3 SR decoder and by v6PrefixSIDFromPrefixTLV; well-formed range TLVs still decode",

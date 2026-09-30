@@ -26,6 +26,50 @@
     {
       "rid": "RFC8666-10-1",
       "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666AdjSIDLengthInvalidIgnoredByReader",
+      "unit-sha": "c76e02c99ad8cfeb",
+      "claim-sha": "1c240fdcbc7365f7",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_malformed.go::srV3ExtendedLengthInvalid",
+      "producer-sha": "10a3ce06844f2cfd",
+      "break": "body of srV3ExtendedLengthInvalid replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8666-10-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666AdjSIDLengthInvalidIgnoredByReader",
+      "unit-sha": "c76e02c99ad8cfeb",
+      "claim-sha": "6fde30d28b7c4938",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_malformed.go::srV3ExtendedLengthInvalid",
+      "producer-sha": "10a3ce06844f2cfd",
+      "break": "body of srV3ExtendedLengthInvalid replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8666-10-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666SIDLabelLengthInvalidIgnoresLSA",
+      "unit-sha": "4d4f0b10d6263ca7",
+      "claim-sha": "faa7084dc92febc8",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_malformed.go::srV3SubTLVLengthInvalid",
+      "producer-sha": "7dcabea8a8d792ac",
+      "break": "body of srV3SubTLVLengthInvalid replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8666-10-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666SIDLabelLengthInvalidIgnoresLSA",
+      "unit-sha": "4d4f0b10d6263ca7",
+      "claim-sha": "98bde074a106a74f",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_malformed.go::srV3SubTLVLengthInvalid",
+      "producer-sha": "7dcabea8a8d792ac",
+      "break": "body of srV3SubTLVLengthInvalid replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8666-10-1",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA",
       "unit-sha": "4f0802174f8bf965",
       "claim-sha": "92c56c57abae8ab0",

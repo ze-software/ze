@@ -124,7 +124,7 @@ func TestOSPFExtPrefixReceiveFunctional(t *testing.T) {
 	if reason := eng.lsdb.ReceiveUpdate(ospflsdb.ReceiveInput{Interface: "eth0", AreaID: mustBackboneArea(t), RouterID: adv, Src: netip.MustParseAddr("10.0.0.2"), Update: packet.LSUpdate{LSAs: []packet.LSA{lsa}}}); reason != "" {
 		t.Fatalf("ReceiveUpdate: %q", reason)
 	}
-	if _, ok := eng.extRecv.lookupPrefix(adv, [5]byte{10, 5, 5, 0, 24}); !ok {
+	if _, ok := eng.extRecv.lookupPrefix(adv, types.BackboneArea, [5]byte{10, 5, 5, 0, 24}); !ok {
 		t.Fatalf("received Extended Prefix not resolved into the receive store")
 	}
 	// The stored LSA decodes in `show ospf database opaque-area`.

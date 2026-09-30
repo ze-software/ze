@@ -102,11 +102,11 @@ func TestRFC8665LengthBeforeFlagsIgnoresLSA(t *testing.T) {
 			})
 		}
 		deliver(packet.EncodeExtPrefixLSA(packet.ExtPrefixLSA{Prefixes: []packet.ExtPrefixTLV{srTestPrefixTLV(b, good)}}))
-		if _, ok := recv.extRecv.lookupPrefix(adv, [5]byte{b[0], b[1], b[2], b[3], 32}); !ok {
+		if _, ok := recv.extRecv.lookupPrefix(adv, types.BackboneArea, [5]byte{b[0], b[1], b[2], b[3], 32}); !ok {
 			t.Fatalf("%s: control: the well-formed Extended Prefix LSA must be applied", name)
 		}
 		deliver(packet.EncodeExtPrefixLSA(lsa))
-		if _, ok := recv.extRecv.lookupPrefix(adv, [5]byte{b[0], b[1], b[2], b[3], 32}); ok {
+		if _, ok := recv.extRecv.lookupPrefix(adv, types.BackboneArea, [5]byte{b[0], b[1], b[2], b[3], 32}); ok {
 			t.Fatalf("%s: the Extended Prefix receiver applied a prefix from a malformed LSA", name)
 		}
 	}

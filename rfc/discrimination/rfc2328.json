@@ -90,6 +90,28 @@
       "break": "body of Lookup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2328-12.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_lookup_triple_test.go::TestRFC2328LookupMissesWhenOneElementDiffers",
+      "unit-sha": "5e8b572ce59727e2",
+      "claim-sha": "51db2306a88e69db",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/lsdb.go::Lookup",
+      "producer-sha": "26270d03aee7e502",
+      "break": "body of Lookup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-12.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_lookup_triple_test.go::TestRFC2328LookupTellsApartLSAsSharingTwoElements",
+      "unit-sha": "4d64786189aba446",
+      "claim-sha": "d9bd7962f6b4aa23",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/lsdb.go::Lookup",
+      "producer-sha": "26270d03aee7e502",
+      "break": "body of Lookup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2328-12.4-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328AdvertisedSummaryNotFlushed",
@@ -407,6 +429,28 @@
       "break": "body of less replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2328-16.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped",
+      "unit-sha": "4c23d15289641d67",
+      "claim-sha": "f448aa9dbfabde8d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/interarea.go::v4SummaryReader",
+      "producer-sha": "a8fb07c48ad6da6a",
+      "break": "body of v4SummaryReader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-16.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped",
+      "unit-sha": "4c23d15289641d67",
+      "claim-sha": "6f184bd36ff23302",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/interarea.go::ComputeInterAreaWith",
+      "producer-sha": "aa5588a6b6a755d6",
+      "break": "body of ComputeInterAreaWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2328-3.6-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328NormalAreaGetsNoDefaultSummary",
@@ -658,6 +702,28 @@
       "producer": "internal/plugins/ospf/transport/backend_linux.go::setMulticastOptions",
       "producer-sha": "45343f40e3b5681d",
       "break": "body of setMulticastOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-A.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go::TestOSPFElectedDRJoinsAllDRouters",
+      "unit-sha": "730a28d1b5bf56b7",
+      "claim-sha": "21857a0b84e1772c",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/iface/iface.go::runElectionLocked",
+      "producer-sha": "c1e81903a7cf988a",
+      "break": "body of runElectionLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-A.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go::TestOSPFElectedDRJoinsAllDRouters",
+      "unit-sha": "730a28d1b5bf56b7",
+      "claim-sha": "cdc04b7310ab8049",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/iface/iface.go::runElectionLocked",
+      "producer-sha": "c1e81903a7cf988a",
+      "break": "body of runElectionLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2328-A.1-2",
