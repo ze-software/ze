@@ -27,6 +27,18 @@ engine updates. The XFRM interface id comes from peer config.
 <!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins -->
 <!-- source: internal/component/plugin/process/process.go -- startInternal -->
 
+**An incoming packet reaches the IKE SA its full SPI pair names, and no other.**
+RFC 7296 Section 2.6 makes the two header SPIs the connection identifier, so
+both receive loops map a packet through `SATable.lookupInbound`. One half of
+the pair decides only where a zero SPI says the other is not yet known: a
+retransmitted IKE_SA_INIT request (zero responder SPI) reaches the SA of its
+initiator SPI, and an IKE_SA_INIT response reaches the half-open SA still
+indexed under a zero responder SPI. A non-zero pair that names no SA reaches
+none, even when its initiator SPI matches an established SA; it takes the
+out-of-SA path.
+
+<!-- source: internal/component/ike/engine/table.go -- lookupInbound -->
+
 **The engine publishes its live tunnels through a registered inventory, so a
 feature outside this component reads them without importing it.** `init()`
 registers `inventorySnapshot` with `internal/core/ipsecinventory`, a

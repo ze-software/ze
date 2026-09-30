@@ -35,6 +35,25 @@ func (t *SATable) Lookup(initiator, responder [8]byte) *SA {
 	return t.bySPI[key]
 }
 
+// lookupInbound maps an incoming IKE packet's header SPI pair to its IKE SA, or nil
+// when the pair names no SA. Both receive loops call it. A zero SPI on either side of
+// the pair is the only case that matches on one half: the packet's (a retransmitted
+// IKE_SA_INIT request) or the table's (a half-open SA meeting its IKE_SA_INIT response).
+func (t *SATable) lookupInbound(initiator, responder [8]byte) *SA {
+	// RFC 7296 Section 2.6: "The initial two eight-octet fields in the header, called
+	// the "IKE SPIs", are used as a connection identifier at the beginning of IKE
+	// packets."
+	if sa := t.Lookup(initiator, responder); sa != nil {
+		return sa
+	}
+	// RFC 7296 Section 2.6: "An SPI value of zero is special: it indicates that the
+	// remote SPI value is not yet known by the sender."
+	if responder == [8]byte{} {
+		return t.lookupByInitiatorSPI(initiator)
+	}
+	return t.Lookup(initiator, [8]byte{})
+}
+
 // lookupByInitiatorSPI returns the first SA matching the initiator SPI.
 // Used for IKE_SA_INIT responses where the responder SPI is not yet known.
 func (t *SATable) lookupByInitiatorSPI(initiator [8]byte) *SA {

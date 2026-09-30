@@ -662,10 +662,7 @@ func dispatchNATTInbound(tr *transport.UDPTransport, table *SATable, log *slog.L
 			NATT: pkt.NATT,
 		}
 
-		sa := table.Lookup(iSPI, rSPI)
-		if sa == nil {
-			sa = table.lookupByInitiatorSPI(iSPI)
-		}
+		sa := table.lookupInbound(iSPI, rSPI)
 		if sa == nil {
 			if tryResponderSAInit(nattPkt, iSPI, rSPI, table, tr, log) {
 				continue
@@ -886,10 +883,7 @@ func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logge
 			continue
 		}
 
-		sa := table.Lookup(iSPI, rSPI)
-		if sa == nil {
-			sa = table.lookupByInitiatorSPI(iSPI)
-		}
+		sa := table.lookupInbound(iSPI, rSPI)
 		if sa == nil {
 			if tryResponderSAInit(pkt, iSPI, rSPI, table, tr, log) {
 				continue

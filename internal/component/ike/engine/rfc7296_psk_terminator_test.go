@@ -12,7 +12,10 @@ import (
 
 // psktermSecret is a 64-octet ASCII secret, the length RFC 7296 Section 2.15 says the
 // management interface MUST accept.
-const psktermSecret = "correct horse battery staple correct horse battery staple 1234567"
+const psktermSecret = "correct horse battery staple correct horse battery staple 123456"
+
+// psktermSecretOctets is the secret length both RFC7296-2.15-2 claims state.
+const psktermSecretOctets = 64
 
 // psktermAuth computes RFC 7296 Section 2.15's AUTH = prf(prf(Shared Secret,
 // "Key Pad for IKEv2"), <SignedOctets>) with the standard library's HMAC-SHA2-256,
@@ -30,6 +33,9 @@ func psktermAuth(secret, signedOctets []byte) []byte {
 // the octets it signs as the initiator.
 func psktermSA(t *testing.T) (*SA, []byte) {
 	t.Helper()
+	if len(psktermSecret) != psktermSecretOctets {
+		t.Fatalf("psktermSecret is %d octets, want %d", len(psktermSecret), psktermSecretOctets)
+	}
 	sa := testSAWithKeys(t)
 	sa.PeerCfg.Auth.Mode = ipsec.AuthPreSharedSecret
 	sa.PeerCfg.Auth.PSK = psktermSecret
