@@ -34,9 +34,9 @@ func TestExtPrefixSameOpaqueIDRefreshUpdates(t *testing.T) {
 	r := newExtReceiver()
 	adv := types.RouterID{3, 3, 3, 3}
 	prefix := [5]byte{10, 2, 2, 2, 32}
-	r.applyPrefix(adv, 1, packet.ExtRouteTypeIntraArea, 0, prefix, OpaqueScopeArea, true)
+	r.applyPrefix(adv, 1, packet.ExtRouteTypeIntraArea, 0, prefix, OpaqueScopeArea)
 	// Same Opaque ID 1, refreshed: now inter-area with the N-Flag. Must overwrite.
-	r.applyPrefix(adv, 1, packet.ExtRouteTypeInterArea, packet.ExtPrefixFlagN, prefix, OpaqueScopeArea, true)
+	r.applyPrefix(adv, 1, packet.ExtRouteTypeInterArea, packet.ExtPrefixFlagN, prefix, OpaqueScopeArea)
 	e, ok := r.lookupPrefix(adv, prefix)
 	if !ok {
 		t.Fatalf("prefix not stored")
@@ -45,7 +45,7 @@ func TestExtPrefixSameOpaqueIDRefreshUpdates(t *testing.T) {
 		t.Fatalf("same-Opaque-ID refresh dropped: flags=%#x routeType=%d", e.flags, e.routeType)
 	}
 	// AC-9 preserved: a strictly-lower existing Opaque ID still wins over a higher incoming one.
-	r.applyPrefix(adv, 5, packet.ExtRouteTypeIntraArea, 0, prefix, OpaqueScopeArea, true)
+	r.applyPrefix(adv, 5, packet.ExtRouteTypeIntraArea, 0, prefix, OpaqueScopeArea)
 	if e2, _ := r.lookupPrefix(adv, prefix); e2.opaqueID != 1 {
 		t.Fatalf("lowest Opaque ID must win: got %d want 1", e2.opaqueID)
 	}
@@ -129,6 +129,7 @@ func TestExtPrefixType11UnreachableUnusable(t *testing.T) {
 	key := [5]byte{198, 51, 100, 0, 24}
 	body := extPrefixBody(packet.ExtRouteTypeASExternal, 24, 0, [4]byte{198, 51, 100, 0})
 	// Type-11 (AS scope) with an unreachable originator -> present but unusable (RFC 5250 sec 5).
+	eng.opaqueReachableFn = func(types.RouterID) bool { return false }
 	eng.extPrefixOnReceive(opaqueReceived{
 		OpaqueType: packet.ExtPrefixOpaqueType, OpaqueID: 1, Scope: OpaqueScopeAS, AdvertisingRouter: adv, Body: body, Reachable: false,
 	})
@@ -136,16 +137,12 @@ func TestExtPrefixType11UnreachableUnusable(t *testing.T) {
 	if !ok {
 		t.Fatalf("Type-11 prefix not stored")
 	}
-	if e.usable {
+	if extPrefixUsable(adv, e.scope, eng.routerReachable) {
 		t.Fatalf("Type-11 prefix from unreachable originator must be unusable")
 	}
-	// Once reachable, a fresh (lower/equal Opaque ID) instance is usable.
-	eng2 := extRecvEngine(t)
-	eng2.extPrefixOnReceive(opaqueReceived{
-		OpaqueType: packet.ExtPrefixOpaqueType, OpaqueID: 1, Scope: OpaqueScopeAS, AdvertisingRouter: adv, Body: body, Reachable: true,
-	})
-	r, _ := eng2.extRecv.lookupPrefix(adv, key)
-	if !r.usable {
+	// Once the originator is reachable, the same stored entry is usable.
+	eng.opaqueReachableFn = func(id types.RouterID) bool { return id == adv }
+	if !extPrefixUsable(adv, e.scope, eng.routerReachable) {
 		t.Fatalf("Type-11 prefix from reachable originator must be usable")
 	}
 }

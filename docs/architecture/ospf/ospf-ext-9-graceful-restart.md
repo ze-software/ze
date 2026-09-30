@@ -22,6 +22,13 @@ the adjacency at Full for the grace period.
   families.
   <!-- source: internal/plugins/ospf/gr.go -- suppressInstall -->
   <!-- source: internal/plugins/ospf/spf/install.go -- Installer -->
+- **Preparing a planned restart runs SPF before it raises the graceful stop.**
+  An LSDB change arms the SPF back-off timer, so a result can still be pending
+  when the operator prepares the restart. Left to fire later, that run would
+  compute the route under suppression and the retained FIB would be stale. The
+  run happens while install still applies, so the FIB kept across the restart
+  is up to date (RFC 3623 section 2.1).
+  <!-- source: internal/plugins/ospf/gr_restarter.go -- prepareRestart, grRefreshFIB -->
 - **The restarter exits on three triggers**: every pre-restart adjacency is Full
   again, an inconsistent LSA arrives, or the grace period expires. The re-Full
   trigger is wired through the production neighbour Full sink, and the grace

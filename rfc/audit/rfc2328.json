@@ -341,21 +341,25 @@
       "verdict": "weak"
     },
     "RFC2328-15-2": {
-      "note": "Re-judged 2026-09-30 (independent judge). Clauses now proven: cost defined as the intra-area path cost and carried by the routing table entry, spf/TestRFC2328VirtualCostIsTransitPathCost (two-hop transit 10+20 -> far router entry metric 30 == resolveVirtualNeighbor cost; 10+45 -> 55); a cost change originates a NEW backbone router-LSA, TestRFC2328VirtualCostChangeOriginatesNewInstance (LS sequence NewerThan the prior instance, metric 77), with TestRFC2328VirtualCostChangeReoriginatesBackbone + and TestRFC2328VirtualUnusablePathWithdrawsBackboneLink - (no path: link withdrawn, old cost not retained). Still weak on the MUST clause 'The cost of a virtual link is NOT configured': it holds structurally today (ze-ospf-conf.yang virtual-link list carries only remote-router-id, hello-interval, dead-interval, retransmit-interval, transmit-delay; the cost is only set from the transit SPF), but no unit asserts it, so adding a configurable virtual-link cost that overrode the SPF cost would leave every tagged unit green. Missing: a negative that a virtual-link cost in config is refused (or never reaches the router-LSA). The SPF-to-LSA hand-off (resolveVirtualNeighbor result into onVirtualLinksResolved) is proven per hop, not end to end.",
+      "note": "Re-judged 2026-09-30 (independent judge, c10/c11). Prior clauses unchanged: cost = intra-area path cost carried by the routing table entry (spf/TestRFC2328VirtualCostIsTransitPathCost), a cost change originates a new backbone router-LSA (TestRFC2328VirtualCostChangeOriginatesNewInstance, TestRFC2328VirtualCostChangeReoriginatesBackbone +, TestRFC2328VirtualUnusablePathWithdrawsBackboneLink -). The missing MUST clause 'The cost of a virtual link is NOT configured' now has negatives on both virtual-link lists through the operator path (config text -> config.ParseTreeWithYANG over ZeOSPFConfYANG -> ToPluginMap -> parseOSPFConfig): TestRFC2328VirtualLinkCostNotConfigurable (ospf areas area virtual-link) and TestRFC2328VirtualLinkCostNotConfigurableV3 (address-family ipv6, ospf-af-topology grouping), each accepting the link without cost (reaches cfg.VirtualLinks / cfg.V6.VirtualLinks) and refusing `cost 10` with an error naming cost. Their records are no-break declaration-only (the tool cannot mutate an embedded YANG file); the judge observed the red with an overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) adding `leaf cost { type uint16; }` to both lists of ze-ospf-conf.yang: both units red at the refusal assertion.",
       "requirement_sha": "6896c8eda4295cbb",
       "tests": {
+        "internal/plugins/ospf/rfc2328_virtual_cost_config_test.go::TestRFC2328VirtualLinkCostNotConfigurable": "dfe400de775ae1bb",
+        "internal/plugins/ospf/rfc2328_virtual_cost_config_test.go::TestRFC2328VirtualLinkCostNotConfigurableV3": "dfe400de775ae1bb",
         "internal/plugins/ospf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostChangeOriginatesNewInstance": "8865f8b75d270fdf",
         "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualCostChangeReoriginatesBackbone": "275bbc417919f739",
         "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualUnusablePathWithdrawsBackboneLink": "275bbc417919f739",
         "internal/plugins/ospf/spf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostIsTransitPathCost": "ef3111fe49656676"
       },
       "units": {
+        "internal/plugins/ospf/rfc2328_virtual_cost_config_test.go::TestRFC2328VirtualLinkCostNotConfigurable": "ae524452132aa0c3",
+        "internal/plugins/ospf/rfc2328_virtual_cost_config_test.go::TestRFC2328VirtualLinkCostNotConfigurableV3": "3ec1f675f175ee9b",
         "internal/plugins/ospf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostChangeOriginatesNewInstance": "ce0a7a42bbb5664d",
         "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualCostChangeReoriginatesBackbone": "d4f5e4cfc4fc39c0",
         "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualUnusablePathWithdrawsBackboneLink": "302b46566516eeee",
         "internal/plugins/ospf/spf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostIsTransitPathCost": "1dbd5f7d727ad4e2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-16.1-1": {
       "note": "tagged units cover only the link-back clause (one-way link excluded); the missing-LSA and MaxAge-LSA clauses are not asserted under this id (MaxAge is covered by TestOSPFGraphSkipsMaxAge under 14-1).",
@@ -510,23 +514,27 @@
       "verdict": "enforced"
     },
     "RFC2328-8.2-2": {
-      "note": "Re-judged 2026-09-30 (independent judge, R36). D-8 fixed at the producer: acceptsArea now calls receive_source.go sourceOnInterfaceNetworkLocked for a same-area OSPFv2 packet, masking source and interface address with the interface mask (RFC quote above the compare), skipping point-to-point (RFC quote), OSPFv3 exempt; address/mask come from ospf iface.Interface.Network(), set at runtime start by interfaceRuntimeConfigLocked from the iface component. Case (1) is now proven both ways on both clauses: Area-ID clause by TestOSPFReceiveAcceptsMatchingAreaID + / TestOSPFReceiveDropsMismatchedAreaID -; source clause by TestOSPFReceiveDropsOffNetworkSourceOnBroadcast - (lo broadcast 127.0.0.1/8, src 10.0.0.2 -> dropped 1, no neighbor), TestOSPFReceiveAcceptsOnNetworkSourceOnBroadcast + (src 127.0.0.2 -> 0 drops, 1 neighbor) and TestOSPFReceiveAcceptsOffNetworkSourceOnPointToPoint + (p2p skip). The Hello carries lo's own /8 mask and is encoded after the mask is set, so neither the 10.5 mask check nor the checksum confounds the drop. Still weak: case (2), a backbone Area ID accepted over a configured virtual link from its other endpoint on the Transit area (virtualLinkTargetLocked), has no unit tagged for this row, so a receiver that discarded every packet failing case (1) stays green. Behaviour note: Network() is the interface's first IPv4 address/prefix only, so a neighbour sourcing from a second subnet on the same broadcast interface is dropped (RFC-consistent: an OSPF interface has one IP address and mask, RFC 2328 s9).",
+      "note": "Re-judged 2026-09-30 (independent judge, c10/c11). Case (1) as the prior judgement: Area-ID clause TestOSPFReceiveAcceptsMatchingAreaID + / TestOSPFReceiveDropsMismatchedAreaID -; source clause under the interface mask TestOSPFReceiveDropsOffNetworkSourceOnBroadcast -, TestOSPFReceiveAcceptsOnNetworkSourceOnBroadcast +, point-to-point skip TestOSPFReceiveAcceptsOffNetworkSourceOnPointToPoint +. Case (2), the gap of the prior verdict, now proven through engine.acceptsArea on an ABR fixture (eth0 transit 0.0.0.1, eth1 backbone, eth2 0.0.0.2, VL to 10.0.0.2 resolved): TestRFC2328VirtualLinkAreaIDAccepted + (backbone header from the VL endpoint on the Transit-area interface accepted); TestRFC2328VirtualLinkAreaIDRefused - with one assertion per clause, each discriminated by a targeted overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) of virtualLinkTargetLocked: dropping the backbone check -> red at the non-backbone 0.0.0.2 assertion; dropping the neighbor Router ID match -> red at the 9.9.9.9 assertion; dropping the Transit-area match -> red at the eth2 assertion. The recorded negative red is the panic stub; these mutants are the clause-level evidence. 'Receiving router must be an ABR' is structural: a configured virtual link attaches the router to the backbone, and no separate refusal path exists. Behaviour note (R42, documented in ospf-4-component-config.md): only the interface's first IPv4 address/prefix forms the OSPF interface, so a neighbour on a secondary subnet is dropped.",
       "requirement_sha": "06becc8e219219c4",
       "tests": {
         "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOffNetworkSourceOnPointToPoint": "36d5213444c1c452",
         "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOnNetworkSourceOnBroadcast": "36d5213444c1c452",
         "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveDropsOffNetworkSourceOnBroadcast": "36d5213444c1c452",
         "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAreaID": "da263e79ffba2ad8",
-        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAreaID": "da263e79ffba2ad8"
+        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAreaID": "da263e79ffba2ad8",
+        "internal/plugins/ospf/rfc2328_virtual_area_test.go::TestRFC2328VirtualLinkAreaIDAccepted": "be3bcbb9b556a542",
+        "internal/plugins/ospf/rfc2328_virtual_area_test.go::TestRFC2328VirtualLinkAreaIDRefused": "be3bcbb9b556a542"
       },
       "units": {
         "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOffNetworkSourceOnPointToPoint": "6ff14d74813adb69",
         "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOnNetworkSourceOnBroadcast": "9404998af13c205e",
         "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveDropsOffNetworkSourceOnBroadcast": "4f2eb06955921a33",
         "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAreaID": "e69c9a983ee6eb94",
-        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAreaID": "729474314a30594a"
+        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAreaID": "729474314a30594a",
+        "internal/plugins/ospf/rfc2328_virtual_area_test.go::TestRFC2328VirtualLinkAreaIDAccepted": "16e4f270a42f9328",
+        "internal/plugins/ospf/rfc2328_virtual_area_test.go::TestRFC2328VirtualLinkAreaIDRefused": "9a96ab8d6fa26dad"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-8.2-3": {
       "note": "Re-judged 2026-09-29 (independent judge). Isolation gap closed and a product defect fixed (D-8): TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType asserts the single auth failure carries reason 'autype-mismatch', not a password failure; TestRFC2328PasswordAuTypeIntoNullAreaDropped sends a Hello signed AuType 1 into a Null-auth interface and asserts the drop and no neighbor (red before the fix: dropped 0). Producer checked: authStore.verify now refuses any non-Null AuType on an interface with no key chain, RFC 2328 s8.2 quoted above the check; revert records on verify. Positive TestOSPFReceiveAcceptsMatchingAuType unchanged.",

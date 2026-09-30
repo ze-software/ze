@@ -2,6 +2,17 @@
   "rfc": "rfc3623",
   "records": [
     {
+      "rid": "RFC3623-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc3623_prepare_fib_test.go::TestRFC3623PrepareInstallsPendingSPFAndKeepsIt",
+      "unit-sha": "b7def25de5830dcb",
+      "claim-sha": "8477b856abd5e6fa",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/gr_restarter.go::grRefreshFIB",
+      "producer-sha": "1d176b9354bf451a",
+      "break": "body of grRefreshFIB replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3623-5-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623OperatorTurnsUnplannedRecoveryOff",

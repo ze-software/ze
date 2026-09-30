@@ -244,8 +244,8 @@ func (e *engine) extPrefixOnReceive(r opaqueReceived) {
 		e.refreshExtMetrics()
 		return
 	}
-	// RFC 5250 sec 5: a Type-11 LSA from an unreachable originator is present-but-unusable.
-	usable := r.Scope != OpaqueScopeAS || r.Reachable
+	// RFC 5250 Section 5: a Type-11 LSA from an unreachable originator is present-but-unusable.
+	// The entry records its scope only, and extPrefixUsable judges it when it is read.
 	seen := map[[5]byte]bool{}
 	for i := range lsa.Prefixes {
 		tlv := lsa.Prefixes[i]
@@ -265,9 +265,27 @@ func (e *engine) extPrefixOnReceive(r opaqueReceived) {
 		for _, s := range tlv.SubTLVs {
 			dispatchPrefixSubTLV(s, func() { e.ext.subtlvErrors.With(extRegistryPrefix).Inc() })
 		}
-		e.extRecv.applyPrefix(r.AdvertisingRouter, r.OpaqueID, tlv.RouteType, extNormalizeFlags(tlv), pk, r.Scope, usable)
+		e.extRecv.applyPrefix(r.AdvertisingRouter, r.OpaqueID, tlv.RouteType, extNormalizeFlags(tlv), pk, r.Scope)
 	}
 	e.refreshExtMetrics()
+}
+
+// extPrefixUsable reports whether a received Extended Prefix entry may be used now. Type-9
+// and Type-10 entries are always usable. A Type-11 entry is usable only while its originator
+// is reachable, judged at each read through reachable (production: SPF reachability), so no
+// flag cached at delivery outlives the originator becoming unreachable. A nil reachable
+// answers false: with no routing table to consult, no originator is known to be reachable.
+func extPrefixUsable(adv types.RouterID, scope OpaqueScope, reachable func(types.RouterID) bool) bool {
+	if scope != OpaqueScopeAS {
+		return true
+	}
+	if reachable == nil {
+		return false
+	}
+	// RFC 5250 Section 5: "It also MUST discontinue using all Opaque LSAs injected into the
+	// network by the same originator whenever it is detected that the originator is
+	// unreachable."
+	return reachable(adv)
 }
 
 // extNormalizeFlags returns the Extended Prefix TLV flags after RFC 7684 sec 2.1 normalization:

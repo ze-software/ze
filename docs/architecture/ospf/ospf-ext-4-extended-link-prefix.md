@@ -36,9 +36,10 @@ label and no SRGB. Segment Routing attaches to them. The byte layout is in
 ## Traps
 
 - **A `<=` in the dedup comparison drops a same-Opaque-ID REFRESH.** The same
-  LSA at a higher sequence then loses its updated flags, route type and
-  usability, so an A-Flag transition or a Type-11 unusable-to-usable flip is
-  discarded silently. The comparison is strictly lower, and an equal id falls
+  LSA at a higher sequence then loses its updated flags and route type, so an
+  A-Flag transition is discarded silently. Type-11 usability is not stored in
+  the entry: it is judged from the originator's reachability each time the
+  entry is read (RFC 5250 Section 5). The comparison is strictly lower, and an equal id falls
   through to the overwrite.
 - **The link consumer keeps NO separate resolved-link store.** Its gauge is
   recomputed from the opaque store, so the WITHDRAW delivery path must also

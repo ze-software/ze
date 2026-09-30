@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC5250-3-1": {
       "note": "Types 9/10/11 as Opaque and scope-by-type are enforced: lstype_test.go fatals if a standard type IsOpaque or an opaque type is not; TestOpaqueScopeRouting fatals if Type 11 is not AS-wide or a Type 9 is accepted into an area store. The quoted span also states that Opaque LSAs consist of a standard LSA header followed by a 32-bit aligned body and that standard flooding mechanisms distribute them; no tagged unit asserts either.",
@@ -110,28 +110,36 @@
       "verdict": "weak"
     },
     "RFC5250-5-1": {
-      "note": "The unit replaces eng.opaqueReachableFn with a stub keyed on router ID and checks deliverOpaque reports Reachable accordingly. The sentence obliges a lookup of the routing table entries for the originating ASBR; the seam is faked, so a predicate that never consulted the routing table (or looked up the router rather than the ASBR entry) stays green.",
+      "note": "Re-judged 2026-09-30 (independent judge, c11). The negatives are sound over the real SPF seam (rfc3623PendingEngine, deliverOpaque): before SPF runs a Type-11 LSA from 10.0.0.2 (Router-LSA installed) is not usable, and after Run one from 10.0.0.9 (no entry) is not usable. The positive asserts behaviour the RFC does not allow: 10.0.0.2's Router-LSA carries neither the E-bit nor the B-bit, so it is neither ASBR nor ABR and has no routing table entry (RFC 2328 s11: 'Router entries are kept for area border routers and AS boundary routers.'), yet the unit requires its Type-11 LSA to be usable. RFC 5250 s5 (2): 'the router MUST look up the routing table entries (potentially one per attached area) for the ASBR that originated the LSA. If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA.' Producer defect (D-8 candidate, reported, not fixed by the judge): spfRouterReachable -> Computer.RouterReachable -> ReachabilitySnapshot.RouterReachableAny accepts any SPF-reached router vertex, not an ASBR routing table entry. Missing: lookup restricted to ASBR entries (intra-area E-bit routers and Type-4 ASBR-summary entries), positive fixture with the E-bit set, and a negative for a reachable originator without the E-bit.",
       "requirement_sha": "23a09580e5b0c1fe",
       "tests": {
         "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "620e6bdeb9c90481",
-        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable#2": "620e6bdeb9c90481"
+        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable#2": "620e6bdeb9c90481",
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "02eb299a56e50174",
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "02eb299a56e50174"
       },
       "units": {
         "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "ae0a8ff343d51c2b",
-        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable#2": "ae0a8ff343d51c2b"
+        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable#2": "ae0a8ff343d51c2b",
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "e95cf56d987bceec",
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "e95cf56d987bceec"
       },
-      "verdict": "weak"
+      "verdict": "wrong"
     },
     "RFC5250-5-2": {
-      "note": "Forbidden: continuing to use Opaque LSAs already delivered from an originator once it becomes unreachable. The tagged positive delivers one LSA from an unreachable and one from a reachable originator; no unit delivers from an originator, flips it unreachable, and asserts its earlier LSAs stop being used, so a consumer holding stale Reachable=true data stays green.",
+      "note": "Re-judged 2026-09-30 (independent judge, c11). D-8 fixed at the producer: the Extended Prefix receiver cached usable at delivery (extRecvEntry.usable), so a Type-11 entry stayed usable in `show` after its originator became unreachable; the entry now stores scope only and ext_prefix.go::extPrefixUsable (RFC quote above the return) judges it at every read, snapshot deriving it after releasing the receiver lock. TestRFC5250DiscontinueOpaqueFromUnreachableOriginator: + two Type-11 LSAs (Opaque IDs 1, 2) from 2.2.2.2 usable while reachable; - the seam flips unreachable, no new LSA, both rows unusable through extOpaqueDecode (the show path). An overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) making extPrefixUsable return true for AS scope turns the negative red (and TestExtPrefixType11UnreachableUnusable). Revert records on extPrefixUsable observed red. The row's false {single-polarity} annotation ('never cached') was removed; the quote is unchanged. The TED consumer already judged at read time (te_ted.go usableLocked).",
       "requirement_sha": "1ace7b50155ea702",
       "tests": {
-        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "620e6bdeb9c90481"
+        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "620e6bdeb9c90481",
+        "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator": "89e3bd7e3890df87",
+        "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator#2": "89e3bd7e3890df87"
       },
       "units": {
-        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "ae0a8ff343d51c2b"
+        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "ae0a8ff343d51c2b",
+        "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator": "15324195f3bef120",
+        "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator#2": "15324195f3bef120"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc5250"

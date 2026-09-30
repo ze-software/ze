@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC5187-2.2-1": {
       "note": "Forbidden: a grace-LSA without the Grace Period TLV (Type=1, Length=4), originated or accepted. TestGraceLSARoundTrip asserts the EncodeGraceLSA body length equals period(4)+reason(1)+addr(4) TLVs and round-trips GracePeriod; TestGraceLSADecodeMissingMandatory asserts DecodeGraceLSA rejects a Reason-only body. Neither reads the type octets: encode and decode both use GraceTLVPeriod, so a wrong type number (the TLV absent on the wire as Type 1) stays green. The tagged units are the shared codec; the OSPFv3 origination path (gr_restarter.go, LS type 0x000B) is not driven.",
@@ -28,28 +28,36 @@
       "verdict": "weak"
     },
     "RFC5187-3.1-1": {
-      "note": "Forbidden: the restarted router re-originating a prefix under a different LSA ID. TestRestartFactPersistsAcrossRestart asserts only that a restartFact map written by the test reads back from the store (PrefixLSIDs[\"2001:db8::/64\"] == 42). The producers that capture the map before restart (capturePrefixLSIDs, gr_restarter.go:45) and apply it after (restorePrefixLSIDs, gr_restarter.go:148, gr_preserve.go) are not in any tagged unit, so a no-op capture or restore stays green. The negative, TestStaleRestartFactIgnored, proves expiry of the restart fact, a neighbouring rule.",
+      "note": "Re-judged 2026-09-30 (independent judge, c11). Now proven through the real restart path (rfc5187_preserve_restart_test.go): engine A redistributes 2001:db8:5187::/48 (v6InjectExternal), prepareRestart persists into a store; engine B over the same store resumes (inRestart asserted). TestRFC5187LSAIDToPrefixPreservedAcrossRestart +: B maps the prefix to A's LSA ID without redistributing it (only restorePrefixLSIDs can put it there; a no-op capture or restore leaves no entry -> red). - same unit: a prefix first redistributed on B does not take the preserved ID and the preserved prefix keeps its own; an overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) removing the redistV6Next bump in restorePrefixLSIDs turns it red ('took the preserved LSA ID 1'). Revert records on restorePrefixLSIDs observed red. Old gr_nvs_test.go tags (store round-trip only) remain, unproven.",
       "requirement_sha": "d1e577dcb3f1aabe",
       "tests": {
         "internal/plugins/ospf/gr_nvs_test.go::TestRestartFactPersistsAcrossRestart": "a256e089d6594d44",
-        "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "a256e089d6594d44"
+        "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "a256e089d6594d44",
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart": "4479d40f0e00419e",
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart#2": "4479d40f0e00419e"
       },
       "units": {
         "internal/plugins/ospf/gr_nvs_test.go::TestRestartFactPersistsAcrossRestart": "ec65e669bd98b456",
-        "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "7af9532aa9d45cd9"
+        "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "7af9532aa9d45cd9",
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart": "e65a927e097dfd87",
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart#2": "e65a927e097dfd87"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5187-3.2-1": {
-      "note": "Forbidden: the restarted router using a different OSPFv3 Interface ID for an interface. TestRestartFactPersistsAcrossRestart asserts only the store round-trip of a test-built InterfaceIDs map (eth1 == 9). captureInterfaceIDs (gr_restarter.go:44) and restoreInterfaceIDs (gr_restarter.go:149, gr_preserve.go) are not in any tagged unit, so a no-op capture or restore stays green. The negative, TestStaleRestartFactIgnored, proves expiry of the restart fact, a neighbouring rule.",
+      "note": "Re-judged 2026-09-30 (independent judge, c11). Positive proven: TestRFC5187InterfaceIDPreservedAcrossRestart +, A holds Interface ID 1041 for gr-test, prepareRestart; B's lsdbTopology announces 1041; an overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) making restoreInterfaceIDs a no-op turns it red (announces 0). The tagged negative is vacuous: it asserts grInterfaceID(gr-test) differs from the transport index 41, but production grInterfaceID falls back to interfaceIndex(name) (kernel ifindex, 0 for this fake interface), never the transport index; judge probe under the no-op restore mutant: transport=41, resolved=0, so the negative stays green when the ID is NOT preserved. Its recorded red (captureInterfaceIDs) is a panic stub through the shared fixture. Missing: a negative that goes red when a non-preserved ID is used (e.g. compare against what grInterfaceID answers without the preserved map, or assert the Hello/Link-LSA Interface ID is not the fallback), or a {single-polarity} annotation the row does not carry. Old gr_nvs_test.go tags remain, unproven.",
       "requirement_sha": "61418cc467731ed5",
       "tests": {
         "internal/plugins/ospf/gr_nvs_test.go::TestRestartFactPersistsAcrossRestart": "a256e089d6594d44",
-        "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "a256e089d6594d44"
+        "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "a256e089d6594d44",
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart": "4479d40f0e00419e",
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2": "4479d40f0e00419e"
       },
       "units": {
         "internal/plugins/ospf/gr_nvs_test.go::TestRestartFactPersistsAcrossRestart": "ec65e669bd98b456",
-        "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "7af9532aa9d45cd9"
+        "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "7af9532aa9d45cd9",
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart": "7b31a118187f1ceb",
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2": "7b31a118187f1ceb"
       },
       "verdict": "weak"
     }

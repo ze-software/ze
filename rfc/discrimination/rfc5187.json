@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc5187",
+  "records": [
+    {
+      "rid": "RFC5187-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart",
+      "unit-sha": "e7aad454c9759889",
+      "claim-sha": "0c13810e8e622537",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/gr_preserve.go::restorePrefixLSIDs",
+      "producer-sha": "c823d01f1fccfc3e",
+      "break": "body of restorePrefixLSIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5187-3.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart",
+      "unit-sha": "e7aad454c9759889",
+      "claim-sha": "48069e333f01cae3",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/gr_preserve.go::restorePrefixLSIDs",
+      "producer-sha": "c823d01f1fccfc3e",
+      "break": "body of restorePrefixLSIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5187-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart",
+      "unit-sha": "ab7bde0333672172",
+      "claim-sha": "44b433c664929fde",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/gr_preserve.go::restoreInterfaceIDs",
+      "producer-sha": "1685335bd18d3c5f",
+      "break": "body of restoreInterfaceIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5187-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart",
+      "unit-sha": "ab7bde0333672172",
+      "claim-sha": "c78ecbf79ccf5df3",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/gr_preserve.go::captureInterfaceIDs",
+      "producer-sha": "c2dfb859741a4e08",
+      "break": "body of captureInterfaceIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

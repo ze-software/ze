@@ -122,7 +122,7 @@ func (e *engine) extOpaqueDecode(scope OpaqueScope) extDecodedDatabase {
 		}
 		db.ExtendedLink = append(db.ExtendedLink, extLinkDecodedLSAFrom(lsa, v))
 	}
-	db.ResolvedPrefixes = e.extRecv.snapshot(scope)
+	db.ResolvedPrefixes = e.extRecv.snapshot(scope, e.routerReachable)
 	return db
 }
 
@@ -227,23 +227,30 @@ func extLinkTypeString(lt uint8) string {
 }
 
 // snapshot returns the resolved received-prefix attribute rows for the given scope, sorted for
-// a stable render.
-func (r *extReceiver) snapshot(scope OpaqueScope) []extResolvedRow {
+// a stable render. Each row's usability is derived through reachable after the receiver lock
+// is released, so the SPF lock behind it is never taken under this one.
+func (r *extReceiver) snapshot(scope OpaqueScope, reachable func(types.RouterID) bool) []extResolvedRow {
 	r.mu.Lock()
-	rows := make([]extResolvedRow, 0, len(r.prefixes))
+	keys := make([]extRecvKey, 0, len(r.prefixes))
+	entries := make([]extRecvEntry, 0, len(r.prefixes))
 	for k, e := range r.prefixes {
 		if e.scope != scope {
 			continue
 		}
+		keys = append(keys, k)
+		entries = append(entries, e)
+	}
+	r.mu.Unlock()
+	rows := make([]extResolvedRow, 0, len(keys))
+	for index, k := range keys {
 		rows = append(rows, extResolvedRow{
 			AdvertisingRouter: k.adv.String(),
 			Prefix:            resolvedPrefixString(k.prefix),
-			RouteType:         extRouteTypeString(e.routeType),
-			OpaqueID:          e.opaqueID,
-			Usable:            e.usable,
+			RouteType:         extRouteTypeString(entries[index].routeType),
+			OpaqueID:          entries[index].opaqueID,
+			Usable:            extPrefixUsable(k.adv, entries[index].scope, reachable),
 		})
 	}
-	r.mu.Unlock()
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].AdvertisingRouter != rows[j].AdvertisingRouter {
 			return rows[i].AdvertisingRouter < rows[j].AdvertisingRouter

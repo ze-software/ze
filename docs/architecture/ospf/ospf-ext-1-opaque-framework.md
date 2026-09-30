@@ -31,6 +31,14 @@ never becomes an SPF vertex (RFC 5250 Section 3).
   (RFC 5250 Section 3.1).
 - **Type 11 reachability reads the SPF route table**, reusing the Type 5 ASBR
   reachability. Types 9 and 10 are always reachable.
+- **A consumer judges Type 11 usability when it reads an entry, never when the
+  LSA arrives.** RFC 5250 Section 5 requires discontinuing every Opaque LSA of an
+  originator once it is detected unreachable, and no new LSA arrives to say so.
+  The TED and the Extended Prefix receiver both store the scope and ask the
+  reachability seam at read time, so an entry delivered usable is shown unusable
+  as soon as SPF no longer reaches its originator.
+  <!-- source: internal/plugins/ospf/ext_prefix.go -- extPrefixUsable -->
+  <!-- source: internal/plugins/ospf/te_ted.go -- usableLocked -->
 - **TLV helpers are generic and 4-byte aligned**, with buffer-first emit and
   bound-checked iteration. Every consumer builds on them.
   <!-- source: internal/plugins/ospf/packet/opaque_tlv.go -- opaqueTLVIterator, DecodeOpaqueTLVs -->

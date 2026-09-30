@@ -245,6 +245,26 @@
     },
     {
       "rid": "RFC2328-15-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc2328_virtual_cost_config_test.go::TestRFC2328VirtualLinkCostNotConfigurable",
+      "unit-sha": "64a630df532da6df",
+      "claim-sha": "586eed23ab3fee78",
+      "route": "no-break",
+      "producer": "internal/plugins/ospf/yang/embed.go",
+      "reason": "declaration-only"
+    },
+    {
+      "rid": "RFC2328-15-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc2328_virtual_cost_config_test.go::TestRFC2328VirtualLinkCostNotConfigurableV3",
+      "unit-sha": "3f47a72c919d739c",
+      "claim-sha": "d0f0d50cf7f5a4ae",
+      "route": "no-break",
+      "producer": "internal/plugins/ospf/yang/embed.go",
+      "reason": "declaration-only"
+    },
+    {
+      "rid": "RFC2328-15-2",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostChangeOriginatesNewInstance",
       "unit-sha": "7931a7b467481c51",
@@ -394,7 +414,7 @@
       "claim-sha": "616c51797211ba26",
       "route": "revert",
       "producer": "internal/plugins/ospf/instance.go::acceptsArea",
-      "producer-sha": "18a7bf144810faae",
+      "producer-sha": "3ae15f582b7597eb",
       "break": "body of acceptsArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -405,8 +425,30 @@
       "claim-sha": "b69f51d1f18aae20",
       "route": "revert",
       "producer": "internal/plugins/ospf/instance.go::acceptsArea",
-      "producer-sha": "18a7bf144810faae",
+      "producer-sha": "3ae15f582b7597eb",
       "break": "body of acceptsArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-8.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc2328_virtual_area_test.go::TestRFC2328VirtualLinkAreaIDAccepted",
+      "unit-sha": "075f97a18e88d1dd",
+      "claim-sha": "f7c5ac92737ed852",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/virtual_link.go::virtualLinkTargetLocked",
+      "producer-sha": "fd8f838bbeca900c",
+      "break": "body of virtualLinkTargetLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-8.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc2328_virtual_area_test.go::TestRFC2328VirtualLinkAreaIDRefused",
+      "unit-sha": "3ec0ace74813737b",
+      "claim-sha": "cc3ff1fb1cc46844",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/virtual_link.go::virtualLinkTargetLocked",
+      "producer-sha": "fd8f838bbeca900c",
+      "break": "body of virtualLinkTargetLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2328-8.2-3",

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC4577-4.1.4-2": {
       "note": "A MAY: the permission is proven by the capability working. TestRFC2328VirtualCostChangeReoriginatesBackbone brings a virtual link to Full through real Hello/DD ingress (establishVirtualRoute) and asserts the backbone Router-LSA advertises the virtual neighbor at metric 10, red if the area 0 adjacency cannot run over a virtual link. Single-polarity marker on the MAY.",
@@ -26,28 +26,28 @@
       "verdict": "weak"
     },
     "RFC4577-6-1": {
-      "note": "Forbidden: a router without working OSPF cryptographic authentication. TestRFC4577CryptographicAuthImplemented signs a Hello with the configured key (md5 and hmac-sha-256) and asserts authStore.verify accepts it; TestRFC4577CryptographicAuthRejectsForgery asserts a tampered digest and a packet signed under another secret are refused, red on an accept-all verifier. The quote's first sentence, the operator SHOULD, is row 6-2.",
+      "note": "Re-judged 2026-09-30 (independent judge): stale only because the 6-2 tag comment was removed from TestRFC4577CryptographicAuthImplemented; its body and the 6-1 tags are unchanged. Forbidden: a router without working OSPF cryptographic authentication. TestRFC4577CryptographicAuthImplemented signs a Hello with the configured key (md5 and hmac-sha-256) and asserts authStore.verify accepts it; TestRFC4577CryptographicAuthRejectsForgery asserts a tampered digest and a packet signed under another secret are refused, red on an accept-all verifier. The operator SHOULD is row 6-2.",
       "requirement_sha": "c8f72acc3b4a7f22",
       "tests": {
-        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthImplemented": "a0bc0258d507913b",
-        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthRejectsForgery": "a0bc0258d507913b"
+        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthImplemented": "836206f74bfea702",
+        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthRejectsForgery": "836206f74bfea702"
       },
       "units": {
-        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthImplemented": "f2ce93a0ca214591",
+        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthImplemented": "a0c42f0e7c22efbd",
         "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthRejectsForgery": "53b01dbc52e03fe0"
       },
       "verdict": "enforced"
     },
     "RFC4577-6-2": {
-      "note": "An operator SHOULD for the PE role the 2026-09-21 owner decision did not select: not-applicable in substance, but the row is tagged, so the verdict stays weak and the tag is reported. The tag claims the configured link authenticates its outgoing Hello, but the test builds and signs the Hello itself (signedHello calls packet.Sign directly); the engine's Hello transmit path is never exercised, so a link that configured a key chain but sent unauthenticated packets would stay green.",
+      "note": "Re-judged 2026-09-30 (independent judge, c11). The prior weakness (the tag sat on a unit that signs the Hello itself) is gone: the tag moved to TestRFC4577ConfiguredLinkSendsAuthenticatedHello +, which parses config text naming key chain ce-link (hmac-sha-256), opens the interfaces over a recording transport and takes the first Hello the engine's own Hello loop sends: AuType 2, Key ID 1, and a separate authStore configured from the same text verifies it. Revert record on auth_wiring.go::signPacket observed red. Row carries {single-polarity: positive} (the negative is the unrecommended state). The 2026-09-21 owner decision on the PE role is unchanged; this proves the link behaviour the SHOULD recommends, which is role-independent.",
       "requirement_sha": "b6b2c2276854aa23",
       "tests": {
-        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthImplemented": "a0bc0258d507913b"
+        "internal/plugins/ospf/rfc4577_link_auth_test.go::TestRFC4577ConfiguredLinkSendsAuthenticatedHello": "d8d918a381377f9e"
       },
       "units": {
-        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthImplemented": "f2ce93a0ca214591"
+        "internal/plugins/ospf/rfc4577_link_auth_test.go::TestRFC4577ConfiguredLinkSendsAuthenticatedHello": "b62041f643af1601"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc4577"

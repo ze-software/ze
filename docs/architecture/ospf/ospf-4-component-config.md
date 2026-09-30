@@ -37,6 +37,17 @@ lifecycle callbacks, transport enrollment and config validation.
   pair. A unit test that needs a real mask runs on `lo` with the netlink backend
   blank-imported, not through a test-only engine field.
   <!-- source: internal/plugins/ospf/interface_addr.go -- interfaceNetworkMask, interfaceIPv4Address -->
+- **Only the interface's first IPv4 address and prefix form the OSPF
+  interface.** RFC 2328 section 9 gives an OSPF interface one IP address and one
+  mask, so the engine takes the first IPv4 address the iface component lists and
+  the first IPv4 prefix length. A secondary subnet on the same Linux interface is
+  not part of the OSPF interface: a neighbour whose address sits on it fails the
+  section 8.2 source check above and its packets are dropped. Ze does not run a
+  second OSPF interface for a secondary subnet, because the OSPFv2 interface list
+  is keyed by the interface name alone; put the other subnet on its own interface
+  (a VLAN or a second port) to run OSPF over it.
+  <!-- source: internal/plugins/ospf/interface_addr.go -- interfaceNetworkMask, interfaceIPv4Address -->
+  <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- list interface, key name -->
 - **The Go parser enforces the IPv4 range as well as YANG.** Unit tests and SDK
   paths call the resolver directly, outside native YANG validation.
 - **One function answers what an interface costs, and every consumer calls it.**

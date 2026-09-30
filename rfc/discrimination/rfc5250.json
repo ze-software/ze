@@ -66,6 +66,50 @@
       "producer": "internal/plugins/ospf/neighbor/table.go::databaseSummaryLocked",
       "producer-sha": "701d8345ab6988e0",
       "break": "body of databaseSummaryLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5250-5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry",
+      "unit-sha": "35e80becf41f25f6",
+      "claim-sha": "dae5b79ecb7f3802",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/opaque.go::spfRouterReachable",
+      "producer-sha": "ec2940b8b43f67e3",
+      "break": "body of spfRouterReachable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5250-5-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry",
+      "unit-sha": "35e80becf41f25f6",
+      "claim-sha": "df19f47d6aab2392",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/opaque.go::spfRouterReachable",
+      "producer-sha": "ec2940b8b43f67e3",
+      "break": "body of spfRouterReachable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5250-5-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator",
+      "unit-sha": "9bfd1e38e4ba250f",
+      "claim-sha": "c35702dc5ed0b59f",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ext_prefix.go::extPrefixUsable",
+      "producer-sha": "cab9830aa216966c",
+      "break": "body of extPrefixUsable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5250-5-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator",
+      "unit-sha": "9bfd1e38e4ba250f",
+      "claim-sha": "2606ccd729a86f71",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ext_prefix.go::extPrefixUsable",
+      "producer-sha": "cab9830aa216966c",
+      "break": "body of extPrefixUsable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

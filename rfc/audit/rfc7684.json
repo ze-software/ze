@@ -1,12 +1,13 @@
 {
   "audited": "2026-09-27",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7684-2.1-1": {
       "note": "Forbidden behaviour: honouring an N-Flag received on a prefix that is not a host prefix. TestExtPrefixNFlagIgnoredNonHost drives extPrefixOnReceive with N set on a /24 and fails if the stored entry's flags still carry ExtPrefixFlagN, which is what every consumer reads; the positive half fails if N is dropped from a /32 host prefix, so the ignore is confined to the non-host case. Both polarities present.",
       "requirement_sha": "ff58b703a1cb3758",
       "tests": {
-        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost": "ad13c317437b151e",
-        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost#2": "ad13c317437b151e"
+        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost": "bff8c9d8444d0ccc",
+        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost#2": "bff8c9d8444d0ccc"
       },
       "units": {
         "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost": "38aa55dd5e8a886a",
@@ -44,7 +45,7 @@
       "note": "Forbidden behaviour: a malformed TLV or sub-TLV permutation that goes undetected or crashes the process. TestExtPrefixMalformedCounted asserts a top-level TLV overrun of an Extended Prefix body is counted and stores nothing, and the two decode tests pin that valid bodies decode. Detection of a sub-TLV overrun, and of any malformed Extended Link body, has no 5-1 tagged assertion: FuzzOSPFExtPrefixBody and FuzzOSPFExtLinkBody discard err and assert only no panic, over three seeds each under go test, so a decoder that silently accepted an overrunning sub-TLV stays green.",
       "requirement_sha": "6500d989d77c9033",
       "tests": {
-        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixMalformedCounted": "ad13c317437b151e",
+        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixMalformedCounted": "bff8c9d8444d0ccc",
         "internal/plugins/ospf/packet/ext_link_test.go::TestExtLinkTLVRoundTrip": "756688445ad159bf",
         "internal/plugins/ospf/packet/ext_prefix_test.go::TestExtPrefixTLVRoundTrip": "6abd3ff550588c47",
         "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtLinkBody": "b02a6265fe53ccd9",

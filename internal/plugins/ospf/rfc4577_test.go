@@ -14,8 +14,6 @@ import (
 // (authStore.signKey, auth_keystore.go:292), the digest is computed over the packet
 // (cryptoDigest/Sign, packet/auth_verify.go:141,157) and the receive side recomputes and
 // accepts it (authStore.verify, auth_keystore.go:330 -> packet.Verify, auth_verify.go:211).
-// RFC requirement: RFC4577-6-2 positive -- the configured link authenticates its
-// outgoing Hello, and the receiving key chain accepts that protected packet.
 func TestRFC4577CryptographicAuthImplemented(t *testing.T) {
 	for _, algo := range []string{"md5", "hmac-sha-256"} {
 		t.Run(algo, func(t *testing.T) {

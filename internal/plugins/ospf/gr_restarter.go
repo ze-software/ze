@@ -21,8 +21,8 @@ import (
 // errGRRestarterDisabled is returned by prepareRestart when the restarter is not configured.
 var errGRRestarterDisabled = errors.New("ospf: graceful-restart restarter is disabled")
 
-// prepareRestart begins a planned graceful restart (RFC 3623 sec 2.1): it ensures the FIB is
-// left in place (the ensuing engine stop skips RemoveAll via gracefulStop), records the
+// prepareRestart begins a planned graceful restart (RFC 3623 sec 2.1): it runs SPF so the FIB is
+// up to date, leaves it in place (the engine stop skips RemoveAll via gracefulStop), records the
 // pre-restart Full adjacencies + the OSPFv3 preservation maps, persists the NVS restart fact,
 // and originates one Grace-LSA per interface (LS age 0). The engine then stops; on resume,
 // resumeFromNVS enters in-restart mode. It refuses when the restarter is disabled (AC-25).
@@ -33,6 +33,8 @@ func (m *grManager) prepareRestart(reason uint8) error { //nolint:unparam // RFC
 	if !cfg.restarterEnabled() {
 		return errGRRestarterDisabled
 	}
+	// RFC 3623 Section 2.1
+	m.e.grRefreshFIB()
 	graceEnd := m.now().Add(time.Duration(cfg.RestartInterval) * time.Second)
 	expected := m.e.currentFullNeighbors()
 
@@ -60,6 +62,21 @@ func (m *grManager) prepareRestart(reason uint8) error { //nolint:unparam // RFC
 	m.metrics.graceLSAs.With(m.e.grFamilyLabel(), "originated").Set(float64(len(ifs)))
 	m.mu.Unlock()
 	return nil
+}
+
+// grRefreshFIB brings the forwarding table up to date before prepareRestart raises the graceful
+// stop. An LSDB change arms the SPF back-off timer, so a result can still be pending when the
+// operator prepares the restart. Once gracefulStop is raised, that run would compute the route
+// and its install would be suppressed, leaving the retained FIB stale, so SPF runs now, while
+// install still applies. A run already in flight carries an older run number, so the result
+// of this one is the one kept. An engine with no SPF computer (no LSDB) has no FIB to refresh.
+func (e *engine) grRefreshFIB() {
+	if e.spf == nil {
+		return
+	}
+	// RFC 3623 Section 2.1: "Router X must ensure that its forwarding table(s) is/are up-
+	// to-date and will remain in place across the restart."
+	e.spf.Run()
 }
 
 // grPrepareResult is the JSON payload the operator `request ospf graceful-restart` command

@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc4577",
+  "records": [
+    {
+      "rid": "RFC4577-6-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4577_link_auth_test.go::TestRFC4577ConfiguredLinkSendsAuthenticatedHello",
+      "unit-sha": "55c8716fd2b4f8ec",
+      "claim-sha": "cb256417c4fcd57c",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_wiring.go::signPacket",
+      "producer-sha": "37b52f8c2a630f05",
+      "break": "body of signPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

@@ -247,20 +247,22 @@ type extRecvKey struct {
 	prefix [5]byte
 }
 
-// extRecvEntry is the resolved attribute set for one (router, prefix): the winning Opaque ID
-// and the normalized flags, plus RFC 5250 sec 5 usability (a Type-11 LSA from an unreachable
-// originator is present-but-unusable).
+// extRecvEntry is the resolved attribute set for one (router, prefix): the winning Opaque ID,
+// the normalized flags, and the flooding scope. It holds no usability: a Type-11 entry's RFC
+// 5250 sec 5 usability follows its originator's reachability at the moment it is read
+// (extPrefixUsable), so an entry delivered while the originator was reachable stops being
+// usable once it is not, with no new LSA arriving.
 type extRecvEntry struct {
 	opaqueID  uint32
 	routeType uint8
 	flags     uint8
 	scope     OpaqueScope
-	usable    bool
 }
 
 // extReceiver resolves received Extended Prefix attributes across LSAs from the same router
-// (RFC 7684 sec 2: the lowest Opaque ID wins) and records Type-11 reachability (RFC 5250 sec
-// 5). This spec applies no attribute (empty containers), so the resolved set is exposed for
+// (RFC 7684 sec 2: the lowest Opaque ID wins) and records each entry's flooding scope, from
+// which extPrefixUsable derives the RFC 5250 sec 5 usability of a Type-11 entry when it is
+// read. This spec applies no attribute (empty containers), so the resolved set is exposed for
 // `show` and for a downstream consumer to read; it never feeds SPF or the route table.
 type extReceiver struct {
 	mu       sync.Mutex
@@ -271,7 +273,7 @@ func newExtReceiver() *extReceiver { return &extReceiver{prefixes: map[extRecvKe
 
 // applyPrefix records the attributes for one received Extended Prefix TLV, keeping the entry
 // from the lowest Opaque ID when the same (router, prefix) appears across LSAs (RFC 7684 sec 2).
-func (r *extReceiver) applyPrefix(adv types.RouterID, opaqueID uint32, routeType, flags uint8, prefix [5]byte, scope OpaqueScope, usable bool) {
+func (r *extReceiver) applyPrefix(adv types.RouterID, opaqueID uint32, routeType, flags uint8, prefix [5]byte, scope OpaqueScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	key := extRecvKey{adv: adv, prefix: prefix}
@@ -280,8 +282,8 @@ func (r *extReceiver) applyPrefix(adv types.RouterID, opaqueID uint32, routeType
 	}
 	// A strictly-lower ID returns above; an equal ID (a refresh of the SAME LSA at a higher
 	// sequence, delivered only on a newer install) falls through and overwrites so updated
-	// flags / route type / usability are reflected; a lower incoming ID also overwrites.
-	r.prefixes[key] = extRecvEntry{opaqueID: opaqueID, routeType: routeType, flags: flags, scope: scope, usable: usable}
+	// flags / route type are reflected; a lower incoming ID also overwrites.
+	r.prefixes[key] = extRecvEntry{opaqueID: opaqueID, routeType: routeType, flags: flags, scope: scope}
 }
 
 // withdrawPrefixes removes every resolved entry contributed by (adv, opaqueID) when its LSA is
