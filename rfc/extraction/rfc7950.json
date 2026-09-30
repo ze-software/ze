@@ -1969,13 +1969,13 @@
       "id": "7.6.5:2",
       "quote": "o Otherwise, if this ancestor is a case node, the leaf MUST exist if any node from the case exists in the data tree.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-7.6.5-1"
+      "mapped-to": "RFC7950-7.6.5-2"
     },
     {
       "id": "7.6.5:3",
       "quote": "o Otherwise, the leaf MUST exist if the ancestor node exists in the data tree.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-7.6.5-1"
+      "mapped-to": "RFC7950-7.6.5-3"
     },
     {
       "id": "7.7:1",
@@ -2643,7 +2643,7 @@
       "id": "8.3.3:2",
       "quote": "If the datastore is \"running\" or \"startup\", these constraints MUST be enforced at the end of the <edit-config> or <copy-config> operation.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-8.3.3-1"
+      "mapped-to": "RFC7950-8.3.3-2"
     },
     {
       "id": "9.1:1",

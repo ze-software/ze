@@ -185,6 +185,14 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | RFC7950-7.19-1 | weak | `spec-config-yang-loader-structural-checks` (AC-2, 2026-09-30) |
 | RFC7950-9.4.4-1 | weak | `spec-config-yang-loader-structural-checks` (AC-2, 2026-09-30) |
 | RFC7950-9.6.4.2-1 | weak | `spec-config-yang-loader-structural-checks` (AC-2, 2026-09-30) |
+| RFC7950-7.6.5-1 | weak | `spec-config-yang-when-unique-choice` (AC-2, OWNER RULING 4, 2026-09-30; tagged, so no `{gap}`) |
+| RFC7950-8.3.3-1 | weak | `spec-config-yang-when-unique-choice` (AC-2, OWNER RULING 4, 2026-09-30; tagged, so no `{gap}`) |
+| RFC7950-8.1-2 | weak | `spec-config-yang-when-unique-choice` (AC-2, OWNER RULING 4, 2026-09-30; tagged, so no `{gap}`) |
+| RFC7950-8.3-1 | weak | `spec-config-yang-when-unique-choice` (AC-2, OWNER RULING 4, 2026-09-30; tagged, so no `{gap}`) |
+| RFC7950-9.1-1 | weak | `spec-config-yang-when-unique-choice` (AC-2, OWNER RULING 4, 2026-09-30; tagged, so no `{gap}`) |
+| RFC7950-7.6.5-2 | new `{gap}` row (split from 7.6.5-1) | `spec-config-yang-when-unique-choice` (AC-1 Task table, OWNER RULING 4, 2026-09-30) |
+| RFC7950-7.6.5-3 | new `{gap}` row (split from 7.6.5-1) | `spec-config-yang-when-unique-choice` (AC-1 Task table, OWNER RULING 4, 2026-09-30) |
+| RFC7950-8.3.3-2 | new `{gap}` row (split from 8.3.3-1) | `spec-config-yang-when-unique-choice` (AC-1 Task table, OWNER RULING 4, 2026-09-30) |
 | RFC9728-3.1-3 | wrong | `spec-mcp-protected-resource-metadata-path` |
 | RFC9728-3-2 | weak | `spec-mcp-protected-resource-metadata-path` (AC-5; trailing-slash identifier, same defect as 3.1-3; the query clause is proven) |
 | RFC9728-3.3-1 | weak | `spec-mcp-protected-resource-metadata-path` (AC-6; trailing-slash identifier, same defect as 3.1-3) |

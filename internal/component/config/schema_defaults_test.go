@@ -34,6 +34,8 @@ func TestApplyDefaults_LeafInserted(t *testing.T) {
 //
 // VALIDATES: Timer container with RFC defaults is created even when not configured.
 // PREVENTS: Missing hold-time/connect-retry defaults.
+//
+// RFC requirement: RFC7950-7.6.1-1 positive — a leaf whose only ancestor is a non-presence container absent from the data receives its default: ApplyDefaults creates the container and fills receive-hold-time 90 and connect-retry 120.
 func TestApplyDefaults_NonPresenceContainer(t *testing.T) {
 	timer := Container(
 		Field("receive-hold-time", LeafWithDefault(TypeUint16, "90")),

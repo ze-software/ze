@@ -87,17 +87,19 @@
       "verdict": "enforced"
     },
     "RFC7950-7.6.1-1": {
-      "note": "Row narrowed 2026-09-30 to the lead-in and the no-ancestor branch. The positive proves only a top-level leaf; the same branch covers a leaf whose only ancestors are non-presence containers (the reason the row cites Section 7.5.1), where ApplyDefaults must create the absent containers to hold the default, and no tagged unit asserts it (the untagged TestApplyDefaults_NonPresenceContainer does). A break of applyContainerDefault's non-presence path turns no tagged unit red. The negative (a set value keeps its value, no default invented) is valid.",
+      "note": "Both halves of the no-ancestor branch are now tagged: TestRFC7950LeafDefaultUsedWhenAbsent (top-level leaf gets its default) and TestApplyDefaults_NonPresenceContainer (a leaf whose only ancestor is a non-presence container absent from the data: ApplyDefaults creates the container and fills 90/120, both values asserted). Negative TestRFC7950LeafDefaultNotUsedWhenSet (a set value keeps its value) is valid. Observed-red records: applyChildDefault for both RFC units, applyContainerDefault for the non-presence unit.",
       "requirement_sha": "0bf1a689b79e2539",
       "tests": {
         "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultNotUsedWhenSet": "d66c7886cead82ee",
-        "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultUsedWhenAbsent": "d66c7886cead82ee"
+        "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultUsedWhenAbsent": "d66c7886cead82ee",
+        "internal/component/config/schema_defaults_test.go::TestApplyDefaults_NonPresenceContainer": "c7731780d90502e7"
       },
       "units": {
         "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultNotUsedWhenSet": "94623d90d087993e",
-        "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultUsedWhenAbsent": "377c178aa2ae3de4"
+        "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultUsedWhenAbsent": "377c178aa2ae3de4",
+        "internal/component/config/schema_defaults_test.go::TestApplyDefaults_NonPresenceContainer": "145a7dc7067dc327"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7950-7.6.1-2": {
       "code": {
@@ -168,8 +170,8 @@
       "verdict": "enforced"
     },
     "RFC7950-7.6.5-1": {
-      "note": "missing mandatory leaf at container level refused ErrTypeMissing; the case-node branch and the absent-ancestor (not required) branch are untested; TestValidator_MandatoryField checks the type only when errors.AsType succeeds",
-      "requirement_sha": "1b0ab1ba6ee9bb4c",
+      "note": "Row narrowed 2026-09-30 to the lead-in and the no-ancestor branch. The three tags prove only that yang.Validator.ValidateTree reports ErrTypeMissing for a leaf inside a container present in the data. The stack does not make the leaf exist: SectionValidationError.Blocking grades ErrTypeMissing non-blocking, so LoadConfig, ze config validate and the editor commit all accept the config; walkTree never visits a non-presence container absent from the data, so a mandatory leaf whose only ancestors are such containers is not required; and bgp is not in validatedSections. TestValidator_MandatoryField checks the type only when errors.AsType succeeds. Owner ruling 4: carried by spec-config-yang-when-unique-choice AC-2.",
+      "requirement_sha": "77d3aaadf4246691",
       "tests": {
         "internal/component/config/validator_yang_test.go::TestValidateTree_MandatoryMissing": "3196aa75a5d2a6ec",
         "internal/component/config/validator_yang_test.go::TestValidator_MandatoryField": "3196aa75a5d2a6ec",
@@ -181,6 +183,23 @@
         "internal/component/config/validator_yang_test.go::TestValidator_MandatoryField#2": "cfa81ec909e7c6e9"
       },
       "verdict": "weak"
+    },
+    "RFC7950-7.6.5-2": {
+      "code": {
+        "internal/component/config/yang/validator.go::walkTree": "a4aa0dea11dc30df"
+      },
+      "note": "No producer handles the case branch: goyang keeps a case's leaves under ChoiceEntry and CaseEntry entries, and walkTree checks mandatory children and recurses only through the container's own Dir, so a mandatory leaf inside a case is never required. Owner ruling 4 (YANG third-party, gaps not closed); spec-config-yang-when-unique-choice.",
+      "requirement_sha": "f40e914ec8227cf4",
+      "verdict": "unimplemented"
+    },
+    "RFC7950-7.6.5-3": {
+      "code": {
+        "internal/component/config/validate_sections.go::Blocking": "cd81573ac033f3e1",
+        "internal/component/config/yang/validator.go::walkTree": "a4aa0dea11dc30df"
+      },
+      "note": "walkTree recurses only into data present in the map, so a mandatory leaf below a non-presence container absent from the data is never checked even when its list-entry or presence-container ancestor exists; and a missing mandatory leaf is non-blocking everywhere (SectionValidationError.Blocking). Owner ruling 4; spec-config-yang-when-unique-choice.",
+      "requirement_sha": "0a31fd7b708ec18f",
+      "verdict": "unimplemented"
     },
     "RFC7950-7.7.4-1": {
       "note": "(a) forbidden: a leaf-list default invalid for its type loading; a leaf-list default beside min-elements >= 1 loading. (b) TestRFC7950DefaultInvalidForType: leaf-list range 1..10 default 30 requires an error containing `default \"30\" is not valid for type uint8`, and leaf-list min-elements 1 default 1 requires \"min-elements 1 is invalid\"; positive TestRFC7950DefaultValidForType: leaf-list default 3 inside 1..10 with no min-elements, assert.NoError. min-elements above 1 is not cased separately; 1 is the boundary.",
@@ -289,8 +308,8 @@
       "verdict": "weak"
     },
     "RFC7950-8.3.3-1": {
-      "note": "Clause 1 (final contents obey all constraints) and the copy-config half of clause 3 are proven through LoadConfig: TestRFC7950RunningDatastoreRefusesAViolationAfterParse requires ErrCustomValidation and a nil result (no partial tree), the positive yields the interface tree. The <edit-config> half of clause 3 (constraints enforced at the end of the edit) has no assertion: Ze's edit path is the editor commit (internal/component/cli/editor_commit.go CommitSession, validateStagedTree), which no tagged unit drives, so a commit that wrote a constraint-violating tree stays green.",
-      "requirement_sha": "248ef52d12e74c40",
+      "note": "Row narrowed 2026-09-30 to the first sentence. The tags prove LoadConfig refuses a ze:validate violation with ErrCustomValidation and no partial tree, and accepts a valid config. \"All validation constraints\" is not met by the stack: a missing mandatory leaf is only a warning (SectionValidationError.Blocking), and when, unique and choice are evaluated nowhere, so a final datastore content violating those is accepted. Owner ruling 4: carried by spec-config-yang-when-unique-choice AC-2.",
+      "requirement_sha": "177fcc9174244517",
       "tests": {
         "internal/component/config/datastore_rfc7950_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig": "881ae8cd8e73bade",
         "internal/component/config/datastore_rfc7950_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "881ae8cd8e73bade"
@@ -300,6 +319,15 @@
         "internal/component/config/datastore_rfc7950_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "cd1fa735402534b4"
       },
       "verdict": "weak"
+    },
+    "RFC7950-8.3.3-2": {
+      "code": {
+        "internal/component/cli/editor_commit.go::validateStagedTree": "7912ef6d1500911d",
+        "internal/component/config/validate_sections.go::Blocking": "cd81573ac033f3e1"
+      },
+      "note": "LoadConfig (copy-config window) and the web editor commit (validateStagedTree through config/cli.ValidateContent) refuse type and ze:validate violations, but both grade a missing mandatory leaf a warning via SectionValidationError.Blocking and evaluate no when, unique or choice, so the constraints are not enforced at the end of the operation. Owner ruling 4; spec-config-yang-when-unique-choice.",
+      "requirement_sha": "9b94aa906a82e0f8",
+      "verdict": "unimplemented"
     },
     "RFC7950-9.1-1": {
       "note": "decimal64 lexical forms both polarities, and integer \"+17\" now accepted for uint8 (validateUnsigned fixed) and int8 (positive only, record on validateUnsigned). Missing: hexadecimal and octal integer forms in a module default (Section 9.2.1, \"0x10\" refused by ParseUint base 10), and bits, binary, empty, identityref fall to validateYangType's default arm with no lexical check or tagged case. Re-judged 2026-09-30: the decimal64 units changed only by their RFC7950-9.3.2-1 tags moving to RFC7950-9.3.1-1; the gaps named stand.",
