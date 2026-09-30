@@ -170,6 +170,11 @@ type sessionEntry struct {
 	// session answers for that value, so a later client naming a DIFFERENT
 	// value is told apart from it and gets its own session.
 	joined api.Key
+	// released is true while the session has no client but is kept, in
+	// AdminDown, for one Detection Time after its last received packet
+	// (ReleaseSession). tick removes it once that time has passed, and a
+	// client that asks for it again first revives it (acquireLocked).
+	released bool
 }
 
 // recordTransition appends a new TransitionRecord to the ring buffer.
@@ -512,20 +517,26 @@ func (l *Loop) Stop() error {
 // names that session's key, which can carry fewer fields than the request's.
 // Otherwise the
 // engine creates the session, allocates a unique discriminator, and the
-// express loop will begin sending packets on the next tick.
+// express loop will begin sending packets on the next tick. A request for the
+// key of a released session still inside its Detection Time gets a new session
+// built from this request on the released one's discriminator, so the peer's
+// packets keep matching and the new client's parameters apply.
 func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) {
 	key := req.Key()
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	if entry, ok := l.sessions[key]; ok {
+		if entry.released {
+			return l.replaceReleasedLocked(req, key, entry)
+		}
 		entry.machine.Acquire()
 		return &handle{loop: l, key: key}, nil
 	}
 	// RFC 5882 Section 4.4: a client that named less joins the one session
 	// it cannot be told apart from.
 	if sessionKey, entry, ok := l.sharedEntryLocked(key); ok {
-		entry.machine.Acquire()
+		l.acquireLocked(entry)
 		entry.joined = narrowKey(entry.joined, key)
 		engineLog().Info("bfd session shared",
 			"peer", key.Peer.String(),
@@ -540,7 +551,30 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 	if err != nil {
 		return nil, err
 	}
+	return l.createSessionLocked(req, key, discr)
+}
 
+// replaceReleasedLocked answers a request for the key of a released session
+// (ReleaseSession) that tick has not yet removed. The released session keeps
+// its discriminator and its place in every index until the new one is built,
+// so a request that fails leaves it to wait out its Detection Time. The caller
+// MUST hold l.mu.
+func (l *Loop) replaceReleasedLocked(req api.SessionRequest, key api.Key, released *sessionEntry) (api.SessionHandle, error) {
+	h, err := l.createSessionLocked(req, key, released.machine.LocalDiscriminator())
+	if err != nil {
+		return nil, err
+	}
+	if closeErr := released.machine.CloseAuth(); closeErr != nil {
+		engineLog().Debug("bfd auth persister close failed", "key", key, "err", closeErr)
+	}
+	return h, nil
+}
+
+// createSessionLocked builds the session for req on discriminator discr and
+// installs it in the session map and both lookup indexes, replacing whatever
+// they held for that key and discriminator. Nothing is installed when the
+// authentication pair cannot be built. The caller MUST hold l.mu.
+func (l *Loop) createSessionLocked(req api.SessionRequest, key api.Key, discr uint32) (api.SessionHandle, error) {
 	m := &session.Machine{}
 	entry := &sessionEntry{
 		machine:   m,
@@ -560,9 +594,6 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 	if req.Auth != nil {
 		pair, pairErr := buildAuthPair(req, key)
 		if pairErr != nil {
-			delete(l.sessions, key)
-			delete(l.byDiscr, discr)
-			delete(l.byKey, firstPacketIndex(key))
 			return nil, pairErr
 		}
 		m.SetAuth(pair)
@@ -754,21 +785,74 @@ func (l *Loop) ReleaseSession(h api.SessionHandle) error {
 	if !ok {
 		return nil
 	}
-	if entry.machine.Release() == 0 {
-		if err := entry.machine.CloseAuth(); err != nil {
-			engineLog().Debug("bfd auth persister close failed", "key", hh.key, "err", err)
-		}
-		delete(l.sessions, hh.key)
-		delete(l.byDiscr, entry.machine.LocalDiscriminator())
-		delete(l.byKey, firstPacketIndex(hh.key))
-		l.subsMu.Lock()
-		for _, ch := range l.subscribers[hh.key] {
-			close(ch)
-		}
-		delete(l.subscribers, hh.key)
-		l.subsMu.Unlock()
+	if entry.machine.Release() > 0 {
+		return nil
 	}
+	l.closeSubscribersLocked(hh.key)
+	if entry.machine.LastReceived().IsZero() {
+		// Nothing has arrived from the remote end, so RFC 5880 Section 6.8.1
+		// asks nothing of this session and it goes at once.
+		l.removeEntryLocked(hh.key, entry)
+		return nil
+	}
+	// RFC 5880 Section 6.8.1: "Once session state is created, and at least
+	// one BFD Control packet is received from the remote end, it MUST be
+	// preserved for at least one Detection Time (see section 6.8.4)
+	// subsequent to the receipt of the last BFD Control packet, regardless of
+	// the session state." The entry stays in every index, in AdminDown with no
+	// subscriber, and tick removes it once that Detection Time has passed.
+	entry.released = true
+	entry.machine.AdminDown(packet.DiagAdminDown)
 	return nil
+}
+
+// acquireLocked adds one client to entry. A released entry that a client asks
+// for again inside its Detection Time is revived rather than replaced: it
+// leaves AdminDown and keeps its discriminator. The caller MUST hold l.mu.
+func (l *Loop) acquireLocked(entry *sessionEntry) {
+	entry.machine.Acquire()
+	if !entry.released {
+		return
+	}
+	entry.released = false
+	entry.machine.AdminEnable()
+}
+
+// retireReleasedLocked removes a released entry once one Detection Time has
+// passed since the last Control packet it received (RFC 5880 Section 6.8.1).
+// The deadline is read at each tick, so a packet that still arrives restarts
+// it. The caller MUST hold l.mu.
+func (l *Loop) retireReleasedLocked(key api.Key, entry *sessionEntry, now time.Time) {
+	// RFC 5880 Section 6.8.1
+	deadline := entry.machine.LastReceived().Add(entry.machine.DetectionInterval())
+	if now.Before(deadline) {
+		return
+	}
+	l.removeEntryLocked(key, entry)
+}
+
+// removeEntryLocked drops entry from the session map and both lookup indexes,
+// closes its authentication persister and closes any subscriber still
+// registered. The caller MUST hold l.mu.
+func (l *Loop) removeEntryLocked(key api.Key, entry *sessionEntry) {
+	if err := entry.machine.CloseAuth(); err != nil {
+		engineLog().Debug("bfd auth persister close failed", "key", key, "err", err)
+	}
+	delete(l.sessions, key)
+	delete(l.byDiscr, entry.machine.LocalDiscriminator())
+	delete(l.byKey, firstPacketIndex(key))
+	l.closeSubscribersLocked(key)
+}
+
+// closeSubscribersLocked closes and forgets every subscriber channel for key.
+// The caller MUST hold l.mu, which is taken before subsMu (makeNotify's order).
+func (l *Loop) closeSubscribersLocked(key api.Key) {
+	l.subsMu.Lock()
+	defer l.subsMu.Unlock()
+	for _, ch := range l.subscribers[key] {
+		close(ch)
+	}
+	delete(l.subscribers, key)
 }
 
 // subscribe registers a channel for key and seeds it with the session's current

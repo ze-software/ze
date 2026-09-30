@@ -618,6 +618,17 @@
       "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5880-6.8.1-14",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionPreservedForOneDetectionTime",
+      "unit-sha": "9e6567c74208b16c",
+      "claim-sha": "564bbaca8912c52d",
+      "route": "mutant",
+      "producer": "internal/component/bfd/engine/engine.go::ReleaseSession",
+      "producer-sha": "4ba20f8cbeabd01d",
+      "break": "line 792: \"entry.machine.LastReceived().IsZero()\" -\u003e \"true\""
+    },
+    {
       "rid": "RFC5880-6.8.1-5",
       "polarity": "positive",
       "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteDiscrClearedDespiteInvalidPackets",
@@ -647,8 +658,8 @@
       "claim-sha": "08cd9c4b55b61372",
       "route": "mutant",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e03e28e1d9903e22",
-      "break": "line 176: \"m.vars.SessionState != packet.StateUp\" -\u003e \"false\""
+      "producer-sha": "e4d315357f7abe7b",
+      "break": "line 179: \"m.vars.SessionState != packet.StateUp\" -\u003e \"false\""
     },
     {
       "rid": "RFC5880-6.8.3-1",
@@ -658,7 +669,7 @@
       "claim-sha": "4d61d3ccd3f4977d",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e03e28e1d9903e22",
+      "producer-sha": "e4d315357f7abe7b",
       "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -669,8 +680,19 @@
       "claim-sha": "bb051a8452c4887f",
       "route": "mutant",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e03e28e1d9903e22",
+      "producer-sha": "e4d315357f7abe7b",
       "break": "line 165: \"||\" -\u003e \"\u0026\u0026\""
+    },
+    {
+      "rid": "RFC5880-6.8.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedWhenDownEntryRaisesDesiredMinTx",
+      "unit-sha": "d0a718710a4ad2be",
+      "claim-sha": "2459d3272aa817c0",
+      "route": "mutant",
+      "producer": "internal/component/bfd/session/fsm.go::onStateChange",
+      "producer-sha": "e4d315357f7abe7b",
+      "break": "line 186: \"!=\" -\u003e \"==\""
     },
     {
       "rid": "RFC5880-6.8.3-3",

@@ -205,6 +205,32 @@ meanwhile.
 
 <!-- source: internal/component/bfd/engine/engine.go -- Loop, subscribe, makeNotify, trySendStateChange -->
 
+### Releasing a session
+
+When the last client calls `ReleaseSession`, its subscriber channels are
+closed at once. A session that never received a Control packet is then removed
+from the session map, the discriminator index and the first-packet index. A
+session that did receive one is kept: RFC 5880 §6.8.1 says its state "MUST be
+preserved for at least one Detection Time (see section 6.8.4) subsequent to
+the receipt of the last BFD Control packet, regardless of the session state".
+The entry is marked released and moved to `AdminDown`, stays in every index so
+the peer's packets still match it, and sends nothing. Each `tick` compares the
+time against `LastReceived() + DetectionInterval()` and removes the entry once
+that time is reached (`retireReleasedLocked`). The deadline is read at each
+tick, so a packet that still arrives from the peer restarts it. While it is
+kept, a released session appears in the engine snapshot (`snapshot.go`) in
+`AdminDown`.
+
+A client that asks again for a released session's exact key before it is
+removed gets a new session built from its own request on the released one's
+discriminator (`replaceReleasedLocked`), so its parameters apply and the
+peer's packets keep matching. A client that joins it through RFC 5882 §4.4
+sharing revives it instead: it leaves `AdminDown` for `Down` with the
+parameters it had.
+
+<!-- source: internal/component/bfd/engine/engine.go -- ReleaseSession, acquireLocked, retireReleasedLocked, replaceReleasedLocked -->
+<!-- source: internal/component/bfd/engine/loop.go -- tick -->
+
 ### What a state change tells a client
 
 `api.StateChange` carries the session key, the new state, the local
@@ -260,6 +286,11 @@ replies with `F=1`, at which point `Receive` clears `PollOutstanding`.
 Every entry into a state other than `Up`, `AdminDown` included, restores
 the 1 second floor, and clears the echo slow-down flag so the engine's
 `ClearEchoSchedule` cannot put the configured sub-second value back.
+When restoring the floor changes `bfd.DesiredMinTxInterval` (a session that
+ran below 1 second in `Up`), `onStateChange` starts a Poll Sequence for that
+change as well: RFC 5880 §6.8.3 says a change to either interval MUST
+initiate a Poll, with no exception for leaving `Up`. A Poll left outstanding
+from `Up` is discarded on entry to `Down` before the new one is raised.
 
 The detection deadline is cleared after a detection-time fire so subsequent
 ticks do not see a stale past time. RFC 5880 §6.8.1 clears `bfd.RemoteDiscr`

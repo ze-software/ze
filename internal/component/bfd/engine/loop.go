@@ -200,7 +200,13 @@ func (l *Loop) tick() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	for _, entry := range l.sessions {
+	for key, entry := range l.sessions {
+		if entry.released {
+			// A released session sends nothing and only waits out its
+			// Detection Time (ReleaseSession, RFC 5880 Section 6.8.1).
+			l.retireReleasedLocked(key, entry, now)
+			continue
+		}
 		entry.machine.CheckDetection(now)
 
 		if entry.machine.State() == packet.StateAdminDown {

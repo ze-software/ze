@@ -53,7 +53,7 @@
       "claim-sha": "7fd93d94594ce9db",
       "route": "revert",
       "producer": "internal/component/bfd/engine/engine.go::EnsureSession",
-      "producer-sha": "2d036c364e927c2f",
+      "producer-sha": "8b77585a98bc6abf",
       "break": "body of EnsureSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "d8809599a9eb3a8d",
       "route": "revert",
       "producer": "internal/component/bfd/engine/engine.go::EnsureSession",
-      "producer-sha": "2d036c364e927c2f",
+      "producer-sha": "8b77585a98bc6abf",
       "break": "body of EnsureSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

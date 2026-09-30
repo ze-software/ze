@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -132,17 +132,20 @@
       "verdict": "enforced"
     },
     "RFC5880-6.5-2": {
-      "note": "P is shown on Build output and absent when no Poll is outstanding. The second clause, additional packets MUST NOT be sent, is untested: nothing asserts that raising a Poll causes no extra transmission.",
+      "code": {},
+      "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). TestRFC5880PollRidesTheScheduledPacket: a Poll raised in Up leaves NextTxDeadline unchanged and the packet built at that deadline carries P; the engine has no send path keyed on PollOutstanding (only BuildFinal answers a received Poll), so no additional packet exists. Mutant ApplyEchoSlowdown pollSequenceIdle guard observed red. P-bit negative unchanged.",
       "requirement_sha": "23be4adfe2ed9de8",
       "tests": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollRidesTheScheduledPacket": "b2e51c0ddb4a2808",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "161fcc8120c2cb31",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "161fcc8120c2cb31"
       },
       "units": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollRidesTheScheduledPacket": "b73d998693d271c3",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "e298a947dd60ac25",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "8bd7c7a3e3e873e6"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.6-1": {
       "note": "Forbidden: D set while DemandMode, local Up or remote Up is false. Red: TestRFC5880DemandBitClearWhenAnyConditionFails Fatalf on Build().Demand with each condition dropped alone and with both states Down; positive TestRFC5880DemandBitSetWhenAllConditionsHold shows D is set when all hold, so the clear cases are not a constant false.",
@@ -614,17 +617,20 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.1-14": {
-      "note": "RA-BFD strict re-read 2026-09-27, lowered from weak. The row obliges keeping session state (the variables) for at least one Detection Time after the last received Control packet, regardless of session state. TestRFC5880StatePreservedForOneDetectionTime asserts CheckDetection does not fire and the FSM stays Up just before the deadline, and TestRFC5880DetectionExpiryDownDiagOne asserts Down at the deadline: both are detection timing, RFC5880-6.8.4-1, a neighbouring rule. Neither shows the Machine or engine entry survives a Down, a ReleaseSession or a teardown for a Detection Time, and the negative asserts a bound this row does not set (a system MAY preserve longer).",
+      "code": {},
+      "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). The release defect is fixed and proven: TestRFC5880ReleasedSessionPreservedForOneDetectionTime (engine) keeps a released session AdminDown in sessions/byDiscr/byKey until LastReceived+DetectionInterval, matches a peer packet inside it, and removes it at the deadline; mutant ReleaseSession LastReceived().IsZero()->true observed red. Keeping it while the peer still sends is the RFC's 'at least' and bounded to one entry per key, not a leak. Still weak: an exact-key EnsureSession inside the window (replaceReleasedLocked, reached by a reload that re-requests the key) builds a NEW Machine on the old discriminator, discarding the preserved remote timing parameters and bfd.RemoteDiscr inside the Detection Time, which the section says the preservation exists to keep ('This preserves timing parameters in case the session flaps'); the only unit over that path (TestReleasedSessionRevivedByNewClient) is untagged and asserts the rebuild. The shared-join path revives the same Machine instead. The session-side negative still asserts a bound the row does not set.",
       "requirement_sha": "961abbb724d8911d",
       "tests": {
+        "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionPreservedForOneDetectionTime": "14afcca368bf62f4",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryDownDiagOne": "161fcc8120c2cb31",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880StatePreservedForOneDetectionTime": "161fcc8120c2cb31"
       },
       "units": {
+        "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionPreservedForOneDetectionTime": "13ff830d5d5d7681",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryDownDiagOne": "5c69d912ff0bd8b9",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880StatePreservedForOneDetectionTime": "ed75f4dc7364e499"
       },
-      "verdict": "wrong"
+      "verdict": "weak"
     },
     "RFC5880-6.8.1-2": {
       "note": "single-polarity positive: RemoteSessionState is Down after Init.",
@@ -664,19 +670,22 @@
       "verdict": "weak"
     },
     "RFC5880-6.8.1-5": {
-      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): clause 'without the receipt of a valid, authenticated BFD packet': no tagged unit delivers an invalid or unauthenticated packet during the Detection Time and asserts bfd.RemoteDiscr is still cleared at its end, so a Receive that re-armed detection before its discard checks stays green; the note's appeal to the 6.8.6 discard rows is an argument, not an assertion in a unit tagged here. The expiry clauses stand: TestRFC5880RemoteDiscrClearedOnDetectionExpiry (Init/Up expiry) and TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown (kept 1 ms short, 0 once a Detection Time passes), with TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown against an over-eager clear. Blind reader BS-B: same finding.",
+      "code": {},
+      "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). Adds TestRFC5880RemoteDiscrClearedDespiteInvalidPackets: on an authenticated Up session an A-bit-clear packet (ErrAuthMismatch) and a Your-Discriminator-0 Up packet (ErrYourDiscriminatorReset) inside the Detection Time leave CheckDetection to clear bfd.RemoteDiscr at its end, so the 'valid, authenticated' clause is asserted; mutant fsm.go discard guard observed red. Expiry clauses and the neighbor-signaled-Down negative stand as before. Digest failures are refused in the engine before Receive (auth rows).",
       "requirement_sha": "8cfcec714af32cf8",
       "tests": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteDiscrClearedDespiteInvalidPackets": "b2e51c0ddb4a2808",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown": "161fcc8120c2cb31",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedOnDetectionExpiry": "161fcc8120c2cb31",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown": "161fcc8120c2cb31"
       },
       "units": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteDiscrClearedDespiteInvalidPackets": "c2d1d5b3c5502064",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown": "75282b5531a565a6",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedOnDetectionExpiry": "dfc97152f33ce514",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown": "af73e242fdb0835a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.8.1-6": {
       "note": "Forbidden: bfd.LocalDiag initialised to anything but 0. TestRFC5880InitVariableDefaults fails on LocalDiag() != DiagNone straight after Init. Negative TestRFC5880InitVariablesAreNotConstants shows the value is an initial value, not a constant: a peer-signalled Down moves it to DiagNeighborSignaledDown.",
@@ -744,32 +753,40 @@
       "verdict": "weak"
     },
     "RFC5880-6.8.3-1": {
-      "note": "RA-BFD2 strict re-read 2026-09-27. The two DF-BFD-6 edits to TestRFC5880SlowStartFloorRestoredOnAdminDown only add settlePoll and a precondition that the slow-down applied (prior unit reconstructed to its recorded sha 3cf2312badfafde9; no assertion removed). Asserted: initial Down (TestRFC5880SlowStartFloorWhileNotUp) and Up to AdminDown with and without the echo slow-down; negative TestRFC5880SlowStartFloorLiftedWhenUp pins 300 ms in Up. Not asserted: the floor on Up to Down (detection expiry or peer-signalled Down) and in Init, so an onStateChange that set the floor only for AdminDown leaves every tagged unit green. The code (onStateChange, any non-Up state) is correct.",
+      "code": {},
+      "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). TestRFC5880SlowStartFloorInEveryStateButUp adds the floor (live variable and Build field) in Init, on Up->Down by detection expiry, by peer Down and by peer AdminDown, with 300 ms in Up between, closing the gap the earlier note named; local AdminDown stays covered by FloorRestoredOnAdminDown, negative LiftedWhenUp. Mutant onStateChange state guard and whole-body revert both observed red after the Poll fix.",
       "requirement_sha": "2afbdb9ec892567b",
       "tests": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880SlowStartFloorInEveryStateButUp": "b2e51c0ddb4a2808",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "161fcc8120c2cb31",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorRestoredOnAdminDown": "161fcc8120c2cb31",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "161fcc8120c2cb31"
       },
       "units": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880SlowStartFloorInEveryStateButUp": "c1f5381cf350b5eb",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "b6c65bc1a7a3e4b0",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorRestoredOnAdminDown": "090d5ccfa263cbae",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "1321a760756f4711"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.8.3-2": {
-      "note": "The quote has two clauses (DesiredMinTxInterval changed, OR RequiredMinRxInterval changed). TestRFC5880PollInitiatedOnIntervalChange changes BOTH at once at Up, and TestRFC5880NoPollWhenIntervalsUnchanged changes neither, so a guard that polled only on a DesiredMinTx change, or only when both changed (&& for ||), passes both units. No unit changes one interval alone. The Down-entry and AdminEnable resets of DesiredMinTxInterval to 1 s (fsm.go onStateChange, AdminEnable) raise no Poll and no unit covers them. Re-stamped 2026-09-27 (DF-BFD): the unit bodies changed only in fixtures (a nonzero Your Discriminator in peer Init/Up packets, keys that fit their slot, dropped line numbers); the judgment is unchanged. RA-BFD strict re-read 2026-09-27: weak stands for the reason above.",
+      "code": {},
+      "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). Each clause alone: TestRFC5880PollInitiatedForEachIntervalAlone (TX alone on the move to Up, RX alone by the echo slow-down) and the Down-entry case now fixed in onStateChange: TestRFC5880PollInitiatedWhenDownEntryRaisesDesiredMinTx sets PollOutstanding when leaving Up raises bfd.DesiredMinTxInterval to 1 s. The Poll is set after the Down-entry reset, so it survives; it rides periodic packets only (6.5-2), a Passive session with no RemoteDiscr sends none, and Build/BuildFinal never set P and F together. Negative NoPollWhenIntervalsUnchanged. Mutants || -> && and the new != -> == observed red. AdminEnable leaves the floor unchanged, so no Poll is owed there.",
       "requirement_sha": "ea90417e5c24bf04",
       "tests": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedForEachIntervalAlone": "b2e51c0ddb4a2808",
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedWhenDownEntryRaisesDesiredMinTx": "b2e51c0ddb4a2808",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NoPollWhenIntervalsUnchanged": "161fcc8120c2cb31",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "161fcc8120c2cb31"
       },
       "units": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedForEachIntervalAlone": "26a54d966b13b4a6",
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedWhenDownEntryRaisesDesiredMinTx": "efeb27d0b9ebe31a",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NoPollWhenIntervalsUnchanged": "521e648cbe70d5d8",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "ad84cf1942f9600c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.8.3-3": {
       "note": "RA-BFD3 first verdict 2026-09-27 (gap closed by DF-BFD-7: desiredMinTxInForceUs, holdDesiredMinTxLocked, releaseDesiredMinTxLocked in timers.go). The sentence has one condition pair (increase AND Up) and one prohibition (actual interval unchanged until the Poll terminates). Forbidden behaviour: TX at the raised interval while the Poll is outstanding. Both writers of an increase in Up are driven by the positive TestRFC5880RaisedDesiredMinTxHeldUntilPollTerminates: echo slow-down (300 ms to 1 s, RemoteMinRx 100 ms) requires TransmitInterval == 300 ms, NextTxDeadline == last TX + 300 ms after AdvanceTxWithJitter, and still +300 ms after a non-Final packet (the Receive reschedule path); Up transition with a 2 s configured interval requires TransmitInterval == 1 s (remote 300 ms) with the Poll outstanding. Each goes red if TransmitInterval reads the live bfd.DesiredMinTxInterval (1 s, 2 s). Negative TestRFC5880RaisedDesiredMinTxAppliedAtFinal: the terminating Final makes TransmitInterval 1 s and moves the pending deadline to last TX + 1 s, red on a hold that is never released or released without rescheduling; a session leaving Up drops the hold (TransmitInterval 1 s slow-start, not the held 300 ms). The only runtime writers of bfd.DesiredMinTxInterval in Up are ApplyEchoSlowdown and onStateChange, both covered; a decrease (revertEchoSlowdownLocked) is not held, as the sentence covers only an increase.",
@@ -819,28 +836,34 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.3-8": {
-      "note": "single positive TestRFC5880RemoteMinRxReductionHonoredImmediately proves a remote Required Min RX reduction changes TransmitInterval at once; the quoted sentence also covers the Detection Time, and no tagged unit changes a parameter and asserts DetectionInterval moves immediately",
+      "code": {},
+      "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). Row is {single-polarity: positive}. TestRFC5880RemoteTimingChangeMovesDetectionTimeAtOnce adds the Detection Time half: a received Desired Min TX 600 ms moves it 900 ms -> 1.8 s at once (no expiry at 901 ms, expiry at 1.8 s) and Detect Mult 5 moves it to 1.5 s; the TX half stays on RemoteMinRxReductionHonoredImmediately. Mutant DetectionInterval mult guard observed red.",
       "requirement_sha": "c37aac5a40480499",
       "tests": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteTimingChangeMovesDetectionTimeAtOnce": "b2e51c0ddb4a2808",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "161fcc8120c2cb31"
       },
       "units": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteTimingChangeMovesDetectionTimeAtOnce": "24cc801f63e3244e",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "e6fde4a312962826"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.8.4-1": {
-      "note": "TestRFC5880DetectionExpiryDownDiagOne drives expiry only from Init; expiry from Up (the row names Init or Up) is not asserted to set Down and diag 1, so a CheckDetection scoped to Init alone passes. The \"Demand mode is not active\" condition is not asserted either: no unit shows expiry is suppressed or handled differently with Demand active. Negative (ignored when Down) is sound. Re-stamped 2026-09-27 (DF-BFD): the unit bodies changed only in fixtures (a nonzero Your Discriminator in peer Init/Up packets, keys that fit their slot, dropped line numbers); the judgment is unchanged. RA-BFD strict re-read 2026-09-27: weak stands for the reason above.",
+      "code": {},
+      "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). TestRFC5880DetectionExpiryFromUpDownDiagOne adds expiry from Up (D bit clear and set in the last packet): 1 ns early no change, at the Detection Time Down, diag 1, one notify; Init expiry and the ignored-when-Down negative stand. Ze never sets bfd.DemandMode, so the 'Demand mode is not active' condition always holds; local Demand mode is an absent feature, not a branch to test. Mutant CheckDetection state guard observed red.",
       "requirement_sha": "6694052db4b70630",
       "tests": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880DetectionExpiryFromUpDownDiagOne": "b2e51c0ddb4a2808",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryDownDiagOne": "161fcc8120c2cb31",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryIgnoredWhenDown": "161fcc8120c2cb31"
       },
       "units": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880DetectionExpiryFromUpDownDiagOne": "7b4e312a6ed5ff2d",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryDownDiagOne": "5c69d912ff0bd8b9",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryIgnoredWhenDown": "9a9552864d76bb9e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.8.5-1": {
       "note": "TestRFC5880EchoMissDetectedAndReported calls EchoFail by hand after EchoDetectionExpired; nothing asserts the engine (echo.go:60) calls EchoFail when echoes go missing, so removing that call leaves the test green. Re-stamped 2026-09-27 (DF-BFD): the unit bodies changed only in fixtures (a nonzero Your Discriminator in peer Init/Up packets, keys that fit their slot, dropped line numbers); the judgment is unchanged. RA-BFD strict re-read 2026-09-27: weak stands for the reason above.",
@@ -1066,13 +1089,16 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.7-1": {
-      "note": "The quote bounds TX by the LARGER of DesiredMinTxInterval and RemoteMinRxInterval. TestRFC5880TransmitDeadlineUsesNegotiatedInterval sets 300 ms local and 700 ms remote, and TestRFC5880TransmitDeadlineClampsBadJitter sets both to 300 ms, so a TransmitInterval that returned RemoteMinRxInterval alone passes both. Both units also drive AdvanceTxWithJitter by hand; nothing asserts the gap between two packets tick() actually sends.",
+      "code": {},
+      "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). The larger-of clause is now proven in both orders (TestRFC5880TransmitDeadlineUsesLargerOfBothIntervals, 700/300 and 300/700 give 700 ms, 525 ms at 25% jitter; mutant TransmitInterval observed red). Still missing: no unit drives engine tick and asserts the gap between two packets actually sent is not less than that interval less jitter.",
       "requirement_sha": "9135792e9b15c051",
       "tests": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880TransmitDeadlineUsesLargerOfBothIntervals": "b2e51c0ddb4a2808",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineClampsBadJitter": "161fcc8120c2cb31",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineUsesNegotiatedInterval": "161fcc8120c2cb31"
       },
       "units": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880TransmitDeadlineUsesLargerOfBothIntervals": "7e139860fffbeeb4",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineClampsBadJitter": "676c441c81860592",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineUsesNegotiatedInterval": "26968f37e41333dc"
       },
@@ -1178,17 +1204,20 @@
       "verdict": "weak"
     },
     "RFC5880-6.8.9-2": {
-      "note": "RA-BFD strict re-read 2026-09-27, lowered from enforced. Forbidden: echo TX when the LAST received Control packet carried Required Min Echo RX zero. TestRFC5880EchoNotTransmittedWithoutPeerAdvertisement fails if EchoEnabled is true or PrimeEcho arms a deadline after a single zero packet, and TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero arms on 75 ms; the engine (echoTickLocked) sends only from that deadline behind its own EchoEnabled gate. But neither tagged unit sends a zero after a nonzero, so a latch that kept echo on after any earlier nonzero value passes both: the \"last\" clause is proven only by TestRFC5880EchoCeasesWhenPeerAdvertisesZero, which carries no tag for this row.",
+      "code": {},
+      "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). TestRFC5880EchoFollowsLastAdvertisement sends 50 ms, 0, 50 ms and asserts EchoEnabled and the PrimeEcho deadline follow the LAST packet each time, closing the latch gap the earlier note named; mutant EchoEnabled != -> == observed red. The engine echoTickLocked sends only for an Up session with EchoEnabled and a primed deadline.",
       "requirement_sha": "257741ef5146bf9c",
       "tests": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880EchoFollowsLastAdvertisement": "b2e51c0ddb4a2808",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "161fcc8120c2cb31",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoNotTransmittedWithoutPeerAdvertisement": "161fcc8120c2cb31"
       },
       "units": {
+        "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880EchoFollowsLastAdvertisement": "317e5bc43f8bec13",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "5a34d02f9d0c3699",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoNotTransmittedWithoutPeerAdvertisement": "37d5637a844a6fa8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.8.9-3": {
       "note": "RA-BFD2 strict re-read 2026-09-27. The RA-BFD code defect is fixed: Receive calls rescheduleEchoLocked on a changed RemoteMinEchoRxInterval, moving nextEchoAt to lastEchoAt + EchoInterval (TestRFC5880EchoRaisedPeerFloorDelaysNextEcho: no echo at 60 or 199 ms, one at 200 ms; TestRFC5880EchoLoweredPeerFloorTakesEffect). Still weak: the steady-state spacing, with no change of the peer value, is asserted only through the value EchoInterval returns. Observed: an overlay making AdvanceEcho schedule from DesiredMinEchoTxInterval alone (10 ms under the peer's 50 ms) leaves all four tagged units green (work/agents/RA-BFD2, job-ra-bfd2-adv log), because both engine tests reschedule from lastEchoAt before the next tick. Missing: an engine test that ticks between two echoes with no floor change and asserts no echo before the peer's value.",

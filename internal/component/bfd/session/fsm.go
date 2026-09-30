@@ -173,6 +173,9 @@ func (m *Machine) onStateChange(prev packet.State) {
 		}
 	}
 
+	// desiredTxRaised records that leaving Up moved bfd.DesiredMinTxInterval,
+	// which owes a Poll Sequence once the Down-entry reset below has run.
+	desiredTxRaised := false
 	if m.vars.SessionState != packet.StateUp {
 		// The hold belongs to a Poll made in Up; leaving Up ends both.
 		m.txDesiredHeld = false
@@ -180,6 +183,7 @@ func (m *Machine) onStateChange(prev packet.State) {
 		// system MUST set bfd.DesiredMinTxInterval to a value of not less
 		// than one second (1,000,000 microseconds)." Every entry into a
 		// state other than Up passes here, AdminDown included.
+		desiredTxRaised = m.vars.DesiredMinTxInterval != SlowStartIntervalUs
 		m.vars.DesiredMinTxInterval = SlowStartIntervalUs
 		// Clear the echo slow-down flag so ClearEchoSchedule, which the
 		// engine runs once the session has left Up, does not restore the
@@ -203,6 +207,15 @@ func (m *Machine) onStateChange(prev packet.State) {
 			m.vars.LocalDiag == packet.DiagEchoFailed {
 			m.vars.RemoteDiscr = 0
 		}
+	}
+
+	// RFC 5880 Section 6.8.3: "If either bfd.DesiredMinTxInterval is changed
+	// or bfd.RequiredMinRxInterval is changed, a Poll Sequence MUST be
+	// initiated (see section 6.5)." The text makes no exception for a
+	// session leaving Up, so the floor set above starts a Poll too. It runs
+	// after the Down-entry reset, which only discards a Poll left over from Up.
+	if desiredTxRaised {
+		m.vars.PollOutstanding = true
 	}
 
 	// Send the next packet immediately to communicate the new state, unless
