@@ -41,8 +41,8 @@
       "note": "Non-compliant: an UPDATE on the wire larger than the negotiated maximum. TestSendUpdateWithSplitBoundsAnOversizePayload drives Peer.sendUpdateWithSplit with an over-4096 payload to a non-extended peer and asserts every wire frame length <= 4096 with the NLRI preserved; TestSendUpdateWithSplitTracksTheNegotiatedMaximum asserts the bound is 65535 when negotiated; BuildUnicastWithMaxSize refuses an oversize build (ErrUpdateTooLarge). Both polarities.",
       "requirement_sha": "a3e1fd65268f54e7",
       "tests": {
-        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_Fits": "71711e8ffa2ff74b",
-        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_TooLarge": "71711e8ffa2ff74b",
+        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_Fits": "468f4d4a5f404a50",
+        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_TooLarge": "468f4d4a5f404a50",
         "internal/component/bgp/message/update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize": "e87970ac24f6e98d",
         "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesBoundsAnOversizeGroup": "ced3ad313c9ae5a7",
         "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesLeavesAFittingGroupWhole": "ced3ad313c9ae5a7",
@@ -125,5 +125,8 @@
       "verdict": "enforced"
     }
   },
-  "rfc": "rfc8654"
+  "rfc": "rfc8654",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ]
 }

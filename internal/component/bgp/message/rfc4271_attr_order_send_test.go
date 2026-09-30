@@ -44,7 +44,7 @@ func TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes(t *testing.T) {
 	for _, params := range []UnicastParams{plain, withRaw} {
 		raw := len(params.RawAttributeBytes)
 
-		upd := NewUpdateBuilder(65001, false, true, false).BuildUnicast(&params)
+		upd := mustBuildUnicast(t, NewUpdateBuilder(65001, false, true, false), &params)
 		requireAscendingAttributes(t, upd.PathAttributes, raw, "BuildUnicast")
 
 		var grouped []*Update

@@ -670,10 +670,6 @@ func TestMPReachNLRI_RoundTrip(t *testing.T) {
 //
 // VALIDATES: RFC 4364 Section 4.3.4 VPN next-hop encoding round-trips correctly.
 // PREVENTS: VPN routes rejected by GoBGP due to incorrect next-hop length.
-//
-// RFC requirement: RFC8950-3-2 positive -- WriteTo prefixes a VPN next-hop with an 8-byte
-// all-zero Route Distinguisher (wire NH_Len = 12 = RD(8) + IPv4(4)), and ParseMPReachNLRI strips
-// the RD back to the address; the RD is always written as zero (internal/core/bgp/attribute/mpnlri.go, MPReachNLRI.WriteTo).
 func TestMPReachNLRI_RoundTrip_VPN(t *testing.T) {
 	t.Parallel()
 	original := &MPReachNLRI{

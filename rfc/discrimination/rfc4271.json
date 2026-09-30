@@ -93,22 +93,22 @@
       "rid": "RFC4271-5-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes",
-      "unit-sha": "26627c2183589260",
+      "unit-sha": "50666b7f6a59a32f",
       "claim-sha": "7a2e17e4006969db",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
-      "producer-sha": "756a92a659351a10",
+      "producer-sha": "8ab3b992e328218f",
       "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-5-2",
       "polarity": "negative",
       "unit": "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes",
-      "unit-sha": "26627c2183589260",
+      "unit-sha": "50666b7f6a59a32f",
       "claim-sha": "6148b2a52570ce72",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
-      "producer-sha": "756a92a659351a10",
+      "producer-sha": "8ab3b992e328218f",
       "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -137,7 +137,7 @@
       "rid": "RFC4271-5-7",
       "polarity": "positive",
       "unit": "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes",
-      "unit-sha": "52b447fa36376232",
+      "unit-sha": "a0873f92631a63ed",
       "claim-sha": "929da8106288c09c",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build.go::appendRawAttributes",
@@ -148,7 +148,7 @@
       "rid": "RFC4271-5-7",
       "polarity": "negative",
       "unit": "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes",
-      "unit-sha": "52b447fa36376232",
+      "unit-sha": "a0873f92631a63ed",
       "claim-sha": "41aee17651bdb4e4",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build.go::appendRawAttributes",
@@ -605,6 +605,17 @@
       "producer": "internal/component/bgp/plugins/rib/rib_commands.go::extractCandidate",
       "producer-sha": "dc5ad13d0f504b34",
       "break": "body of extractCandidate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-5-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go::TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop",
+      "unit-sha": "5e6c66981d211e72",
+      "claim-sha": "79a4b8bb3123dca5",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build.go::checkInlineNextHop",
+      "producer-sha": "49f11b15c857676e",
+      "break": "body of checkInlineNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

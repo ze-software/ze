@@ -5,7 +5,7 @@
       "note": "Clause \"MUST be set to 0\": (a) forbidden: an MP_REACH_NLRI whose Reserved octet is non-zero on send, e.g. inherited from a pooled buffer. (b) rfc4760_reserved_test.go TestRFC4760ReservedIsWrittenNotInherited asserts buf[reserved]==0 over a 0xAA-poisoned buffer at a non-zero offset for six next-hop forms, and TestRFC4760ReservedSurvivesBufferReuse asserts 0 where the previous encode left 0x11; both go red if MPReachNLRI.WriteTo stops writing the octet. Single-polarity marker on the row: there is no non-zero form Ze could emit to reject.",
       "requirement_sha": "84e34e3fa72a90c7",
       "tests": {
-        "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "956952d4c9cbe9bd",
+        "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "2d5c4702ca88dcc3",
         "internal/core/bgp/attribute/rfc4760_reserved_test.go::TestRFC4760ReservedIsWrittenNotInherited": "8ee1ba8bd33e41ab",
         "internal/core/bgp/attribute/rfc4760_reserved_test.go::TestRFC4760ReservedSurvivesBufferReuse": "8ee1ba8bd33e41ab"
       },
@@ -25,9 +25,9 @@
         "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop": "e95a22c6a645c4b7",
         "internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go::TestMPReachNextHopLengthCountsTheOctetsWritten": "bd147ba04b9bb229",
         "internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go::TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm": "bd147ba04b9bb229",
-        "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "956952d4c9cbe9bd",
-        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI": "956952d4c9cbe9bd",
-        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_InvalidNextHopLength": "956952d4c9cbe9bd"
+        "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "2d5c4702ca88dcc3",
+        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI": "2d5c4702ca88dcc3",
+        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_InvalidNextHopLength": "2d5c4702ca88dcc3"
       },
       "units": {
         "internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go::TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm": "78903c0eef755206",
@@ -42,36 +42,38 @@
       "verdict": "enforced"
     },
     "RFC4760-3-3": {
-      "note": "TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref: BuildUnicast of an IPv6 route stating ORIGIN, and a bare route stating neither ORIGIN nor AS_PATH, on eBGP and iBGP, always carries MP_REACH_NLRI with ORIGIN and AS_PATH (genuine negative, R1b). BuildUnicast rail; CommitService/RIB-replay rails not driven.",
+      "code": {},
+      "note": "Re-judged 2026-09-30 after the R43 signature change (assertions unchanged, re-recorded red). TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref: BuildUnicast of an IPv6 route stating ORIGIN, and a bare route stating neither ORIGIN nor AS_PATH, on eBGP and iBGP, always carries MP_REACH_NLRI with ORIGIN and AS_PATH (genuine negative, R1b). BuildUnicast rail; CommitService/RIB-replay rails not driven.",
       "requirement_sha": "ade8a0848a8c0383",
       "tests": {
-        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "4fd22a76523fea93",
-        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "4fd22a76523fea93",
-        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath": "1dc5ff0bda5321c3",
-        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath#2": "1dc5ff0bda5321c3"
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "41df0097ff7ea03d",
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "41df0097ff7ea03d",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath": "3b372d5656a15e2d",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath#2": "3b372d5656a15e2d"
       },
       "units": {
-        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "42fd5e2e5acc59c9",
-        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "42fd5e2e5acc59c9",
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "ff7224da854ba9c2",
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "ff7224da854ba9c2",
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath": "dea6e5b17a79fb40",
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath#2": "dea6e5b17a79fb40"
       },
       "verdict": "enforced"
     },
     "RFC4760-3-4": {
-      "note": "Same unit: every iBGP MP_REACH UPDATE carries LOCAL_PREF, including the bare route with no LOCAL_PREF value (genuine negative); the HEAD eBGP-omits unit stays as a neighbour. BuildUnicast rail.",
+      "code": {},
+      "note": "Re-judged 2026-09-30 after the R43 signature change (assertions unchanged, re-recorded red). Same unit: every iBGP MP_REACH UPDATE carries LOCAL_PREF, including the bare route with no LOCAL_PREF value (genuine negative); the HEAD eBGP-omits unit stays as a neighbour. BuildUnicast rail.",
       "requirement_sha": "8c68c072463e59b6",
       "tests": {
-        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "4fd22a76523fea93",
-        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "4fd22a76523fea93",
-        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref": "1dc5ff0bda5321c3",
-        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref#2": "1dc5ff0bda5321c3"
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "41df0097ff7ea03d",
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "41df0097ff7ea03d",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref": "3b372d5656a15e2d",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref#2": "3b372d5656a15e2d"
       },
       "units": {
-        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "42fd5e2e5acc59c9",
-        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "42fd5e2e5acc59c9",
-        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref": "0e1674e7025d1d59",
-        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref#2": "0e1674e7025d1d59"
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "ff7224da854ba9c2",
+        "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "ff7224da854ba9c2",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref": "6553de7a7e40e16d",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref#2": "6553de7a7e40e16d"
       },
       "verdict": "enforced"
     },
@@ -79,8 +81,8 @@
       "note": "(a) forbidden: after an incorrect MP_REACH_NLRI or MP_UNREACH_NLRI, routes of that AFI/SAFI from the neighbor stay installed. Ze answers with session reset (RFC 7606 Section 3(j)). (b) The trigger is asserted: TestRFC4760IncorrectMPAttributeResetsTheSession (RFC7606ActionSessionReset for a bad next-hop length and a short MP_UNREACH), TestRFC4760IncorrectMPReach/MPUnreachDeletesTheNeighborsRoutes (session reaches Idle, NOTIFICATION code 3), negatives keep Established. The deletion is asserted separately: TestHandleState_PeerDown deletes the PeerRIB on a hand-built state \"down\" event. No tagged unit asserts the link between them, that the reset session delivers the peer-down event which clears the RIB, so a reactor that goes Idle without notifying the RIB keeps the routes and every tagged unit stays green. The reactor tests assert Idle and assume it deletes routes.",
       "requirement_sha": "dbfbd3ffc825a942",
       "tests": {
-        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession": "1dc5ff0bda5321c3",
-        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession#2": "1dc5ff0bda5321c3",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession": "3b372d5656a15e2d",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession#2": "3b372d5656a15e2d",
         "internal/component/bgp/plugins/rib/rib_test.go::TestHandleState_PeerDown": "67323a140596dd23",
         "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes": "1abec3c0a7939e9c",
         "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes": "1abec3c0a7939e9c",
@@ -121,5 +123,9 @@
       "verdict": "enforced"
     }
   },
-  "rfc": "rfc4760"
+  "rfc": "rfc4760",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ]
 }

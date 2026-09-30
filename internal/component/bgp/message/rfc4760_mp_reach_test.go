@@ -165,7 +165,7 @@ func TestRFC4760IBGPMPReachCarriesLocalPref(t *testing.T) {
 	t.Run("ibgp includes local_pref", func(t *testing.T) {
 		t.Parallel()
 		ub := NewUpdateBuilder(65001, true /*isIBGP*/, true /*asn4*/, false /*addPath*/)
-		upd := ub.BuildUnicast(params)
+		upd := mustBuildUnicast(t, ub, params)
 		codes := attrCodesInBlob(upd.PathAttributes)
 
 		require.True(t, codes[attrCodeMPReachNLRI],
@@ -177,7 +177,7 @@ func TestRFC4760IBGPMPReachCarriesLocalPref(t *testing.T) {
 	t.Run("ebgp omits local_pref", func(t *testing.T) {
 		t.Parallel()
 		ub := NewUpdateBuilder(65001, false /*isIBGP*/, true /*asn4*/, false /*addPath*/)
-		upd := ub.BuildUnicast(params)
+		upd := mustBuildUnicast(t, ub, params)
 		codes := attrCodesInBlob(upd.PathAttributes)
 
 		require.True(t, codes[attrCodeMPReachNLRI],

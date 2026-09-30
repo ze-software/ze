@@ -8,6 +8,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // Wire format tests verify that UpdateBuilder produces correct wire format.
@@ -20,6 +21,28 @@ import (
 // TestWireFormat_UnicastIPv4 verifies IPv4 unicast wire format.
 //
 // RFC 4271 attribute order: ORIGIN(1), AS_PATH(2), NEXT_HOP(3), MED(4), LOCAL_PREF(5), COMMUNITIES(8).
+// mustBuildUnicast is message.UpdateBuilder.BuildUnicast for a test whose
+// route has a usable next hop: a refusal fails the test.
+func mustBuildUnicast(t *testing.T, ub *message.UpdateBuilder, p *message.UnicastParams) *message.Update {
+	t.Helper()
+	upd, err := ub.BuildUnicast(p)
+	if err != nil {
+		t.Fatalf("BuildUnicast(%s via %s): %v", p.Prefix, p.NextHop, err)
+	}
+	return upd
+}
+
+// mustBuildStaticRouteUpdate is buildStaticRouteUpdateNew for a test whose route
+// has a usable next hop: a refusal fails the test.
+func mustBuildStaticRouteUpdate(t *testing.T, ub *message.UpdateBuilder, route *StaticRoute, nextHop, linkLocal netip.Addr, sendCtx *bgpctx.EncodingContext, prefixSIDAllowed bool) *message.Update {
+	t.Helper()
+	upd, err := buildStaticRouteUpdateNew(ub, route, nextHop, linkLocal, sendCtx, prefixSIDAllowed)
+	if err != nil {
+		t.Fatalf("buildStaticRouteUpdateNew(%s via %s): %v", route.Prefix, nextHop, err)
+	}
+	return upd
+}
+
 func TestWireFormat_UnicastIPv4(t *testing.T) {
 
 	ub := message.NewUpdateBuilder(65001, true, true, false)
@@ -33,7 +56,7 @@ func TestWireFormat_UnicastIPv4(t *testing.T) {
 		Communities:     []uint32{0xFFFF0001, 0xFFFF0002},
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 
 	// Expected: ORIGIN + AS_PATH(empty) + NEXT_HOP + MED + LOCAL_PREF + COMMUNITIES
 	expectedAttrs, _ := hex.DecodeString(
@@ -70,7 +93,7 @@ func TestWireFormat_UnicastIPv4_EBGP(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 
 	// Expected: ORIGIN + AS_PATH([65001]) + NEXT_HOP (no LOCAL_PREF for eBGP)
 	expectedAttrs, _ := hex.DecodeString(
@@ -98,7 +121,7 @@ func TestWireFormat_UnicastIPv6(t *testing.T) {
 		LocalPreference: 100,
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 
 	// Expected: ORIGIN + AS_PATH + LOCAL_PREF + MP_REACH_NLRI
 	// MP_REACH_NLRI = AFI(2) + SAFI(1) + NH_LEN(1) + NH(16) + Reserved(1) + NLRI(5) = 26 bytes
@@ -183,7 +206,7 @@ func TestWireFormat_ExtendedNextHop(t *testing.T) {
 		UseExtendedNextHop: true,
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 
 	// Expected: ORIGIN + AS_PATH + LOCAL_PREF + MP_REACH_NLRI (AFI=1, SAFI=1, IPv6 NH)
 	expectedAttrs, _ := hex.DecodeString(
@@ -223,7 +246,7 @@ func TestWireFormat_RawAttributes(t *testing.T) {
 		},
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 
 	// Check raw attr is appended at end
 	if !bytes.Contains(update.PathAttributes, []byte{0xC0, 0x63, 0x03, 0x01, 0x02, 0x03}) {

@@ -117,7 +117,7 @@ func TestUpdateBuilder_BuildUnicast_IPv4(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 		return
@@ -149,7 +149,7 @@ func TestUpdateBuilder_BuildUnicast_IPv6(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 		return
@@ -184,7 +184,7 @@ func TestUpdateBuilder_BuildUnicast_IPv6_LinkLocal(t *testing.T) {
 		LocalPreference:  100,
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 		return
@@ -266,7 +266,7 @@ func TestUpdateBuilder_BuildUnicast_IPv6_NoLinkLocal(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 		return
@@ -312,7 +312,7 @@ func TestUpdateBuilder_BuildUnicast_IPv4_IgnoresLinkLocal(t *testing.T) {
 		Origin:           attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 		return
@@ -396,7 +396,7 @@ func TestUpdateBuilder_BuildUnicast_AttributeOrder(t *testing.T) {
 		LocalPreference: 200,
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 		return
@@ -448,7 +448,7 @@ func TestUpdateBuilder_BuildUnicast_ASPath_EBGP(t *testing.T) {
 		ASPath:  []uint32{65002, 65003}, // Configured path
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 		return
@@ -512,7 +512,7 @@ func TestUpdateBuilder_BuildUnicast_ASPath_IBGP(t *testing.T) {
 		ASPath:  []uint32{65002, 65003}, // Configured path
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 		return
@@ -830,7 +830,7 @@ func TestBuildUnicast_EncodesReflectorAttrs(t *testing.T) {
 		ClusterList:     []uint32{0xC0A80102, 0xC0A80103},
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 
 	// ORIGINATOR_ID: flags=0x80 (optional), type=0x09, len=0x04, value=C0A80101
 	expectedOriginator := []byte{0x80, 0x09, 0x04, 0xC0, 0xA8, 0x01, 0x01}
@@ -862,7 +862,7 @@ func TestBuildUnicast_eBGP_NoLocalPref(t *testing.T) {
 		LocalPreference: 200, // Should be ignored for eBGP
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 
 	// LOCAL_PREF (type 5) should NOT be present for eBGP
 	// Attribute header: flags (1 byte) + type 0x05
@@ -884,7 +884,7 @@ func TestBuildUnicast_ASN4Disabled(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 
 	// AS_PATH with 2-byte ASN: 40 02 04 02 01 00 64
 	// flags=0x40 (transitive), type=2 (AS_PATH), len=4
@@ -915,7 +915,7 @@ func TestBuildUnicast_ASN4Enabled(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 
 	// AS_PATH with 4-byte ASN: 40 02 06 02 01 00 00 fd e9
 	// flags=0x40 (transitive), type=2 (AS_PATH), len=6
@@ -1213,7 +1213,7 @@ func TestBuildUnicast_Aggregator_ASN4Disabled(t *testing.T) {
 		AggregatorIP:  [4]byte{192, 168, 1, 1},
 	}
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 
 	// AGGREGATOR with 2-byte ASN: C0 07 06 00 64 C0 A8 01 01
 	// flags=0xC0 (optional+transitive), type=7, len=6, ASN=100 (2 bytes), IP=192.168.1.1
@@ -1809,8 +1809,8 @@ func TestUpdateBuilderReuse(t *testing.T) {
 	}
 
 	// Build twice with same parameters
-	update1 := ub.BuildUnicast(&params)
-	update2 := ub.BuildUnicast(&params)
+	update1 := mustBuildUnicast(t, ub, &params)
+	update2 := mustBuildUnicast(t, ub, &params)
 
 	if !bytes.Equal(update1.PathAttributes, update2.PathAttributes) {
 		t.Error("PathAttributes differ between reused builds")
@@ -1827,10 +1827,10 @@ func TestUpdateBuilderReuse(t *testing.T) {
 		MED:              200,
 		LargeCommunities: [][3]uint32{{65001, 1, 2}},
 	}
-	_ = ub.BuildUnicast(&otherParams)
+	_ = mustBuildUnicast(t, ub, &otherParams)
 
 	// Build original again — must still match
-	update3 := ub.BuildUnicast(&params)
+	update3 := mustBuildUnicast(t, ub, &params)
 	if !bytes.Equal(update1.PathAttributes, update3.PathAttributes) {
 		t.Error("PathAttributes differ after interleaved build")
 	}
@@ -1856,7 +1856,7 @@ func TestUpdateBuilder_BuildUnicast_AliasesScratch(t *testing.T) {
 		NextHop: netip.MustParseAddr("192.168.1.1"),
 		Origin:  attribute.OriginIGP,
 	}
-	u4 := ub.BuildUnicast(&ipv4Params)
+	u4 := mustBuildUnicast(t, ub, &ipv4Params)
 	if !sliceAliasesScratch(u4.PathAttributes, ub.scratch) {
 		t.Error("IPv4 update.PathAttributes does not alias ub.scratch")
 	}
@@ -1869,7 +1869,7 @@ func TestUpdateBuilder_BuildUnicast_AliasesScratch(t *testing.T) {
 		NextHop: netip.MustParseAddr("2001:db8::1"),
 		Origin:  attribute.OriginIGP,
 	}
-	u6 := ub.BuildUnicast(&ipv6Params)
+	u6 := mustBuildUnicast(t, ub, &ipv6Params)
 	if !sliceAliasesScratch(u6.PathAttributes, ub.scratch) {
 		t.Error("IPv6 update.PathAttributes does not alias ub.scratch")
 	}
@@ -1890,7 +1890,7 @@ func TestUpdateBuilder_BuildTwice_InvalidatesFirst(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 		MED:     100,
 	}
-	u1 := ub.BuildUnicast(&p1)
+	u1 := mustBuildUnicast(t, ub, &p1)
 	snapshot := append([]byte(nil), u1.PathAttributes...)
 
 	// Different route with different attributes — produces different bytes.
@@ -1901,7 +1901,7 @@ func TestUpdateBuilder_BuildTwice_InvalidatesFirst(t *testing.T) {
 		MED:         999,
 		Communities: []uint32{0xFFFF0001},
 	}
-	_ = ub.BuildUnicast(&p2)
+	_ = mustBuildUnicast(t, ub, &p2)
 
 	// u1.PathAttributes now aliases scratch that holds p2's bytes.
 	if bytes.Equal(u1.PathAttributes, snapshot) {
@@ -1925,10 +1925,10 @@ func TestUpdateBuilder_BuildUnicast_NoByteMakeAfterWarmup(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 	// Warmup so scratch is lazy-allocated before AllocsPerRun measures.
-	_ = ub.BuildUnicast(&params)
+	_ = mustBuildUnicast(t, ub, &params)
 
 	allocs := testing.AllocsPerRun(100, func() {
-		_ = ub.BuildUnicast(&params)
+		_ = mustBuildUnicast(t, ub, &params)
 	})
 	// Post-Phase-1: 10 allocs under `go test`, 12 under `-race` (race detector
 	// adds ~2 bookkeeping allocs). Pre-Phase-1 baseline under race: 14.
@@ -1951,10 +1951,10 @@ func TestUpdateBuilder_BuildIPv6_NoByteMakeAfterWarmup(t *testing.T) {
 		NextHop: netip.MustParseAddr("2001:db8::1"),
 		Origin:  attribute.OriginIGP,
 	}
-	_ = ub.BuildUnicast(&params)
+	_ = mustBuildUnicast(t, ub, &params)
 
 	allocs := testing.AllocsPerRun(100, func() {
-		_ = ub.BuildUnicast(&params)
+		_ = mustBuildUnicast(t, ub, &params)
 	})
 	// Post-Phase-1: 10 allocs under `go test`, 12 under `-race`.
 	if allocs > 12 {
@@ -2022,14 +2022,14 @@ func TestUpdateBuilder_BuildUnicast_GrowMidBuild(t *testing.T) {
 	}
 
 	// Build once to lazy-init scratch at the standard 4096 size.
-	_ = ub.BuildUnicast(&UnicastParams{
+	_ = mustBuildUnicast(t, ub, &UnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: netip.MustParseAddr("192.168.1.1"),
 		Origin:  attribute.OriginIGP,
 	})
 	preGrow := ub.scratch
 
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 	postGrow := ub.scratch
 
 	if len(postGrow) <= len(preGrow) {

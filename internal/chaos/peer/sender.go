@@ -49,8 +49,8 @@ func (s *Sender) BuildRoute(prefix netip.Prefix) []byte {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := s.builder.BuildUnicast(&params)
-	if update == nil {
+	update, err := s.builder.BuildUnicast(&params)
+	if err != nil {
 		return nil
 	}
 
@@ -66,8 +66,8 @@ func (s *Sender) buildMulticastRoute(prefix netip.Prefix) []byte {
 		SAFI:    attribute.SAFIMulticast,
 	}
 
-	update := s.builder.BuildUnicast(&params)
-	if update == nil {
+	update, err := s.builder.BuildUnicast(&params)
+	if err != nil {
 		return nil
 	}
 

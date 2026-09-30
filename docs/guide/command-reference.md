@@ -300,6 +300,11 @@ across, and a capture with no BGP in it exits non-zero naming what it examined.
 | `--no-header` | Exclude BGP header |
 | `--asn4` | 4-byte ASN (default: true) <!-- source: internal/component/bgp/cli/main.go -- Run; internal/component/bgp/cli/decode.go -- cmdDecode; internal/component/bgp/cli/encode.go -- cmdEncode --> |
 
+An IPv4 unicast route needs an IPv4 `next-hop`. `encode` refuses any other
+next hop, and exits 1 with an error that names the requirement, rather than
+print an UPDATE whose NLRI has no NEXT_HOP attribute.
+<!-- source: internal/component/bgp/message/update_build.go -- checkInlineNextHop -->
+
 ### ze show warnings / ze show errors
 
 Operational report bus. A single place for Ze subsystems to surface

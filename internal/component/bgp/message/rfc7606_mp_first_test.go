@@ -37,7 +37,7 @@ func TestRFC7606Section51MPAttributeEncodedFirst(t *testing.T) {
 		ASPath:  []uint32{65002},
 		MED:     10,
 	}
-	update := ub.BuildUnicast(&params)
+	update := mustBuildUnicast(t, ub, &params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 		return

@@ -39,7 +39,7 @@ func TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref(t *testing.T) {
 	}
 	for _, params := range []*UnicastParams{stated, bare} {
 		for _, isIBGP := range []bool{false, true} {
-			upd := NewUpdateBuilder(65001, isIBGP, true, false).BuildUnicast(params)
+			upd := mustBuildUnicast(t, NewUpdateBuilder(65001, isIBGP, true, false), params)
 			codes := attrCodesInBlob(upd.PathAttributes)
 			what := params.Prefix.String()
 			require.True(t, codes[attrCodeMPReachNLRI], "%s ibgp=%v: MP_REACH_NLRI", what, isIBGP)

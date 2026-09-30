@@ -5,8 +5,8 @@
       "note": "Forbidden: a sender meaning to send one Link-Local address writes a field other than 16 octets, or adds another address. TestLinkLocalOnlyNextHopFieldIsSixteenOctets builds the UPDATE through resolveNextHop and BuildUnicast and asserts assert.Len(field, 16) and that the field equals fe80::1 alone; either defect turns it red. The negative TestLinkLocalNextHopWithAGlobalIsNotSentAlone shows the 16-octet form is keyed on one address (32 octets when a Global is also sent).",
       "requirement_sha": "933e18e1df1672f1",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestLinkLocalNextHopWithAGlobalIsNotSentAlone": "c5eb36d7bed2c63a",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestLinkLocalOnlyNextHopFieldIsSixteenOctets": "c5eb36d7bed2c63a"
+        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestLinkLocalNextHopWithAGlobalIsNotSentAlone": "972da5b60cad2ef0",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestLinkLocalOnlyNextHopFieldIsSixteenOctets": "972da5b60cad2ef0"
       },
       "units": {
         "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestLinkLocalNextHopWithAGlobalIsNotSentAlone": "1e6c97deb3cf5f1c",
@@ -148,8 +148,8 @@
       "note": "Forbidden: sending the 16-octet Link-Local-only field for IPv4 NLRI when capability 77 plus RFC 8950 were not both negotiated. TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination asserts require.ErrorIs(err, ErrNextHopLinkLocalOnly) from resolveNextHop and assert.Len(field, 32) with Global then Link-Local; admitting the 16-octet form turns it red. The negative TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination shows the 16-octet form is sent once both are negotiated.",
       "requirement_sha": "d69e7eae06afe95f",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination": "c5eb36d7bed2c63a",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination": "c5eb36d7bed2c63a"
+        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination": "972da5b60cad2ef0",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination": "972da5b60cad2ef0"
       },
       "units": {
         "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination": "6a1150812b851024",
@@ -158,5 +158,6 @@
       "verdict": "enforced"
     }
   },
-  "rfc": "draft-ietf-idr-linklocal-capability"
+  "rfc": "draft-ietf-idr-linklocal-capability",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
 }

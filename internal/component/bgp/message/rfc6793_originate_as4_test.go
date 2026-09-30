@@ -45,8 +45,8 @@ var rfc6793Originators = []rfc6793Originator{
 	{
 		name:         "BuildUnicast",
 		configurable: true,
-		build: func(_ *testing.T, ub *UpdateBuilder, asPath []uint32) []byte {
-			return ub.BuildUnicast(&UnicastParams{
+		build: func(t *testing.T, ub *UpdateBuilder, asPath []uint32) []byte {
+			return mustBuildUnicast(t, ub, &UnicastParams{
 				Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 				NextHop: netip.MustParseAddr("192.0.2.1"),
 				Origin:  attribute.OriginIGP,
@@ -314,8 +314,8 @@ var rfc6793Aggregators = []struct {
 }{
 	{
 		name: "BuildUnicast",
-		build: func(_ *testing.T, ub *UpdateBuilder, asn uint32) []byte {
-			return ub.BuildUnicast(&UnicastParams{
+		build: func(t *testing.T, ub *UpdateBuilder, asn uint32) []byte {
+			return mustBuildUnicast(t, ub, &UnicastParams{
 				Prefix:        netip.MustParsePrefix("10.0.0.0/24"),
 				NextHop:       netip.MustParseAddr("192.0.2.1"),
 				Origin:        attribute.OriginIGP,

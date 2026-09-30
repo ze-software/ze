@@ -63,7 +63,12 @@ func (p *Peer) sendStaticRoutes(session *Session, routes []StaticRoute, group bo
 		}
 		addPath := p.addPathFor(fam)
 		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-		update := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed)
+		update, buildErr := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed)
+		if buildErr != nil {
+			message.PutUpdateBuilder(ub)
+			routesLogger().Warn("static route not sent", "peer", addr, "prefix", route.Prefix, "error", buildErr)
+			continue
+		}
 		err := session.sendUpdateWithSplit(context.Background(), update, maxMsgSize, addPath)
 		message.PutUpdateBuilder(ub)
 		if err != nil {
@@ -98,7 +103,12 @@ func (p *Peer) sendStaticRoutesGrouped(session *Session, routes []StaticRoute, m
 				continue
 			}
 			ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-			update := buildStaticRouteUpdateNew(ub, &grouped[0], nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed)
+			update, buildErr := buildStaticRouteUpdateNew(ub, &grouped[0], nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed)
+			if buildErr != nil {
+				message.PutUpdateBuilder(ub)
+				routesLogger().Warn("static route not sent", "peer", addr, "prefix", grouped[0].Prefix, "error", buildErr)
+				continue
+			}
 			err := session.sendUpdateWithSplit(context.Background(), update, maxMsgSize, addPath)
 			message.PutUpdateBuilder(ub)
 			if err != nil {
@@ -254,7 +264,13 @@ func (p *Peer) withdrawStaticRoutes(session *Session, routes []StaticRoute, maxM
 		addPath := p.addPathFor(fam)
 
 		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-		update := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed)
+		update, buildErr := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed)
+		if buildErr != nil {
+			message.PutUpdateBuilder(ub)
+			routesLogger().Warn("static route not withdrawn: its announcement does not build",
+				"peer", p.addrString, "prefix", route.Prefix, "error", buildErr)
+			continue
+		}
 		body, ok := updateBody(handle.Buf, update)
 		message.PutUpdateBuilder(ub)
 		if !ok {

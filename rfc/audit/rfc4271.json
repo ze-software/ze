@@ -168,21 +168,24 @@
       "verdict": "weak"
     },
     "RFC4271-5-2": {
-      "note": "Tests are sound for the peer-facing rail: TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes requires ORIGIN, AS_PATH, NEXT_HOP in every BuildUnicast UPDATE with body NLRI, stated and bare route, eBGP and iBGP. Weak because the producer still violates the row on a reachable path: BuildUnicast with an IPv4 prefix, IPv6 next hop and no Extended Next Hop writes body NLRI with no NEXT_HOP (reachable through ze bgp encode). Ruling R43 owns the fix; the untagged red TestBuildUnicastIPv4RouteWithIPv6NextHopNeverLeavesWithoutNextHop proves it. Re-judge after R43.",
+      "code": {},
+      "note": "Re-judged after R43 (2026-09-30). Positive: TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes requires ORIGIN, AS_PATH and NEXT_HOP in every BuildUnicast UPDATE with body NLRI, stated and bare route, eBGP and iBGP (assertions unchanged; only the call takes the new error). Negative: TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop, an IPv4 unicast route with an IPv6 next hop and no Extended Next Hop, and with no next hop, is refused with ErrUnicastNextHopUnusable and no Update, rather than written as body NLRI with no NEXT_HOP; observed red on a break of checkInlineNextHop. Producer read: checkInlineNextHop runs before any attribute for IPv4 unicast; the NEXT_HOP arm now keeps NEXT_HOP for an IPv4 next hop when Extended Next Hop is set (RFC 8950 moves only an IPv6 next hop into MP_REACH_NLRI), the second shape of the same defect, covered by the untagged TestBuildUnicastIPv4NextHopWithExtendedNextHopKeepsNextHop. Every caller takes the error: grouped build returns it, static routes log Warn and skip, ze bgp encode exits 1 (untagged TestCmdEncodeRefusesIPv4RouteWithIPv6NextHop). Scope: originating builder rail; forwarded UPDATEs keep the received attributes. The rfc4271_test.go receive-side units carry no records and are neighbours, not the proof.",
       "requirement_sha": "3fbee88fc1590d14",
       "tests": {
-        "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes": "ccfcb4be28e1d333",
-        "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes#2": "ccfcb4be28e1d333",
+        "internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go::TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop": "f5d717769f48817a",
+        "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes": "7269224e2de8c2ef",
+        "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes#2": "7269224e2de8c2ef",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught": "ba18c36b881a0964",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributesAreRecognized": "ba18c36b881a0964"
       },
       "units": {
-        "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes": "5a8f6521eda546f7",
-        "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes#2": "5a8f6521eda546f7",
+        "internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go::TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop": "6e221ecc789fcfaf",
+        "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes": "a851a62c10e7f559",
+        "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes#2": "a851a62c10e7f559",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught": "a110d33edb50a5d4",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributesAreRecognized": "c73c608a6ac8b983"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-5-3": {
       "note": "attribute walk (both header forms), live receive path enforceRFC7606 and the .ci assert 0xC0 -> 0xE0 on an unrecognized optional transitive; negatives assert well-known, optional non-transitive and recognized optional transitive untouched",
@@ -238,19 +241,20 @@
       "verdict": "enforced"
     },
     "RFC4271-5-7": {
-      "note": "TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes: BuildUnicast, BuildGroupedUnicast, BuildLabeledUnicast emit strictly ascending codes; with raw config attributes AIGP 26 and type 20 supplied after the builder's own, they still sort before LARGE_COMMUNITY 32 (was appended after, observed red). Producer read: appendRawAttributes wraps each one-attribute raw slice (packRawAttributes) in fullRawAttribute so OrderAttributes places it; header re-encoded from its flags and true length. Originating builders only; forwarded UPDATEs keep the received order.",
+      "code": {},
+      "note": "Re-judged 2026-09-30 after the R43 signature change: TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes assertions unchanged (the call goes through mustBuildUnicast), re-recorded red. BuildUnicast, BuildGroupedUnicast, BuildLabeledUnicast emit strictly ascending codes; with raw config attributes AIGP 26 and type 20 supplied after the builder's own, they still sort before LARGE_COMMUNITY 32. Producer read: appendRawAttributes wraps each one-attribute raw slice (packRawAttributes) in fullRawAttribute so OrderAttributes places it. Originating builders only; forwarded UPDATEs keep the received order.",
       "requirement_sha": "63c781a1e915d623",
       "tests": {
-        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "44135fe8cd8ac400",
-        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "44135fe8cd8ac400",
+        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "65ed9271dab3a1ea",
+        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "65ed9271dab3a1ea",
         "internal/component/bgp/message/update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "125e31687892a371",
         "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "775d197b2c06317e",
         "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "775d197b2c06317e",
         "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "775d197b2c06317e"
       },
       "units": {
-        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "981b14c5f7878196",
-        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "981b14c5f7878196",
+        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "1b2ce2e6c980df3e",
+        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "1b2ce2e6c980df3e",
         "internal/component/bgp/message/update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "8d9d9ce35844f8cf",
         "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "2323a119f1a1422a",
         "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "2ad378772013fadb",

@@ -295,8 +295,12 @@ const MaxShutdownMessageLen = 128
 // BuildCeaseData builds the Data field of a Cease NOTIFICATION Ze sends with
 // the given subcode. Only Administrative Shutdown and Administrative Reset carry
 // a Shutdown Communication; every other subcode gets no data, so msg never
-// reaches the wire under a subcode the RFC does not allow. Every sender of a
-// Cease NOTIFICATION MUST build its data here.
+// reaches the wire under a subcode the RFC does not allow. A sender that holds a
+// Shutdown Communication MUST build its data here. Two senders build their own:
+// Maximum Number of Prefixes Reached (reactor buildPrefixNotification) carries
+// RFC 4486's AFI, SAFI and upper bound, and Connection Collision Resolution
+// (reactor rejectConnectionCollision) carries no data, the answer this function
+// gives for that subcode.
 func BuildCeaseData(subcode uint8, msg string) []byte {
 	// RFC 8203 Section 2 / RFC 9003 Section 2: "The Error Subcode value MUST be
 	// one of the following values: 2 ("Administrative Shutdown") or 4

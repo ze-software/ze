@@ -841,8 +841,10 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 			// every other case, and buildMPReach then writes the 16-octet form.
 			LinkLocalNextHop: p.linkLocalNextHopFor(nextHop),
 		}
-		update := ub.BuildUnicast(&params)
-		err := p.SendUpdate(update)
+		update, err := ub.BuildUnicast(&params)
+		if err == nil {
+			err = p.SendUpdate(update)
+		}
 		message.PutUpdateBuilder(ub)
 		if err != nil {
 			routesLogger().Debug("default-originate send error", "peer", addr, "family", familyKey, "error", err)

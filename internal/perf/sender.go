@@ -88,8 +88,8 @@ func (s *Sender) BuildRoute(prefix netip.Prefix) []byte {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := s.builder.BuildUnicast(&params)
-	if update == nil {
+	update, err := s.builder.BuildUnicast(&params)
+	if err != nil {
 		return nil
 	}
 
@@ -127,12 +127,12 @@ func (s *Sender) buildBatch(prefixes []netip.Prefix) []byte {
 // buildInlineBatch packs multiple IPv4/unicast prefixes into the inline NLRI field.
 func (s *Sender) buildInlineBatch(prefixes []netip.Prefix) []byte {
 	// Build attributes from a single-prefix UPDATE (attributes are prefix-independent).
-	dummy := s.builder.BuildUnicast(&message.UnicastParams{
+	dummy, err := s.builder.BuildUnicast(&message.UnicastParams{
 		Prefix:  prefixes[0],
 		NextHop: s.cfg.NextHop,
 		Origin:  attribute.OriginIGP,
 	})
-	if dummy == nil {
+	if err != nil {
 		return nil
 	}
 

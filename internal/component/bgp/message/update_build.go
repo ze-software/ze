@@ -11,6 +11,7 @@
 package message
 
 import (
+	"errors"
 	"net/netip"
 	"slices"
 	"sort"
@@ -217,7 +218,18 @@ type UnicastParams struct {
 //
 // RFC 4271 Appendix F.3 - Attributes are ordered by type code for
 // consistent wire format and interoperability.
-func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
+//
+// Returns ErrUnicastNextHopUnusable, and no Update, for an IPv4 unicast route
+// whose next hop only the NEXT_HOP attribute could carry and that attribute
+// cannot hold.
+func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) (*Update, error) {
+	isUnicast := p.SAFI == 0 || p.SAFI == attribute.SAFIUnicast
+	if isUnicast && p.Prefix.Addr().Is4() {
+		if err := checkInlineNextHop(p); err != nil {
+			return nil, err
+		}
+	}
+
 	ub.resetScratch()
 
 	// Build attributes in a fixed-size buffer for sorting. The bound counts every
@@ -237,10 +249,10 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 	attrs = ub.appendASPath(attrs, p.ASPath)
 
 	// 3. NEXT_HOP (type 3) - RFC 4271 Section 5.1.3
-	// Only for IPv4 unicast with IPv4 next-hop (not MP_REACH_NLRI, not extended next-hop)
-	// RFC 8950: When extended next-hop is used, next-hop goes in MP_REACH_NLRI
-	isUnicast := p.SAFI == 0 || p.SAFI == attribute.SAFIUnicast
-	if isUnicast && p.Prefix.Addr().Is4() && p.NextHop.Is4() && !p.UseExtendedNextHop {
+	// For IPv4 unicast with an IPv4 next hop: the route goes in the body NLRI
+	// field. Extended Next Hop changes nothing here, because RFC 8950 moves only
+	// an IPv6 next hop into MP_REACH_NLRI.
+	if isUnicast && p.Prefix.Addr().Is4() && p.NextHop.Is4() {
 		attrs = append(attrs, &attribute.NextHop{Addr: p.NextHop})
 	}
 	// RFC 8950: For IPv6 unicast with IPv4 next-hop, include NEXT_HOP for compatibility
@@ -363,7 +375,28 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 	return &Update{
 		PathAttributes: attrBytes,
 		NLRI:           inlineNLRI,
+	}, nil
+}
+
+// ErrUnicastNextHopUnusable is BuildUnicast's refusal of an IPv4 unicast route
+// whose next hop is neither IPv4 nor an IPv6 address sent with Extended Next Hop.
+var ErrUnicastNextHopUnusable = errors.New(
+	"IPv4 unicast route needs an IPv4 next hop, or an IPv6 one with extended next hop")
+
+// checkInlineNextHop refuses an IPv4 unicast route BuildUnicast would place in
+// the body NLRI field with no NEXT_HOP attribute. That attribute carries only an
+// IPv4 address; an IPv6 next hop reaches the peer only in MP_REACH_NLRI, which
+// RFC 8950 permits once Extended Next Hop is in use.
+func checkInlineNextHop(p *UnicastParams) error {
+	if p.NextHop.Is4() {
+		return nil
 	}
+	if p.UseExtendedNextHop && p.NextHop.Is6() {
+		return nil
+	}
+	// RFC 4271 Section 5: "Some of these attributes are mandatory and MUST be
+	// included in every UPDATE message that contains NLRI."
+	return ErrUnicastNextHopUnusable
 }
 
 // appendASPath appends the AS_PATH attribute for configuredPath to attrs, and

@@ -45,7 +45,7 @@ func TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes(t *testing.T) {
 	// The stated and the bare route carry their NLRI in the UPDATE body.
 	for _, params := range []*UnicastParams{stated, bare} {
 		for _, isIBGP := range []bool{false, true} {
-			upd := NewUpdateBuilder(65001, isIBGP, true, false).BuildUnicast(params)
+			upd := mustBuildUnicast(t, NewUpdateBuilder(65001, isIBGP, true, false), params)
 			what := params.Prefix.String()
 			require.NotEmpty(t, upd.NLRI, "%s ibgp=%v: NLRI field", what, isIBGP)
 			requireMandatoryWithNLRI(t, upd, what, isIBGP)
@@ -54,7 +54,7 @@ func TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes(t *testing.T) {
 
 	// RFC 8950: the IPv4 route with an IPv6 next hop carries no body NLRI.
 	for _, isIBGP := range []bool{false, true} {
-		upd := NewUpdateBuilder(65001, isIBGP, true, false).BuildUnicast(extendedNextHop)
+		upd := mustBuildUnicast(t, NewUpdateBuilder(65001, isIBGP, true, false), extendedNextHop)
 		require.Empty(t, upd.NLRI, "extended next hop ibgp=%v: NLRI field", isIBGP)
 		require.True(t, attrCodesInBlob(upd.PathAttributes)[attrCodeMPReachNLRI],
 			"extended next hop ibgp=%v: MP_REACH_NLRI", isIBGP)

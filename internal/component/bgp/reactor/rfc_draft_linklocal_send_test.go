@@ -40,7 +40,7 @@ func llnhBuildUnicast(t *testing.T, prefix string, nextHop, linkLocal netip.Addr
 	t.Helper()
 	ub := message.GetUpdateBuilder(65000, false /*isIBGP*/, true /*asn4*/, false /*addPath*/)
 	t.Cleanup(func() { message.PutUpdateBuilder(ub) })
-	return ub.BuildUnicast(&message.UnicastParams{
+	return mustBuildUnicast(t, ub, &message.UnicastParams{
 		Prefix:             netip.MustParsePrefix(prefix),
 		NextHop:            nextHop,
 		LinkLocalNextHop:   linkLocal,

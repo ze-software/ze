@@ -205,7 +205,10 @@ func (ub *UpdateBuilder) packGroupedAttributes(first *UnicastParams) []byte {
 // RFC 4271 Section 4.3 - UPDATE max 4096 bytes (standard).
 // RFC 8654 - Extended Message raises max to 65535 bytes.
 func (ub *UpdateBuilder) buildUnicastWithMaxSize(p *UnicastParams, maxSize int) (*Update, error) {
-	update := ub.BuildUnicast(p)
+	update, err := ub.BuildUnicast(p)
+	if err != nil {
+		return nil, err
+	}
 
 	// Calculate total UPDATE size: Header(19) + WithdrawnLen(2) + AttrLen(2) + Attrs + NLRI
 	updateSize := HeaderLen + 4 + len(update.PathAttributes) + len(update.NLRI)

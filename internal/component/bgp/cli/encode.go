@@ -212,7 +212,10 @@ func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6, _, a
 	params := routeSpecToUnicastParams(parsed.Route)
 
 	// Build UPDATE
-	update := ub.BuildUnicast(&params)
+	update, err := ub.BuildUnicast(&params)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Extract NLRI bytes
 	var nlriBytes []byte

@@ -19,7 +19,7 @@
       "note": "Forbidden: MP_REACH for a VPNv6 route with AFI != 2 or SAFI != 128. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6: afi != 2 and value[2] != 128 are Errorf. Single-polarity marker.",
       "requirement_sha": "d5385b13e97e1813",
       "tests": {
-        "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6": "71711e8ffa2ff74b"
+        "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6": "468f4d4a5f404a50"
       },
       "units": {
         "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6": "a4f0ba787744350c"
@@ -30,7 +30,7 @@
       "note": "Forbidden: a VPNv6 next hop that is not a VPN-IPv6 address (zero RD + global IPv6) when IPv6 transport is used. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop: nhLen != 24, any non-zero RD byte, and next-hop bytes != the global address are each Errorf. Single-polarity marker.",
       "requirement_sha": "eb9bf089e9b42164",
       "tests": {
-        "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop": "71711e8ffa2ff74b"
+        "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop": "468f4d4a5f404a50"
       },
       "units": {
         "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop": "52de945e3731d8fa"
@@ -51,5 +51,8 @@
       "verdict": "weak"
     }
   },
-  "rfc": "rfc4659"
+  "rfc": "rfc4659",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ]
 }
