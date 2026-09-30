@@ -64,13 +64,15 @@ func TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.3-8 negative -- a section whose Sequence
-// Number is not bfd.XmitAuthSeq is discarded by the peer with
-// auth.ErrSequenceOutsideWindow: for the four keyed types, after the peer
-// accepted the Machine.Sign packet at 100 and bfd.XmitAuthSeq advanced to 101,
-// a section signed with 1101 instead is refused, and for the two Meticulous
-// types one signed with the stale 100 is refused too; the Machine.Sign packet
-// at 101 is then accepted.
+// RFC requirement: RFC5880-6.7.3-9 negative -- for Keyed MD5 (and Keyed
+// SHA1, which Section 6.7.4 gives the same window), after the peer accepted a
+// packet at 100 so bfd.RcvAuthSeq is 100, a section signed with 1101 lies
+// beyond RcvAuthSeq+(3*Detect Mult) and the peer discards it with
+// auth.ErrSequenceOutsideWindow; the packet at 101 is then accepted.
+// RFC requirement: RFC5880-6.7.3-10 negative -- for Meticulous Keyed MD5
+// (and Meticulous Keyed SHA1), after bfd.RcvAuthSeq became 100, both 1101
+// (beyond the window) and 100 (below RcvAuthSeq+1) are discarded with
+// auth.ErrSequenceOutsideWindow; the packet at 101 is then accepted.
 func TestRFC5880SequenceFieldOtherThanXmitAuthSeqDiscarded(t *testing.T) {
 	keyed := []uint8{
 		packet.AuthTypeKeyedMD5, packet.AuthTypeMeticulousKeyedMD5,

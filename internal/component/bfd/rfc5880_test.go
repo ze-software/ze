@@ -61,15 +61,13 @@ func TestRFC5880KeyManagementAcceptsASCIIStrings(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.3-7 negative -- the key management interface is
-// not a blanket accept: parseAuthConfig rejects an auth block with no type
-// (internal/component/bfd/config.go:279-281), an unknown type
-// (config.go:285-288), a missing key id (config.go:289-292), a non-numeric key
-// id (config.go:293-296), and a missing secret (config.go:297-300), so a
-// session can never come up with an unusable key.
-// RFC requirement: RFC5880-6.7.4-5 negative -- the same validation guards the
-// SHA1 variants, which is what makes the accepted ASCII string above a real
-// key rather than a default.
+// TestRFC5880KeyManagementRejectsIncompleteConfig proves the key management
+// interface is not a blanket accept: parseAuthConfig rejects an auth block
+// with no type, an unknown type, a missing, non-numeric or out-of-range key
+// id, and a missing or empty secret, so a session can never come up with an
+// unusable key. It carries no RFC tag: the refusal of an incomplete block is
+// Ze's own rule, and the ASCII-acceptance negatives are in
+// rfc5880_key_management_config_test.go.
 func TestRFC5880KeyManagementRejectsIncompleteConfig(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -129,9 +127,6 @@ func TestRFC5880SimplePasswordManagementAcceptsASCIIStrings(t *testing.T) {
 // and MUST be from 1 to 16 bytes in length." parseAuthConfig refuses an empty
 // password and one of seventeen bytes or more, so no profile can produce an
 // Auth Len outside the 4 to 19 the wire format allows.
-// RFC requirement: RFC5880-6.7.2-1 negative -- the management interface is not
-// a blanket accept: it takes the ASCII string only when the string is one the
-// Authentication Section can carry.
 func TestRFC5880SimplePasswordLengthOutOfRangeRefused(t *testing.T) {
 	cases := []struct {
 		name   string
