@@ -354,6 +354,48 @@ func TestRFC8666TransitHopIgnoresOriginatorPHPFlags(t *testing.T) {
 	}
 }
 
+// TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel checks that the outgoing label
+// follows the flags of a next-hop router that advertised the SID. Goal: RFC 8666 Section
+// 6, the router "MUST take into account ... the E-, NP-, and M-Flags advertised by the
+// next-hop router if that router advertised the SID for the prefix". Method: the next hop
+// is the originator 9.9.9.9, and one Prefix-SID index 9 is installed under four flag
+// settings; each setting must yield its own outgoing behavior.
+// RFC requirement: RFC8666-6-8 positive -- with the next hop the SID's advertiser, NP clear
+// pops (no label imposed), NP set imposes the SRGB label 16009, NP and E set impose the
+// IPv6 Explicit NULL label, and M set with NP clear and E set keeps the label 16009.
+func TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel(t *testing.T) {
+	cases := []struct {
+		name  string
+		flags sr.SIDFlags
+		push  uint32 // 0: no label imposed at ingress (PHP pop)
+	}{
+		{name: "np-clear-pops", flags: sr.SIDFlags{}, push: 0},
+		{name: "np-set-keeps", flags: sr.SIDFlags{NP: true}, push: 16009},
+		{name: "np-and-e-explicit-null", flags: sr.SIDFlags{NP: true, E: true}, push: sr.ExplicitNullV6},
+		{name: "m-ignores-np-and-e", flags: sr.SIDFlags{M: true, E: true}, push: 16009},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRFC8666Fixture()
+			entries := f.installV6(t, sr.PrefixSID{Flags: tc.flags, Index: 9}, f.orig)
+
+			push := entryOp(entries, mplsfibevents.OpPush)
+			if tc.push == 0 {
+				if push != nil {
+					t.Fatalf("NP clear from the advertising next hop must impose no label: %+v", push)
+				}
+				if pop := entryOp(entries, mplsfibevents.OpPop); pop == nil || pop.InLabel != 18009 {
+					t.Fatalf("NP clear from the advertising next hop must program the PHP pop of 18009: %+v", pop)
+				}
+				return
+			}
+			if push == nil || len(push.OutLabels) != 1 || push.OutLabels[0] != tc.push || push.NextHop != f.nh {
+				t.Fatalf("flags %+v from the advertising next hop must impose label %d: %+v", tc.flags, tc.push, push)
+			}
+		})
+	}
+}
+
 // RFC requirement: RFC8666-5-1 positive -- the Range Size advertised in an OSPFv3 Extended
 // Prefix Range TLV never exceeds the number of prefixes the Prefix Length can satisfy: the
 // ABR propagation advertises exactly one prefix per TLV (Range Size 1), which is within

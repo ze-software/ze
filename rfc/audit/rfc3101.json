@@ -308,14 +308,14 @@
       "verdict": "weak"
     },
     "RFC3101-3.1-2": {
-      "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): the row quotes the list of border routers 'reachable both over the NSSA and as ASBRs over the AS's transit topology'. The NSSA half is enforced: electNSSATranslator (nssa.go) now skips a listed router the NSSA's completed SPF does not reach (ReachabilitySnapshot.RouterReachable); TestRFC3101UnreachableBorderRouterIsNotListed / TestRFC3101ReachableBorderRouterIsListed are an isolated pair differing only in reachability, TestOSPFNSSATranslatorElection adds the unreachable-higher case; a judge overlay mutant disabling the reachability filter reds the positive and the election test. MISSING: the 'as ASBRs over the AS's transit topology' half is neither implemented nor tested (no check against the SPF border-router/ASBR table), so a router reachable in the NSSA but not as an ASBR over the transit topology still disables the candidate. Needs an R3 split into its own row (gap or implementation) before this row can be enforced. Before any SPF completes for the current config the candidate keeps its prior state (translateNSSA re-runs every tick, so not indefinite; overlap bounded by the next SPF).",
-      "requirement_sha": "21fec89cd188b4a1",
+      "note": "Re-judged 2026-09-30 (OSPF judge, continuation 5): the row now quotes the verbatim span through 'reachable both over the NSSA' (R3 split); the transit-topology ASBR condition is gap row RFC3101-3.1-5, so no clause of this row is untested. electNSSATranslator skips a router the NSSA's completed SPF does not reach (ReachabilitySnapshot.RouterReachable). TestRFC3101UnreachableBorderRouterIsNotListed / TestRFC3101ReachableBorderRouterIsListed are an isolated pair differing only in reachability (translated 1 vs 0); TestOSPFNSSATranslatorElection adds the unreachable-higher case; five observed-red records re-recorded after the nssa.go comment edit.",
+      "requirement_sha": "d6068455a61452de",
       "tests": {
         "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "a977f5140de4f2b1",
         "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection": "a977f5140de4f2b1",
         "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection#2": "a977f5140de4f2b1",
-        "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101ReachableBorderRouterIsListed": "494fe368d0f85aaa",
-        "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101UnreachableBorderRouterIsNotListed": "494fe368d0f85aaa"
+        "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101ReachableBorderRouterIsListed": "1a75c011dc554ac3",
+        "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101UnreachableBorderRouterIsNotListed": "1a75c011dc554ac3"
       },
       "units": {
         "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "384f0c6935a2fc5b",
@@ -324,16 +324,26 @@
         "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101ReachableBorderRouterIsListed": "866e564e59384946",
         "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101UnreachableBorderRouterIsNotListed": "59a51d09756da274"
       },
-      "verdict": "weak"
+      "upgrade_reason": "The tagged units are byte-identical; the row text changed. The earlier weak verdict rested only on the 'as ASBRs over the AS's transit topology' half, which the narrowed row no longer quotes (moved to gap RFC3101-3.1-5). The NSSA-reachability half was already judged enforced with an overlay mutant, re-read here: the pair still isolates the one condition the row states.",
+      "verdict": "enforced"
     },
     "RFC3101-3.1-4": {
       "code": {
         "internal/plugins/ospf/instance.go::setConfig": "4eb674d4ebe43b3c",
-        "internal/plugins/ospf/nssa.go::electNSSATranslator": "ad6c12ce41b38347",
+        "internal/plugins/ospf/nssa.go::electNSSATranslator": "e2310d1864e6b905",
         "internal/plugins/ospf/nssa.go::nssaABRs": "a21bbd9987ddcf17"
       },
-      "note": "Judged 2026-09-30 (R31 split of 3.1-2): disclosed deviation, not counted conformant. Section 3.1 disables a candidate when another listed border router 'has bit Nt set or who has a higher router ID', and sets Nt only when NSSATranslatorState is enabled (Always role). Ze sets Nt on every non-never NSSA border router (setConfig ntAreas, instance.go) and nssaABRs lists only B|Nt routers, so a higher-RID Nt-clear router never disables the candidate. Gap demo TestRFC3101HigherRouterIDWithoutNtDisablesCandidate (rfcgap.Demonstrate) observes Ze translating; TestOSPFNSSANonCandidateDoesNotWedge pins the chosen behaviour untagged. Disclosed on the row, the Support remaining text and docs/architecture/ospf/ospf-11-stub-nssa.md. OWNER-GATE item.",
+      "note": "Re-judged 2026-09-30 (continuation 5): electNSSATranslator changed only in a comment (3.1-2 quote narrowed, names gap 3.1-5); the deviation is unchanged. Section 3.1 disables a candidate when another listed border router 'has bit Nt set or who has a higher router ID', and sets Nt only when NSSATranslatorState is enabled (Always role). Ze sets Nt on every non-never NSSA border router (setConfig ntAreas, instance.go) and nssaABRs lists only B|Nt routers, so a higher-RID Nt-clear router never disables the candidate. Gap demo TestRFC3101HigherRouterIDWithoutNtDisablesCandidate (rfcgap.Demonstrate) observes Ze translating; TestOSPFNSSANonCandidateDoesNotWedge pins the chosen behaviour untagged. Disclosed deviation, not counted conformant; OWNER-GATE item.",
       "requirement_sha": "2badb24d248e7b97",
+      "verdict": "unimplemented"
+    },
+    "RFC3101-3.1-5": {
+      "code": {
+        "internal/plugins/ospf/nssa.go::electNSSATranslator": "e2310d1864e6b905",
+        "internal/plugins/ospf/nssa.go::nssaABRs": "a21bbd9987ddcf17"
+      },
+      "note": "Judged 2026-09-30 (R3 split of 3.1-2): the list's second membership condition, 'as ASBRs over the AS's transit topology', is not implemented. electNSSATranslator lists every NSSA border router with B and Nt that the NSSA's completed SPF reaches and never consults the transit topology's ASBR reachability. Gap demo TestRFC3101BorderRouterNotReachedAsASBROverTransitIsNotListed (rfcgap.Demonstrate): 10.0.6.9 is reached in the NSSA, originates no router-LSA outside it and sets no E-bit, the body asserts the RFC outcome (candidate translates, 1 Type-5) and Ze gives 0. Disclosed on the row, the Support remaining text, docs/architecture/ospf/ospf-11-stub-nssa.md and rfc/corrections/rfc3101.md. Not counted conformant.",
+      "requirement_sha": "21fec89cd188b4a1",
       "verdict": "unimplemented"
     },
     "RFC3101-3.2-1": {
@@ -435,13 +445,17 @@
       "verdict": "enforced"
     },
     "RFC3101-x-5": {
-      "note": "rfc3101_default_cost_test.go drives a single-area NSSA router with default-originate, which is not a border router; the row's obligation is the metric of the default a BORDER router advertises into its attached NSSAs. The border-router path is not exercised by the tagged units.",
+      "note": "Re-judged 2026-09-30 (continuation 5): the Type-7 half is now proven on a border router: TestRFC3101BorderRouterDefaultCarriesConfiguredMetric (ABR on backbone + NSSAs 0.0.0.5/0.0.0.6, default-cost 77/5000 -> Type-7 defaults carry 77 and 5000) and TestRFC3101BorderRouterDefaultMetricIsNotBorrowed (unconfigured 0.0.0.6 carries DefaultAreaCost, not the sibling's 77), revert records observed red. MISSING: the row's 'default LSA that a border router advertises into its directly attached NSSAs' also reaches the Type-3 summary default, which Section 2.7 makes the default LSA of a no-summary NSSA ('the default LSA originated into it by its border routers must be a Type-3 summary-LSA'); its metric comes from DefaultCost (spf/area_type.go) and no unit tagged x-5 asserts it. Needs a no-summary NSSA border-router test of the configured Type-3 default metric.",
       "requirement_sha": "725dc7d97d22097d",
       "tests": {
+        "internal/plugins/ospf/rfc3101_border_default_cost_test.go::TestRFC3101BorderRouterDefaultCarriesConfiguredMetric": "c056623d9ae42854",
+        "internal/plugins/ospf/rfc3101_border_default_cost_test.go::TestRFC3101BorderRouterDefaultMetricIsNotBorrowed": "c056623d9ae42854",
         "internal/plugins/ospf/rfc3101_default_cost_test.go::TestOSPFNSSADefaultCarriesConfiguredMetric": "638697abb7eae3c0",
         "internal/plugins/ospf/rfc3101_default_cost_test.go::TestOSPFNSSADefaultMetricIsNotFixed": "638697abb7eae3c0"
       },
       "units": {
+        "internal/plugins/ospf/rfc3101_border_default_cost_test.go::TestRFC3101BorderRouterDefaultCarriesConfiguredMetric": "1bd2e9e59a261705",
+        "internal/plugins/ospf/rfc3101_border_default_cost_test.go::TestRFC3101BorderRouterDefaultMetricIsNotBorrowed": "6a1ca03bff0c1d77",
         "internal/plugins/ospf/rfc3101_default_cost_test.go::TestOSPFNSSADefaultCarriesConfiguredMetric": "99b35d5b63783578",
         "internal/plugins/ospf/rfc3101_default_cost_test.go::TestOSPFNSSADefaultMetricIsNotFixed": "04ec824a17940c19"
       },

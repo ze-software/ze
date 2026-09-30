@@ -256,9 +256,11 @@ func (e *engine) electNSSATranslator(self types.RouterID, role string, area type
 	for _, r := range abrs {
 		// RFC 3101 Section 3.1: "An NSSA border router whose NSSA's NSSATranslatorRole is
 		// set to Candidate must maintain a list of the NSSA's border routers that are
-		// reachable both over the NSSA and as ASBRs over the AS's transit topology."
+		// reachable both over the NSSA"
 		// RFC requirement: RFC3101-3.1-2 -- a router the NSSA's SPF does not reach is not
-		// on the list, so it cannot disable the candidate.
+		// on the list, so it cannot disable the candidate. The sentence's second
+		// condition, "and as ASBRs over the AS's transit topology", is not checked: gap
+		// RFC3101-3.1-5.
 		if !reach.RouterReachable(area, r) {
 			continue
 		}

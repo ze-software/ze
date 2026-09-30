@@ -59,10 +59,12 @@ and Type 7 to Type 5 translation.
   <!-- source: internal/plugins/ospf/redist_wiring.go -- externalInterfaces, reconcileExternalImports -->
 - **The translator election is computed locally** from the NSSA Router-LSAs
   whose flags carry BOTH the B-bit and the RFC 3101 Nt-bit, and whose originator
-  the NSSA's last completed SPF run reaches: RFC 3101 Section 3.1 lists only the
+  the NSSA's last completed SPF run reaches, so a stale or partitioned
+  Router-LSA cannot switch translation off. RFC 3101 Section 3.1 lists only the
   border routers "reachable both over the NSSA and as ASBRs over the AS's
-  transit topology", so a stale or partitioned Router-LSA cannot switch
-  translation off. The highest Router ID wins, with `always` and `never`
+  transit topology", and Ze checks the first condition only: a border router
+  the NSSA reaches is listed even when the transit topology does not reach it
+  as an ASBR (gap RFC3101-3.1-5). The highest Router ID wins, with `always` and `never`
   overrides. Until an SPF run has completed for the current configuration the
   list is unknown, and a `candidate` keeps the translator state it had rather
   than electing itself over an empty list. A stability grace keeps a router

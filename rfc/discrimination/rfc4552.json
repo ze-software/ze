@@ -2,6 +2,17 @@
   "rfc": "rfc4552",
   "records": [
     {
+      "rid": "RFC4552-11-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection",
+      "unit-sha": "c7df8923c0d8e5c8",
+      "claim-sha": "100d17b2015f302d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies",
+      "producer-sha": "82d190d1cec3f817",
+      "break": "body of buildIPsecPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4552-11-3",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp",
@@ -11,6 +22,17 @@
       "producer": "internal/plugins/ospf/ipsec_install.go::installLocked",
       "producer-sha": "835cbea83b267cb0",
       "break": "line 399: \"err != nil\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC4552-11-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection",
+      "unit-sha": "c7df8923c0d8e5c8",
+      "claim-sha": "b06180536997afc8",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies",
+      "producer-sha": "82d190d1cec3f817",
+      "break": "body of buildIPsecPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4552-2-2",

@@ -3,10 +3,10 @@
 // Related: nssa_test.go -- the election tests that build the list from bare router-LSAs.
 //
 // VALIDATES: RFC 3101 Section 3.1 list membership: a candidate translator elects over the
-// NSSA's border routers "that are reachable both over the NSSA and as ASBRs over the AS's
-// transit topology", so a router-LSA in the NSSA whose originator the NSSA's SPF does not
-// reach is not a member and cannot disable the candidate, while the same router reached
-// by the SPF does.
+// NSSA's border routers "that are reachable both over the NSSA", so a router-LSA in the
+// NSSA whose originator the NSSA's SPF does not reach is not a member and cannot disable
+// the candidate, while the same router reached by the SPF does. The second condition,
+// "and as ASBRs over the AS's transit topology", is gap RFC3101-3.1-5.
 // PREVENTS: a stale or partitioned higher-Router-ID border router's router-LSA switching
 // translation off for the whole NSSA.
 package ospf
@@ -77,4 +77,21 @@ func TestRFC3101ReachableBorderRouterIsListed(t *testing.T) {
 	// is on the list, so the candidate is disabled and translates nothing.
 	assert.Equal(t, 0, translatorListCase(t, ridOf("10.0.6.9")),
 		"a reachable higher-Router-ID border router is on the list and disables the candidate")
+}
+
+// TestRFC3101BorderRouterNotReachedAsASBROverTransitIsNotListed demonstrates gap
+// RFC3101-3.1-5. Goal: RFC 3101 Section 3.1 lists only the border routers "reachable both
+// over the NSSA and as ASBRs over the AS's transit topology". Method: the higher-Router-ID
+// border router 10.0.6.9 is reached by the NSSA's SPF, but it originates no router-LSA
+// outside the NSSA and sets no E-bit, so no transit area reaches it as an ASBR; the body
+// asserts the RFC outcome (it is not on the list, so the candidate is elected and
+// translates), which Ze does not produce.
+func TestRFC3101BorderRouterNotReachedAsASBROverTransitIsNotListed(t *testing.T) {
+	translated := translatorListCase(t, ridOf("10.0.6.9"))
+
+	// RFC requirement: RFC3101-3.1-5 gap -- a border router not reachable as an ASBR over
+	// the AS's transit topology is not on the list, so the candidate translates.
+	rfcgap.Demonstrate(t, "RFC3101-3.1-5", func(tb testing.TB) {
+		assert.Equal(tb, 1, translated, "a border router the transit topology does not reach as an ASBR is not listed")
+	})
 }
