@@ -436,5 +436,8 @@ func attrModHandlersWithDefaults() map[uint8]filterapi.AttrModHandler {
 	// ATTR_TOMBSTONE, whose flags are derived from the attributes it records
 	// rather than from its own code (draft-mangin-idr-attr-tombstone-00).
 	handlers[byte(attribute.AttrTombstone)] = tombstoneHandler()
+	// BGP Prefix-SID: a next-hop change removes the SRv6 Service TLVs and keeps
+	// every other TLV (RFC 8669 Section 3, RFC 9252 Section 2).
+	handlers[byte(attribute.AttrPrefixSID)] = prefixSIDNextHopHandler()
 	return handlers
 }

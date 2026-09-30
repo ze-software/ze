@@ -26,7 +26,7 @@ Service SID. Ze does not allocate local SIDs or install egress endpoint behavior
 | EBGP filtering | PrefixSID from EBGP peers discarded unless `accept-srv6-prefix-sid` is set |
 | EBGP propagation | PrefixSID removed on every rail that writes an UPDATE unless `propagate-srv6-prefix-sid` is set: the two forward rails, the two origination rails, and the API/readvertise announce rail |
 | Validation | Malformed SRv6 Service TLVs trigger treat-as-withdraw (RFC 9252 Section 3.4) |
-| Propagation | PrefixSID preserved on zero-copy forward; stripped when the next-hop changes, and stripped at the SR domain boundary |
+| Propagation | PrefixSID preserved on zero-copy forward; when the next-hop changes only the SRv6 Service TLVs (types 5 and 6) are removed and every other TLV (Label-Index, Originator SRGB, unknown types) is kept byte for byte, the attribute leaving only when no TLV remains; stripped whole at the SR domain boundary |
 | Linux FIB | SEG6 lwtunnel encap via netlink |
 | VPP FIB | SR steering policy via GoVPP `sr_steering_add_del` |
 
@@ -242,7 +242,7 @@ the VPP dispatch logic.
 | Transposition reconstruction | 3.2.1 | Implemented (VPN/EVPN) |
 | LBL+LNL+FL+AL <= 128 validation | 3.2.1 | Implemented (errata 7817) |
 | NH unchanged: preserve TLVs | 3.3 | Implemented (zero-copy forward) |
-| NH changed: strip PrefixSID | 3.3 | Implemented (AttrModSuppress) |
+| NH changed: SRv6 Service TLVs removed, other TLVs kept | 2 | Implemented (the Service TLVs leave because Ze allocates no local SRv6 SID; the Prefix-SID handler rewrites the attribute per route) |
 | Malformed Service TLV: treat-as-withdraw | 3.4 | Implemented |
 | Path ineligibility (no valid SID) | 5 | Implemented |
 | SID resolvability before best-path selection | 5 | Partial: sysrib blocks FIB installation without a resolvable SID; BGP pre-selection filtering is not implemented |
@@ -256,7 +256,8 @@ the VPP dispatch logic.
 
 - **No local SID allocation or endpoint installation.** Ze can advertise an
   explicitly configured SID but does not provision its egress behavior. When
-  re-advertising with a changed next-hop, PrefixSID is stripped.
+  re-advertising with a changed next-hop, the SRv6 Service TLVs are removed
+  rather than rebuilt with a local SID; the rest of the PrefixSID is kept.
 - **No SRv6 capability negotiation.** PrefixSID is optional-transitive, so it
   propagates without negotiation. Ze does not signal SRv6 support via capabilities.
 - **No SRv6 policy.** Ze programs single-SID encapsulation. SRv6 segment lists

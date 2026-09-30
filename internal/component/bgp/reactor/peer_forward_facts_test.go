@@ -228,7 +228,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 				LocalAddress: netip.MustParseAddr("192.168.1.1"),
 			},
 			wantMode: nhModeSelf4,
-			wantOps:  3, // NEXT_HOP + MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
+			wantOps:  3, // NEXT_HOP + MP_REACH NH + Prefix-SID Service TLV removal (RFC 9252 Section 2)
 		},
 		{
 			name: "self IPv6",
@@ -237,7 +237,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 				LocalAddress: netip.MustParseAddr("2001:db8::1"),
 			},
 			wantMode: nhModeSelfV6,
-			wantOps:  2, // MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
+			wantOps:  2, // MP_REACH NH + Prefix-SID Service TLV removal (RFC 9252 Section 2)
 		},
 		{
 			// RFC 2545 Section 3: both halves of the inclusion condition hold --
@@ -254,7 +254,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 				peerOnLink: true,
 			},
 			wantMode: nhModeSelfV6LL,
-			wantOps:  2, // MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
+			wantOps:  2, // MP_REACH NH + Prefix-SID Service TLV removal (RFC 9252 Section 2)
 		},
 		{
 			// RFC 2545 Section 3 "in all other cases": the leaf is set, but the
@@ -271,7 +271,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 				peerOnLink: false,
 			},
 			wantMode: nhModeSelfV6,
-			wantOps:  2, // MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
+			wantOps:  2, // MP_REACH NH + Prefix-SID Service TLV removal (RFC 9252 Section 2)
 		},
 		{
 			// The interface table has not been read, so the condition is unproven
@@ -283,7 +283,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 				LinkLocal:    netip.MustParseAddr("fe80::1"),
 			},
 			wantMode: nhModeSelfV6,
-			wantOps:  2, // MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
+			wantOps:  2, // MP_REACH NH + Prefix-SID Service TLV removal (RFC 9252 Section 2)
 		},
 		{
 			name: "explicit IPv4",
@@ -292,7 +292,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 				NextHopAddress: netip.MustParseAddr("192.168.1.1"),
 			},
 			wantMode: nhModeExplicit4,
-			wantOps:  3, // NEXT_HOP + MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
+			wantOps:  3, // NEXT_HOP + MP_REACH NH + Prefix-SID Service TLV removal (RFC 9252 Section 2)
 		},
 		{
 			name: "explicit IPv6",
@@ -301,7 +301,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 				NextHopAddress: netip.MustParseAddr("2001:db8::1"),
 			},
 			wantMode: nhModeExplicitV6,
-			wantOps:  2, // MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
+			wantOps:  2, // MP_REACH NH + Prefix-SID Service TLV removal (RFC 9252 Section 2)
 		},
 		{
 			name:     "self no local address",
@@ -325,32 +325,32 @@ func TestPrecomputeNextHop(t *testing.T) {
 	}
 }
 
-// TestPrefixSIDPropagationNextHop verifies the RFC 9252 Section 3.3 propagation
-// rules for the BGP Prefix-SID attribute (code 40) on the egress next-hop path.
-// Ze originates no local SRv6 SID, so when the next-hop changes it removes the
-// entire attribute (which necessarily removes every unrecognized sub-TLV and
-// sub-sub-TLV it carried), and when the next-hop is unchanged it emits no op for
-// code 40 so the received bytes -- including all Reserved fields -- are forwarded
-// verbatim.
+// TestPrefixSIDPropagationNextHop verifies the operation the egress next-hop
+// decision records for the BGP Prefix-SID attribute (code 40), against the RFC
+// 9252 Section 2 propagation rules for the SRv6 Service TLVs. Ze originates no
+// local SRv6 SID, so when the next hop changes it records one Remove naming the
+// Service TLV types 5 and 6 (each Service TLV leaves whole, with every Sub-TLV
+// and Sub-Sub-TLV it carries) and never a Suppress of the attribute; when the
+// next hop is unchanged it records no operation for code 40, so the received
+// bytes, Reserved fields included, are forwarded verbatim. What the Remove does
+// to the wire is proven over both relay rails by
+// TestRFC8669UnknownTLVPropagatedAcrossANextHopChange.
 //
-// RFC requirement: RFC9252-3.3-1 positive -- with next-hop unchanged no op touches the Prefix-SID attribute, so all of its Reserved fields propagate unchanged.
-// RFC requirement: RFC9252-3.3-2 negative -- with next-hop unchanged the Prefix-SID attribute is not removed (no suppress op is emitted).
-// RFC requirement: RFC9252-3.3-2 positive -- when the next-hop changes the whole Prefix-SID attribute is suppressed, removing every unrecognized sub-TLV and sub-sub-TLV a fortiori.
-// RFC requirement: RFC9252-3.3-1 negative -- when the next-hop changes the Prefix-SID attribute is not preserved (it is suppressed).
+// RFC requirement: RFC9252-3.3-1 positive -- with next-hop unchanged no operation touches the Prefix-SID attribute, so the SRv6 Service TLVs and all of their Reserved fields propagate unchanged.
+// RFC requirement: RFC9252-3.3-2 negative -- with next-hop unchanged no operation removes the SRv6 Service TLVs.
+// RFC requirement: RFC9252-3.3-2 positive -- when the next hop changes exactly one operation is recorded for code 40: a Remove naming only TLV types 5 and 6, so each SRv6 Service TLV leaves with every received Sub-TLV and Sub-Sub-TLV it carries, and the attribute is not suppressed.
+// RFC requirement: RFC9252-3.3-1 negative -- when the next hop changes the SRv6 Service TLVs are not propagated (the Remove names them).
 func TestPrefixSIDPropagationNextHop(t *testing.T) {
 	const prefixSIDCode = 40
 
-	countPrefixSIDOps := func(mods *filterapi.ModAccumulator) (suppress, touched int) {
+	prefixSIDOps := func(mods *filterapi.ModAccumulator) []filterapi.AttrOp {
+		var ops []filterapi.AttrOp
 		for _, op := range mods.Ops() {
-			if op.Code != prefixSIDCode {
-				continue
-			}
-			touched++
-			if op.Action == filterapi.AttrModSuppress {
-				suppress++
+			if op.Code == prefixSIDCode {
+				ops = append(ops, op)
 			}
 		}
-		return suppress, touched
+		return ops
 	}
 
 	t.Run("next-hop unchanged preserves Prefix-SID", func(t *testing.T) {
@@ -359,12 +359,10 @@ func TestPrefixSIDPropagationNextHop(t *testing.T) {
 		var mods filterapi.ModAccumulator
 		applyFactsNextHop(&facts, &mods)
 
-		suppress, touched := countPrefixSIDOps(&mods)
-		assert.Zero(t, touched, "next-hop unchanged must not touch the Prefix-SID attribute")
-		assert.Zero(t, suppress, "next-hop unchanged must not suppress the Prefix-SID attribute")
+		assert.Empty(t, prefixSIDOps(&mods), "next-hop unchanged must not touch the Prefix-SID attribute")
 	})
 
-	t.Run("next-hop changed removes Prefix-SID", func(t *testing.T) {
+	t.Run("next-hop changed removes the SRv6 Service TLVs only", func(t *testing.T) {
 		var facts peerForwardFacts
 		precomputeNextHop(&PeerSettings{
 			NextHopMode:  NextHopSelf,
@@ -373,8 +371,10 @@ func TestPrefixSIDPropagationNextHop(t *testing.T) {
 		var mods filterapi.ModAccumulator
 		applyFactsNextHop(&facts, &mods)
 
-		suppress, _ := countPrefixSIDOps(&mods)
-		assert.Equal(t, 1, suppress, "next-hop self must suppress the Prefix-SID attribute exactly once")
+		ops := prefixSIDOps(&mods)
+		require.Len(t, ops, 1, "next-hop self records exactly one Prefix-SID operation")
+		assert.Equal(t, filterapi.AttrModRemove, ops[0].Action, "the attribute is rewritten, never suppressed")
+		assert.Equal(t, []byte{5, 6}, ops[0].Buf, "the removal names the SRv6 Service TLV types and nothing else")
 	})
 }
 

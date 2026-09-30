@@ -54,7 +54,8 @@
         "RFC7313-4-9",
         "RFC7313-4-10",
         "RFC7313-4-11",
-        "RFC7313-4-12"
+        "RFC7313-4-12",
+        "RFC7313-4-13"
       ]
     },
     {
@@ -100,7 +101,7 @@
       "quote": "Before the speaker starts a route refresh that is either initiated locally, or in response to a \"normal route refresh request\" from the peer, the speaker MUST send a BoRR message.",
       "disposition": "mapped",
       "mapped-to": "RFC7313-4-1",
-      "reason": "The sender's BoRR obligation, captured verbatim as RFC7313-4-1 at [MUST]. Scoped by the section's applicability sentence to a peer that advertised the capability."
+      "reason": "The sender's BoRR obligation, captured verbatim at [MUST] in two rows split on 2026-09-30: RFC7313-4-1 carries the refresh made in response to the peer's normal route refresh request, and RFC7313-4-13 (unsourced, section 4) carries the locally initiated refresh, a feature ze declined (feature-out-of-scope: RFC 7313 Section 4 says that when a route entry in the Adj-RIB-Out \"changes, only the modified route entry needs to be advertised\", so no locally initiated whole-table refresh is ever required, and ze starts none). Scoped by the section's applicability sentence to a peer that advertised the capability."
     },
     {
       "id": "4:2",

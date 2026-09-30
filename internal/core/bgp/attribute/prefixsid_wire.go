@@ -84,8 +84,8 @@ const (
 const (
 	prefixSIDTLVLabelIndex     uint8 = 1
 	prefixSIDTLVOriginatorSRGB uint8 = 3
-	prefixSIDTLVSRv6L3Service  uint8 = 5
-	prefixSIDTLVSRv6L2Service  uint8 = 6
+	PrefixSIDTLVSRv6L3Service  uint8 = 5
+	PrefixSIDTLVSRv6L2Service  uint8 = 6
 
 	srv6SubTLVSIDInformation  uint8 = 1
 	srv6SubSubTLVSIDStructure uint8 = 1
@@ -205,7 +205,7 @@ func validatePrefixSIDTLVs(data []byte) error {
 					len(value))
 			}
 			return nil
-		case prefixSIDTLVSRv6L3Service, prefixSIDTLVSRv6L2Service:
+		case PrefixSIDTLVSRv6L3Service, PrefixSIDTLVSRv6L2Service:
 			return validateSRv6ServiceTLV(tlvType, value)
 		default:
 			// RFC 8669 Section 3: "For future extensibility, unknown TLVs MUST be
@@ -291,9 +291,9 @@ func appendPrefixSIDJSON(buf []byte, attr Attribute) []byte {
 		case prefixSIDTLVOriginatorSRGB:
 			buf = appendPrefixSIDSRGBJSON(buf, value)
 			return nil
-		case prefixSIDTLVSRv6L3Service:
+		case PrefixSIDTLVSRv6L3Service:
 			return appendSRv6ServiceJSON(&buf, `"l3-service":[`, value)
-		case prefixSIDTLVSRv6L2Service:
+		case PrefixSIDTLVSRv6L2Service:
 			return appendSRv6ServiceJSON(&buf, `"l2-service":[`, value)
 		default:
 			// The TLV is kept and named by its code, so an operator can read the

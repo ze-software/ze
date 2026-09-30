@@ -8,6 +8,7 @@
 package reactor
 
 import (
+	"encoding/binary"
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -58,13 +59,16 @@ func (p *Peer) prefixSIDAllowed() bool {
 // destination, given the base payload and the operations recorded for it so far.
 //
 // It folds the operations rather than testing the base alone, because both
-// directions are reachable. An egress filter can SET code 40 on a route whose
-// source carried none, and applyFactsNextHop (peer_forward_facts.go) already
-// suppresses code 40 for RFC 9252 Section 3.3 whenever the next-hop changes.
-// Reading the fold is what keeps this rail from recording a second suppress for
-// an attribute the first one removed: the accumulator holds eight operations
-// before it spills to the heap (filterapi.opsInline), and an EBGP peer with
-// next-hop-self and a community filter is already close to that.
+// directions are reachable: an egress filter can SET code 40 on a route whose
+// source carried none, and a filter can SUPPRESS it. Reading the fold is what
+// keeps this rail from recording a second suppress for an attribute a filter
+// already removed: the accumulator holds eight operations before it spills to
+// the heap (filterapi.opsInline), and an EBGP peer with next-hop-self and a
+// community filter is already close to that.
+//
+// The next-hop change's Remove (applyFactsNextHop, peer_forward_facts.go) does
+// not enter the fold: it is recorded only for a destination Section 8 allows,
+// and this function is asked only for one it refuses.
 //
 // Last wins, which is the accumulator's own rule (filterapi.LastSetOrSuppress).
 func prefixSIDOnWire(baseHasPrefixSID bool, mods *filterapi.ModAccumulator) bool {
@@ -105,6 +109,153 @@ func applyFactsPrefixSID(f *peerForwardFacts, baseHasPrefixSID bool, mods *filte
 		return
 	}
 	mods.Op(uint8(attribute.AttrPrefixSID), filterapi.AttrModSuppress, nil)
+}
+
+// srv6ServiceTLVTypes is the Buf of the Remove operation a next-hop change
+// records for code 40 (applyFactsNextHop): the TLV types RFC 9252 Section 2
+// ties to the next hop. A package-level array so the operation points at
+// storage that outlives every forward call, and no destination allocates one.
+var srv6ServiceTLVTypes = [...]byte{attribute.PrefixSIDTLVSRv6L3Service, attribute.PrefixSIDTLVSRv6L2Service}
+
+// prefixSIDTLVHeaderOctets is a Prefix-SID TLV's Type (1 octet) and Length
+// (2 octets), RFC 8669 Section 3.
+const prefixSIDTLVHeaderOctets = 3
+
+// prefixSIDNextHopHandler plans attribute 40 for one destination.
+//
+// A Set or Suppress behaves as the generic handler's does. An AttrModRemove
+// names TLV types, one per octet of its Buf, and the attribute is rewritten
+// without the TLVs of those types, every other TLV kept byte for byte in its
+// received order:
+//
+//	+--------+----------------+-----------------+
+//	| Type 1 | Length 2 (N)   | Value N octets  |   one TLV, RFC 8669 Section 3
+//	+--------+----------------+-----------------+
+//	offset 0  offset 1..2      offset 3..3+N-1
+//
+// RFC 8669 Section 3: "For future extensibility, unknown TLVs MUST be ignored
+// and propagated unmodified." RFC 9252 Section 2: "If the BGP next hop is
+// changed, the TLVs, Sub-TLVs, and Sub-Sub-TLVs SHOULD be updated with the
+// locally allocated SRv6 SID information." Ze allocates no local SRv6 SID, so
+// the next-hop change removes the Service TLVs and nothing else.
+//
+// Kept TLVs of the received attribute are fragments over the source bytes,
+// written once into the destination's buffer by the rebuild, so the common
+// case copies nothing beyond the rebuild itself. Kept TLVs of a value a filter
+// SET are copied into the edit arena: the plan has no fragment over part of an
+// operation's bytes, and a filter setting code 40 on a next-hop-changing
+// destination is the rare case.
+//
+// When no TLV remains the attribute leaves: RFC 8669 Section 3 defines the
+// attribute as a set of TLVs, so an empty one carries nothing to propagate.
+func prefixSIDNextHopHandler() filterapi.AttrModHandler {
+	return func(p *filterapi.AttrPlan) {
+		ops := p.Ops()
+		setIdx, suppress := lastSetOrSuppress(ops)
+		if suppress {
+			p.Drop()
+			return
+		}
+		// A Remove recorded before the last Set was aimed at a value the Set
+		// replaced, so only the ones after it apply.
+		removeFrom := setIdx + 1
+		if !prefixSIDRemovesAny(ops[removeFrom:]) {
+			if setIdx < 0 {
+				keepOrDrop(p)
+				return
+			}
+			p.Op(setIdx)
+			p.Emit(prefixSIDFlags, prefixSIDCodeByteWire)
+			return
+		}
+
+		value := p.Value()
+		fromSource := setIdx < 0
+		if !fromSource {
+			if ops[setIdx].GenIdx != 0 {
+				// No producer generates code 40, so a generated value cannot be
+				// walked here; refusing the route is louder than emitting it
+				// with the TLVs the next hop no longer supports.
+				p.Fail()
+				return
+			}
+			value = ops[setIdx].Buf
+		}
+		if value == nil {
+			p.Drop()
+			return
+		}
+
+		kept := 0
+		for off := 0; off < len(value); {
+			tlvOctets, ok := prefixSIDTLVOctets(value[off:])
+			if !ok {
+				// RFC 8669 Section 6: a Prefix-SID "containing a TLV length that
+				// would extend beyond the end of the attribute" is malformed, and
+				// the speaker "MUST ignore the received BGP Prefix-SID attribute
+				// and not advertise it to other BGP peers."
+				p.Drop()
+				return
+			}
+			if !prefixSIDTLVRemoved(ops[removeFrom:], value[off]) {
+				if fromSource {
+					p.Keep(off, tlvOctets)
+				} else {
+					p.New(value[off : off+tlvOctets])
+				}
+				kept++
+			}
+			off += tlvOctets
+		}
+		if kept == 0 {
+			p.Drop()
+			return
+		}
+		p.Emit(prefixSIDFlags, prefixSIDCodeByteWire)
+	}
+}
+
+// prefixSIDFlags and prefixSIDCodeByteWire are the header the rewritten
+// attribute is emitted under: Optional, Transitive (RFC 8669 Section 3).
+const (
+	prefixSIDFlags        = byte(attribute.FlagOptional | attribute.FlagTransitive)
+	prefixSIDCodeByteWire = byte(attribute.AttrPrefixSID)
+)
+
+// prefixSIDTLVOctets returns the whole size of the TLV at the start of b, and
+// false when b is too short to hold its header or the value it declares.
+func prefixSIDTLVOctets(b []byte) (int, bool) {
+	if len(b) < prefixSIDTLVHeaderOctets {
+		return 0, false
+	}
+	n := prefixSIDTLVHeaderOctets + int(binary.BigEndian.Uint16(b[1:prefixSIDTLVHeaderOctets]))
+	if n > len(b) {
+		return 0, false
+	}
+	return n, true
+}
+
+// prefixSIDRemovesAny reports whether any operation removes TLVs.
+func prefixSIDRemovesAny(ops []filterapi.AttrOp) bool {
+	for i := range ops {
+		if ops[i].Action == filterapi.AttrModRemove {
+			return true
+		}
+	}
+	return false
+}
+
+// prefixSIDTLVRemoved reports whether a Remove operation names tlvType.
+func prefixSIDTLVRemoved(ops []filterapi.AttrOp, tlvType byte) bool {
+	for i := range ops {
+		if ops[i].Action != filterapi.AttrModRemove {
+			continue
+		}
+		if slices.Contains(ops[i].Buf, tlvType) {
+			return true
+		}
+	}
+	return false
 }
 
 // rawAttrsWithoutPrefixSID returns raw, less any entry whose attribute code is

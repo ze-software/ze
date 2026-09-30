@@ -70,6 +70,50 @@
       "citation": "expect=bgp:conn=1:seq=2:contains=20010DB8001000000000000000000000"
     },
     {
+      "rid": "RFC9252-3.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop",
+      "unit-sha": "3e7680adf25fe34f",
+      "claim-sha": "e6c1ce3c9401dcde",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
+      "producer-sha": "0423c2f64a7c38ca",
+      "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9252-3.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop",
+      "unit-sha": "3e7680adf25fe34f",
+      "claim-sha": "fd8b104514f18728",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
+      "producer-sha": "0423c2f64a7c38ca",
+      "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9252-3.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop",
+      "unit-sha": "3e7680adf25fe34f",
+      "claim-sha": "d3abe16149d1ba94",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
+      "producer-sha": "0423c2f64a7c38ca",
+      "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9252-3.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop",
+      "unit-sha": "3e7680adf25fe34f",
+      "claim-sha": "555ef3e758900a70",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
+      "producer-sha": "0423c2f64a7c38ca",
+      "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9252-7-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins",

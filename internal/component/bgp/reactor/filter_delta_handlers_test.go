@@ -420,7 +420,7 @@ func TestApplyNextHopMod_IPv6EmitsOnlyMPReach(t *testing.T) {
 	require.Len(t, ops, 2, "IPv6 local emits MP_REACH op + PrefixSID suppress")
 	assert.Equal(t, uint8(14), ops[0].Code, "op is MP_REACH_NLRI")
 	assert.Len(t, ops[0].Buf, 16, "IPv6 next-hop is 16 bytes")
-	assert.Equal(t, uint8(40), ops[1].Code, "RFC 9252 S3.3: PrefixSID suppress")
+	assert.Equal(t, uint8(40), ops[1].Code, "RFC 9252 Section 2: Prefix-SID Service TLV removal")
 	assert.Equal(t, filterapi.AttrModSuppress, ops[1].Action)
 }
 
@@ -451,7 +451,7 @@ func TestApplyNextHopModIPv6LinkLocalBytes(t *testing.T) {
 	linkLocal := linkLocalAddr.As16()
 	assert.Equal(t, global[:], ops[0].Buf[:16], "first half is global IPv6 next-hop")
 	assert.Equal(t, linkLocal[:], ops[0].Buf[16:], "second half is link-local IPv6 next-hop")
-	assert.Equal(t, uint8(40), ops[1].Code, "RFC 9252 S3.3: PrefixSID suppress")
+	assert.Equal(t, uint8(40), ops[1].Code, "RFC 9252 Section 2: Prefix-SID Service TLV removal")
 	assert.Equal(t, filterapi.AttrModSuppress, ops[1].Action)
 }
 

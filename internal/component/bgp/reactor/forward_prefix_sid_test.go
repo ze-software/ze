@@ -200,8 +200,9 @@ func TestPrefixSIDAllowedTo(t *testing.T) {
 }
 
 // TestPrefixSIDSuppressIsRecordedOnce proves the RFC 8669 Section 8 suppression
-// and the RFC 9252 Section 3.3 next-hop-change suppression do not both record an
-// operation for the same destination.
+// and the RFC 9252 Section 2 next-hop-change removal of the SRv6 Service TLVs do
+// not both record an operation for the same destination: applyFactsNextHop
+// records its Remove only for a destination Section 8 allows the attribute to.
 //
 // A duplicate would be harmless on the wire, because the handler folds every
 // operation for a code, and expensive off it: the accumulator holds eight
@@ -242,7 +243,7 @@ func TestPrefixSIDSuppressIsRecordedOnce(t *testing.T) {
 		var mods filterapi.ModAccumulator
 		applyFactsNextHop(&facts, &mods)
 		applyFactsPrefixSID(&facts, true, &mods)
-		assert.Equal(t, 1, countCode40(&mods), "the next-hop rail already removed it")
+		assert.Equal(t, 1, countCode40(&mods), "the next-hop rail records nothing for a destination Section 8 refuses")
 	})
 
 	t.Run("a source without the attribute records none", func(t *testing.T) {

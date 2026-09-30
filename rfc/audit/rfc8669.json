@@ -2,15 +2,19 @@
   "audited": "2026-09-30",
   "requirements": {
     "RFC8669-3-1": {
-      "note": "Clause 'ignored': a validator rejecting an unknown TLV type goes red at message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored require.Equal(RFC7606ActionNone). Clause 'propagated unmodified': the only byte-equality assertion runs after ValidateUpdateRFC7606, not after any forward or re-advertise path, so a forward rail that strips or rewrites the unknown TLV (or drops the whole attribute, as applyFactsNextHop does on a next-hop change) turns nothing red. The propagation half has no assertion.",
+      "note": "Re-judged after the D-8 fix (applyFactsNextHop records Remove{5,6} on code 40; prefixSIDNextHopHandler rewrites the attribute per route). Clause 'ignored': message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored pins RFC7606ActionNone and intact bytes for an unallocated TLV (no discrimination record; supplementary). Clause 'propagated unmodified': reactor TestRFC8669UnknownTLVPropagatedAcrossANextHopChange reads attribute 40 on the wire over both relay rails (forwardUpdateCore, reactorForwardRS): positive, next hop unchanged, [LabelIndex, L3 Svc, type 200, L2 Svc, SRGB] byte-identical; negative (R1b: the input that used to violate), next-hop-self with NEXT_HOP really 10.0.0.254, attribute == LabelIndex+type200+SRGB byte-identical in received order. Observed red: positive with applyFactsNextHop broken, negative with prefixSIDNextHopHandler broken. Buffers isolated (well-formed TLVs, only type 200 unknown).",
       "requirement_sha": "86075c5141e1f486",
       "tests": {
-        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "c396cd02e76541ca"
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "c396cd02e76541ca",
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange": "44582e489427aa30",
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "44582e489427aa30"
       },
       "units": {
-        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "7f0ca5f0dffb7627"
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "7f0ca5f0dffb7627",
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange": "5ac8116748d03d10",
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "5ac8116748d03d10"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8669-3.1-2": {
       "note": "RA33 strict re-audit: weak (agrees with blind reader). The unit proves only that the SRv6 extractor steps over TLV type 1. The {single-polarity} premise that no other reader of TLV type 1 exists in internal/core/bgp is false: attribute/prefixsid_wire.go validatePrefixSIDTLVs refuses a Label-Index whose length is not 7, and the JSON formatter emits sr-label-index, both regardless of AFI/SAFI. No tagged unit feeds a Label-Index on a non-labeled-unicast route through validation or decode, so acting on it there (erroring or reporting it) stays green.",
