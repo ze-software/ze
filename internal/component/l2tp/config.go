@@ -72,6 +72,15 @@ var (
 		Default:     "30s",
 		Description: "Interval between pppN interface stats reads for Prometheus counters",
 	})
+	// Read by Subsystem.cqmEchoInterval on the start path when CQM is enabled.
+	// env.Get returns "" when unset, so the 1s fallback there stays and
+	// matches this Default.
+	_ = env.MustRegister(env.EnvEntry{
+		Key:         "ze.l2tp.cqm.echo-interval",
+		Type:        "duration",
+		Default:     "1s",
+		Description: "LCP echo interval used for CQM RTT and loss sampling when CQM is enabled",
+	})
 )
 
 // Default listener and protocol values.

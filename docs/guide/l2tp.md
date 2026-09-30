@@ -810,9 +810,12 @@ CQM data feeds:
 - The web UI streams new buckets via SSE for live chart updates
 
 Echo interval for CQM: `ze.l2tp.cqm.echo-interval` (env var, default
-derived from LCP echo configuration).
+`1s`). It applies only when CQM is enabled, where it overrides the PPP
+LCP echo interval used for sampling. An invalid or
+non-positive value logs a warning and falls back to `1s`.
 
 <!-- source: internal/component/l2tp/observer.go -->
+<!-- source: internal/component/l2tp/subsystem.go -- cqmEchoInterval -->
 <!-- source: internal/component/l2tp/cqm.go -->
 
 ## Prometheus metrics

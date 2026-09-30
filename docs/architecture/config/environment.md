@@ -148,6 +148,8 @@ notation supported). See [configuration.md](../../guide/configuration.md).
 | `ze.l2tp.ncp.ip-timeout` | 30s | PROMOTE | NCP phase wait for IP handler response |
 | `ze.log.l2tp` | warn | ENV | L2TP subsystem log level (private) |
 | `ze.l2tp.skip-kernel-probe` | false | ENV | Test-only: skip kernel module probe (private) |
+| `ze.l2tp.cqm.echo-interval` | 1s | ENV | LCP echo interval for CQM RTT and loss sampling, applied only when CQM is enabled; an invalid or non-positive value falls back to 1s |
+| `ze.l2tp.metrics.poll-interval` | 30s | ENV | Interval between pppN interface stats reads for Prometheus counters |
 
 ---
 
