@@ -359,6 +359,13 @@ for a replay, encodes the borrowed snapshot synchronously, and retains only its
 own wire bytes. Source generation numbers prevent an older snapshot from
 resurrecting a removed domain.
 
+The IS-IS source translates its SR-Capabilities and SRLB sub-TLVs into the
+BGP-LS SR Capabilities (1034) and SR Local Block (1036) TLVs. Each range's
+SID/Label sub-TLV (1161) carries a 3-octet label, and the translation clears
+its 4 leftmost bits, which RFC 9085 Section 2.1.1 requires to be 0, so a label
+outside the 20-bit label space never reaches a collector.
+<!-- source: internal/plugins/isis/bgpls_export.go -- srBlock -->
+
 The exporter is the package `internal/component/bgp/plugins/ls_export`, and
 `bgp-epe` is the package `internal/component/bgp/plugins/epe`. Each package
 registers one plugin and owns its YANG module. Both encode through the BGP-LS

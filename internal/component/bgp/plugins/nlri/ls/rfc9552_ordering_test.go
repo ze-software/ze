@@ -117,15 +117,14 @@ func TestNoDescriptorEmitsADescendingTLVSequence(t *testing.T) {
 	}
 }
 
-// TestNodeDescriptorOrdersRepeatedSRv6SIDs covers the one sub-TLV a descriptor
-// can repeat. Section 5.1 orders repeated types by Length and then by Value, so
-// slice order is not a free choice.
-//
-// RFC requirement: RFC9552-5.1-2 positive -- repeated TLV 518 sub-TLVs are
-// emitted ascending by Length and then ascending by Value, whatever order they
-// were stored in (§5.1)
-// RFC requirement: RFC7752-3.1-3 positive -- the predecessor orders same-type
-// TLVs by value alone, which ascending Length then Value satisfies (Section 3.1).
+// TestNodeDescriptorOrdersRepeatedSRv6SIDs covers a received descriptor that
+// carries TLV 518 more than once. RFC 9552 Section 5.2.1.4 allows at most one
+// instance of each Node Descriptor sub-TLV, so no Ze producer builds this; the
+// parser keeps the unexpected repeats rather than refusing the NLRI (Section
+// 5.1), and this checks that re-encoding them is deterministic: ascending by
+// Length and then by Value, whatever order they were stored in. The Section
+// 5.1 ordering obligation is proven on the native Link producer, which does
+// repeat a Type (ls_export export_rfc9552_ordering_test.go).
 func TestNodeDescriptorOrdersRepeatedSRv6SIDs(t *testing.T) {
 	high := bytes.Repeat([]byte{0xfe}, 16)
 	low := bytes.Repeat([]byte{0xfd}, 16)
@@ -164,14 +163,9 @@ func TestNodeDescriptorOrdersRepeatedSRv6SIDs(t *testing.T) {
 }
 
 // TestSRv6SIDOrderIsLengthBeforeValue is the discrimination case for the
-// comparison itself. A plain lexicographic sort passes the test above and fails
-// this one, because Section 5.1 makes Length the first key.
-//
-// RFC requirement: RFC9552-5.1-2 negative -- a shorter SID whose value sorts
-// after a longer one is still emitted first, so value order never overrides
-// Length order (§5.1)
-// RFC requirement: RFC7752-3.1-3 negative -- value order alone never decides
-// the emitted order (Section 3.1).
+// comparison the re-encode above uses. A plain lexicographic sort passes the
+// test above and fails this one, because the comparison makes Length the first
+// key, as Section 5.1 does.
 func TestSRv6SIDOrderIsLengthBeforeValue(t *testing.T) {
 	longer := make([]byte, 16)
 	shorter := []byte{0xff, 0xff}

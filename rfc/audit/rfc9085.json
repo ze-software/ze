@@ -1,16 +1,20 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC9085-2.1.1-1": {
-      "note": "Two clauses. The 20 rightmost bits represent the label: the tagged test decodes 0xF12345 and assert.Equal(0x12345, sl.SID) goes red if the top nibble is folded in. The 4 leftmost bits are set to 0: a transmit duty, and no tagged unit asserts what Ze encodes (Ze originates no BGP-LS, plugin.go registers decode only), so that clause has no assertion.",
+      "note": "rejudge 2026-09-30: defect fixed (D-8): isis srBlock copied the 3-octet SID/Label verbatim into sub-TLV 1161; it now clears the 4 leftmost bits. isis TestRFC9085OriginatedSRGBLabelTwentyBits (+: 003e80 -> 003e80) and TestRFC9085OriginatedSRGBLabelHighBitsCleared (-: f03e80 -> 003e80) assert the exact TLV 1034; judge break (mask removed) turns the negative red. Receipt: nlri/ls TestRFC9085SIDLabelMasksLeftmostFourBits (0xF12345 -> 0x12345). Marker removed.",
       "requirement_sha": "ff5636b73afaacaf",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "38b7a68c47518d20"
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "38b7a68c47518d20",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared": "19ae8123cdd77b60",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits": "19ae8123cdd77b60"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "fad54ea38f86fce1"
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "fad54ea38f86fce1",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared": "0edabe49a96b2975",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits": "0e7afbef89a5143e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9085-2.1.2-3": {
       "note": "The quoted sentence is \"Reserved: 1 octet that MUST be set to 0 and ignored on receipt.\" Ignored on receipt: TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags sets the octet to 0xFF and require.NoError plus Range 1000 / FirstSID 16000 go red if it is rejected or consumed. Set to 0: no tagged unit asserts the transmitted octet (that duty is RFC9085-2.1.2-2, a gap). The row also claims five other sections' reserved fields (split needed), none exercised here.",

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC9086-4.2-1": {
       "note": "The sentence covers every BGP-LS NLRI Ze distributes for protocol BGP, Node NLRI and Link NLRI. (a) forbidden: a Local Node Descriptor without TLV 516 or TLV 512. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts local 516=192.0.2.1 and 512=65000 on the Link NLRI (capture.commands[1]); TestRFC9086NativePeerRequiresNodeIdentities refuses a local ASN of 0. Weak because the Node NLRI the same test emits (capture.commands[0]) never has its Local Node Descriptors checked, so dropping 516 or 512 from the Node NLRI stays green; the negative covers the missing ASN only, not a missing local Router-ID.",
@@ -67,15 +67,19 @@
       "verdict": "weak"
     },
     "RFC9086-5-5": {
-      "note": "Same sentence as RFC9086-5-3 (the receive-only half is under 24 characters, so the quote carries both clauses). Ignored when received: (a) decodePeerSID rejecting or corrupting a TLV with Rsvd bits set; (b) TestRFC9086PeerSIDIgnoresReservedFields asserts NoError, Flags&0xF0==0xC0 and SID==24000 for flags 0xCF, enforced. Zero when originated: no unit tagged 5-5 asserts it; it is proven only under RFC9086-5-3 (TestRFC9086NativePeerSIDReservedFlagsZero).",
+      "note": "rejudge 2026-09-30: receipt clause TestRFC9086PeerSIDIgnoresReservedFields (flags 0xCF decodes V/L and SID intact). Originate clause: ls_export TestRFC9086OriginatedPeerSIDRsvdBitsZero (+: 0xc0 -> 0xc0) and TestRFC9086SourceRsvdBitsNeverOriginated (-: 0xcf -> 0xc0) on the emitted PeerNode SID TLV 1101. Judge break (1101 flags mask 0xff) turns the negative red. Single-polarity marker removed. Duplicate sentence of RFC9086-5-3 left as is.",
       "requirement_sha": "a04b01781d50dc33",
       "tests": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9086_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero": "431bf0a1967a3360",
+        "internal/component/bgp/plugins/ls_export/export_rfc9086_sentence_test.go::TestRFC9086SourceRsvdBitsNeverOriginated": "431bf0a1967a3360",
         "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9086PeerSIDIgnoresReservedFields": "38b7a68c47518d20"
       },
       "units": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9086_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero": "1d880b244ca5df63",
+        "internal/component/bgp/plugins/ls_export/export_rfc9086_sentence_test.go::TestRFC9086SourceRsvdBitsNeverOriginated": "66a53cc014279215",
         "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9086PeerSIDIgnoresReservedFields": "5cb6e0faff0f227d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9086-7-1": {
       "note": "Clauses: configure/enable/disable advertisement of PeerNode, of PeerAdj, of PeerSet, and control of which information goes to which internal or external peer. (b) TestRFC9086NativeConfigurationEnableDisable asserts config enables a PeerNode advertisement and label and removing the config withdraws both, enforced for PeerNode only. No tagged unit asserts an option for PeerAdj or PeerSet (Ze originates neither) or any per-receiving-peer control of what is advertised.",

@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc9085",
+  "records": [
+    {
+      "rid": "RFC9085-2.1.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared",
+      "unit-sha": "56e89ed96ede728e",
+      "claim-sha": "057fea829b37664a",
+      "route": "revert",
+      "producer": "internal/plugins/isis/bgpls_export.go::srBlock",
+      "producer-sha": "4ab019293b1095a3",
+      "break": "body of srBlock replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.1.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits",
+      "unit-sha": "8e63b26e0c0f91f6",
+      "claim-sha": "ada94154f95e0c47",
+      "route": "revert",
+      "producer": "internal/plugins/isis/bgpls_export.go::srBlock",
+      "producer-sha": "4ab019293b1095a3",
+      "break": "body of srBlock replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

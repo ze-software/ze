@@ -2,6 +2,50 @@
   "rfc": "rfc9552",
   "records": [
     {
+      "rid": "RFC9552-5.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder",
+      "unit-sha": "09dbf9dcc4b65e9d",
+      "claim-sha": "2a56c2df440d87f3",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeNativeLink",
+      "producer-sha": "7d5e3f3db73b5c89",
+      "break": "body of encodeNativeLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-5.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource",
+      "unit-sha": "3ebc20ee19b6d7ad",
+      "claim-sha": "0b62dea2d7d2135c",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeNativeLink",
+      "producer-sha": "7d5e3f3db73b5c89",
+      "break": "body of encodeNativeLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-5.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder",
+      "unit-sha": "09dbf9dcc4b65e9d",
+      "claim-sha": "f38650bceb4f100b",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeNativeLink",
+      "producer-sha": "7d5e3f3db73b5c89",
+      "break": "body of encodeNativeLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-5.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource",
+      "unit-sha": "3ebc20ee19b6d7ad",
+      "claim-sha": "6d47e3915a571303",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeNativeLink",
+      "producer-sha": "7d5e3f3db73b5c89",
+      "break": "body of encodeNativeLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9552-5.2-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeProtocolIDFollowsSource",

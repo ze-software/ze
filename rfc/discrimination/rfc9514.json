@@ -48,6 +48,28 @@
     {
       "rid": "RFC9514-3.1-3",
       "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/ls_export/export_rfc9514_sentence_test.go::TestRFC9514OriginatedReservedWordsZero",
+      "unit-sha": "38c0dd6479462b2d",
+      "claim-sha": "cff3778753340950",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
+      "producer-sha": "52e68cb09ad57c46",
+      "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-3.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/ls_export/export_rfc9514_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated",
+      "unit-sha": "4347968523c1c7d4",
+      "claim-sha": "863ce22ea489888b",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
+      "producer-sha": "52e68cb09ad57c46",
+      "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-3.1-3",
+      "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514CapabilitiesDecode",
       "unit-sha": "a9c36b98a7bc181f",
       "claim-sha": "3ebc4c54d5a2fe4c",
@@ -112,6 +134,28 @@
       "break": "line 725: \"data[4]\" -\u003e \"data[5]\""
     },
     {
+      "rid": "RFC9514-4.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved",
+      "unit-sha": "b97dc8a2986c0080",
+      "claim-sha": "11af8556d7d78aa9",
+      "route": "revert",
+      "producer": "internal/plugins/isis/bgpls_export.go::adjacencySIDv6",
+      "producer-sha": "11c46ede607be86d",
+      "break": "body of adjacencySIDv6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-4.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero",
+      "unit-sha": "e41899607193d546",
+      "claim-sha": "63c54ea55cf5c4a0",
+      "route": "revert",
+      "producer": "internal/plugins/isis/bgpls_export.go::adjacencySIDv6",
+      "producer-sha": "11c46ede607be86d",
+      "break": "body of adjacencySIDv6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9514-4.2-1",
       "polarity": "positive",
       "unit": "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero",
@@ -156,6 +200,28 @@
       "break": "line 725: \"data[4]\" -\u003e \"data[5]\""
     },
     {
+      "rid": "RFC9514-4.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved",
+      "unit-sha": "b97dc8a2986c0080",
+      "claim-sha": "ad92d5b33cce57e9",
+      "route": "revert",
+      "producer": "internal/plugins/isis/bgpls_export.go::adjacencySIDv6",
+      "producer-sha": "11c46ede607be86d",
+      "break": "body of adjacencySIDv6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-4.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero",
+      "unit-sha": "e41899607193d546",
+      "claim-sha": "8c4b7fda068c8897",
+      "route": "revert",
+      "producer": "internal/plugins/isis/bgpls_export.go::adjacencySIDv6",
+      "producer-sha": "11c46ede607be86d",
+      "break": "body of adjacencySIDv6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9514-5.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements",
@@ -172,6 +238,28 @@
       "unit": "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6ReservedCleared",
       "unit-sha": "aa0b6fd14c8d6cbe",
       "claim-sha": "2111ffb9e0bed83e",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
+      "producer-sha": "52e68cb09ad57c46",
+      "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-5.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/ls_export/export_rfc9514_sentence_test.go::TestRFC9514OriginatedReservedWordsZero",
+      "unit-sha": "38c0dd6479462b2d",
+      "claim-sha": "8192868d3b4204de",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
+      "producer-sha": "52e68cb09ad57c46",
+      "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-5.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/ls_export/export_rfc9514_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated",
+      "unit-sha": "4347968523c1c7d4",
+      "claim-sha": "95e22bb248a7ebc0",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
       "producer-sha": "52e68cb09ad57c46",
@@ -286,6 +374,28 @@
       "producer": "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6EndpointBehavior",
       "producer-sha": "0d14211a8d16a13c",
       "break": "body of decodeSRv6EndpointBehavior replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-7.1-4",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated",
+      "unit-sha": "1be232440dd469b1",
+      "claim-sha": "b4e5ea272585f4e1",
+      "route": "revert",
+      "producer": "internal/plugins/isis/bgpls_export.go::endSID",
+      "producer-sha": "3c60ce4e7fa740ad",
+      "break": "body of endSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-7.1-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero",
+      "unit-sha": "7f521b174178bb38",
+      "claim-sha": "d91cc8c9b65eba78",
+      "route": "revert",
+      "producer": "internal/plugins/isis/bgpls_export.go::endSID",
+      "producer-sha": "3c60ce4e7fa740ad",
+      "break": "body of endSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9514-7.2-5",

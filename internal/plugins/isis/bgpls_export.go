@@ -791,6 +791,10 @@ func (b *bgplsBuilder) srBlock(native []byte) []byte {
 		binary.BigEndian.PutUint16(value[target+3:], 1161)
 		binary.BigEndian.PutUint16(value[target+5:], 3)
 		copy(value[target+7:], native[source+5:source+8])
+		// RFC 9085 Section 2.1.1: "If the length is set to 3, then the 20
+		// rightmost bits represent a label (the total TLV size is 7), and the
+		// 4 leftmost bits are set to 0." The IS-IS source may carry bits there.
+		value[target+7] &= 0x0f
 	}
 	return value
 }

@@ -1,31 +1,35 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC9552-5.1-1": {
-      "note": "re-audit RA12: the units drive only the nlri/ls LinkDescriptor/NodeDescriptor/PrefixDescriptor encoders; ze's native producer builds Link NLRI descriptors itself in ls_export export_encode.go::encodeNativeLink (own slices.SortFunc over 258-263), and no 5.1-1 tag drives that output, so a descending pair from the native Link path stays green",
+      "note": "rejudge 2026-09-30: the native Link producer (ls_export encodeNativeLink) is now driven. TestRFC9552NativeLinkTLVsCanonicalOrder asserts the exact TLV sequence 256,257,259,259,260,261,261,262,263 and a pairwise no-descending-Type sweep; TestRFC9552NativeLinkTLVsReorderedSource feeds addresses interleaved IPv6-before-IPv4 and descending, and asserts the same canonical sequence. Judge break (sort comparator Type key reversed) turns both red; revert records observed red. The nlri/ls descriptor-encoder units stay tagged as the second producer's cover.",
       "requirement_sha": "a0422bad71d21de0",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending": "c2f66f24e95d7298",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "c2f66f24e95d7298"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder": "581497e4f2564ee5",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource": "581497e4f2564ee5",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending": "dc32e08a5b83301a",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "dc32e08a5b83301a"
       },
       "units": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder": "be0890353f240a48",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource": "24cf1b731770732b",
         "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending": "ff4b440ca0d46180",
         "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "0118bbd3e6cc59b0"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.1-2": {
-      "note": "re-audit RA12: both units build a NodeDescriptor carrying three (or two) sub-TLV 518 and assert all are emitted inside the Node Descriptor, which RFC 9552 5.2.1.4 forbids (at most one instance of each sub-TLV type) and RFC 9514 places 518 at NLRI level, not in the descriptor; the one real repeated-type producer, encodeNativeLink emitting several 259/260/261/262 for multi-address links, is driven by no 5.1-2 tag",
+      "note": "rejudge 2026-09-30 (was wrong: the units asserted repeated 518 inside a Node Descriptor, which 5.2.1.4 forbids; those tags are removed under D-15 and the units kept untagged). Now proven on the one producer that repeats a Type: the two ls_export units emit two 259, two 260, two 261, two 262 and assert them ascending by Value, and that no longer same-type TLV precedes a shorter one. The Length key never differs within a Type on this producer (259/260 are 4 octets, 261/262 16), so the Length clause is met by construction and asserted as a tie; the Value clause is discriminated: judge break (Value comparison reversed) turns both units red, revert records observed red.",
       "requirement_sha": "41e6b2ed2192dc8a",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNodeDescriptorOrdersRepeatedSRv6SIDs": "c2f66f24e95d7298",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestSRv6SIDOrderIsLengthBeforeValue": "c2f66f24e95d7298"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder": "581497e4f2564ee5",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource": "581497e4f2564ee5"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNodeDescriptorOrdersRepeatedSRv6SIDs": "782a4aab978cd027",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestSRv6SIDOrderIsLengthBeforeValue": "b74f94aa6c6f42c6"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder": "be0890353f240a48",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource": "24cf1b731770732b"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC9552-5.1-3": {
       "note": "attribute half is proven only by AttrTLVsToJSON keeping the bytes, not by the attribute being propagated on a forwarded UPDATE; the NLRI half (byte-identical re-encode) holds; the negative (length overrun refused) exercises 8.2.2 syntax validation, not this preserve-and-propagate rule",

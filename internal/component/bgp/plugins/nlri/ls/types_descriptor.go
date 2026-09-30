@@ -49,10 +49,12 @@ type NodeDescriptor struct {
 // the Length field followed by ascending order based on the Value field", the
 // value compared "as opaque binary data and ordered lexicographically".
 //
-// TLV 518 is the only sub-TLV a descriptor can repeat, and a Propagator MUST
-// consider an NLRI that breaks the ordering malformed, so slice order is not a
-// free choice. Emitting it also gave one node two keys, which Section 5.2.1.1
-// forbids: the same SIDs stored in a different order encoded differently.
+// RFC 9552 Section 5.2.1.4 allows at most one instance of each Node Descriptor
+// sub-TLV, and RFC 9514 Section 6 carries TLV 518 in the SRv6 SID NLRI, not in
+// a Node Descriptor. SRv6SIDs holds the repeats a received descriptor carried:
+// the parser keeps an unexpected TLV rather than refusing the NLRI (Section
+// 5.1), and re-encoding it must not depend on storage order, because one node
+// would then get two keys, which Section 5.2.1.1 forbids.
 //
 // The caller's slice is never reordered, and fewer than two SIDs allocate
 // nothing.
