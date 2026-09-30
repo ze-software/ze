@@ -145,12 +145,9 @@ func TestRFC4271PartialBitSurvivesLengthReframing(t *testing.T) {
 //
 // PREVENTS: A more specific announcement silently displacing its covering aggregate.
 //
-// RFC requirement: RFC4271-9.2-4 positive -- the RIB keys on the full NLRI, so a less
-// specific and a more specific overlapping route are considered as two distinct routes
-// rather than one (internal/component/bgp/plugins/rib/storage/familyrib.go:143-215).
-// RFC requirement: RFC4271-9.2-5 positive -- when both overlapping routes are accepted
-// both are installed, so a Loc-RIB mirror of the RIB carries both
-// (internal/component/bgp/plugins/rib/storage/familyrib.go:196-207).
+// This proves the Adj-RIB-In keying only. The Decision Process and Loc-RIB outcome of
+// RFC 4271 Section 9.1.4 is proven through the receive path in
+// internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go.
 func TestRFC4271OverlappingRoutesBothInstalled(t *testing.T) {
 	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
@@ -179,13 +176,6 @@ func TestRFC4271OverlappingRoutesBothInstalled(t *testing.T) {
 //
 // PREVENTS: Reading "both overlapping routes installed" as "every announcement is kept".
 //
-// RFC requirement: RFC4271-9.2-4 negative -- overlapping routes are considered separately
-// only because their NLRI differ: an identical NLRI replaces the older route in place
-// rather than adding a second entry
-// (internal/component/bgp/plugins/rib/storage/familyrib.go:196-207).
-// RFC requirement: RFC4271-9.2-5 negative -- installing both is conditioned on the two
-// routes covering different address space; the same prefix yields exactly one installed
-// route (internal/component/bgp/plugins/rib/storage/familyrib.go:196-207).
 // RFC requirement: RFC4271-9-2 positive -- a new route with NLRI identical to an existing
 // route replaces the older route in the Adj-RIB-In
 // (internal/component/bgp/plugins/rib/storage/familyrib.go:196-207).

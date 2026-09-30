@@ -206,7 +206,7 @@ func multipathEqual(a, b *Candidate, relaxASPath bool) bool {
 		return false
 	}
 	// Step 4: MED, only when both routes share a neighbor AS.
-	if a.FirstAS != 0 && b.FirstAS != 0 && a.FirstAS == b.FirstAS && a.MED != b.MED {
+	if sameNeighborAS(a, b) && a.MED != b.MED {
 		return false
 	}
 	// Step 5: eBGP vs iBGP.
@@ -341,7 +341,9 @@ func comparePair(a, b *Candidate) (int, BestStep) {
 	}
 
 	// Step 4: Lowest MED wins — only when same neighbor AS.
-	if a.FirstAS != 0 && b.FirstAS != 0 && a.FirstAS == b.FirstAS {
+	// RFC 4271 Section 9.1.2.2 (c): "For IBGP-learned routes, the MULTI_EXIT_DISC
+	// MUST be used in route comparisons that reach this step in the Decision Process."
+	if sameNeighborAS(a, b) {
 		if a.MED != b.MED {
 			if a.MED < b.MED {
 				return -1, BestStepMED
@@ -464,9 +466,9 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 	// Step 4: Lowest MED wins — only when same neighbor AS.
 	// RFC 4271 §9.1.2.2(c): "prefer the route with the lower multi-exit discriminator"
 	// "comparison is only performed between routes learned from the same neighboring AS"
-	if a.FirstAS != 0 && b.FirstAS != 0 && a.FirstAS == b.FirstAS {
+	if sameNeighborAS(a, b) {
 		if a.MED != b.MED {
-			reason := fmt.Sprintf("med %d vs %d (same neighbor AS %d)", a.MED, b.MED, a.FirstAS)
+			reason := fmt.Sprintf("med %d vs %d (same neighbor AS %d)", a.MED, b.MED, neighborAS(a))
 			if a.MED < b.MED {
 				return -1, BestStepMED, reason
 			}
@@ -588,6 +590,41 @@ func asPathLength(data []byte) int {
 		offset += count * 4 // skip AS values (4 bytes each)
 	}
 	return length
+}
+
+// neighborAS is the neighbor AS the MED step compares, or 0 when it is unknown.
+//
+// RFC 4271 Section 9.1.2.2 (c): "If the route is learned via IBGP, and the other IBGP
+// speaker either (a) originated the route, or (b) created the route by aggregation and
+// the AS_PATH attribute of the aggregate route is either empty or begins with an
+// AS_SET, it is the local AS."
+//
+// The leftmost AS stands for the neighbor AS whenever the AS_PATH carries one. An
+// IBGP-learned route with an empty AS_PATH was originated inside the local AS, so its
+// neighbor AS is LocalASN. An EBGP route with no leftmost AS, or a candidate whose
+// session class is unknown (LocalASN 0), has no neighbor AS, and 0 keeps it out of
+// every MED comparison.
+func neighborAS(c *Candidate) uint32 {
+	if c.FirstAS != 0 {
+		return c.FirstAS
+	}
+	if c.LocalASN == 0 {
+		return 0
+	}
+	if c.PeerASN != c.LocalASN {
+		return 0
+	}
+	return c.LocalASN
+}
+
+// sameNeighborAS reports whether a and b were learned from one known neighbor AS, the
+// condition RFC 4271 Section 9.1.2.2 (c) puts on comparing their MED.
+func sameNeighborAS(a, b *Candidate) bool {
+	neighbor := neighborAS(a)
+	if neighbor == 0 {
+		return false
+	}
+	return neighbor == neighborAS(b)
 }
 
 // firstASInPath extracts the first AS number from an AS_PATH attribute value.

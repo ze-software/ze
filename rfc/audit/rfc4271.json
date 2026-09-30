@@ -1,6 +1,8 @@
 {
   "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -86,7 +88,7 @@
       "note": "send side (attribute encoders), receive-path clear (enforceRFC7606), readvertise rails (rib CommitService, storage ToWireBytes) and the RS relay each fed 0x60/0xA0 and asserted 0x40/0x80 on the wire, COMMUNITIES 0xE0 kept",
       "requirement_sha": "156aea092a643db1",
       "tests": {
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitClearedOnReadvertisedWellKnown": "f776cf9eff458f4c",
+        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitClearedOnReadvertisedWellKnown": "ab16100811ce8d90",
         "internal/component/bgp/reactor/rfc4271_relay_partial_test.go::TestRFC4271PartialClearedOnTheRelayedWire": "71651bbb29bf74fa",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "71e9a5e9a3b36017",
         "internal/component/bgp/rib/rfc4271_partial_test.go::TestRFC4271PartialClearedWhenTheRailReadvertises": "f16e4cbdf16366d6",
@@ -143,19 +145,21 @@
       "verdict": "enforced"
     },
     "RFC4271-4.3-7": {
-      "note": "Substance is proven: all three paths assert the prefix installed and no withdrawal published for an UPDATE naming it in both WITHDRAWN and NLRI, which goes red on a withdraw-applied-last implementation. Every tag is positive and the row carries no {single-polarity} marker; the discriminating contrast (TestRIBWithdrawAndAnnounceDifferentPrefixesBothApply) is untagged. Tag it negative or add the marker to reach enforced.",
+      "note": "HEAD positives (rfc4271_rib_mixed_update_test.go, three paths) prove the prefix named in both WITHDRAWN and NLRI stays installed with no withdrawal published. New negative TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals drives handleReceivedStructured and asserts the OTHER withdrawn prefix (11/8) still leaves Adj-RIB-In and Loc-RIB, so the treatment is scoped to the duplicated prefix. Judge mutants 2026-09-30 (go test -overlay, tree untouched): skipping the whole legacy WITHDRAWN field when the UPDATE carries NLRI reddens the negative alone; the positives stay green, so the two polarities catch opposite failures.",
       "requirement_sha": "8f0c5f0b9dc78a9c",
       "tests": {
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "dca611e0e7c71b9d",
         "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "dca611e0e7c71b9d",
         "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "dca611e0e7c71b9d"
       },
       "units": {
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals": "6a9a8986dfb30a3d",
         "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "acbdf7e3aea7bb84",
         "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "d5ef9914e9ee614c",
         "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "fb119c704faad911"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-4.4-2": {
       "note": "Session level: handleOpen+handleKeepalive with a 1 s configured keepalive. Positive: negotiated hold 9 -> timers hold 9, KeepaliveTimer running, >=1 KEEPALIVE in 1.6 s. Negative: negotiated zero from either side -> timers hold 0, KeepaliveTimer stopped, zero octets in 1.6 s. Judge break: negotiateWith feeding the configured hold into the timers when the peer offers 0 turned the negative red. Old fsm timer_test.go tags are supplementary.",
@@ -217,8 +221,8 @@
       "note": "receive path, attribute walk and storage readvertise (including the extended-length reframing branch) each keep a Partial bit a previous AS set on recognized and unrecognized transitive attributes",
       "requirement_sha": "8a08ca30d7acebbe",
       "tests": {
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitPreservedOnUnknownTransitive": "f776cf9eff458f4c",
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitSurvivesLengthReframing": "f776cf9eff458f4c",
+        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitPreservedOnUnknownTransitive": "ab16100811ce8d90",
+        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitSurvivesLengthReframing": "ab16100811ce8d90",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared": "71e9a5e9a3b36017",
         "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialFromPreviousASNotCleared": "7de877eade9fefb8"
       },
@@ -475,17 +479,21 @@
       "verdict": "enforced"
     },
     "RFC4271-5.1.5-3": {
-      "note": "Units assert only the action ValidateUpdateRFC7606 selects (AttributeDiscard of code 5 on external, None on internal). No unit shows the live receive path removing the LOCAL_PREF before the RIB, or best-path ignoring an eBGP-received LOCAL_PREF; a session that computed the discard and then stored the attribute would keep both units green.",
+      "note": "Row is the RECEIVE side (\"MUST be ignored by the receiving speaker\"); the send-side LOCAL_PREF omission to external peers is a different row and is not judged here. New unit TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB drives a live passive session to Established and captures the payload the session dispatches to consumers, the only copy the RIB and best-path read. Positive: internal session, attrs byte-identical incl. LOCAL_PREF 200. Negative: external session, dispatched attribute codes are exactly [1 2 3 252] (no code 5; the ATTR_TOMBSTONE 252 marker of draft-mangin-idr-attr-tombstone replaces it, and no consumer reads 252 as LOCAL_PREF), ORIGIN/AS_PATH/NEXT_HOP and NLRI unchanged, session Established, no NOTIFICATION. Observed-red records +/- (revert session_validation.go::enforceRFC7606). Residual: the unit does not assert the tombstone's value bytes; confederation exception not exercised. Old message-level units stay as supplementary (they prove only the action selected).",
       "requirement_sha": "d93d8e7519be8e22",
       "tests": {
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefIgnoredOnExternalSession": "ba18c36b881a0964",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession": "ba18c36b881a0964"
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession": "ba18c36b881a0964",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB": "a44e07949b80f520",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB#2": "a44e07949b80f520"
       },
       "units": {
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefIgnoredOnExternalSession": "fbdb58c658f3a9bf",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession": "2ea484d9220d21a2"
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession": "2ea484d9220d21a2",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB": "f773413b5958b546",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB#2": "f773413b5958b546"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-5.1.5-4": {
       "note": "SelectBest cases: higher wins, lower loses, equal falls through to AS_PATH; an inverted comparison fails two cases",
@@ -504,8 +512,8 @@
       "note": "extractCandidate seeding 100 is a hard-coded default, and no unit shows a locally configured policy (import local-preference) setting the degree of preference; the clause 'include the degree of preference when advertising a route to its internal peers' is not in these units.",
       "requirement_sha": "8c672a1a8f1ce19c",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "3762c0c9b5182ff2",
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "3762c0c9b5182ff2"
+        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "977fed204ca1de61",
+        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "977fed204ca1de61"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "5fc5f0caeaad3e50",
@@ -1012,43 +1020,55 @@
       "verdict": "weak"
     },
     "RFC4271-9-1": {
-      "note": "TestRFC4271WithdrawRemovesFromAdjRIBIn calls FamilyRIB.Remove directly; no tagged unit feeds an UPDATE with a non-empty WITHDRAWN ROUTES field through the RIB plugin's receive path.",
+      "note": "Both new units feed a received UPDATE with a non-empty WITHDRAWN ROUTES field through handleReceivedStructured (not FamilyRIB directly). Positive: the named route leaves the peer's Adj-RIB-In (2->1), leaves the Loc-RIB and a BestChangeWithdraw names it. Negative: 11/8, not in the field, stays in both and gets no withdraw; withdrawing an unannounced prefix removes nothing. Judge mutants 2026-09-30 (go test -overlay, tree untouched): dropping the decision run for legacy withdrawals reddens the positive. Storage-level HEAD tags remain as supplementary proof of FamilyRIB.Remove.",
       "requirement_sha": "bcbe9f2bf1dabb56",
       "tests": {
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "f776cf9eff458f4c",
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn#2": "f776cf9eff458f4c"
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesOnlyTheNamedRoutes": "e914a6452ddec559",
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesTheRouteFromAdjRIBIn": "e914a6452ddec559",
+        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "ab16100811ce8d90",
+        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn#2": "ab16100811ce8d90"
       },
       "units": {
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesOnlyTheNamedRoutes": "a6d1c3b8aeb467c8",
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesTheRouteFromAdjRIBIn": "0fe7ebdcda352a7e",
         "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "b31ce68fe4addcd8",
         "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn#2": "b31ce68fe4addcd8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-9-2": {
-      "note": "Replacement is proven on FamilyRIB.Insert directly, not from a received UPDATE. The negative tag asserts that removal is keyed on NLRI, which is a neighbouring rule, not a violation of replacement.",
+      "note": "Positive: a second received route with identical NLRI from the same peer leaves one Adj-RIB-In entry and the new next hop in service. Negative (inputs biased toward the violation): the newer route has a LONGER AS_PATH, so keep-both or keep-better would leave the older 10.0.0.1 selected; the test asserts one entry and 10.0.0.2 in service. Both run through handleReceivedStructured. The HEAD storage negative (removal keyed on NLRI) is a neighbouring rule kept as supplementary; the new pair carries the row.",
       "requirement_sha": "0ddd41b24ace783a",
       "tests": {
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "f776cf9eff458f4c",
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "f776cf9eff458f4c"
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder": "e914a6452ddec559",
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReplacementWithdrawsTheOlderRouteEvenWhenItWasBetter": "e914a6452ddec559",
+        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "ab16100811ce8d90",
+        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "ab16100811ce8d90"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "240fe02d923db400",
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder": "68cd482462e9f4f3",
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReplacementWithdrawsTheOlderRouteEvenWhenItWasBetter": "2736bb36fa7477ff",
+        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "fd852d268e8d082c",
         "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "b31ce68fe4addcd8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-9-3": {
-      "note": "Both units call checkBestPathChange themselves after Insert/Remove, so the obligation (the speaker runs the Decision Process once the Adj-RIB-In is updated, rib_structured.go) is not exercised. The negative asserts no change on unchanged input, not a missed run.",
+      "note": "No unit calls checkBestPathChange itself. Positive: one received UPDATE puts the route in the Loc-RIB and publishes exactly one BestChangeAdd. Negative: peer A's withdrawal of the selected route leaves peer B's route installed, which a skipped run (stale best or none) fails. Judge mutants 2026-09-30 (go test -overlay, tree untouched): removing the decision run for legacy withdrawals reddens the negative.",
       "requirement_sha": "e4253de42d023dd5",
       "tests": {
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "e914a6452ddec559",
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "db05af8962a54e75",
         "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "db05af8962a54e75"
       },
       "units": {
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "448dc56158d37236",
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "7e76ce2c3464e819",
         "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "60623f6b66fa6992",
         "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "53a0b7090ed25f50"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-9-4": {
       "note": "Forbidden: a new NLRI not placed. handleReceivedStructured (the reactor UPDATE entry) asserts Len 1 then 2 and Get(10.0.0.0/8) with its own NEXT_HOP, red on a route not stored. Negative (the condition false, identical NLRI): Len stays 2 and the slot holds the newer NEXT_HOP, red on a route placed beside the existing one.",
@@ -1064,17 +1084,17 @@
       "verdict": "enforced"
     },
     "RFC4271-9.1.1-1": {
-      "note": "In TestRFC4271DegreeOfPreferenceIgnoresOtherRoutes, withNoise := ComparePair(a, b) never receives the noise candidates, so that assertion cannot fail; only the SelectBest winner check can. No test shows a preference function that did read other routes going red.",
+      "note": "The vacuous withNoise ComparePair assertion is gone. The positive now asserts SelectBest picks b for {a,b}, {b,a} and all 120 orders of {a,b}+3 unrelated routes (one ties b on LOCAL_PREF), and that b beats each member pairwise. Judge mutants 2026-09-30 (go test -overlay, tree untouched): a SelectBest that, with more than two candidates, prefers the longer AS_PATH among LOCAL_PREF ties (preference reading the existence of other routes) reddens the positive; swapping LOCAL_PREF after AS_PATH reddens both polarities.",
       "requirement_sha": "491c118a47efa4a7",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceFollowsOwnAttributes": "3762c0c9b5182ff2",
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceIgnoresOtherRoutes": "3762c0c9b5182ff2"
+        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceFollowsOwnAttributes": "977fed204ca1de61",
+        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceIgnoresOtherRoutes": "977fed204ca1de61"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceFollowsOwnAttributes": "7fc6613d820887bc",
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceIgnoresOtherRoutes": "4620a131c12c18fa"
+        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceIgnoresOtherRoutes": "88c4caf53828efca"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-9.1.1-2": {
       "note": "rfc4271Announce builds a locally originated route with no policy; the asserted LOCAL_PREF 100 is the default, so a hard-coded 100 passes. No external-learned route with a policy-computed preference is readvertised to iBGP. The negative (no LOCAL_PREF to eBGP) is RFC4271-5.1.5-2's rule.",
@@ -1090,23 +1110,27 @@
       "verdict": "weak"
     },
     "RFC4271-9.1.2-2": {
-      "note": "TestLocRIBMirror proves the best route is installed; 'replacing any route to the same destination that is currently being held in the Loc-RIB' is not asserted. The negative is removal on no candidate, a neighbouring rule.",
+      "note": "Through handleReceivedStructured: positive, peer B's better route replaces peer A's as the Loc-RIB best (next hop 10.0.0.1 -> 10.0.0.2); negative, the destination's Loc-RIB group holds exactly one BGP path afterwards, peer B's, so install-beside fails. HEAD rib_bestchange_test units kept as supplementary.",
       "requirement_sha": "83f1b8937ef8d555",
       "tests": {
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "e914a6452ddec559",
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestLocRIBMirror": "db05af8962a54e75",
         "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "db05af8962a54e75"
       },
       "units": {
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "98402ef77460d85f",
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "4a1294ce00fd3415",
         "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestLocRIBMirror": "d0cb1c3067f8a4c5",
         "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "53a0b7090ed25f50"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-9.1.2.1-1": {
       "note": "The tagged units (TestLocRIBMirror, TestRFC4271LocRIBNextHopComesFromNextHopAttribute) assert that the Loc-RIB NextHop is copied unresolved from the NEXT_HOP attribute. That is a neighbouring rule. No unit resolves the NEXT_HOP to an immediate, directly connected next hop before forwarding, which is what the sentence requires. The RFC4271-3.1-2 gap places resolution at FIB install.",
       "requirement_sha": "5c4d781d4a326202",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271LocRIBNextHopComesFromNextHopAttribute": "3762c0c9b5182ff2",
+        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271LocRIBNextHopComesFromNextHopAttribute": "977fed204ca1de61",
         "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestLocRIBMirror": "db05af8962a54e75"
       },
       "units": {
@@ -1116,7 +1140,7 @@
       "verdict": "wrong"
     },
     "RFC4271-9.1.2.2-1": {
-      "note": "The units prove step f) decides before g) and falls through on a tie, and that c) is skipped across neighbor ASes. A reordering among steps a) to e) (e.g. AS_PATH length before LOCAL_PREF) passes every tagged unit; TestBestPath_FullTiebreak only shows g) deciding after skips.",
+      "note": "New positive TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified pits each adjacent pair a)..f) (LOCAL_PREF/AS_PATH, AS_PATH/ORIGIN, ORIGIN/MED, MED/EBGP, EBGP/IGP cost, IGP cost/BGP Identifier) with the later step favoring the other route, both argument orders, asserting result and deciding step. Judge mutants 2026-09-30 (go test -overlay, tree untouched): LOCAL_PREF after AS_PATH, ORIGIN before AS_PATH, EBGP before MED, IGP cost before EBGP, Router ID before IGP cost: every swap reddens it. HEAD negatives (f/g fall-through, MED skipped across neighbor ASes) unchanged.",
       "requirement_sha": "25f4bd3bf4eea6fc",
       "tests": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "7e45dd7edaf7d8c5",
@@ -1124,7 +1148,8 @@
         "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "b3ad2ff4c32b9353",
         "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "b3ad2ff4c32b9353",
         "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "f906866608450971",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "f906866608450971"
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "f906866608450971",
+        "internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified": "a129dac3a74eb33f"
       },
       "units": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "b5d24bd8d66b29b4",
@@ -1132,61 +1157,70 @@
         "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "770624e70c62ce0f",
         "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "fec8400f8162b5d9",
         "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "ee9282cc8eb081bb",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "e605e49bd0397162"
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "e605e49bd0397162",
+        "internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified": "28fa129380d74765"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-9.1.2.2-3": {
-      "note": "The unit proves lower MED wins between candidates with equal non-zero FirstAS. No candidate is iBGP-learned (LocalASN 0 means unknown in bestpath.go), so the 'IBGP-learned' qualifier has no assertion. The negative, a different neighbor AS, is step c)'s scope rule. Code defect: MED is skipped when FirstAS is 0 (bestpath.go step 4). Two iBGP routes originated in the local AS (empty AS_PATH) therefore never compare MED, although Section 9.1.2.2 makes neighborAS the local AS for them.",
+      "note": "D-8 fix read at the producer: neighborAS/sameNeighborAS (bestpath.go) make an IBGP route with an empty AS_PATH neighbor the local AS, used by comparePair, comparePairWithReason and multipathEqual; EBGP and confederation cases are unchanged (FirstAS != 0 still decides; an EBGP route with no leftmost AS and LocalASN 0 still compare no MED). Positive (two empty-AS_PATH IBGP routes, MED decides against IGP cost) was red at HEAD; negative biases every later step toward the higher MED. Judge mutants 2026-09-30 (go test -overlay, tree untouched): restoring the old FirstAS rule reddens the positive; excluding IBGP from MED reddens both. MISSING: Section 9.1.2.2 (c) clause (b), an IBGP aggregate whose AS_PATH BEGINS WITH AN AS_SET has neighbor AS = local AS; firstASInPath returns the set's first ASN (Candidate carries no segment type), so such a route skips MED against a locally originated route. Untested and unimplemented.",
       "requirement_sha": "fdfea00e26b43b37",
       "tests": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "7e45dd7edaf7d8c5",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS#2": "7e45dd7edaf7d8c5"
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS#2": "7e45dd7edaf7d8c5",
+        "internal/component/bgp/plugins/rib/rfc4271_ibgp_med_test.go::TestRFC4271IBGPLocallyOriginatedRoutesCompareMED": "cda8464969d77ee0",
+        "internal/component/bgp/plugins/rib/rfc4271_ibgp_med_test.go::TestRFC4271IBGPMEDIsNotSkippedWhenLaterStepsDisagree": "cda8464969d77ee0"
       },
       "units": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "6bf15b9f3232cdc2",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS#2": "6bf15b9f3232cdc2"
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS#2": "6bf15b9f3232cdc2",
+        "internal/component/bgp/plugins/rib/rfc4271_ibgp_med_test.go::TestRFC4271IBGPLocallyOriginatedRoutesCompareMED": "75a4f6c68f66169c",
+        "internal/component/bgp/plugins/rib/rfc4271_ibgp_med_test.go::TestRFC4271IBGPMEDIsNotSkippedWhenLaterStepsDisagree": "a699ab40381d9431"
       },
       "verdict": "weak"
     },
     "RFC4271-9.2-10": {
-      "note": "units drive message.Splitter.Split directly: ErrAttributesTooLarge and zero emits for a route whose attributes exceed the ceiling. The forward rail also splits through wireu.SplitWireUpdate (forward_body.go) and no unit shows a caller withholding the route rather than sending it",
+      "note": "New unit TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld drives the relay rail buildFwdBody (the path the old weak note named as unproven) toward a 4096-octet destination. Positive: one route with 900 communities fits and is relayed as one raw body byte-identical to the received. Negative: one route with 1100 communities cannot fit; buildFwdBody returns ok=false with no raw body and no parsed update, and both callers (forward_rs.go, reactor_api_forward.go) skip the destination on !ok (read at the producer). Observed-red records: + revert forward_body.go::buildFwdBody, - revert wireu/split.go::buildCombinedUpdates. The message Splitter units stay as supplementary proof of the originate rail.",
       "requirement_sha": "17cf9a33430fda7d",
       "tests": {
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271FittingRouteIsAdvertised": "ba18c36b881a0964",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OversizeSingleRouteNotAdvertised": "ba18c36b881a0964"
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OversizeSingleRouteNotAdvertised": "ba18c36b881a0964",
+        "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld": "4ae6ed42ec547fb7",
+        "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld#2": "4ae6ed42ec547fb7"
       },
       "units": {
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271FittingRouteIsAdvertised": "f490e285663db95e",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OversizeSingleRouteNotAdvertised": "4f951680e8995f18"
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OversizeSingleRouteNotAdvertised": "4f951680e8995f18",
+        "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld": "3869fa5b27305bbe",
+        "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld#2": "3869fa5b27305bbe"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4271-9.2-4": {
+      "note": "Tests now drive the receive path: positive, /8 and /24 from one UPDATE each get a BestChangeAdd; negative, a later overlapping route in either order causes no withdraw and both stay held. That proves 'consider both routes' under the default accept-all policy only. MISSING: 'based on the configured acceptance policy': the rib applies no import policy (filters run in reactor ingress), and no unit configures a policy that accepts one of two overlapping routes and rejects the other and shows the accepted one is still considered.",
+      "requirement_sha": "a0ad53f9cd71410a",
+      "tests": {
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "e914a6452ddec559",
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "e914a6452ddec559"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "eb45d769d02cad24",
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "369ff347b6413c88"
       },
       "verdict": "weak"
     },
-    "RFC4271-9.2-4": {
-      "note": "Both units call FamilyRIB.Insert on the Adj-RIB-In store and assert that /8 and /24 are held as two entries, which is NLRI keying of storage. The sentence binds the Decision Process to consider both routes under the configured acceptance policy. No tagged unit runs best-path selection or an import policy over overlapping routes.",
-      "requirement_sha": "a0ad53f9cd71410a",
-      "tests": {
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271OverlappingRoutesBothInstalled": "f776cf9eff458f4c",
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "f776cf9eff458f4c"
-      },
-      "units": {
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271OverlappingRoutesBothInstalled": "3bfe1733fe7bf75a",
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "240fe02d923db400"
-      },
-      "verdict": "wrong"
-    },
     "RFC4271-9.2-5": {
-      "note": "The positive asserts that Adj-RIB-In storage (FamilyRIB) holds both routes, and the negative asserts identical-NLRI replacement (9-2). Both are neighbouring rules. Nothing asserts that the Loc-RIB (the Decision Process output) installs both the less and the more specific route, or their aggregate.",
+      "note": "Positive: a less and a more specific route with the same NEXT_HOP are both installed in the Loc-RIB (bestNextHop for /8 and /24). Negative: installing the second overlapping route, in either order, never uninstalls the first (no withdraw, first still in Loc-RIB, Adj-RIB-In holds 2), which a most-specific-wins or covering-wins process fails. Ze takes the 'install both' branch; aggregation is not used. Old storage NLRI-keying tags removed (D-15).",
       "requirement_sha": "88e289aad8d82fbb",
       "tests": {
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271OverlappingRoutesBothInstalled": "f776cf9eff458f4c",
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "f776cf9eff458f4c"
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "e914a6452ddec559",
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "e914a6452ddec559"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271OverlappingRoutesBothInstalled": "3bfe1733fe7bf75a",
-        "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "240fe02d923db400"
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "eb45d769d02cad24",
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "369ff347b6413c88"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC4271-9.2-6": {
       "note": "Only reactorForwardRS is exercised. The same split-horizon check on the API forward rail (reactor_api_forward.go:721) has no tagged unit. The prohibition's assertion is assert.Empty after a fixed 50ms sleep, so a dispatch slower than that passes. The Route Reflector exception is shown with a client source only, not with a client destination.",

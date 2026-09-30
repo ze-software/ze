@@ -26,35 +26,62 @@ func rfc4271Candidate(addr string, localPref uint32, asPathLen int) *Candidate {
 // routes depends only on those routes' own attributes.
 //
 // VALIDATES: The winner between two candidates is identical whether they are compared
-// alone or alongside three unrelated candidates with far better and far worse attributes.
+// alone or alongside unrelated candidates, in every order the set can arrive in, and the
+// winner of the larger set beats every other member pairwise.
 //
-// PREVENTS: A route's preference drifting because of what else happens to be in the RIB.
+// PREVENTS: A route's preference drifting because of what else happens to be in the RIB:
+// a selection that reads the number, the position or the attributes of other routes
+// picks a different winner for some order or some subset.
 //
-// RFC requirement: RFC4271-9.1.1-1 positive -- comparePair reads only the two candidates'
-// own fields, so adding or removing unrelated routes does not change their relative order
-// (internal/component/bgp/plugins/rib/bestpath.go:307-391, SelectBest at :122-135).
+// RFC requirement: RFC4271-9.1.1-1 positive -- the degree of preference is a function of
+// each route alone: SelectBest returns 10.0.0.2 for {a, b} and for every permutation of
+// {a, b} plus three unrelated routes, and that winner beats each other route in
+// ComparePair (internal/component/bgp/plugins/rib/bestpath.go SelectBest, comparePair).
 func TestRFC4271DegreeOfPreferenceIgnoresOtherRoutes(t *testing.T) {
 	a := rfc4271Candidate("10.0.0.1", 100, 3)
 	b := rfc4271Candidate("10.0.0.2", 150, 5)
+	require.Positive(t, ComparePair(a, b), "b has the higher LOCAL_PREF and wins the pair")
+	require.Equal(t, "10.0.0.2", SelectBest([]*Candidate{a, b}).PeerAddr)
+	require.Equal(t, "10.0.0.2", SelectBest([]*Candidate{b, a}).PeerAddr)
 
-	pairOnly := ComparePair(a, b)
-	require.Positive(t, pairOnly, "b has the higher LOCAL_PREF and wins the pair")
-
-	// Same two routes, now surrounded by unrelated candidates.
+	// Unrelated routes: one ties b on LOCAL_PREF, one sits between a and b, one is worse.
 	noise := []*Candidate{
-		rfc4271Candidate("10.0.0.3", 50, 1),
+		rfc4271Candidate("10.0.0.3", 150, 6),
 		rfc4271Candidate("10.0.0.4", 120, 2),
 		rfc4271Candidate("10.0.0.5", 10, 9),
 	}
-	withNoise := ComparePair(a, b)
-	assert.Equal(t, pairOnly, withNoise, "presence of other routes does not alter the pair order")
+	set := append([]*Candidate{a, b}, noise...)
 
-	best := SelectBest(append([]*Candidate{a, b}, noise...))
-	assert.Equal(t, "10.0.0.2", best.PeerAddr, "the same route still wins in the larger set")
+	// Every order of the five routes selects b, so neither the position of b nor the
+	// routes seen before it are inputs to its preference.
+	var permute func(k int)
+	permute = func(k int) {
+		if k == len(set) {
+			best := SelectBest(set)
+			assert.Equal(t, "10.0.0.2", best.PeerAddr, "order %v", peerOrder(set))
+			return
+		}
+		for i := k; i < len(set); i++ {
+			set[k], set[i] = set[i], set[k]
+			permute(k + 1)
+			set[k], set[i] = set[i], set[k]
+		}
+	}
+	permute(0)
 
-	// Removing the noise leaves the same winner.
-	best = SelectBest([]*Candidate{a, b})
-	assert.Equal(t, "10.0.0.2", best.PeerAddr)
+	// The winner of the larger set is the pairwise winner against each member.
+	for _, other := range append([]*Candidate{a}, noise...) {
+		assert.Negative(t, ComparePair(b, other), "10.0.0.2 beats %s on their own attributes", other.PeerAddr)
+	}
+}
+
+// peerOrder lists the candidates' peer addresses in slice order, for a failure message.
+func peerOrder(candidates []*Candidate) []string {
+	order := make([]string, 0, len(candidates))
+	for _, c := range candidates {
+		order = append(order, c.PeerAddr)
+	}
+	return order
 }
 
 // TestRFC4271DegreeOfPreferenceFollowsOwnAttributes verifies the invariance above is not a

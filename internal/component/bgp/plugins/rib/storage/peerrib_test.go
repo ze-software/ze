@@ -184,7 +184,10 @@ func TestPeerRIB_Clear(t *testing.T) {
 //
 // VALIDATES: ADD-PATH state passed to family RIB.
 // PREVENTS: ADD-PATH routes treated as duplicate.
-// RFC requirement: RFC7911-2-1 positive -- ADD-PATH enabled, two NLRI sharing prefix 10.0.0.0/24 but carrying distinct 4-octet Path IDs (1 and 2) install as two separate entries (Len==2), so (prefix, Path ID) uniquely identifies each advertised path.
+//
+// This is receive-side keying of the Adj-RIB-In. The RFC 7911 Section 2 assignment of
+// identifiers ze advertises is proven by the reactor forward path-id units
+// (internal/component/bgp/reactor/forward_path_id_test.go).
 func TestPeerRIB_AddPath(t *testing.T) {
 	rib := NewPeerRIB("192.0.2.1")
 	defer rib.Release()

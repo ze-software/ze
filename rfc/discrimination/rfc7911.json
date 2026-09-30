@@ -2,6 +2,28 @@
   "rfc": "rfc7911",
   "records": [
     {
+      "rid": "RFC7911-2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates",
+      "unit-sha": "2af33fa71c7639d1",
+      "claim-sha": "b0aec10e857341c3",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
+      "producer-sha": "1c4a6bc8b7728f30",
+      "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7911-2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources",
+      "unit-sha": "25f9b6338f43c354",
+      "claim-sha": "304ace729e348b12",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
+      "producer-sha": "1c4a6bc8b7728f30",
+      "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7911-4-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC7911OpenCarriesOneAddPathInstance",

@@ -2,18 +2,20 @@
   "audited": "2026-09-30",
   "requirements": {
     "RFC7911-2-1": {
-      "note": "Sentence obliges the ADVERTISING speaker to assign Path Identifiers so that (Prefix, Path Identifier) uniquely identifies a path advertised to a neighbor; forbidden behaviour: ze advertising two different paths for one prefix to one neighbor under the same identifier. The only tagged unit, rib/storage TestPeerRIB_AddPath, inserts two RECEIVED NLRI with distinct ids into the Adj-RIB-In and asserts Len()==2: it proves receive-side keying, a neighbouring rule, and never looks at an identifier ze assigns. The assignment producer is the reactor forward path-id generator (forward_path_id.go); units that do prove this sentence (TestForwardPathIDReleaseReturnsValues, the churn and growth-probe tests, TestForwardPathIDsDifferForCollidingSources) are tagged RFC7911-2-2 instead, quoting this sentence in their prose.",
+      "note": "Tags moved to the advertising side (reactor buildFwdBody, both zero-copy and re-encode branches). Negative biases toward the violation: two sources both chose Path Identifier 1 for 10.0.0.0/24 and the two paths still leave toward one neighbor with different identifiers, read from the destination frames. Positive: one path re-advertised twice leaves under the same ze identifier, so (Prefix, Path Identifier) names that one path across UPDATEs. Receive-side storage tag (TestPeerRIB_AddPath) removed; {single-polarity} marker removed.",
       "requirement_sha": "5df8a5af519ff87a",
       "tests": {
-        "internal/component/bgp/plugins/rib/storage/peerrib_test.go::TestPeerRIB_AddPath": "986251591fb2681c"
+        "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "e23bb361b9192ba6",
+        "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources": "e23bb361b9192ba6"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/storage/peerrib_test.go::TestPeerRIB_AddPath": "71c88eed220aefa2"
+        "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "ffa1b8abc42f7f2c",
+        "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources": "9b8b501ceef0bd1f"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC7911-2-2": {
-      "note": "Sentence: a speaker that re-advertises a route MUST generate its own Path Identifier for it. Forbidden behaviour: relaying the received identifier. Negative TestForwardPathIDStableAcrossUpdates: require.NotEqual(uint32(receivedPathID=0xDEADBEEF), first) goes red if the received id is copied; positive TestForwardPathIDsDifferForCollidingSources: two sources both using id 1 must leave with different ids (require.NotEqual(first, second)), red under a relaying implementation. The .ci adj-rib-in-replay-addpath-source asserts ze's 0 against the source's 1 on a running daemon. Several other units tagged here quote and prove RFC7911-2-1's sentence instead (see findings).",
+      "note": "Re-judged after the 2-1 tags were added to the doc comments of the two forward_path_id_test.go units; bodies unchanged. Negative TestForwardPathIDStableAcrossUpdates requires the emitted identifier differ from the received 0xDEADBEEF; positive TestForwardPathIDsDifferForCollidingSources requires a ze-generated identifier per source path. Other gen/churn units unchanged.",
       "requirement_sha": "442640073668ac08",
       "tests": {
         "internal/component/bgp/reactor/forward_path_id_churn_test.go::TestForwardPathIDKeepsTheSourceOfARebuiltFrame": "f3dfecee2242a333",
@@ -27,8 +29,8 @@
         "internal/component/bgp/reactor/forward_path_id_gen_test.go::TestForwardPathIDReleaseReturnsValues": "cbf13b4b5c120df7",
         "internal/component/bgp/reactor/forward_path_id_gen_test.go::TestForwardPathIDSeparatesNonAddPathSources": "cbf13b4b5c120df7",
         "internal/component/bgp/reactor/forward_path_id_gen_test.go::TestForwardPathIDSurvivesAttributeChange": "cbf13b4b5c120df7",
-        "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "1b6072b7241b8a15",
-        "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources": "1b6072b7241b8a15",
+        "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "e23bb361b9192ba6",
+        "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources": "e23bb361b9192ba6",
         "internal/component/bgp/reactor/zz_pathid_growth_probe_test.go::TestPathIDKeyFollowsWhatTheSourceFramed": "1fefd24337f4bb97",
         "internal/component/bgp/reactor/zz_pathid_growth_probe_test.go::TestWithdrawOnlyUpdateFreesEveryIdentifierItBuys": "1fefd24337f4bb97",
         "internal/le/interoplab/bgp/check_rfc.go::checkAddPathReadvertiseCollision": "f04334a58fd00e7c",
@@ -46,8 +48,8 @@
         "internal/component/bgp/reactor/forward_path_id_gen_test.go::TestForwardPathIDReleaseReturnsValues": "1d3c74ce72d5c20d",
         "internal/component/bgp/reactor/forward_path_id_gen_test.go::TestForwardPathIDSeparatesNonAddPathSources": "283ea221d2c626bb",
         "internal/component/bgp/reactor/forward_path_id_gen_test.go::TestForwardPathIDSurvivesAttributeChange": "84e9adb9feae328f",
-        "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "a3e921d1d25d6b22",
-        "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources": "619c8d0c2f0086bc",
+        "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "ffa1b8abc42f7f2c",
+        "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources": "9b8b501ceef0bd1f",
         "internal/component/bgp/reactor/zz_pathid_growth_probe_test.go::TestPathIDKeyFollowsWhatTheSourceFramed": "90536cc040d7a76c",
         "internal/component/bgp/reactor/zz_pathid_growth_probe_test.go::TestWithdrawOnlyUpdateFreesEveryIdentifierItBuys": "8ad7127ad4f6c73c",
         "internal/le/interoplab/bgp/check_rfc.go::checkAddPathReadvertiseCollision": "1088f063a3ee2f65",

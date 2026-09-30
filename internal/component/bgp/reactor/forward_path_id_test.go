@@ -41,6 +41,11 @@ import (
 // rather than the requirement. It cannot pass spuriously by the two frames simply
 // differing, because it reads the identifier field out of each destination frame
 // and compares those two fields alone.
+//
+// RFC requirement: RFC7911-2-1 negative -- the inputs are forced toward the violation
+// (both sources chose Path Identifier 1 for 10.0.0.0/24), and the two paths still leave
+// toward one neighbor under two different identifiers, so (Prefix, Path Identifier)
+// never names two advertised paths at once.
 func TestForwardPathIDsDifferForCollidingSources(t *testing.T) {
 	// One context for both sources and the destination: every client negotiated
 	// ADD-PATH with the same capabilities, which is what a route server sees and
@@ -90,6 +95,10 @@ func TestForwardPathIDsDifferForCollidingSources(t *testing.T) {
 // The received identifier is 0xDEADBEEF rather than a small number so that
 // "the emitted value is not the received value" cannot pass by a generator
 // happening to mint the same low integer the source chose.
+//
+// RFC requirement: RFC7911-2-1 positive -- one path re-advertised to one neighbor
+// leaves under the same ze-assigned identifier both times, so (Prefix, Path Identifier)
+// identifies that one path across UPDATEs.
 func TestForwardPathIDStableAcrossUpdates(t *testing.T) {
 	ctx, ctxID := registerForwardBodyTestContext(t, true, true)
 	require.True(t, ctx.AddPath(family.IPv4Unicast), "destination must have ADD-PATH negotiated")
