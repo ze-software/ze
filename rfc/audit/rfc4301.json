@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4301-4.1-1": {
@@ -209,17 +209,38 @@
       "verdict": "weak"
     },
     "RFC4301-4.4.2-1": {
-      "note": "Clause: for EACH Section 4.4.1.1 selector, the inbound SAD entry is populated with the negotiated values. TestChildSAInboundPolicyUsesNegotiatedTS and TestNarrowedSelectorsReachTheInstalledPolicy assert the inbound SPD policy's Src/Dst equal the narrowed TSr/TSi: that is the SPD entry, not the SAD entry (the XFRM state's selector is never read), and the Next Layer protocol and port selectors are not asserted at all, so a SAD entry carrying unnegotiated protocol or ports stays green.",
+      "note": "Judged at the whole stack (R21). Transport: installChildSA now sets the inbound SAParams.Sel from childPolicyParams(child, SADirIn) (src=TSr, dst=TSi, proto, sport/dport, direction checked with asymmetric ports 179/any in TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors), mapped to x->sel by xfrmStateFromParams. Tunnel: the inbound require-policy carries the same five. Kernel probes in rfc4301_sad_selector_linux_test.go (user+net namespace, real XFRM) assert delivery inside and exact +1 on XfrmInNoPols (tunnel: outside by source, port, protocol) or XfrmInStateMismatch (transport: port, protocol) with no delivery. Judge re-observed red under two overlays: transport Sel block disabled -> port 6000 delivered, counters 0; inbound tunnel policy widened -> all three outside cases delivered, NoPols 0. The multi-pair 'or values' half is the gap RFC4301-4.4.2-2.",
       "requirement_sha": "e3911738ce979efb",
       "tests": {
         "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "3c602227a7107a32",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "ab409e08cee0cc52",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "ab409e08cee0cc52",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "ab409e08cee0cc52",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "ab409e08cee0cc52",
+        "internal/component/ike/engine/rfc4301_sad_selector_test.go::TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors": "fc51f7049086d591",
         "internal/component/ike/engine/ts_narrow_test.go::TestNarrowedSelectorsReachTheInstalledPolicy": "7ec56b7d86f07a26"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "93a9bdfaf157d80d",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "f6873d810c3aed6f",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "f6873d810c3aed6f",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "6dfaf8ca9b5fb709",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "6dfaf8ca9b5fb709",
+        "internal/component/ike/engine/rfc4301_sad_selector_test.go::TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors": "f41391cd200c6306",
         "internal/component/ike/engine/ts_narrow_test.go::TestNarrowedSelectorsReachTheInstalledPolicy": "8bec75558534acf9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
+    },
+    "RFC4301-4.4.2-2": {
+      "code": {
+        "internal/component/ike/engine/child.go::childPolicyParams": "79e7fdf87431de45",
+        "internal/component/ike/engine/child.go::installChildSA": "f8b8735e1db49d69",
+        "internal/component/ike/engine/child.go::selectorPort": "45372979c5be25a6",
+        "internal/component/ike/engine/child.go::selectorProto": "d75eb4eb62bb8ee4"
+      },
+      "note": "Row quote is a verbatim span of RFC 4301 Section 4.4.2 (rfc/full/rfc4301.txt:1916-1918). Gap confirmed at the producers: child.Selectors holds every negotiated pair, but selectorProto and selectorPort read Selectors[0] only, childPolicyParams builds one policy per direction from TSLocal/TSRemote, and installChildSA copies that one selector onto the transport inbound state. A second negotiated pair reaches neither the SPD nor the SAD.",
+      "requirement_sha": "36315016bf1c571b",
+      "verdict": "unimplemented"
     },
     "RFC4301-4.4.2.1-1": {
       "note": "asserts SPI, mode, protocol, transforms, keys and replay window; the sequence counter, overflow flag, lifetime, PMTU and the DF/DSCP bypass items of the list are not asserted",

@@ -450,6 +450,29 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		AuthKey:   inInteg,
 		IsAEAD:    isAEAD,
 	}
+
+	// A tunnel-mode inbound state carries no selector. Linux enforces the negotiated
+	// selectors of a tunnel-mode SA through the inbound require-policy installed below:
+	// __xfrm_policy_check drops a decapsulated packet that matches no inbound policy
+	// while its secpath holds a tunnel-mode state (XfrmInNoPols). A transport-only
+	// secpath passes that check, so a transport-mode state carries the selector itself,
+	// and the kernel then drops a packet outside it (XfrmInStateMismatch).
+	//
+	// The selector is the inbound policy's, so the state and the policy cannot
+	// disagree. It holds the first negotiated pair only, as the policy does.
+	if mode == modeTransport {
+		inPolicy := childPolicyParams(child, dataplane.SADirIn)
+		// RFC 4301 Section 4.4.2: "For each of the selectors defined in Section 4.4.1.1,
+		// the entry for an inbound SA in the SAD MUST be initially populated with the
+		// value or values negotiated at the time the SA was created."
+		inbound.Sel = &dataplane.SASelector{
+			Src:        inPolicy.Src,
+			Dst:        inPolicy.Dst,
+			UpperProto: inPolicy.UpperProto,
+			SrcPort:    inPolicy.SrcPort,
+			DstPort:    inPolicy.DstPort,
+		}
+	}
 	localPort, remotePort := child.udpLocalPort, child.udpRemotePort
 	if localPort == 0 {
 		localPort = transport.NATTPort

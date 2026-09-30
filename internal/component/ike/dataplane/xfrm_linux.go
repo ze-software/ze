@@ -158,13 +158,25 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 
 	// RFC 4552 OSPFv3: an explicit state selector (x->sel) lets one wildcard-address
 	// SA (Src=Dst=::) be resolved for any OSPF flow (ff02::5, ff02::6, neighbor
-	// unicast) instead of only flows whose daddr equals p.Dst. IKE child SAs leave
-	// p.Sel nil, so msg.Sel stays the zero value (byte-identical to before).
+	// unicast) instead of only flows whose daddr equals p.Dst. A transport-mode IKE
+	// Child SA sets it to its negotiated selector (RFC 4301 Section 4.4.2), and the
+	// kernel then drops a decrypted packet outside it (XfrmInStateMismatch). A
+	// tunnel-mode IKE Child SA leaves p.Sel nil, so msg.Sel stays the zero value.
 	if p.Sel != nil {
+		srcPort, err := xfrmSelectorPort("state source", p.Sel.SrcPort)
+		if err != nil {
+			return nil, fmt.Errorf("xfrm: state add spi=%d: %w", p.SPI, err)
+		}
+		dstPort, err := xfrmSelectorPort("state destination", p.Sel.DstPort)
+		if err != nil {
+			return nil, fmt.Errorf("xfrm: state add spi=%d: %w", p.SPI, err)
+		}
 		state.Selector = &netlink.XfrmPolicy{
-			Src:   p.Sel.Src,
-			Dst:   p.Sel.Dst,
-			Proto: netlink.Proto(p.Sel.UpperProto), // 0 = any, 89 = OSPF
+			Src:     p.Sel.Src,
+			Dst:     p.Sel.Dst,
+			Proto:   netlink.Proto(p.Sel.UpperProto), // 0 = any, 89 = OSPF
+			SrcPort: srcPort,
+			DstPort: dstPort,
 		}
 	}
 

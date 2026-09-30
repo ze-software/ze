@@ -31,7 +31,7 @@
       "claim-sha": "8123e74c331388cf",
       "route": "revert",
       "producer": "internal/component/ike/engine/child.go::installChildSA",
-      "producer-sha": "20bfd6645a32907f",
+      "producer-sha": "00d35a0a4eb4f737",
       "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "bb3f57da3803d658",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "9f7029d4ab2bd220",
+      "producer-sha": "2d320a2463fb54dd",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -53,7 +53,7 @@
       "claim-sha": "96bb7078d87a4caf",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "9f7029d4ab2bd220",
+      "producer-sha": "2d320a2463fb54dd",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "9bffa42667f14af9",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "9f7029d4ab2bd220",
+      "producer-sha": "2d320a2463fb54dd",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "319b64639ae337ba",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "9f7029d4ab2bd220",
+      "producer-sha": "2d320a2463fb54dd",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "a2cef497b7a8a50f",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "9f7029d4ab2bd220",
+      "producer-sha": "2d320a2463fb54dd",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "4d4b0b930be9ad7c",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "9f7029d4ab2bd220",
+      "producer-sha": "2d320a2463fb54dd",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -224,13 +224,13 @@
     {
       "rid": "RFC4301-4.4.1-4",
       "polarity": "positive",
-      "unit": "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector",
-      "unit-sha": "59f5213807d30a44",
-      "claim-sha": "ecb457dae8e496b8",
+      "unit": "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOperatorOrdersOverlappingPeers",
+      "unit-sha": "162c68e6aa353cd8",
+      "claim-sha": "81ee05d9055619f9",
       "route": "revert",
-      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyDirection",
-      "producer-sha": "f5e7bc6a44c54f3c",
-      "break": "body of spdPolicyDirection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/engine/child.go::childPolicyParams",
+      "producer-sha": "96cd5283ad39b417",
+      "break": "body of childPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4301-4.4.1-4",
@@ -343,6 +343,83 @@
       "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4301-4.4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS",
+      "unit-sha": "c9ac68cdb99e2b81",
+      "claim-sha": "7b6d2840ff7f563b",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::childPolicyParams",
+      "producer-sha": "96cd5283ad39b417",
+      "break": "body of childPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors",
+      "unit-sha": "62e327bd649a7cca",
+      "claim-sha": "9ae058c0009e40cf",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::installChildSA",
+      "producer-sha": "00d35a0a4eb4f737",
+      "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors",
+      "unit-sha": "62e327bd649a7cca",
+      "claim-sha": "b4ed6047370c2f24",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::installChildSA",
+      "producer-sha": "00d35a0a4eb4f737",
+      "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy",
+      "unit-sha": "9d5b2939d7902708",
+      "claim-sha": "d809d645bf2b61d8",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::childPolicyParams",
+      "producer-sha": "96cd5283ad39b417",
+      "break": "body of childPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy",
+      "unit-sha": "9d5b2939d7902708",
+      "claim-sha": "de4eb9518e2e918c",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::childPolicyParams",
+      "producer-sha": "96cd5283ad39b417",
+      "break": "body of childPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_sad_selector_test.go::TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors",
+      "unit-sha": "bd77c0a2f89743e5",
+      "claim-sha": "afa6c66f9f2f63ff",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::installChildSA",
+      "producer-sha": "00d35a0a4eb4f737",
+      "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/ts_narrow_test.go::TestNarrowedSelectorsReachTheInstalledPolicy",
+      "unit-sha": "a08c98a91f733728",
+      "claim-sha": "d4f315db8bb4a22f",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::childPolicyParams",
+      "producer-sha": "96cd5283ad39b417",
+      "break": "body of childPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4301-4.4.2.1-1",
       "polarity": "positive",
       "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp",
@@ -350,7 +427,7 @@
       "claim-sha": "fb0248e9198475d7",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "9f7029d4ab2bd220",
+      "producer-sha": "2d320a2463fb54dd",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -361,7 +438,7 @@
       "claim-sha": "6db9ab495a2cd1f4",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "9f7029d4ab2bd220",
+      "producer-sha": "2d320a2463fb54dd",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -372,7 +449,7 @@
       "claim-sha": "8e82625738388775",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "9f7029d4ab2bd220",
+      "producer-sha": "2d320a2463fb54dd",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -383,7 +460,7 @@
       "claim-sha": "63b50fac2b7e73a6",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "9f7029d4ab2bd220",
+      "producer-sha": "2d320a2463fb54dd",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

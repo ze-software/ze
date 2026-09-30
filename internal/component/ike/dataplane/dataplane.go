@@ -247,10 +247,16 @@ func planStateAlgos(p SAParams) xfrmAlgoPlan {
 // link-local unicast for DBD/LSU-retransmit), and the outbound neighbor unicast daddr
 // is not known at install time. Src/Dst are prefixes (::/0 = any); UpperProto is the
 // upper-layer protocol (0 = any, 89 = OSPF).
+//
+// A transport-mode IKE Child SA carries its negotiated selector here too (RFC 4301
+// Section 4.4.2, engine/child.go installChildSA). SrcPort and DstPort are the port half
+// of that selector, and their zero value matches every port.
 type SASelector struct {
 	Src        *net.IPNet
 	Dst        *net.IPNet
 	UpperProto uint8
+	SrcPort    PortMatch
+	DstPort    PortMatch
 }
 
 // SAParams describes an ESP Security Association to install in the kernel or VPP.
@@ -310,8 +316,11 @@ type SAParams struct {
 
 	// Sel, when non-nil, installs an explicit XFRM state selector (x->sel) so the
 	// kernel resolves this SA for any flow matching the selector, not only for flows
-	// whose daddr equals Dst. IKE child SAs leave Sel nil, so their state selector
-	// stays the zero value (byte-identical to before this field existed).
+	// whose daddr equals Dst. A tunnel-mode IKE Child SA leaves Sel nil: the inbound
+	// require-policy enforces its selectors, because Linux drops a decapsulated packet
+	// that matches no inbound policy when its secpath holds a tunnel-mode state. A
+	// transport-mode IKE Child SA sets it on the inbound state, because a transport-only
+	// secpath passes that policy check (engine/child.go installChildSA).
 	Sel *SASelector
 
 	// NAT-T UDP encapsulation (RFC 3948).

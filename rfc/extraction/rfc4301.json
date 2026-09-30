@@ -127,7 +127,11 @@
     {
       "id": "4.4.2",
       "sites": 2,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Site 4.4.2:2 carries one sentence with two obligations: the inbound SAD entry holds the negotiated value of each selector (RFC4301-4.4.2-1, mapped), and it holds every negotiated value when the answer carries several traffic selector pairs. The second is split out as RFC4301-4.4.2-2, a gap, which has no site of its own and is recorded unsourced.",
+      "unsourced-ids": [
+        "RFC4301-4.4.2-2"
+      ]
     },
     {
       "id": "4.4.2.1",

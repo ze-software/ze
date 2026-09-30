@@ -60,6 +60,25 @@ Section 3.1.2's third alternative for transport mode, which
 
 <!-- source: internal/component/ike/engine/child.go -- createFirstChildSA -->
 
+**Which kernel object holds the inbound SA's selectors depends on the mode.** RFC
+4301 Section 4.4.2 makes the inbound SAD entry carry the negotiated selectors, and
+Linux checks a decrypted packet against them in two places. In tunnel mode
+`installChildSA` leaves `SAParams.Sel` nil and the inbound require-policy does the
+work: `__xfrm_policy_check` drops a decapsulated packet that matches no inbound
+policy while its secpath holds a tunnel-mode state (`XfrmInNoPols`). A
+transport-only secpath passes that check, so in transport mode the inbound state
+carries the selector itself (`SAParams.Sel`, the XFRM `x->sel`), built from the
+inbound policy's own fields so the two cannot disagree, and a packet outside it is
+dropped as `XfrmInStateMismatch`. strongSwan makes the same split. The selector
+holds the first negotiated pair only, as the policy does; an answer with more pairs
+is the gap `RFC4301-4.4.2-2`. MOBIKE migration moves tunnel-mode SAs only (the
+migration refuses a non-tunnel template), and it carries the old state selector
+unchanged. The kernel probes are in
+`internal/component/ike/engine/rfc4301_sad_selector_linux_test.go`.
+
+<!-- source: internal/component/ike/engine/child.go -- installChildSA -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->
+
 **The XFRM interface id comes from the interface the peer's `vti { bind }` names.**
 `resolveIfID` reads the if_id of that xfrm interface through the iface component
 (`GetXFRMInfo`) when the first Child SA is created, on both roles. A peer with no
