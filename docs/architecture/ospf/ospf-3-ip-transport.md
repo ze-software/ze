@@ -28,7 +28,9 @@ the OSPF multicast groups and carries datagrams to and from the engine.
 - **Receive validates the IPv4 envelope before queueing a payload.** It checks
   version, header and total lengths, checksum, protocol 89, and destination.
   The destination must be the interface address or an OSPF multicast group.
-  Source, destination and TTL remain available to the engine.
+  Source, destination and TTL remain available to the engine. The engine uses the
+  source for the RFC 2328 section 8.2 case (1) check that a same-area packet comes
+  from the receiving interface's network (`ospf-4-component-config.md`).
   <!-- source: internal/plugins/ospf/transport/backend_linux.go -- receiveIPv4, deliverDatagram -->
 - **An active IPv4 interface needs an assigned unicast source address.**
   An absent, unspecified or multicast address refuses socket startup.

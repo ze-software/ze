@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -341,15 +341,19 @@
       "verdict": "weak"
     },
     "RFC2328-15-2": {
-      "note": "Clauses: the cost is not configured but is the intra-area path cost; it appears in the virtual link's routing table entry; a cost change originates a new backbone router-LSA. TestRFC2328VirtualCostChangeReoriginatesBackbone proves the injected result.Cost (77) reaches the backbone router-LSA metric, and TestRFC2328VirtualUnusablePathWithdrawsBackboneLink proves an unusable path is withdrawn (a neighbouring rule). Not proven: no unit derives the cost from an intra-area SPF path (the cost is handed in), no unit asserts the routing table entry carries it, and none checks that the change produced a NEW instance (sequence advance or flood) rather than only the stored metric.",
+      "note": "Re-judged 2026-09-30 (independent judge). Clauses now proven: cost defined as the intra-area path cost and carried by the routing table entry, spf/TestRFC2328VirtualCostIsTransitPathCost (two-hop transit 10+20 -> far router entry metric 30 == resolveVirtualNeighbor cost; 10+45 -> 55); a cost change originates a NEW backbone router-LSA, TestRFC2328VirtualCostChangeOriginatesNewInstance (LS sequence NewerThan the prior instance, metric 77), with TestRFC2328VirtualCostChangeReoriginatesBackbone + and TestRFC2328VirtualUnusablePathWithdrawsBackboneLink - (no path: link withdrawn, old cost not retained). Still weak on the MUST clause 'The cost of a virtual link is NOT configured': it holds structurally today (ze-ospf-conf.yang virtual-link list carries only remote-router-id, hello-interval, dead-interval, retransmit-interval, transmit-delay; the cost is only set from the transit SPF), but no unit asserts it, so adding a configurable virtual-link cost that overrode the SPF cost would leave every tagged unit green. Missing: a negative that a virtual-link cost in config is refused (or never reaches the router-LSA). The SPF-to-LSA hand-off (resolveVirtualNeighbor result into onVirtualLinksResolved) is proven per hop, not end to end.",
       "requirement_sha": "6896c8eda4295cbb",
       "tests": {
+        "internal/plugins/ospf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostChangeOriginatesNewInstance": "8865f8b75d270fdf",
         "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualCostChangeReoriginatesBackbone": "275bbc417919f739",
-        "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualUnusablePathWithdrawsBackboneLink": "275bbc417919f739"
+        "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualUnusablePathWithdrawsBackboneLink": "275bbc417919f739",
+        "internal/plugins/ospf/spf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostIsTransitPathCost": "ef3111fe49656676"
       },
       "units": {
+        "internal/plugins/ospf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostChangeOriginatesNewInstance": "ce0a7a42bbb5664d",
         "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualCostChangeReoriginatesBackbone": "d4f5e4cfc4fc39c0",
-        "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualUnusablePathWithdrawsBackboneLink": "302b46566516eeee"
+        "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualUnusablePathWithdrawsBackboneLink": "302b46566516eeee",
+        "internal/plugins/ospf/spf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostIsTransitPathCost": "1dbd5f7d727ad4e2"
       },
       "verdict": "weak"
     },
@@ -506,13 +510,19 @@
       "verdict": "enforced"
     },
     "RFC2328-8.2-2": {
-      "note": "SB-3 strict re-read 2026-09-27, quote widened to the full span of both cases (the old row claimed case 2; the one-case quote narrowed it). Forbidden: accepting a packet that fails both cases, and discarding one that passes either. Case (1) has both polarities through dispatch: TestOSPFReceiveAcceptsMatchingAreaID fails if a matching Area ID is dropped or makes no neighbor, TestOSPFReceiveDropsMismatchedAreaID fails unless a foreign Area ID is dropped with no neighbor. Case (2), a backbone Area ID accepted over a configured virtual link from its other endpoint by an ABR on the Transit area, has no unit, so a receiver that discarded every packet failing case (1), including a legitimate virtual-link packet, stays green. The case (1) source-network check (not on point-to-point) is not asserted either. A blind reader read enforced from case (1) alone; the quote's 'if both of the following cases fail' makes case (2) a clause.",
+      "note": "Re-judged 2026-09-30 (independent judge, R36). D-8 fixed at the producer: acceptsArea now calls receive_source.go sourceOnInterfaceNetworkLocked for a same-area OSPFv2 packet, masking source and interface address with the interface mask (RFC quote above the compare), skipping point-to-point (RFC quote), OSPFv3 exempt; address/mask come from ospf iface.Interface.Network(), set at runtime start by interfaceRuntimeConfigLocked from the iface component. Case (1) is now proven both ways on both clauses: Area-ID clause by TestOSPFReceiveAcceptsMatchingAreaID + / TestOSPFReceiveDropsMismatchedAreaID -; source clause by TestOSPFReceiveDropsOffNetworkSourceOnBroadcast - (lo broadcast 127.0.0.1/8, src 10.0.0.2 -> dropped 1, no neighbor), TestOSPFReceiveAcceptsOnNetworkSourceOnBroadcast + (src 127.0.0.2 -> 0 drops, 1 neighbor) and TestOSPFReceiveAcceptsOffNetworkSourceOnPointToPoint + (p2p skip). The Hello carries lo's own /8 mask and is encoded after the mask is set, so neither the 10.5 mask check nor the checksum confounds the drop. Still weak: case (2), a backbone Area ID accepted over a configured virtual link from its other endpoint on the Transit area (virtualLinkTargetLocked), has no unit tagged for this row, so a receiver that discarded every packet failing case (1) stays green. Behaviour note: Network() is the interface's first IPv4 address/prefix only, so a neighbour sourcing from a second subnet on the same broadcast interface is dropped (RFC-consistent: an OSPF interface has one IP address and mask, RFC 2328 s9).",
       "requirement_sha": "06becc8e219219c4",
       "tests": {
+        "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOffNetworkSourceOnPointToPoint": "36d5213444c1c452",
+        "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOnNetworkSourceOnBroadcast": "36d5213444c1c452",
+        "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveDropsOffNetworkSourceOnBroadcast": "36d5213444c1c452",
         "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAreaID": "da263e79ffba2ad8",
         "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAreaID": "da263e79ffba2ad8"
       },
       "units": {
+        "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOffNetworkSourceOnPointToPoint": "6ff14d74813adb69",
+        "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOnNetworkSourceOnBroadcast": "9404998af13c205e",
+        "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveDropsOffNetworkSourceOnBroadcast": "4f2eb06955921a33",
         "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAreaID": "e69c9a983ee6eb94",
         "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAreaID": "729474314a30594a"
       },

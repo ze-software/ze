@@ -25,8 +25,9 @@ type dispatcher struct {
 	// areaOK reports whether a received packet's Area is valid on the receiving interface.
 	// It takes the full Header (not just the Area ID) so a routed virtual-link packet, which
 	// carries the backbone Area but arrives on the transit interface, can be accepted by its
-	// source Router ID (RFC 2328 section 15).
-	areaOK func(ifindex int, h Header) bool
+	// source Router ID (RFC 2328 section 15), and the raw packet so the IP source can be
+	// checked against the receiving interface's network (RFC 2328 section 8.2 case 1).
+	areaOK func(rp transport.RawPacket, h Header) bool
 	// authOK verifies authentication for a received packet before it is routed to a
 	// handler (ospf-12). It returns false to drop; nil means no auth enforcement.
 	authOK func(rp transport.RawPacket, h Header) bool
@@ -89,7 +90,8 @@ func (d *dispatcher) dispatch(rp transport.RawPacket) {
 		d.drop()
 		return
 	}
-	if areaOK != nil && !areaOK(rp.IfIndex, h) {
+	// RFC 2328 Section 8.2: the Area ID check, with case (1)'s source-network check.
+	if areaOK != nil && !areaOK(rp, h) {
 		d.drop()
 		return
 	}

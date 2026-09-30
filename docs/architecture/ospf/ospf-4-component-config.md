@@ -20,6 +20,23 @@ lifecycle callbacks, transport enrollment and config validation.
   declared area alone.** ISM, NSM and LSDB code must never see a packet from the
   wrong area on a valid interface.
   <!-- source: internal/plugins/ospf/dispatcher.go -- dispatcher -->
+- **A packet in the receiving interface's area must come from that interface's
+  network (OSPFv2, RFC 2328 section 8.2 case 1).** The engine masks the IP
+  source and the interface address with the interface mask and drops the packet
+  when they differ. Point-to-point interfaces skip the comparison, because the
+  two ends' addresses are assigned independently. An interface with no IPv4
+  address has no network, so every such packet is dropped rather than compared
+  under a zero mask. A backbone packet over a virtual link fails the area match
+  and is judged by the virtual-link rule instead. OSPFv3 has no such check.
+  <!-- source: internal/plugins/ospf/receive_source.go -- sourceOnInterfaceNetworkLocked -->
+  <!-- source: internal/plugins/ospf/instance.go -- acceptsArea -->
+  <!-- source: internal/plugins/ospf/iface/iface.go -- Network -->
+- **The engine's interface address and mask come from the iface component.**
+  `interfaceNetworkMask` and `interfaceIPv4Address` read the live addresses
+  when the interface runtime starts, and the receive check above reads that same
+  pair. A unit test that needs a real mask runs on `lo` with the netlink backend
+  blank-imported, not through a test-only engine field.
+  <!-- source: internal/plugins/ospf/interface_addr.go -- interfaceNetworkMask, interfaceIPv4Address -->
 - **The Go parser enforces the IPv4 range as well as YANG.** Unit tests and SDK
   paths call the resolver directly, outside native YANG validation.
 - **One function answers what an interface costs, and every consumer calls it.**

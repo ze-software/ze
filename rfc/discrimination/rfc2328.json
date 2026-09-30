@@ -244,6 +244,28 @@
       "break": "body of floodExcept replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2328-15-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostChangeOriginatesNewInstance",
+      "unit-sha": "7931a7b467481c51",
+      "claim-sha": "cfe74eadcf53b960",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/virtual_link.go::onVirtualLinksResolved",
+      "producer-sha": "f23e3538a921357d",
+      "break": "body of onVirtualLinksResolved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-15-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/spf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostIsTransitPathCost",
+      "unit-sha": "2374900f6cd2ab39",
+      "claim-sha": "3a0e4f2f7403fa22",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/transitarea.go::resolveVirtualNeighbor",
+      "producer-sha": "f631aae25ee26920",
+      "break": "body of resolveVirtualNeighbor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2328-16.1-3",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/spf/rfc2328_tiebreak_test.go::TestRFC2328CloserRouterVertexBeforeFartherNetwork",
@@ -334,6 +356,39 @@
     {
       "rid": "RFC2328-8.2-2",
       "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOffNetworkSourceOnPointToPoint",
+      "unit-sha": "b2b81540f3104568",
+      "claim-sha": "aafaf7ea65933143",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/receive_source.go::sourceOnInterfaceNetworkLocked",
+      "producer-sha": "30673bede544f279",
+      "break": "body of sourceOnInterfaceNetworkLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-8.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOnNetworkSourceOnBroadcast",
+      "unit-sha": "34cba1267fd29a43",
+      "claim-sha": "f369e6fe142d16dd",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/receive_source.go::sourceOnInterfaceNetworkLocked",
+      "producer-sha": "30673bede544f279",
+      "break": "body of sourceOnInterfaceNetworkLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-8.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveDropsOffNetworkSourceOnBroadcast",
+      "unit-sha": "a0c595d60f45bcdb",
+      "claim-sha": "c5b78bdd08a37d49",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/receive_source.go::sourceOnInterfaceNetworkLocked",
+      "producer-sha": "30673bede544f279",
+      "break": "body of sourceOnInterfaceNetworkLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-8.2-2",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAreaID",
       "unit-sha": "5016a32f0cc4e3c9",
       "claim-sha": "616c51797211ba26",
@@ -361,7 +416,7 @@
       "claim-sha": "ef4a35967be19870",
       "route": "revert",
       "producer": "internal/plugins/ospf/auth_keystore.go::verify",
-      "producer-sha": "e68804cc5263bcbb",
+      "producer-sha": "a12ff0e3b710dbf5",
       "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -372,7 +427,7 @@
       "claim-sha": "64e2c062ec63458e",
       "route": "revert",
       "producer": "internal/plugins/ospf/auth_keystore.go::verify",
-      "producer-sha": "e68804cc5263bcbb",
+      "producer-sha": "a12ff0e3b710dbf5",
       "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

@@ -542,17 +542,19 @@ func (e *engine) setConfig(cfg ospfConfig) {
 	e.publishBGPLS()
 }
 
-func (e *engine) acceptsArea(ifindex int, h Header) bool {
+func (e *engine) acceptsArea(rp transport.RawPacket, h Header) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if ic, ok := e.runningByIfIndexLocked(ifindex); ok && ic.AreaID == h.AreaID {
-		return true
+	if ic, ok := e.runningByIfIndexLocked(rp.IfIndex); ok && ic.AreaID == h.AreaID {
+		// RFC 2328 Section 8.2 case (1): a single-hop packet, whose source must be on
+		// the receiving interface's network.
+		return e.sourceOnInterfaceNetworkLocked(ic, rp.Src)
 	}
 	// RFC 2328 section 15: a routed virtual-link packet carries the backbone Area but
 	// arrives on the transit interface; accept it when it matches a reachable configured
 	// virtual link. Every other area mismatch remains a drop, so real-interface area
 	// enforcement is unchanged.
-	return e.virtualLinkTargetLocked(ifindex, h) != nil
+	return e.virtualLinkTargetLocked(rp.IfIndex, h) != nil
 }
 
 func (e *engine) setMetrics(reg metrics.Registry) {

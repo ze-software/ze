@@ -1,12 +1,16 @@
 {
   "audited": "2026-09-27",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC6549-2-1": {
       "note": "(a) delivering a packet whose Instance ID differs from the engine's to a handler; (b) TestDispatchDropsMismatchedInstance: handled != 0 after IDs {0,1,4,6,255} to instance 5 fails; negative: the matching ID 5 reaches the handler (handled == 1). One engine per Instance ID covers several configured instances on one interface.",
       "requirement_sha": "3f35a3398830e2ff",
       "tests": {
-        "internal/plugins/ospf/instance_test.go::TestDispatchDropsMismatchedInstance": "4bbe1942a0875779",
-        "internal/plugins/ospf/instance_test.go::TestDispatchDropsMismatchedInstance#2": "4bbe1942a0875779"
+        "internal/plugins/ospf/instance_test.go::TestDispatchDropsMismatchedInstance": "9a7f47039ac2a407",
+        "internal/plugins/ospf/instance_test.go::TestDispatchDropsMismatchedInstance#2": "9a7f47039ac2a407"
       },
       "units": {
         "internal/plugins/ospf/instance_test.go::TestDispatchDropsMismatchedInstance": "604d6ec8e98e9e26",

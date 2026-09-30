@@ -646,6 +646,15 @@ func addr4OrInvalid(a [4]byte) netip.Addr {
 	return netip.AddrFrom4(a)
 }
 
+// Network returns the interface's IPv4 address and network mask, the pair its Hellos carry
+// and the engine's RFC 2328 Section 8.2 receive check compares a packet's source against.
+// Both are zero when the interface has no IPv4 address. Safe for concurrent use.
+func (i *Interface) Network() (address, mask [4]byte) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	return i.cfg.InterfaceAddress, i.cfg.NetworkMask
+}
+
 func (i *Interface) Snapshot() Snapshot {
 	i.mu.Lock()
 	defer i.mu.Unlock()

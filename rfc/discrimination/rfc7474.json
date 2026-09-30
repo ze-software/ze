@@ -9,7 +9,7 @@
       "claim-sha": "33cb68f4e546bbfe",
       "route": "revert",
       "producer": "internal/plugins/ospf/auth_keystore.go::signKey",
-      "producer-sha": "d49e7132574a9814",
+      "producer-sha": "412de4d415a5f680",
       "break": "body of signKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "89e3879bcdf65c39",
       "route": "revert",
       "producer": "internal/plugins/ospf/auth_keystore.go::verify",
-      "producer-sha": "e68804cc5263bcbb",
+      "producer-sha": "a12ff0e3b710dbf5",
       "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "c6267d1af6418f9f",
       "route": "revert",
       "producer": "internal/plugins/ospf/auth_keystore.go::verify",
-      "producer-sha": "e68804cc5263bcbb",
+      "producer-sha": "a12ff0e3b710dbf5",
       "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

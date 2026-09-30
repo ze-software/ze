@@ -296,7 +296,9 @@ func TestOSPFReconcileAddedInterfaceStartsReceiveLoop(t *testing.T) {
 	}
 	defer eng.shutdown()
 
-	added, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
+	// Point-to-point: the fake eth0 has no IPv4 address, and on any other network type
+	// RFC 2328 section 8.2 case (1) drops a packet whose source network cannot be checked.
+	added, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0","network-type":"point-to-point"}}}}}`), nil)
 	if err != nil {
 		t.Fatalf("parseOSPFConfig(added): %v", err)
 	}
@@ -391,7 +393,7 @@ func TestOSPFPacketDispatch(t *testing.T) {
 func TestOSPFPacketDispatchAreaFilter(t *testing.T) {
 	backbone, _ := types.ParseAreaID("0")
 	d := newDispatcher(v4Codec{})
-	d.areaOK = func(ifindex int, h Header) bool { return ifindex == 7 && h.AreaID == backbone }
+	d.areaOK = func(rp transport.RawPacket, h Header) bool { return rp.IfIndex == 7 && h.AreaID == backbone }
 	called := false
 	d.register(PacketTypeHello, func(transport.RawPacket, Header) { called = true })
 	d.dispatch(transport.RawPacket{IfIndex: 8, Payload: minimalOSPFPacket(t, packet.PacketTypeHello, "0")})
