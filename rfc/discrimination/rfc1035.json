@@ -9,9 +9,53 @@
       "claim-sha": "dcc432e3d77ebfa9",
       "route": "revert",
       "producer": "internal/plugins/geodns/config.go::checkName",
-      "producer-sha": "ae76105513799355",
+      "producer-sha": "2bb29c3e67838c08",
       "break": "body of checkName replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=stdout:contains=64-octet label"
+    },
+    {
+      "rid": "RFC1035-4.1.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/geodns/rfc1035_compression_test.go::TestRFC1035_CompressionPointersInATruncatedDatagram",
+      "unit-sha": "dad641b6b0c23a44",
+      "claim-sha": "6fc9276bf19701e1",
+      "route": "revert",
+      "producer": "internal/core/dnsserver/handler.go::send",
+      "producer-sha": "e577d1b0576c1949",
+      "break": "body of send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1035-4.1.4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/geodns/rfc1035_compression_test.go::TestRFC1035_CompressionPointersInATruncatedDatagram",
+      "unit-sha": "dad641b6b0c23a44",
+      "claim-sha": "9113c7b5d8da1258",
+      "route": "revert",
+      "producer": "internal/core/dnsserver/handler.go::send",
+      "producer-sha": "e577d1b0576c1949",
+      "break": "body of send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1035-4.1.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/geodns/rfc1035_compression_test.go::TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits",
+      "unit-sha": "0fba8d56e91a9eba",
+      "claim-sha": "cec729859fc50be0",
+      "route": "revert",
+      "producer": "internal/core/dnsserver/handler.go::send",
+      "producer-sha": "e577d1b0576c1949",
+      "break": "body of send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1035-4.1.4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/geodns/rfc1035_compression_test.go::TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits",
+      "unit-sha": "0fba8d56e91a9eba",
+      "claim-sha": "457842c7f42dde0d",
+      "route": "revert",
+      "producer": "internal/plugins/geodns/config.go::checkName",
+      "producer-sha": "2bb29c3e67838c08",
+      "break": "body of checkName replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

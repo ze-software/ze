@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC7011-10.3.2-2": {
       "note": "Forbidden: an IPFIX UDP datagram sent without a valid UDP checksum. TestRFC7011UDPChecksumEnabledOnSenderSocket (Linux) reads the socket NewSender dials and asserts SO_NO_CHECK clear for IPv4 and UDP_NO_CHECK6_TX clear for IPv6, red if either is set, so the kernel writes the checksum. Single-polarity marker: NewSender never sets either option.",
@@ -145,6 +145,19 @@
         "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected": "89f1ec40f3dd15b3",
         "internal/plugins/flowexport/template_refresh_rfc7011_test.go::TestRFC7011ConfiguredRefreshDrivesRetransmit": "d408e2b61c03cb9c",
         "internal/plugins/flowexport/template_refresh_rfc7011_test.go::TestRFC7011ConfiguredRefreshOverridesDefault": "b77550278df04535"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7011-8-3": {
+      "note": "Positive TestRFC7011UDPExporterSendsNoTemplateWithdrawal: the real IPFIX encoders over a real UDP socket through start, first flows and a 600 s refresh; every Template Record the collector walks has Field Count > 0, 256 and 257 are defined, none has Field Count 0. Negative (R1(b)) TestRFC7011UDPExporterReloadSendsNoTemplateWithdrawal: drives the exporter toward withdrawal (reload to another Observation Domain replacing every Template, in configure's order; then collector removal with straggling snapshot/flows into stopped exporters) and asserts no Field Count 0 record and zero datagrams after removal. Records: revert of BuildCounterTemplate (+) and buildFlowTemplate (-), both panic reverts; the tests replicate configure's start-then-stop order rather than calling the configure closure, which stays untested for this rule.",
+      "requirement_sha": "1352c77318262fdb",
+      "tests": {
+        "internal/plugins/flowexport/withdrawal_rfc7011_test.go::TestRFC7011UDPExporterReloadSendsNoTemplateWithdrawal": "ad0b85a4f027153d",
+        "internal/plugins/flowexport/withdrawal_rfc7011_test.go::TestRFC7011UDPExporterSendsNoTemplateWithdrawal": "ad0b85a4f027153d"
+      },
+      "units": {
+        "internal/plugins/flowexport/withdrawal_rfc7011_test.go::TestRFC7011UDPExporterReloadSendsNoTemplateWithdrawal": "926999f4e9e68a5b",
+        "internal/plugins/flowexport/withdrawal_rfc7011_test.go::TestRFC7011UDPExporterSendsNoTemplateWithdrawal": "034096fc9b61223c"
       },
       "verdict": "enforced"
     },

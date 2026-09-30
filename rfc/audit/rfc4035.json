@@ -1,6 +1,12 @@
 {
   "audited": "2026-09-30",
   "requirements": {
+    "RFC4035-2.2-1": {
+      "no_code_path": "The rule constrains the RRSIGs of a signed zone, which only the zone signer produces. Ze creates no DNSKEY, RRSIG, NSEC or DS record: geodns answerQuestions synthesizes A/AAAA/SRV/SOA/NS only and as112 answers negatively, and no layer signs on Ze's behalf.",
+      "note": "Binds the signer of a signed zone; Ze signs no zone.",
+      "requirement_sha": "12bd90ea60de8337",
+      "verdict": "not-applicable"
+    },
     "RFC4035-3-6": {
       "note": "Re-judged 2026-09-30. The second arm is now covered: TestRFC4035DOClearQueryGetsNoDNSSECProcessing sends A, DNSKEY, RRSIG and NSEC queries with an OPT whose DO is clear and asserts no RRSIG/NSEC/DNSKEY in any section and the same Answer/Authority counts as the OPT-less query (the OPT-less arm stays in rfc4035_server_test.go). The comparison is by count, not content; content differences would not be DNSSEC processing, so this does not weaken the proof. Record: answerQuestions revert observed red. {single-polarity} holds: geodns has no DNSSEC path to drive with DO set.",
       "requirement_sha": "ae48aac3a4def396",
@@ -39,6 +45,12 @@
         "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored#2": "f3e7e9b65d506bb7"
       },
       "verdict": "enforced"
+    },
+    "RFC4035-3.1.1-4": {
+      "no_code_path": "The TC obligation arises only when a security-aware name server has RRSIG RRs it cannot fit. geodns and as112 hold no RRSIG, NSEC, DS or DNSKEY record to place in any section, so no response of theirs can be short of one.",
+      "note": "Binds a security-aware name server holding RRSIGs; Ze's authoritative servers are not security-aware.",
+      "requirement_sha": "930635817c738fa3",
+      "verdict": "not-applicable"
     },
     "RFC4035-3.1.4.1-1": {
       "note": "an apex DS query through geodns answerQuery under the real harness must return NOERROR, AA set, empty Answer, SOA in Authority, and no RA; an NXDOMAIN or REFUSED answer at the apex goes red; the negative pins that the no-data answer is not given for an out-of-zone name",
@@ -111,6 +123,12 @@
         "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "075584d2fc9ab234"
       },
       "verdict": "enforced"
+    },
+    "RFC4035-4.3-1": {
+      "no_code_path": "Ze runs no validator: resolve/dns dnssecDecision reads only the upstream rcode (SERVFAIL) under the configured mode; there is no signature verification, trust anchor, DS chain or NSEC proof, so no Ze code decides whether an RRset should be signed. The stub role is RFC 4035 Section 4.9's, a different row set.",
+      "note": "Binds a validating (security-aware) resolver; Ze's resolver is a non-validating stub.",
+      "requirement_sha": "22f84a25459a1464",
+      "verdict": "not-applicable"
     },
     "RFC4035-4.6-3": {
       "note": "Re-judged 2026-09-30. Both bits now: under strict validation a NOERROR answer with AD=1 CD=1 yields exactly the records of the clear answer (a resolver requiring or honouring AD would differ), and SERVFAIL with AD, CD or both is refused, so no response bit lets a failure through. Records: query (+) and dnssecDecision (-) reverts observed red.",

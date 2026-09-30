@@ -6,6 +6,14 @@
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
+    "RFC7950-11-3": {
+      "code": {
+        "internal/component/config/yang/loader.go::LoadEmbedded": "90e647228094a70b"
+      },
+      "note": "{gap} under OWNER RULING 4 (2026-09-30): no check compares an embedded module with its previous revision, so a reordering of data definition substatements passes. Recorded, not closed.",
+      "requirement_sha": "01c29bfdc98dfa83",
+      "verdict": "unimplemented"
+    },
     "RFC7950-6.1.3-1": {
       "note": "(a) forbidden: a double-quoted string whose backslash is followed by a character other than n, t, double quote or backslash loading. (b) TestRFC7950ModuleLoadRefused case \"bad escape\" (description \"bad \\q escape\") requires loadModuleTexts to return an error containing \"escape\"; positive TestRFC7950ModuleLoadAccepted case \"valid escapes\" loads a description carrying \\t \\n \\\" and \\\\ (require.NoError).",
       "requirement_sha": "e534571eecd5208b",
@@ -55,6 +63,22 @@
         "internal/component/config/yang/loader_rfc7950_test.go::TestRFC7950ModuleLoadRefused": "9845e5074b242b88"
       },
       "verdict": "wrong"
+    },
+    "RFC7950-7.2.2-1": {
+      "code": {
+        "internal/component/config/yang/loader.go::Resolve": "8ae1f05cc381c3ab"
+      },
+      "note": "{gap} under OWNER RULING 4: goyang accepts a submodule included by a foreign module and Ze adds no check. Recorded, not closed.",
+      "requirement_sha": "4111ba92ddb919e3",
+      "verdict": "unimplemented"
+    },
+    "RFC7950-7.21.5-2": {
+      "code": {
+        "internal/component/config/yang/validator.go::walkTree": "a4aa0dea11dc30df"
+      },
+      "note": "{gap} under OWNER RULING 4: walkTree evaluates no when expression, so neither the order nor the no-cycle rule is applied. Recorded, not closed.",
+      "requirement_sha": "2950be598bb87418",
+      "verdict": "unimplemented"
     },
     "RFC7950-7.3.2-1": {
       "note": "negative: a typedef with only a description refused; positive: the same typedef with type uint8 loads and the leaf using it resolves to Yuint8 (proves the type defines the base type). Twins differ by the type statement alone, so the loose \"type\" substring cannot be met by another fault. Records on Resolve.",
@@ -343,6 +367,14 @@
         "internal/component/config/yang/validator_integer_rfc7950_test.go::TestRFC7950IntegerSignedLexicalForms": "af6aafba3295ec96"
       },
       "verdict": "weak"
+    },
+    "RFC7950-9.1-2": {
+      "code": {
+        "internal/component/config/yang/validator.go::walkTree": "a4aa0dea11dc30df"
+      },
+      "note": "{gap} under OWNER RULING 4: the types without a canonical form (identityref, instance-identifier) are not validated by Ze. Recorded, not closed.",
+      "requirement_sha": "5197d685cf9f142a",
+      "verdict": "unimplemented"
     },
     "RFC7950-9.12-1": {
       "note": "negative: \"not-an-ip\" matching no member refused with ErrTypeType (TestValidateTree_UnionViolation); positive: a value matching only the first (192.0.2.2), only the second (2001:db8::1) and only the third, enum \"dynamic\", member each accepted, so a union check trying one member alone goes red. Records on validateUnion for all three units.",

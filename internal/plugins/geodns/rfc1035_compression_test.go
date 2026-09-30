@@ -76,9 +76,11 @@ func exchangeUDP(t *testing.T, addr *net.UDPAddr, query []byte, wait time.Durati
 	return buf[:n]
 }
 
-// pointers returns every offset in wire at which a two-octet compression pointer
-// begins, walking the message record by record so a length octet inside RDATA is
-// never mistaken for one.
+// pointerTargets returns every offset in wire at which a two-octet compression
+// pointer begins, walking the message record by record so a length octet inside
+// RDATA is never mistaken for one. Every name octet it meets must open with 11
+// (a pointer) or 00 (a label of 63 octets or less): a length octet opening with
+// 01 or 10 is neither, and fails the calling test.
 func pointerTargets(t *testing.T, wire []byte) []int {
 	t.Helper()
 	var targets []int
@@ -88,6 +90,9 @@ func pointerTargets(t *testing.T, wire []byte) []int {
 				t.Fatalf("name runs past the end of a %d-octet message", len(wire))
 			}
 			l := wire[off]
+			if prefix := l & 0xC0; prefix == 0x40 || prefix == 0x80 {
+				t.Fatalf("length octet 0x%02x at offset %d opens with bits %02b: a label must begin with two zero bits", l, off, prefix>>6)
+			}
 			if l&0xC0 == 0xC0 {
 				if off+1 >= len(wire) {
 					t.Fatalf("compression pointer at offset %d is one octet long", off)
@@ -454,6 +459,71 @@ func TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix(t *testing.T) {
 	}
 	if int(binary.BigEndian.Uint16(datagram[:2])) == len(datagram)-2 {
 		t.Error("the datagram's first two octets read as a length prefix, which no datagram carries")
+	}
+}
+
+// VALIDATES: a zone whose first label is 63 octets, the longest a length octet
+// with two leading zero bits can count, is served, and the question name in the
+// reply opens with the length octet 0x3F. A zone whose first label is 64 octets,
+// whose length octet would have to open with 01, is refused before it is served.
+// PREVENTS: a label length that leaks into the pointer-flag bits, so that a
+// reader takes a label for a pointer, or a 64-octet label reaches the packer and
+// every query for its zone is dropped in silence.
+func TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits(t *testing.T) {
+	label63 := strings.Repeat("a", maxLabelOctets)
+	zone63 := label63 + ".test."
+	cfg, err := parseConfig(`{"service":{"geodns":{"enabled":"true",` +
+		`"zone":["` + zone63 + `"],"nameserver":["192.0.2.1"]}}}`)
+	if err != nil {
+		t.Fatalf("a 63-octet label is refused: %v", err)
+	}
+	port := freePort(t)
+	cfg.Listeners = []listenerEndpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}}
+	storeApplied(cfg, 1)
+	mgr := newServerManager(testLogger())
+	if err := mgr.apply(cfg); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	t.Cleanup(mgr.stopAll)
+	addr := &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: int(port)}
+
+	q := new(dns.Msg)
+	q.SetQuestion(zone63, dns.TypeSOA)
+	packed, err := q.Pack()
+	if err != nil {
+		t.Fatalf("pack query: %v", err)
+	}
+	wire := exchangeUDP(t, addr, packed, 2*time.Second)
+	if wire == nil {
+		t.Fatal("no reply for the zone with a 63-octet label")
+	}
+
+	// RFC requirement: RFC1035-4.1.4-1 positive -- "This allows a pointer to be
+	// distinguished from a label, since the label must begin with two zero bits
+	// because labels are restricted to 63 octets or less." The reply names the
+	// 63-octet label in its question, and the length octet Ze wrote for it is
+	// 0x3F, whose two high order bits are zero. pointerTargets walks every other
+	// name in the reply and fails on a length octet opening with 01 or 10.
+	if got := wire[12]; got != 0x3F {
+		t.Errorf("question name opens with length octet 0x%02x, want 0x3F for a 63-octet label", got)
+	}
+	if got := wire[12] & 0xC0; got != 0 {
+		t.Errorf("question label length octet opens with bits %02b, want 00", got>>6)
+	}
+	pointerTargets(t, wire)
+
+	// RFC requirement: RFC1035-4.1.4-1 negative -- a 64-octet label needs a
+	// length octet of 0x40, which opens with 01 and so is neither a label nor a
+	// pointer. Ze refuses that zone at config parse, naming the label, so no
+	// such length octet can be written.
+	label64 := strings.Repeat("a", maxLabelOctets+1)
+	_, err = parseConfig(`{"service":{"geodns":{"enabled":"true",` +
+		`"zone":["` + label64 + `.test."],"nameserver":["192.0.2.1"]}}}`)
+	if err == nil {
+		t.Fatal("a zone with a 64-octet label was accepted")
+	}
+	if !strings.Contains(err.Error(), "64-octet label") {
+		t.Errorf("refusal %q does not name the 64-octet label", err)
 	}
 }
 

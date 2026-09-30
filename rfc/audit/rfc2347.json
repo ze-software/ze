@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-28",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC2347-x-1": {
       "note": "TestRFC2347OnlyTheClientInitiatesNegotiation: a tsize-only RRQ gets an OACK with tsize=1500 and fails if blksize is present (the case the old verdict found missing); a plain RRQ and a windowsize-only RRQ must get DATA block 1 as the first reply (expectData fails on an OACK), so the server never initiates negotiation. With TestRFC2347ServerOACKOnlyRequestedOptions (blksize-only, no tsize) both emittable options are pinned absent when unrequested.",
@@ -34,6 +34,12 @@
         "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption#2": "218d5a2faf690f7d"
       },
       "verdict": "enforced"
+    },
+    "RFC2347-x-4": {
+      "no_code_path": "The sentence binds the TFTP client that consumes an OACK. Ze ships a TFTP server only (internal/plugins/tftpserver/handler.go); no Ze code sends an RRQ/WRQ or reads an OACK (grep for tftp outside tftpserver finds only config, provisioning directories and port names), and no layer acts as a TFTP client on Ze's behalf.",
+      "note": "Row now quotes the whole client sentence (x-2 merged in under R5). Binds the TFTP client role only.",
+      "requirement_sha": "c7076c780454b1e9",
+      "verdict": "not-applicable"
     }
   },
   "rfc": "rfc2347"

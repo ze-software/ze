@@ -2,6 +2,12 @@
   "audited": "2026-09-30",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
+    "RFC7871-7.1.2-3": {
+      "no_code_path": "Ze sends no query on behalf of a client: geodns is authoritative and forwards nothing, and the resolve/dns stub adds no ECS option to its own queries, so no Ze code path carries a client's address into an outgoing query.",
+      "note": "Binds a Recursive Resolver (and, for the dropped Section 7.5 sentence, an Intermediate Nameserver).",
+      "requirement_sha": "b22580f82d0c624b",
+      "verdict": "not-applicable"
+    },
     "RFC7871-7.2.1-7": {
       "note": "Re-judged 2026-09-30: the unit changed only by dropping the retired RFC7871-7.2.2-1 tag and its duplicate assertion; the 7.2.1-7 assertion is unchanged. TestRFC7871_NoECSQueryNoECSResponse sends an ECS-less query whose packet source selects a tailored A (asserted 10.0.0.5), then asserts the response carries no EDNS0_SUBNET option; adding an ECS option to any geodns response turns it red. Negative polarity is unconstructible (geodns emits no ECS), as the single-polarity marker states.",
       "requirement_sha": "c331aee86a557250",

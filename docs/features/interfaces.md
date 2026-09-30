@@ -309,7 +309,12 @@ device appears, and a config is validated on machines that will never run it.
   cases, `hoplimit`/`tclass`/`encaplimit` only in v6-underlay cases. Local and
   remote endpoints use the same `local { ip ... } remote { ip ... }` shape as the
   BGP peer connection block, with `local { interface ... }` as an alternative when
-  the source should be taken from another interface.
+  the source should be taken from another interface. The remote is mandatory and
+  must be a specific address: the netlink backend refuses `0.0.0.0` and `::`,
+  because the kernel decapsulator matches the outer source address against the
+  remote, and an unspecified remote accepts packets from any source (RFC 4213
+  Section 3.6 requires the decapsulator to verify the tunnel source).
+<!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- parseTunnelRemote -->
 - **Idempotent cleanup.** Delete and mirror removal succeed even if already gone.
 - **The mirror shares its qdisc, so it owns only its filters.** Mirroring attaches a
   tc mirred filter at priority 1 to the qdisc at handle `ffff:` on the source

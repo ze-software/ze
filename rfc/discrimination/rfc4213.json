@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc4213",
+  "records": [
+    {
+      "rid": "RFC4213-3.6-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go::TestRFC4213SitDecapsulatesFromTheConfiguredRemote",
+      "unit-sha": "c5f17a579e3ebc8d",
+      "claim-sha": "5cdf2678d0ece3a5",
+      "route": "revert",
+      "producer": "internal/plugins/iface/netlink/tunnel_linux.go::buildSittun",
+      "producer-sha": "ee1d9fed0a56f4fd",
+      "break": "body of buildSittun replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4213-3.6-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go::TestRFC4213SitRefusesAnUnverifiedSource",
+      "unit-sha": "6cea63c42b704788",
+      "claim-sha": "6b6daa03405823d4",
+      "route": "revert",
+      "producer": "internal/plugins/iface/netlink/tunnel_linux.go::parseTunnelRemote",
+      "producer-sha": "dc64b468a456865c",
+      "break": "body of parseTunnelRemote replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

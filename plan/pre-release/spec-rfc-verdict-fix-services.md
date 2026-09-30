@@ -113,7 +113,7 @@ Copied verbatim from the parent. A row leaves this table when its re-judged verd
 |----|---------|------|------------------------------|
 | RFC1035-2.3.4-1 | weak | `TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive` (`internal/plugins/geodns/rfc1035_rr_test.go`) | the lower bound of "positive"; the sibling 4.1.3-1 negative serves TTL 0, and the row does not cite RFC 2181 Section 8 |
 | RFC1035-4.1.1-1 | weak | `TestRFC1035_ReservedZFieldIsZero` (`internal/core/dnsserver/rfc1035_header_test.go`) | "in all queries": Z is held clear in responses only; the queries Ze sends (`resolve/dns/resolver.go`, `as112/health.go`) are not checked |
-| RFC1035-4.1.4-1 | weak | `TestRFC1035_CompressionPointersInATruncatedDatagram` (`internal/plugins/geodns/rfc1035_compression_test.go`) | "the label must begin with two zero bits": a label length octet of 0x40 to 0xBF passes both polarities |
+| RFC1035-4.1.4-1 | **enforced, re-judged 2026-09-30** by the services judge (not the author) | `TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits` (+ a 63-octet label is served with length octet 0x3F; - a 64-octet label, whose length octet would open 01, is refused at `parseConfig`), and `TestRFC1035_CompressionPointersInATruncatedDatagram`, whose walker `pointerTargets` now fails on any length octet opening 01 or 10 (`internal/plugins/geodns/rfc1035_compression_test.go`) | nothing: records in `rfc/discrimination/rfc1035.json` for all four tags (new unit: `dnsserver/handler.go::send` +, `geodns/config.go::checkName` -; old unit: `send` revert, both) |
 | RFC1035-4.1.4-5 | weak | `TestRFC1035_InboundCompressionPointerUnderstood` (`rfc1035_compression_test.go`) | the answer does not depend on the pointer being expanded, and no assertion reads its expansion; replies Ze reads as a client are not driven |
 | RFC1035-4.2.2-1 | weak | `TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix` (`rfc1035_compression_test.go`) | "use server port 53": the listener runs on a free port and no unit asserts the TCP default |
 
@@ -155,6 +155,13 @@ None of this table's rows belong to this child.
 
 Copied from the parent's "Narrowing audit findings, 2026-09-28", where the process and the call meanings are. AC-C3 includes these rows.
 
+Verdicts for the rows of un-enrolled stems (rfc2473, rfc4213 hold no audit file, so `audit-stamp` refuses them), recorded by the services judge on 2026-09-30:
+
+| ID | Verdict | Units | Note |
+|----|---------|-------|------|
+| RFC2473-4.1.1-2 | enforced | `TestRFC2473EncapLimitDecrementedIntoTheOuterHeader` (+), `TestRFC2473EncapLimitFromThePacketNotTheConfiguredLimit` (-, R1(b): configured limit 4 pushes toward the wrong value) in `internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go` | row widened to the "set to one less" sentence (`rfc/corrections/rfc2473.md`); both records (revert `buildIp6tnl`) observed red in the QEMU guest; the judge's guest run on the runtime kernel (`./le test qemu run ... kernel tmp/kernel/build/vmlinuz`) passed all four tunnel units, 2026-09-30 |
+| RFC4213-3.6-1 | enforced | `TestRFC4213SitDecapsulatesFromTheConfiguredRemote` (+), `TestRFC4213SitRefusesAnUnverifiedSource` (-: foreign source not decapsulated, positive control, remote "" and 0.0.0.0 refused with no link left) | row widened to the two following sentences, "transport protocols" and "as configured on the decapsulator" (`rfc/corrections/rfc4213.md`); D-8 fixed: `parseTunnelRemote` refuses an unspecified remote; records revert `buildSittun` (+) and `parseTunnelRemote` (-), guest |
+
 | ID | Call | Obligation | Section |
 |----|------|------------|---------|
 | RFC1350-2-3 | moved | stated by RFC 1123 4.2.3.1, not by this document. Sorcerer's Apprentice fix (do not resend on duplicate ACK) is RFC 1123; RFC 1350 only cites it. rfc1123.txt not in rfc/full. | RFC 1123 4.2.3.1 |
@@ -182,7 +189,7 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | ID | Verdict | Blocking spec |
 |----|---------|---------------|
 | SFLOW-V5-x-11 | weak | `spec-bmp-sflow-export-rfc-defects` (D2, the code; the row correction in the split table stays here) |
-| RFC7950-7.19-1 | weak | `spec-config-yang-loader-structural-checks` (AC-2, 2026-09-30) |
+| RFC7950-7.19-1 | wrong | `spec-config-yang-loader-structural-checks` (AC-2, 2026-09-30) |
 | RFC7950-9.4.4-1 | weak | `spec-config-yang-loader-structural-checks` (AC-2, 2026-09-30) |
 | RFC7950-9.6.4.2-1 | weak | `spec-config-yang-loader-structural-checks` (AC-2, 2026-09-30) |
 | RFC7950-7.6.5-1 | weak | `spec-config-yang-when-unique-choice` (AC-2, OWNER RULING 4, 2026-09-30; tagged, so no `{gap}`) |

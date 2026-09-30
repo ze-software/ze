@@ -1,23 +1,25 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2131-2-3": {
-      "note": "Server clause enforced: TestFlagsReservedBitsIgnored sends flags 0x7fff and asserts the reply still unicasts to yiaddr:68 as for flags 0. Client clause proven for acquisition only: TestRFC2131ClientSetsReservedFlagsBitsToZero (guest, real client over veth) reads the DISCOVER (positive) and, after an OFFER with flags 0xffff, the REQUEST (negative); a no-op of clearReservedFlags reddens the negative (REQUEST flags 0xffff), while the recorded break is a panic revert that reddens both before their assertions, and the positive stays green under a no-op because nclient4 builds the DISCOVER with flags 0. Missing: the renewal path. vendored NewRenewFromAck copies the ACK's flags (WithReply, then only WithBroadcast(false)), and renewV4 fixes that by passing clearReservedFlags to client.Renew; no test drives a renewal, so dropping that argument stays green (question 4, a second producer path)",
+      "note": "Every clause, both producer paths. Server: TestFlagsReservedBitsIgnored sends flags 0 (positive) and 0x7fff (negative) and asserts the reply is unicast to yiaddr:68 either way, so bits 1-15 are ignored; recorded against dhcpserver responseAddr (revert, both polarities). Client acquisition: TestRFC2131ClientSetsReservedFlagsBitsToZero (guest, real client over veth) reads the DISCOVER (positive) and, after an OFFER with flags 0xffff, the REQUEST (negative, bits 1-15 zero); recorded against clearReservedFlags. Client renewal, the gap the earlier note named: TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero binds a lease from an ACK with flags 0xffff and a 2 s lease, reads the T1 renewing REQUEST (identified by ciaddr, since NewRenewFromAck copies the ACK xid) and asserts bits 1-15 zero; recorded against renewV4 (revert, red by timeout). Author's targeted evidence, not a record: an overlay dropping the clearReservedFlags argument from client.Renew reddens that assertion with flags 0x7fff. renewV4 and the acquisition Request are the only client send paths (no release/decline/inform). Records are panic reverts, so the targeted break stands on the author's overlay run",
       "requirement_sha": "90a2137815d4181d",
       "tests": {
         "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored": "8365c04cdfc2a046",
         "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored#2": "8365c04cdfc2a046",
-        "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero": "5cf47951d4cc73af",
-        "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2": "5cf47951d4cc73af"
+        "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero": "f6a1e532b0d1f5ec",
+        "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero": "f6a1e532b0d1f5ec",
+        "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2": "f6a1e532b0d1f5ec"
       },
       "units": {
         "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored": "6b9a84fbf7912f1b",
         "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored#2": "6b9a84fbf7912f1b",
+        "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero": "9e440768315a29d6",
         "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero": "73d2cc632073310e",
         "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2": "73d2cc632073310e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2131-3-1": {
       "note": "positive reads octets 236..239 of OFFER, ACK and NAK and pins 0x63825363; negative replaces the cookie with 0xDEADBEEF and asserts h.handle returns nil",

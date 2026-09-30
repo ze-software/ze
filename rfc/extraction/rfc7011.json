@@ -693,7 +693,7 @@
       "id": "7:1",
       "quote": "Where an Information Element has a variable length, the following mechanism MUST be used to carry the length information for both the IANA-assigned and enterprise-specific Information Elements.",
       "disposition": "mapped",
-      "mapped-to": "RFC7011-x-1"
+      "mapped-to": "RFC7011-7-2"
     },
     {
       "id": "7:2",

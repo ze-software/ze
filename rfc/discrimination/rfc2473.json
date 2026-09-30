@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc2473",
+  "records": [
+    {
+      "rid": "RFC2473-4.1.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go::TestRFC2473EncapLimitDecrementedIntoTheOuterHeader",
+      "unit-sha": "b22906dbac405a0f",
+      "claim-sha": "0558792918810ac4",
+      "route": "revert",
+      "producer": "internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl",
+      "producer-sha": "e4c60b3410786448",
+      "break": "body of buildIp6tnl replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2473-4.1.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go::TestRFC2473EncapLimitFromThePacketNotTheConfiguredLimit",
+      "unit-sha": "804d85b6274d62a7",
+      "claim-sha": "074da47fc9bb5b7a",
+      "route": "revert",
+      "producer": "internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl",
+      "producer-sha": "e4c60b3410786448",
+      "break": "body of buildIp6tnl replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
