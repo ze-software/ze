@@ -299,6 +299,28 @@
       "break": "body of handlePADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2516-5.5-3",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNamesItsAccessConcentratorAndSession",
+      "unit-sha": "241bb7ce6b341a35",
+      "claim-sha": "7e26cd760cf84c81",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/dialer.go::sendPADT",
+      "producer-sha": "829c7fda5389edfb",
+      "break": "body of sendPADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.5-3",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession",
+      "unit-sha": "4f4b5ffdb08f4581",
+      "claim-sha": "42b998e9c25ad98a",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/dialer.go::tryReadPADS",
+      "producer-sha": "790eaa650e556b90",
+      "break": "body of tryReadPADS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2516-7-1",
       "polarity": "positive",
       "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
@@ -341,6 +363,28 @@
       "producer": "internal/component/l2tp/pppoe/server.go::handleSessionDown",
       "producer-sha": "a8d6a73d7a8023a9",
       "break": "body of handleSessionDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-7-3",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostKeepsTheSessionUntilLCPTerminates",
+      "unit-sha": "06803a96b5c406f4",
+      "claim-sha": "024dcca280653fe1",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
+      "producer-sha": "812f0cf68b9c6738",
+      "break": "body of keepaliveLoop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-7-3",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates",
+      "unit-sha": "25860d4b4992e878",
+      "claim-sha": "ae425c3a25ba84f0",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/dialer.go::superviseNetworkPhase",
+      "producer-sha": "3a4e756a1319dbe2",
+      "break": "body of superviseNetworkPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2516-7-4",
@@ -484,6 +528,28 @@
       "producer": "internal/component/l2tp/pppoe/discovery.go::NewBuilder",
       "producer-sha": "74354f59e3cfedea",
       "break": "body of NewBuilder replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-9",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling",
+      "unit-sha": "bdc86c8691186ff7",
+      "claim-sha": "accb254f96e968ba",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+      "producer-sha": "fc99bcb5059f671c",
+      "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-9",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling",
+      "unit-sha": "f43022fbc6b512e6",
+      "claim-sha": "83a2339817df18a7",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+      "producer-sha": "fc99bcb5059f671c",
+      "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

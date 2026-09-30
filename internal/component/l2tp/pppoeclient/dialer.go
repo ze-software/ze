@@ -168,10 +168,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	}
 
 	keepaliveDone := make(chan struct{})
-	go func() {
-		keepaliveLoop(link, result.frames, result.magic, result.chap, keepaliveDone, link.stopped, logger)
-		_ = link.Close() //nolint:errcheck // shutdown after PPP termination or read failure
-	}()
+	go superviseNetworkPhase(link, &result, keepaliveDone, logger)
 
 	return iface.PPPoESession{
 		SessionID: sessID,
@@ -228,6 +225,19 @@ func (s *sessionLink) Close() error {
 	s.closeTransport()
 	close(s.stopped)
 	return s.closeErr
+}
+
+// superviseNetworkPhase is the session's one network-phase goroutine. It runs
+// keepaliveLoop, which closes done when it returns, and then closes link. The
+// close publishes Done and refuses every later PPP write, whatever ended the
+// loop: an LCP Terminate-Request, an echo timeout, a read failure or the
+// owner's stop.
+//
+// RFC 2516 Section 7: "When LCP terminates, the Host and Access concentrator
+// MUST stop using that PPPoE session." The close is how the Host stops.
+func superviseNetworkPhase(link *sessionLink, result *sessionResult, done chan<- struct{}, logger *slog.Logger) {
+	keepaliveLoop(link, result.frames, result.magic, result.chap, done, link.stopped, logger)
+	_ = link.Close() //nolint:errcheck // shutdown after PPP termination or read failure
 }
 
 // watchPADT owns discovery reads from PADS until the session ends. Its caller

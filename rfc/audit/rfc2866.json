@@ -159,17 +159,21 @@
       "verdict": "enforced"
     },
     "RFC2866-5.13-1": {
-      "note": "Judge 2026-09-30, first verdict. Row '0 This attribute MUST NOT be present' is verbatim Section 5.13 (unsourced-ids in section 5.13; site 5.13:2 stays on 5-1, since one site maps to one row). Positive TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute is sound: Start/Interim/Stop, encoded and decoded, carry none of User-Password, CHAP-Password, Reply-Message, State, CHAP-Challenge, and are non-empty. WEAK because the negative TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute proves a TLV-framing property of Packet.EncodeTo/Decode (a length-prefixed value cannot be read as a sibling attribute), which any correct encoder satisfies whatever the builder does; no input of it holds a source of a 0-marked attribute. The violation this row forbids is copying the session's credentials (a CHAP challenge/password, a PAP password) or the Access-Accept's State or Reply-Message into accounting, and nothing drives a CHAP-authenticated session whose Accept carried State and Reply-Message through to the Accounting-Request. Missing: that negative over the real path, or, if acctSession structurally holds no such input (it holds none today: acct.go acctSession), a {single-polarity: positive} annotation naming that fact.",
+      "note": "Judge 2026-09-30 (cont 7 re-judge). Row '0 This attribute MUST NOT be present' (Section 5.13 legend; User-Password, CHAP-Password, Reply-Message, State, CHAP-Challenge). Positive TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes runs the real path: provider configured over plugin RPC, CHAP login through l2tp.GetAuthHandler against a live UDP server, session up/down over the event bus; the server decodes Start and Stop, which name the user and an Acct-Session-Id and carry none of the five. Negative TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting is the missing piece of the prior weak verdict (R1(b), inputs forced toward the violation over the real path): a CHAP and a PAP login against an Access-Accept carrying State and Reply-Message; the test first proves CHAP-Challenge, a 17-octet CHAP-Password and User-Password were on the Access-Request wire, then that no Start/Stop of either session carries a 0-marked type or any of those octets (State, Reply-Message, challenge, CHAP response, CHAP-Password, PAP plaintext, hidden User-Password). Producer acct.go buildAcctPacket / acctSession holds only username, calling-station, NAS-Port-Id, peer address, so a copy would be a new input path, which the negative catches on the wire. Both new units observed red under a revert of buildAcctPacket. The builder-level pair in rfc2866_attribute_table_test.go keeps its HEAD tags; its negative (TLV framing) is supplementary.",
       "requirement_sha": "fac5236866d9dded",
       "tests": {
         "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute": "31a5e844ce599efa",
-        "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute": "31a5e844ce599efa"
+        "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute": "31a5e844ce599efa",
+        "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go::TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes": "9a9d2c47607ef3ff",
+        "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go::TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting": "9a9d2c47607ef3ff"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute": "2d034aa93d45795f",
-        "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute": "759c6d3891deeca7"
+        "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute": "759c6d3891deeca7",
+        "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go::TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes": "9f9567f2e463ecbc",
+        "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go::TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting": "67c1816520e6269b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2866-5.5-1": {
       "note": "Forbidden behaviour: two sessions whose records carry the same Acct-Session-Id in the log. TestRFC2866AcctSessionIDUnique (1600 concurrent ids) and TestRFC2866AcctSessionIDNoCollisionOnReusedKey prove uniqueness within one process lifetime. genSessionID (authradius/acct.go) is tunnel-session-counter with a counter that restarts at 1 on every start, and no tagged unit covers a restart; the RFC's own example reserves digits for the reboot count because the log outlives a reboot.",
