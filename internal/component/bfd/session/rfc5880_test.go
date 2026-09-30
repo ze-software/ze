@@ -1200,8 +1200,9 @@ func TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit(t *testing.T) {
 // Section 6.7 -- authentication sequence number in the outgoing packet
 // ---------------------------------------------------------------------
 
-// RFC requirement: RFC5880-6.7.3-8 positive -- the Sequence Number field of
-// the authentication section is set to bfd.XmitAuthSeq. Machine.Sign
+// RFC requirement: RFC5880-6.7.4-11 positive -- under Keyed SHA1
+// (rfc5880AuthPair) the Sequence Number field of the authentication section
+// is set to bfd.XmitAuthSeq. Machine.Sign
 // (internal/component/bfd/session/auth.go:66-78) reads m.vars.XmitAuthSeq and
 // hands it to the signer, which writes it big-endian at offset 4 of the auth
 // section (internal/component/bfd/auth/sha1.go:84).
@@ -1223,8 +1224,9 @@ func TestRFC5880AuthSequenceFieldIsXmitAuthSeq(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.3-8 negative -- the field tracks the variable
-// rather than being a constant: AdvanceAuthSeq
+// RFC requirement: RFC5880-6.7.4-11 negative -- under Keyed SHA1
+// (rfc5880AuthPair) the field tracks the variable rather than being a
+// constant: AdvanceAuthSeq
 // (internal/component/bfd/session/auth.go:86-94) bumps bfd.XmitAuthSeq and the
 // next Sign writes the new value, so a signer that emitted a fixed number
 // would fail here.

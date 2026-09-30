@@ -175,16 +175,19 @@
       "reason": "Keyed MD5 and Meticulous Keyed MD5 Authentication. Seventeen sites over the transmission and reception rules. The sequence increment guidance for Keyed MD5 is advisory, and the circular increment is a permission.",
       "unsourced-ids": [
         "RFC5880-6.7.3-5",
-        "RFC5880-6.7.3-6"
+        "RFC5880-6.7.3-6",
+        "RFC5880-6.7.3-14"
       ]
     },
     {
       "id": "6.7.4",
       "sites": 17,
       "disposition": "walked",
-      "reason": "Keyed SHA1 and Meticulous Keyed SHA1 Authentication. Seventeen sites that repeat the section 6.7.3 rules with SHA1 constants, so most are excluded as duplicates of the rows the summary declares once for both families.",
+      "reason": "Keyed SHA1 and Meticulous Keyed SHA1 Authentication. Seventeen sites that repeat the section 6.7.3 rules with SHA1 constants. Each SHA1 obligation has its own section 6.7.4 row; the Auth Len transmit rule, the first-packet seeding rule and the accepting face of the hash comparison are excluded as duplicates of the rows that carry them. The hexadecimal key clause and the sequence increment guidance are advisory, and the circular increment for Keyed SHA1 is a permission.",
       "unsourced-ids": [
-        "RFC5880-6.7.4-6"
+        "RFC5880-6.7.4-6",
+        "RFC5880-6.7.4-8",
+        "RFC5880-6.7.4-9"
       ]
     },
     {
@@ -607,8 +610,8 @@
       "id": "6.7.3:3",
       "quote": "The Auth Key ID field MUST be set to the ID of the current authentication key.",
       "disposition": "mapped",
-      "mapped-to": "RFC5880-6.7.2-3",
-      "reason": "The Auth Key ID transmit rule, declared once for Simple Password, Keyed MD5 and Keyed SHA1 as RFC5880-6.7.2-3."
+      "mapped-to": "RFC5880-6.7.3-15",
+      "reason": "The Auth Key ID transmit rule for the MD5 family, split out of RFC5880-6.7.2-3 (which quotes the Simple Password sentence) as RFC5880-6.7.3-15."
     },
     {
       "id": "6.7.3:4",
@@ -655,26 +658,23 @@
     {
       "id": "6.7.3:10",
       "quote": "If the received BFD Control packet does not contain an Authentication Section, or the Auth Type is not correct (2 for Keyed MD5 or 3 for Meticulous Keyed MD5), then the received packet MUST be discarded.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC5880-6.7.2-4",
-      "reason": "The Auth Type reception discard for the MD5 family. RFC5880-6.7.2-4 declares it for all three families and site 6.7.2:6 maps it."
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-16",
+      "reason": "The Auth Type reception discard for the MD5 family, its own row RFC5880-6.7.3-16."
     },
     {
       "id": "6.7.3:11",
       "quote": "If the Auth Key ID field does not match the ID of a configured authentication key, the received packet MUST be discarded.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC5880-6.7.2-5",
-      "reason": "The Auth Key ID reception discard for the MD5 family, declared once as RFC5880-6.7.2-5 and mapped by site 6.7.2:7."
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-17",
+      "reason": "The Auth Key ID reception discard for the MD5 family, its own row RFC5880-6.7.3-17."
     },
     {
       "id": "6.7.3:12",
       "quote": "If the Auth Len field is not equal to 24, the packet MUST be discarded.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC5880-6.7.2-6",
-      "reason": "The Auth Len reception discard for the MD5 family, declared once as RFC5880-6.7.2-6 and mapped by site 6.7.2:8."
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-18",
+      "reason": "The Auth Len reception discard for the MD5 family, its own row RFC5880-6.7.3-18."
     },
     {
       "id": "6.7.3:13",
@@ -730,18 +730,16 @@
     {
       "id": "6.7.4:3",
       "quote": "The Auth Key ID field MUST be set to the ID of the current authentication key.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC5880-6.7.2-3",
-      "reason": "The Auth Key ID transmit rule for the SHA1 family, declared once as RFC5880-6.7.2-3 and mapped by site 6.7.3:3."
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-10",
+      "reason": "The Auth Key ID transmit rule for the SHA1 family, its own row RFC5880-6.7.4-10."
     },
     {
       "id": "6.7.4:4",
       "quote": "The Sequence Number field MUST be set to bfd.XmitAuthSeq.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC5880-6.7.3-8",
-      "reason": "The Sequence Number transmit rule for the SHA1 family, declared once as RFC5880-6.7.3-8 and mapped by site 6.7.3:4."
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-11",
+      "reason": "The Sequence Number transmit rule for the SHA1 family, its own row RFC5880-6.7.4-11."
     },
     {
       "id": "6.7.4:5",
@@ -781,42 +779,37 @@
     {
       "id": "6.7.4:10",
       "quote": "If the received BFD Control packet does not contain an Authentication Section, or the Auth Type is not correct (4 for Keyed SHA1 or 5 for Meticulous Keyed SHA1), then the received packet MUST be discarded.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC5880-6.7.2-4",
-      "reason": "The Auth Type reception discard for the SHA1 family, declared once as RFC5880-6.7.2-4 and mapped by site 6.7.2:6."
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-14",
+      "reason": "The Auth Type reception discard for the SHA1 family, its own row RFC5880-6.7.4-14."
     },
     {
       "id": "6.7.4:11",
       "quote": "If the Auth Key ID field does not match the ID of a configured authentication key, the received packet MUST be discarded.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC5880-6.7.2-5",
-      "reason": "The Auth Key ID reception discard for the SHA1 family, declared once as RFC5880-6.7.2-5 and mapped by site 6.7.2:7."
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-15",
+      "reason": "The Auth Key ID reception discard for the SHA1 family, its own row RFC5880-6.7.4-15."
     },
     {
       "id": "6.7.4:12",
       "quote": "If the Auth Len field is not equal to 28, the packet MUST be discarded.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC5880-6.7.2-6",
-      "reason": "The Auth Len reception discard for the SHA1 family, declared once as RFC5880-6.7.2-6 and mapped by site 6.7.2:8."
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-16",
+      "reason": "The Auth Len reception discard for the SHA1 family, its own row RFC5880-6.7.4-16."
     },
     {
       "id": "6.7.4:13",
       "quote": "For Keyed SHA1, if the sequence number lies outside of the range of bfd.RcvAuthSeq to bfd.RcvAuthSeq+(3*Detect Mult) inclusive (when treated as an unsigned 32-bit circular number space), the received packet MUST be discarded.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC5880-6.7.3-9",
-      "reason": "The Keyed SHA1 sequence window discard. RFC5880-6.7.3-9 declares the rule for MD5 and SHA1 together, and site 6.7.3:13 maps it."
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-12",
+      "reason": "The Keyed SHA1 sequence window discard, its own row RFC5880-6.7.4-12."
     },
     {
       "id": "6.7.4:14",
       "quote": "For Meticulous Keyed SHA1, if the sequence number lies outside of the range of bfd.RcvAuthSeq+1 to bfd.RcvAuthSeq+(3*Detect Mult) inclusive (when treated as an unsigned 32-bit circular number space, the received packet MUST be discarded.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC5880-6.7.3-10",
-      "reason": "The Meticulous Keyed SHA1 sequence window discard, declared once as RFC5880-6.7.3-10 and mapped by site 6.7.3:14."
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-13",
+      "reason": "The Meticulous Keyed SHA1 sequence window discard, its own row RFC5880-6.7.4-13."
     },
     {
       "id": "6.7.4:15",
@@ -831,16 +824,15 @@
       "quote": "If the SHA1 hash of the entire BFD Control packet is equal to the received value of the Auth Key/Hash field, the received packet MUST be accepted.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC5880-6.7.3-11",
-      "reason": "The accepting face of the SHA1 hash comparison, whose discarding face is RFC5880-6.7.3-11, mapped by site 6.7.3:17."
+      "mapped-to": "RFC5880-6.7.4-17",
+      "reason": "The accepting face of the SHA1 hash comparison, whose discarding face is RFC5880-6.7.4-17, mapped by site 6.7.4:17."
     },
     {
       "id": "6.7.4:17",
       "quote": "Otherwise (the hash does not match the Auth Key/Hash field), the received packet MUST be discarded.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC5880-6.7.3-11",
-      "reason": "The SHA1 hash mismatch discard. RFC5880-6.7.3-11 declares the rule for MD5 and SHA1 together, and site 6.7.3:17 maps it."
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-17",
+      "reason": "The SHA1 hash mismatch discard, its own row RFC5880-6.7.4-17 (split out of RFC5880-6.7.3-11, which quotes the MD5 sentence)."
     },
     {
       "id": "6.8.1:1",

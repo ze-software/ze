@@ -103,12 +103,19 @@
     {
       "id": "4.2.2.1",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5882-4.2.2.1-1",
+        "RFC5882-4.2.2.1-2"
+      ]
     },
     {
       "id": "4.2.2.2",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5882-4.2.2.2-1"
+      ]
     },
     {
       "id": "4.3",
@@ -238,7 +245,10 @@
     {
       "id": "10.2",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5882-10.2-1"
+      ]
     },
     {
       "id": "10.3",

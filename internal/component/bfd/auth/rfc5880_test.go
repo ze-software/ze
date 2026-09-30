@@ -246,8 +246,8 @@ func TestRFC5880SecretKeyNotCarriedInPacket(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.2-3 positive -- the Auth Key ID field is set to
-// the ID of the authentication key in use. Sign
+// RFC requirement: RFC5880-6.7.4-10 positive -- for Keyed SHA1 the Auth Key
+// ID field is set to the ID of the authentication key in use. Sign
 // (internal/component/bfd/auth/sha1.go:82) writes s.keyID, which
 // newDigestSigner (sha1.go:62) took from Settings.KeyID.
 func TestRFC5880AuthKeyIDIsTheConfiguredKey(t *testing.T) {
@@ -264,12 +264,13 @@ func TestRFC5880AuthKeyIDIsTheConfiguredKey(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.2-3 negative -- the field is read back and
-// checked rather than ignored: Verify (sha1.go:164-166) discards a packet
-// whose Auth Key ID does not equal the configured key.
-// RFC requirement: RFC5880-6.7.2-5 negative -- the same producer implements
-// "if the Auth Key ID does not match any configured authentication key, the
-// packet MUST be discarded"; ze configures exactly one key per session.
+// RFC requirement: RFC5880-6.7.4-10 negative -- for Keyed SHA1 the field is
+// read back and checked rather than ignored: Verify (sha1.go:164-166) discards
+// a packet whose Auth Key ID does not equal the configured key.
+// RFC requirement: RFC5880-6.7.4-15 negative -- the same producer implements
+// "If the Auth Key ID field does not match the ID of a configured
+// authentication key, the received packet MUST be discarded" for Keyed SHA1;
+// ze configures exactly one key per session.
 func TestRFC5880AuthKeyIDMismatchDiscarded(t *testing.T) {
 	cfg := Settings{Type: packet.AuthTypeKeyedSHA1, KeyID: 3, Secret: rfc5880Secret}
 	buf, c, _ := rfc5880Signed(t, cfg, 8)
@@ -285,8 +286,8 @@ func TestRFC5880AuthKeyIDMismatchDiscarded(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.2-5 positive -- a packet whose Auth Key ID
-// matches the configured authentication key passes the check at sha1.go:164
+// RFC requirement: RFC5880-6.7.4-15 positive -- a Keyed SHA1 packet whose Auth
+// Key ID matches the configured authentication key passes the check at sha1.go:164
 // and is accepted, so the discard above is key-scoped rather than blanket.
 func TestRFC5880AuthKeyIDMatchAccepted(t *testing.T) {
 	cfg := Settings{Type: packet.AuthTypeKeyedSHA1, KeyID: 3, Secret: rfc5880Secret}
@@ -297,8 +298,8 @@ func TestRFC5880AuthKeyIDMatchAccepted(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.2-4 positive -- a packet whose Auth Type
-// matches bfd.AuthType is accepted. Verify
+// RFC requirement: RFC5880-6.7.4-14 positive -- a packet whose Auth Type is
+// the configured Meticulous Keyed SHA1 (5) is accepted. Verify
 // (internal/component/bfd/auth/sha1.go:159-161) compares the section's first
 // byte against the verifier's configured type.
 func TestRFC5880AuthTypeMatchAccepted(t *testing.T) {
@@ -310,8 +311,8 @@ func TestRFC5880AuthTypeMatchAccepted(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.2-4 negative -- a packet whose Auth Type does
-// not match bfd.AuthType is discarded (sha1.go:159-161), so a peer cannot
+// RFC requirement: RFC5880-6.7.4-14 negative -- a packet whose Auth Type is
+// Keyed SHA1 (4) offered to a Meticulous Keyed SHA1 (5) session is discarded (sha1.go:159-161), so a peer cannot
 // downgrade a Meticulous session to the non-meticulous variant by relabeling
 // the section.
 func TestRFC5880AuthTypeMismatchDiscarded(t *testing.T) {
@@ -326,8 +327,8 @@ func TestRFC5880AuthTypeMismatchDiscarded(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.2-6 positive -- a section whose Auth Len equals
-// the expected fixed length for the configured type is accepted. Verify
+// RFC requirement: RFC5880-6.7.4-16 positive -- a Keyed SHA1 section whose
+// Auth Len equals 28 is accepted. Verify
 // (internal/component/bfd/auth/sha1.go:146-163) checks the total Control
 // Length against MandatoryLen+bodyLen AND the section's own Auth Len byte
 // against bodyLen.
@@ -343,8 +344,8 @@ func TestRFC5880AuthLenExpectedAccepted(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.2-6 negative -- an Auth Len that does not match
-// the expected length is discarded, both when the section byte is forged
+// RFC requirement: RFC5880-6.7.4-16 negative -- a Keyed SHA1 Auth Len that is
+// not 28 is discarded, both when the section byte is forged
 // (sha1.go:162-163) and when the total Control Length is short or long
 // (sha1.go:147-157). This is what keeps a forged length from driving an
 // over-read of the digest slot.
@@ -377,8 +378,8 @@ func TestRFC5880AuthLenMismatchDiscarded(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.3-11 positive -- a packet whose digest matches
-// the locally computed value is accepted. Verify
+// RFC requirement: RFC5880-6.7.4-17 positive -- a Keyed SHA1 packet whose hash
+// matches the locally computed value is accepted. Verify
 // (internal/component/bfd/auth/sha1.go:181-184) compares the two in constant
 // time and returns nil on equality.
 func TestRFC5880DigestMatchAccepted(t *testing.T) {
@@ -390,8 +391,8 @@ func TestRFC5880DigestMatchAccepted(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.3-11 negative -- a packet whose digest does not
-// match the computed value is discarded, whether the digest bytes were flipped
+// RFC requirement: RFC5880-6.7.4-17 negative -- a Keyed SHA1 packet whose hash
+// does not match the computed value is discarded, whether the digest bytes were flipped
 // or the packet was signed with a different secret (digestVerifier.Verify,
 // sha1.go). Once bfd.AuthSeqKnown is 1 the replay floor is left untouched, so
 // a forged packet cannot move bfd.RcvAuthSeq (the first packet seeds it before

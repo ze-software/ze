@@ -13,6 +13,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -53,8 +54,8 @@
       "note": "Judge 2026-09-30 re-stamp: the bfd TestRFC5880SimplePasswordLengthOutOfRangeRefused unit lost only its 6.7.2-1 tag (D-15); body unchanged. Forbidden: a 0-byte or over-16-byte password accepted. Red: auth TestRFC5880SimplePasswordLengthOutOfRangeRefused Fatalf unless NewSigner and NewVerifier return ErrKeyLengthInvalid for 0, 17, 32, 255 bytes; bfd TestRFC5880SimplePasswordLengthOutOfRangeRefused Fatalf when parseAuthConfig accepts 0, 17 or 32 bytes. Positive: 1, 8, 16 bytes encode (auth SectionHeader) and 1, 14, 16 bytes parse (SimplePasswordManagementAcceptsASCIIStrings), both range ends.",
       "requirement_sha": "33aa79e1d85a5696",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordLengthOutOfRangeRefused": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionHeader": "0db40ad53e18e5c2",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordLengthOutOfRangeRefused": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionHeader": "2b2cf0a065ff6293",
         "internal/component/bfd/rfc5880_test.go::TestRFC5880SimplePasswordLengthOutOfRangeRefused": "79f92760f00616a6",
         "internal/component/bfd/rfc5880_test.go::TestRFC5880SimplePasswordManagementAcceptsASCIIStrings": "79f92760f00616a6"
       },
@@ -70,8 +71,8 @@
       "note": "Judge 2026-09-28 (bfd/auth, independent of the author). TestRFC5880ReservedByteZeroedOnTransmit signs into a buffer pre-filled with 0xFF for all four keyed types, so the zero at off+3 is written by digestSigner.Sign (buf[off+3] = 0), covering both cited sections 4.3 and 4.4. The {single-polarity: positive} annotation holds: Sign writes a constant 0 and no path emits another value.",
       "requirement_sha": "df4f5f7317262961",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880ReservedByteZeroedOnTransmit": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5SectionHeader": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880ReservedByteZeroedOnTransmit": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5SectionHeader": "2b2cf0a065ff6293"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880ReservedByteZeroedOnTransmit": "e0284cbbfcdf9d58",
@@ -85,9 +86,9 @@
       "tests": {
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent": "1a3ca4dc854245d8",
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsBeforeAnyReception": "1a3ca4dc854245d8",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent": "e1685b9301773ecc",
@@ -104,8 +105,8 @@
       "tests": {
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSendsOnceThePeerSpoke": "1a3ca4dc854245d8",
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSilentThroughTicksUntilReception": "1a3ca4dc854245d8",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSendsOnceThePeerSpoke": "d354686b957783b8",
@@ -119,8 +120,8 @@
       "note": "Judge rejudge 2026-09-30 under owner ruling P-4 (Thomas, 2026-09-30: 'we can not see the peer', no refusal path exists), so the row is judged on its positive for Ze's role as one system of the pair. + session TestRFC5880ActiveRoleTransmitsWithoutReception: a request with Passive unset gives RoleActive through Init/applyRequest and arms the TX deadline with RemoteDiscr 0; setting RoleActive to RolePassive in applyRequest fails the role assertion directly; record revert session.go::Init observed red (judge, 2026-09-30). The operator default reaches that request unchanged: ze-bfd-conf.yang passive default false, config.go copies p.passive, and single-hop Passive is refused (RFC 5881 Section 3), so Ze takes Active unless the operator opts a multihop profile into Passive, and Active sending is proven at the engine by RFC5880-6.1-1. The HEAD negative TestRFC5880PassiveRoleSilentUntilReception (Passive is selectable) does not violate this row; it is supplementary and proves a neighbouring rule (RFC5880-6.1-1 contrast, 6.1-2). The pair obligation beyond Ze's own role is not observable by Ze.",
       "requirement_sha": "adebdf4c918f4b5b",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "df2f701c25b0dca8",
@@ -145,8 +146,8 @@
       "note": "Forbidden: P and F both set. Red: TestRFC5880PollPacketHasNoFinalBit Fatalf on c.Final from Build with PollOutstanding; TestRFC5880FinalReplyClearsPollBit Fatalf on f.Poll from BuildFinal with PollOutstanding true, the state where inheriting P would set both. Build and BuildFinal are the only packets sendLocked is handed (engine/loop.go).",
       "requirement_sha": "9b837bd97f06d962",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "e298a947dd60ac25",
@@ -160,8 +161,8 @@
       "requirement_sha": "23be4adfe2ed9de8",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollRidesTheScheduledPacket": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollRidesTheScheduledPacket": "b73d998693d271c3",
@@ -174,8 +175,8 @@
       "note": "Forbidden: D set while DemandMode, local Up or remote Up is false. Red: TestRFC5880DemandBitClearWhenAnyConditionFails Fatalf on Build().Demand with each condition dropped alone and with both states Down; positive TestRFC5880DemandBitSetWhenAllConditionsHold shows D is set when all hold, so the clear cases are not a constant false.",
       "requirement_sha": "7c57c2a6a41a5409",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitClearWhenAnyConditionFails": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitSetWhenAllConditionsHold": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitClearWhenAnyConditionFails": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitSetWhenAllConditionsHold": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitClearWhenAnyConditionFails": "921e0fd1b26116c1",
@@ -187,9 +188,9 @@
       "note": "Judge 2026-09-28. Positive: TestRFC5880BothSHA1VariantsSupported round-trips types 4 and 5. Negative: TestRFC5880SHA1TypesEnforcedDistinctly shows each SHA1 type is really implemented: a flipped hash is refused for each, each refuses the other's section, and a repeated sequence is accepted by 4 and refused by 5, so a stub or an aliased Meticulous type goes red. The older negative (types 0/6/200 refused) stays tagged but does not violate this row.",
       "requirement_sha": "88741c99034f89ec",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SHA1TypesEnforcedDistinctly": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880BothSHA1VariantsSupported": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880UnsupportedAuthTypesRejected": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SHA1TypesEnforcedDistinctly": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880BothSHA1VariantsSupported": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880UnsupportedAuthTypesRejected": "2b2cf0a065ff6293"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SHA1TypesEnforcedDistinctly": "b54555c1cbfd58a9",
@@ -214,72 +215,56 @@
       "verdict": "enforced"
     },
     "RFC5880-6.7.2-3": {
-      "note": "Judge 2026-09-29. Transmit rule: the selected password and Key ID are stored in every outgoing Simple Password section. Positive TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID asserts both on the signed wire (observed red with simpleSigner.Sign broken). Negative TestRFC5880SimplePasswordOtherThanSelectedPairDiscarded offers the exact packets a violating transmitter emits (Key ID 4/6/255 with the right password; password changed in first/middle/last byte with Key ID 5) and asserts ErrPasswordMismatch on each, the selected pair accepted; Simple Password has no digest, so the field check alone refuses (observed red with the simple.go Key ID check mutated to false). The receiver refuses exactly the set of non-selected pairs, so it maps onto this row. The older tags (SignerNeedsPassword, AuthKeyID*) prove neighbouring rows and are not relied on.",
+      "note": "Judge rejudge 2026-09-30 (phase 8: the Keyed SHA1 key-id units moved to RFC5880-6.7.4-10, row cites 6.7.2 only). Positive TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID asserts the selected password and Key ID on the signed wire. Negatives TestRFC5880SimplePasswordOtherThanSelectedPairDiscarded (key id 4/6/255 with the right password, password changed in first/middle/last byte, ErrPasswordMismatch each, selected pair accepted) and TestRFC5880SimplePasswordSignerNeedsPassword (nil/empty password refused at NewSigner). Units unchanged; judgement unchanged.",
       "requirement_sha": "cc3a6fb7ffbac1f1",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSignerNeedsPassword": "6df6029d5da75c86",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSignerNeedsPassword": "69049dc5fe6d5288",
         "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880SimplePasswordOtherThanSelectedPairDiscarded": "7078094d8d649608",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDIsTheConfiguredKey": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID": "2b2cf0a065ff6293"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSignerNeedsPassword": "9401088264f28c60",
         "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880SimplePasswordOtherThanSelectedPairDiscarded": "4dd4fcbe56732b7d",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDIsTheConfiguredKey": "fc87a95789983001",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "31df44e35f6e8dc9",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID": "f7fae4f769908e20"
       },
       "verdict": "enforced"
     },
     "RFC5880-6.7.2-4": {
-      "note": "Judge 2026-09-28. The quoted Simple Password sentence is proven on simpleVerifier.Verify: positive accepts Auth Type 1 sections for 1/8/16-byte passwords; negative refuses an A-clear Length-24 packet (ErrShortAuthBody) and Auth Types 0,2,3,4,5,6,255 with every other field valid, so removing the type check lets them through (isolated). The row's 6.7.3/6.7.4 cite cannot apply to a type-1 sentence; the old SHA1 units stay tagged and the split is owned by the child's row-quality phase.",
-      "requirement_sha": "babacd6e2fbd3181",
+      "note": "Judge rejudge 2026-09-30 (phase 8: row cites 6.7.2 only; the SHA1 type units moved to RFC5880-6.7.4-14, the MD5 clause is RFC5880-6.7.3-16). Positive accepts Auth Type 1 sections for 1/8/16-byte passwords; negative TestRFC5880SimplePasswordMissingSectionOrOtherTypeDiscarded refuses an A-clear Length-24 packet (ErrShortAuthBody) and types 0,2,3,4,5,6,255 with every other field valid, isolated because Simple Password has no digest. Stack-level no-section discard is Receive's A-bit gate (RFC5880-6.8.6-10).",
+      "requirement_sha": "a44c7486a95757b9",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordMissingSectionOrOtherTypeDiscarded": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOfTypeOneAccepted": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthTypeMatchAccepted": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthTypeMismatchDiscarded": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordMissingSectionOrOtherTypeDiscarded": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOfTypeOneAccepted": "69049dc5fe6d5288"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordMissingSectionOrOtherTypeDiscarded": "7036f46ebad31940",
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOfTypeOneAccepted": "58793f9c7fa99759",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthTypeMatchAccepted": "bbe5b7a9e18e3ca8",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthTypeMismatchDiscarded": "6c87d8d79dd7d0e0"
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOfTypeOneAccepted": "58793f9c7fa99759"
       },
       "verdict": "enforced"
     },
     "RFC5880-6.7.2-5": {
-      "note": "Forbidden: accepting a Simple Password packet whose Auth Key ID is not the configured one. Red: TestRFC5880SimplePasswordWrongKeyIDDiscarded signs key 7 with the right password against a verifier for key 8 and Fatalf unless ErrPasswordMismatch (only the key id differs, so isolated); positive TestRFC5880SimplePasswordMatchingKeyIDAccepted accepts key 7. The SHA1 units AuthKeyIDMatchAccepted/MismatchDiscarded prove the same rule for digestVerifier (the 6.7.3/6.7.4 twin), not Simple Password.",
-      "requirement_sha": "c5a9fe6713dc485d",
+      "note": "Judge rejudge 2026-09-30 (phase 8: row cites 6.7.2 only; the SHA1 key-id units moved to RFC5880-6.7.4-15). Negative TestRFC5880SimplePasswordWrongKeyIDDiscarded signs key 7 with the right password against a verifier for key 8 and requires ErrPasswordMismatch (only the key id differs, isolated); positive TestRFC5880SimplePasswordMatchingKeyIDAccepted accepts key 7.",
+      "requirement_sha": "68f398255373598c",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMatchAccepted": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMatchingKeyIDAccepted": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordWrongKeyIDDiscarded": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMatchingKeyIDAccepted": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordWrongKeyIDDiscarded": "2b2cf0a065ff6293"
       },
       "units": {
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMatchAccepted": "468eaf5716e9ccb7",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "31df44e35f6e8dc9",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMatchingKeyIDAccepted": "f0f3f362d2b18399",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordWrongKeyIDDiscarded": "b8d25b68aa347511"
       },
       "verdict": "enforced"
     },
     "RFC5880-6.7.2-6": {
-      "note": "Judge 2026-09-28. Positive accepts Auth Len = password+3 for 1/8/16 bytes; negative changes only the Auth Len byte (0, n+2, n+4, 255) with Control Length, type, Key ID and password valid, and requires ErrPasswordMismatch: removing the Auth Len check in simpleVerifier.Verify accepts them (the Control Length check compares c.Length, not the byte). The 6.7.3/6.7.4 cite is the row-quality split, not this sentence.",
-      "requirement_sha": "ae40455f9eeef942",
+      "note": "Judge rejudge 2026-09-30 (phase 8: row cites 6.7.2 only; the SHA1 Auth Len units moved to RFC5880-6.7.4-16). Positive accepts Auth Len = password+3 for 1/8/16 bytes; negative changes only the Auth Len byte (0, n+2, n+4, 255) with Control Length, type, key id and password valid and requires ErrPasswordMismatch; removing the byte check in simpleVerifier.Verify accepts them.",
+      "requirement_sha": "8b0035b9bba9589d",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordAuthLenNotPlusThreeDiscarded": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordAuthLenPlusThreeAccepted": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenExpectedAccepted": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenMismatchDiscarded": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordAuthLenNotPlusThreeDiscarded": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordAuthLenPlusThreeAccepted": "69049dc5fe6d5288"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordAuthLenNotPlusThreeDiscarded": "46bbaeae94a5a668",
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordAuthLenPlusThreeAccepted": "e6f3e141f6764d5d",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenExpectedAccepted": "0d81526808ec4925",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenMismatchDiscarded": "5a70ec41f2eab031"
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordAuthLenPlusThreeAccepted": "e6f3e141f6764d5d"
       },
       "verdict": "enforced"
     },
@@ -287,8 +272,8 @@
       "note": "Forbidden: accepting a password other than the configured one. Red: TestRFC5880SimplePasswordMismatchDiscarded Fatalf unless ErrPasswordMismatch for a same-length one-byte difference (isolated from the Auth Len check), plus shorter and longer passwords; positive TestRFC5880SimplePasswordMatchAccepted round-trips 1, 8 and 16-byte passwords. One key per session, so 'selected by the key ID' is the configured pair.",
       "requirement_sha": "248cf5650250c184",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMatchAccepted": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMismatchDiscarded": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMatchAccepted": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMismatchDiscarded": "2b2cf0a065ff6293"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMatchAccepted": "617b18b27b47bd3a",
@@ -300,9 +285,9 @@
       "note": "Judge 2026-09-28. Positive TestRFC5880SimplePasswordSectionHeader pins Auth Type 1 and Auth Len password+3 within 4..19. Auth Type clause negative: TestRFC5880SimplePasswordRejectsForeignSectionShape, a receiver refusing a section built against the transmit rule, isolated (no digest). Auth Len clause negative: TestRFC5880SimplePasswordSectionOutsideProperLengthNotBuilt, NewSigner refuses the 0 and 17-byte passwords that would carry Auth Len 3 and 20.",
       "requirement_sha": "6d588e984d7fb192",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOutsideProperLengthNotBuilt": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordRejectsForeignSectionShape": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionHeader": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOutsideProperLengthNotBuilt": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordRejectsForeignSectionShape": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionHeader": "2b2cf0a065ff6293"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOutsideProperLengthNotBuilt": "1fdfb79c78cbf823",
@@ -315,10 +300,10 @@
       "note": "Judge 2026-09-29. Both clauses. Positive TestRFC5880KeyedMD5SectionHeader asserts Auth Type 2/3 and Auth Len 24 on the signed wire (observed red with digestSigner.Sign broken). Negative TestRFC5880KeyedMD5OtherAlgorithmFieldsDiscarded, types 2 and 3, hand-builds packets with Auth Type 4/5 or Auth Len 28 and computes the MD5 digest AFTER the alteration, so the digest compare would accept them and only the field checks in digestVerifier.Verify refuse (read at the producer: Control Length is left correct, so the Length check cannot fire first); exact ErrDigestMismatch, fresh SeqState per packet, the unaltered packet accepted. The Auth Type half has an observed-red mutant record; the Auth Len half is isolated by construction but its mutants timed out, so it has no record. The older confounded tags (RejectsForeignSectionShape, OversizedKeyNotSigned) are not relied on.",
       "requirement_sha": "e3ed1566378fa96b",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5OversizedKeyNotSigned": "6df6029d5da75c86",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5OversizedKeyNotSigned": "69049dc5fe6d5288",
         "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880KeyedMD5OtherAlgorithmFieldsDiscarded": "7078094d8d649608",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5RejectsForeignSectionShape": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5SectionHeader": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5RejectsForeignSectionShape": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5SectionHeader": "2b2cf0a065ff6293"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5OversizedKeyNotSigned": "20ca82d28e9cd052",
@@ -329,18 +314,18 @@
       "verdict": "enforced"
     },
     "RFC5880-6.7.3-10": {
-      "note": "Judge 2026-09-28. Positive accepts RcvAuthSeq+1 and +3*DM at DM 1/5/255 and both wraps; negative refuses equal, -1, +3*DM+1 and behind-across-wrap with the floor unmoved, for types 3 and 5. Both inclusive bounds pinned. Judge 2026-09-30: added supplementary negative TestRFC5880SequenceFieldOtherThanXmitAuthSeqDiscarded (moved from 6.7.3-8, D-15): after RcvAuthSeq 100 a Meticulous MD5/SHA1 section at 1101 (beyond window) and at 100 (below RcvAuthSeq+1) are refused with ErrSequenceOutsideWindow, then 101 accepted; meticulous.go Check revert observed red. Judgement unchanged.",
+      "note": "Judge rejudge 2026-09-30 (phase 8: keyed_test prose narrowed to Meticulous MD5, the SHA1 half is RFC5880-6.7.4-13). Positive units accept RcvAuthSeq+1 and +3*DM at DM 1/5/255 and both wraps; negatives refuse equal, -1, +3*DM+1 and behind-across-wrap with the floor unmoved; every tagged unit loops Meticulous Keyed MD5 (with SHA1 alongside). meticulous.go Check revert observed red.",
       "requirement_sha": "15c52ea27cf62067",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousOutsideWindowDiscarded": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousWindowFollowsReceivedDetectMult": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousSequenceInsideWindowAccepted": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousSequenceOutsideWindowDiscarded": "0db40ad53e18e5c2",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousOutsideWindowDiscarded": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousWindowFollowsReceivedDetectMult": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousSequenceInsideWindowAccepted": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousSequenceOutsideWindowDiscarded": "2b2cf0a065ff6293",
         "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880SequenceFieldOtherThanXmitAuthSeqDiscarded": "ee4106e33861f3d9"
       },
       "units": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousOutsideWindowDiscarded": "b850bdfef2ca59a2",
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousWindowFollowsReceivedDetectMult": "c147bc79b7cf36a7",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousOutsideWindowDiscarded": "3cf46d935b6c637a",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousWindowFollowsReceivedDetectMult": "185114b4680ecd35",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousSequenceInsideWindowAccepted": "118befc4ec21bc6c",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousSequenceOutsideWindowDiscarded": "b8ee4449f210ee7b",
         "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880SequenceFieldOtherThanXmitAuthSeqDiscarded": "64be5feed3a2dda3"
@@ -348,19 +333,15 @@
       "verdict": "enforced"
     },
     "RFC5880-6.7.3-11": {
-      "note": "Judge 2026-09-28. MD5 (types 2, 3): TestRFC5880KeyedMD5IndependentDigestAccepted accepts a packet hashed with crypto/md5 outside the product; TestRFC5880KeyedMD5DigestMismatchDiscarded refuses a flipped digest and a digest under another key with ErrDigestMismatch and the floor stays 40. SHA1 (cited 6.7.4) is covered by the older TestRFC5880DigestMatchAccepted / DigestMismatchDiscarded units.",
-      "requirement_sha": "a5e51e33ba88ddbe",
+      "note": "Judge rejudge 2026-09-30 (phase 8: row cites 6.7.3 only; the SHA1 digest units moved to RFC5880-6.7.4-17). Positive TestRFC5880KeyedMD5IndependentDigestAccepted accepts a packet hashed with crypto/md5 outside the product (types 2, 3); negative TestRFC5880KeyedMD5DigestMismatchDiscarded refuses a flipped digest and a digest under another key with ErrDigestMismatch and the floor stays 40. Judge break making the constant-time compare never fail reds the negative.",
+      "requirement_sha": "72900752676efc29",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5DigestMismatchDiscarded": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5IndependentDigestAccepted": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestMatchAccepted": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestMismatchDiscarded": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5DigestMismatchDiscarded": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5IndependentDigestAccepted": "69049dc5fe6d5288"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5DigestMismatchDiscarded": "b036247c106b178c",
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5IndependentDigestAccepted": "8852f2c777eb6489",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestMatchAccepted": "f0ed3d7454516f4b",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestMismatchDiscarded": "82debf5b21e887dd"
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5IndependentDigestAccepted": "8852f2c777eb6489"
       },
       "verdict": "enforced"
     },
@@ -368,11 +349,11 @@
       "note": "Judge 2026-09-28. MD5: TestRFC5880KeyedMD5FirstPacketSeedsReplayFloor sets AuthSeqKnown and RcvAuthSeq from an authentic and a forged first packet (seeding precedes the digest, owner decision D-14, kept); TestRFC5880KeyedMD5KnownFloorNotReseeded shows the branch runs only while AuthSeqKnown is 0 (a forged in-window and a +2^31 packet leave the floor at 100). SHA1 (cited 6.7.4) keeps the older seeding units. RFC5880-6.8.1-13 stays a gap.",
       "requirement_sha": "4f21cec2bfc078f8",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5FirstPacketSeedsReplayFloor": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5KnownFloorNotReseeded": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880FirstAuthenticatedPacketSeedsReplayFloor": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880FirstPacketSeedsReplayFloorBeforeDigest": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KnownSequenceNotReseededByForgedPacket": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5FirstPacketSeedsReplayFloor": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5KnownFloorNotReseeded": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880FirstAuthenticatedPacketSeedsReplayFloor": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880FirstPacketSeedsReplayFloorBeforeDigest": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KnownSequenceNotReseededByForgedPacket": "2b2cf0a065ff6293"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5FirstPacketSeedsReplayFloor": "9467f8a7c378f2a7",
@@ -393,9 +374,9 @@
       "note": "Positive: TestRFC5880ShortKeyZeroPaddedIntoDigestField computes MD5 independently over the signed packet with the Auth Key/Digest field replaced by the 11-byte key and five zero bytes and requires Sign's transmitted digest to equal it; TestKeyedSecretLongerThanSlotRefused (NewSigner, NewVerifier) and TestParseAuthConfigKeyedSecretLength (parseAuthConfig) accept a 16-byte key for both MD5 types. Negative: the same two refuse a 17-byte key, NewSigner and NewVerifier with ErrKeyLengthInvalid, so no key longer than the field is truncated into it.",
       "requirement_sha": "083bed83eb058f2f",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused#2": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880ShortKeyZeroPaddedIntoDigestField": "0db40ad53e18e5c2",
+        "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused#2": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880ShortKeyZeroPaddedIntoDigestField": "2b2cf0a065ff6293",
         "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength": "57ca680bd638e073",
         "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength#2": "57ca680bd638e073"
       },
@@ -408,14 +389,74 @@
       },
       "verdict": "enforced"
     },
+    "RFC5880-6.7.3-14": {
+      "code": {
+        "internal/component/bfd/config.go::parseAuthConfig": "e70e674e90c67142"
+      },
+      "note": "Judge 2026-09-30 (phase 8). Confirmed at the producer: parseAuthConfig reads the secret leaf with stringField and stores []byte(secret) (config.go); the YANG leaf secret is type string with no hex form, so a binary Keyed MD5 key cannot be configured. The {gap} annotation is accurate; disclosed in Support remaining.",
+      "requirement_sha": "bf37d983eb3a7dcd",
+      "verdict": "unimplemented"
+    },
+    "RFC5880-6.7.3-15": {
+      "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880MD5AuthKeyIDIsTheCurrentKey: both MD5 types, key ids 0/1/200/255 read back at MandatoryLen+2 and verified. Negative (R1b, forced input) TestRFC5880MD5AuthKeyIDOverwritesStaleBuffer: section pre-filled 0xFF, Sign must leave key 7. Judge break digestSigner.Sign writing buf[off+2] unchanged reds both (and the positive at ids 1..255).",
+      "requirement_sha": "55828bed23e34b50",
+      "tests": {
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthKeyIDIsTheCurrentKey": "561a897285e69b5a",
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthKeyIDOverwritesStaleBuffer": "561a897285e69b5a"
+      },
+      "units": {
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthKeyIDIsTheCurrentKey": "53773b9e5175f807",
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthKeyIDOverwritesStaleBuffer": "b7b038fc338ecc4a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5880-6.7.3-16": {
+      "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880MD5AuthTypeCorrectAccepted (types 2 and 3). Negative TestRFC5880KeyedMissingSectionOrWrongTypeDiscarded: A-clear Length-24 packet -> ErrShortAuthBody, and types 0,1,2..6,255 relabelled on an authentic packet -> discard with the replay floor unset. Judge break removing the Auth Type check in digestVerifier.Verify reds it (the floor assertion isolates it from the digest). The no-section clause at stack level is enforced by Receive's A-bit gate (session/fsm.go, proven under RFC5880-6.8.6-10, loop.go skips Verify for A=0); this unit proves the verifier refuses it too.",
+      "requirement_sha": "515d8b4ba348520d",
+      "tests": {
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880KeyedMissingSectionOrWrongTypeDiscarded": "561a897285e69b5a",
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthTypeCorrectAccepted": "561a897285e69b5a"
+      },
+      "units": {
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880KeyedMissingSectionOrWrongTypeDiscarded": "1a8d6c886fe854df",
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthTypeCorrectAccepted": "d5f404c55824f574"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5880-6.7.3-17": {
+      "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880MD5ConfiguredKeyIDAccepted; negative TestRFC5880MD5UnconfiguredKeyIDDiscarded (ids 2/4/255 vs 3, both MD5 types, floor unset). Judge break removing the key-id check in digestVerifier.Verify reds the negative (floor seeded), so it is isolated from the digest.",
+      "requirement_sha": "e43369a0cb69a90f",
+      "tests": {
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5ConfiguredKeyIDAccepted": "561a897285e69b5a",
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5UnconfiguredKeyIDDiscarded": "561a897285e69b5a"
+      },
+      "units": {
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5ConfiguredKeyIDAccepted": "70eca9897630eb62",
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5UnconfiguredKeyIDDiscarded": "fccd817061665842"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5880-6.7.3-18": {
+      "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880MD5AuthLen24Accepted (byte 24, Length 48); negative TestRFC5880MD5AuthLenNot24Discarded (byte 0/23/25/28 with floor unset, Length 47 ErrShortAuthBody, 49 refused). Judge break removing the Auth Len byte check in digestVerifier.Verify reds the negative through the floor assertion.",
+      "requirement_sha": "7f1f260263d7fb65",
+      "tests": {
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthLen24Accepted": "561a897285e69b5a",
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthLenNot24Discarded": "561a897285e69b5a"
+      },
+      "units": {
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthLen24Accepted": "ff1eeaac2d70a3d6",
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthLenNot24Discarded": "b9afecb5679b7669"
+      },
+      "verdict": "enforced"
+    },
     "RFC5880-6.7.3-2": {
       "note": "Judge 2026-09-28. Positive TestRFC5880DigestSpansEntirePacket compares Sign's digest with crypto/md5 computed independently over bytes 0..Length with the padded key, and accepts a hand-built packet. Negative TestRFC5880DigestOverPartialPacketDiscarded refuses digests over 24, off+4, off+8 and Length-1 bytes and every single-byte flip of the mandatory section, Reserved byte and Sequence Number (fresh SeqState, so D-14 seeding precedes and the window cannot refuse first). Types 2 and 3.",
       "requirement_sha": "488c9f167483847b",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestOverPartialPacketDiscarded": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestSpansEntirePacket": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestCoversWholePacket": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestRejectsMandatorySectionTamper": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestOverPartialPacketDiscarded": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestSpansEntirePacket": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestCoversWholePacket": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestRejectsMandatorySectionTamper": "2b2cf0a065ff6293"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestOverPartialPacketDiscarded": "c0cb5d8a8b5d8678",
@@ -429,7 +470,7 @@
       "note": "single-polarity positive: neither the padded nor the raw secret appears in the emitted bytes.",
       "requirement_sha": "db27c529288e858b",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SecretKeyNotCarriedInPacket": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SecretKeyNotCarriedInPacket": "2b2cf0a065ff6293"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SecretKeyNotCarriedInPacket": "fada90398032f917"
@@ -440,7 +481,7 @@
       "note": "Judge 2026-09-29. Both clauses. Positive TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits puts 0xFFFFFFFE, 0xFFFFFFFF, 0, 1 on the wire through Machine.Sign/AdvanceAuthSeq (observed red with AdvanceAuthSeq broken), so a saturating or non-incrementing XmitAuthSeq goes red. Negative TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded (type 3) signs 0xFFFFFFFF twice through Machine.Sign, the exact output of a non-circular transmitter, and the peer refuses the repeat with ErrSequenceOutsideWindow, then accepts the circular successor 0 in the same state (observed red with the meticulous.go equality check mutated). The held incremented-clause negative stays.",
       "requirement_sha": "2b16c338c8deef26",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "0db40ad53e18e5c2",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "2b2cf0a065ff6293",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "5c1906d0d12f7987",
         "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "4991f8b5efadecf0",
         "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded": "ee4106e33861f3d9"
@@ -469,35 +510,33 @@
       "verdict": "enforced"
     },
     "RFC5880-6.7.3-8": {
-      "note": "Judge 2026-09-30. Positive TestRFC5880AuthSequenceFieldIsXmitAuthSeq (revert of session/auth.go Sign observed red). Negative (R1b; the held negative tags forbid {single-polarity}) TestRFC5880SequenceFieldIsXmitAuthSeqAcrossTheCounterRange forces bfd.XmitAuthSeq to 0, 1, 0x7FFFFFFF, 0x80000000, 0xFFFFFFFE, 0xFFFFFFFF and across the wrap to 0 and 1, for all four keyed types, asserting the field equals the variable after every Sign. Judge's own break (digestSigner writes seq&0x7FFFFFFF) reds only that negative; both older units stay green. Held FollowsAdvance negative kept (AdvanceAuthSeq revert observed red). The receiver-window unit TestRFC5880SequenceFieldOtherThanXmitAuthSeqDiscarded moved to 6.7.3-9/6.7.3-10 (D-15), which is the rule its body proves; its orphaned 6.7.3-8 mutant record pruned.",
-      "requirement_sha": "b9e08332d4459520",
+      "note": "Judge rejudge 2026-09-30 (phase 8: row cites 6.7.3 only; the Keyed SHA1 session units moved to RFC5880-6.7.4-11). Positive TestRFC5880MD5SequenceFieldIsXmitAuthSeq (new): both MD5 types through Machine.Sign, field = 0x11223344 and then the advanced value. Negative (R1b, forced input) TestRFC5880SequenceFieldIsXmitAuthSeqAcrossTheCounterRange: XmitAuthSeq forced to 0, 1, 0x7FFFFFFF, 0x80000000, 0xFFFFFFFE, 0xFFFFFFFF and across the wrap, field equal after every Sign, all four keyed types; an earlier judge break (seq masked to 31 bits) reds it.",
+      "requirement_sha": "c24fbc16bc161834",
       "tests": {
         "internal/component/bfd/session/rfc5880_auth_seq_field_test.go::TestRFC5880SequenceFieldIsXmitAuthSeqAcrossTheCounterRange": "0df1fe339d3b5712",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldFollowsAdvance": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldIsXmitAuthSeq": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_md5_seq_field_test.go::TestRFC5880MD5SequenceFieldIsXmitAuthSeq": "1290b5d7e13e5b1c"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_auth_seq_field_test.go::TestRFC5880SequenceFieldIsXmitAuthSeqAcrossTheCounterRange": "ce52ac3db274b855",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldFollowsAdvance": "5f2600d28bf0886c",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldIsXmitAuthSeq": "fa56a715fdc86922"
+        "internal/component/bfd/session/rfc5880_md5_seq_field_test.go::TestRFC5880MD5SequenceFieldIsXmitAuthSeq": "a388bf39645e70fc"
       },
       "verdict": "enforced"
     },
     "RFC5880-6.7.3-9": {
-      "note": "Judge 2026-09-28. SeqState.Check reads the received Detect Mult. Positive TestRFC5880KeyedWindowFollowsReceivedDetectMult accepts equal and +3*DM at DM 1/5/255 and across the wrap from 0xFFFFFFFE; negative TestRFC5880KeyedOutsideWindowDiscarded refuses -1, +3*DM+1, +2^31 and 0xFFFFFFFF behind a floor of 2 with the floor unmoved. Both inclusive bounds are pinned for MD5 (and SHA1). Judge 2026-09-30: added supplementary negative TestRFC5880SequenceFieldOtherThanXmitAuthSeqDiscarded (moved from 6.7.3-8, D-15): after RcvAuthSeq 100 a Keyed MD5/SHA1 section at 1101 lies beyond RcvAuthSeq+3*DM and is refused with ErrSequenceOutsideWindow, then 101 accepted; meticulous.go Check revert observed red. That is this row's window rule; judgement unchanged.",
+      "note": "Judge rejudge 2026-09-30 (phase 8: keyed_test prose narrowed to MD5, the SHA1 half is RFC5880-6.7.4-12). Proven for Keyed MD5 by TestRFC5880KeyedWindowFollowsReceivedDetectMult / TestRFC5880KeyedOutsideWindowDiscarded (both bounds inclusive, DM 1/5/255, wrap, floor unmoved), TestRFC5880KeyedSequenceBeyondWindowDiscarded (MD5 and SHA1) and TestRFC5880SequenceFieldOtherThanXmitAuthSeqDiscarded. FINDING: three units still tagged here run a Keyed SHA1 fixture only (TestRFC5880KeyedSequenceAtOrAboveFloorAccepted, TestRFC5880KeyedSequenceBelowFloorDiscarded, TestRFC5880KeyedSequenceWindowWraps in auth/rfc5880_test.go): they prove the 6.7.4-12 sentence, not this MD5 one, and their tags belong on 6.7.4-12 (D-15 move owed). SeqState.Check is algorithm-agnostic, so the row verdict does not rest on them.",
       "requirement_sha": "7c1a29d2383e4f0a",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedOutsideWindowDiscarded": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedWindowFollowsReceivedDetectMult": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceAtOrAboveFloorAccepted": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceBelowFloorDiscarded": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceBeyondWindowDiscarded": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceWindowWraps": "0db40ad53e18e5c2",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedOutsideWindowDiscarded": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedWindowFollowsReceivedDetectMult": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceAtOrAboveFloorAccepted": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceBelowFloorDiscarded": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceBeyondWindowDiscarded": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceWindowWraps": "2b2cf0a065ff6293",
         "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880SequenceFieldOtherThanXmitAuthSeqDiscarded": "ee4106e33861f3d9"
       },
       "units": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedOutsideWindowDiscarded": "5af1ec8edfb4adfc",
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedWindowFollowsReceivedDetectMult": "6af7e53c07752648",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedOutsideWindowDiscarded": "ee20d5bc60ab988e",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedWindowFollowsReceivedDetectMult": "9d8a9202d010f797",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceAtOrAboveFloorAccepted": "a061d2d1b7609800",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceBelowFloorDiscarded": "d40a568c6daadbaa",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceBeyondWindowDiscarded": "7ccc109d05b29e80",
@@ -510,10 +549,10 @@
       "note": "Judge 2026-09-29. Both clauses. Positive TestRFC5880KeyedSHA1SectionHeader asserts Auth Type 4/5 and Auth Len 28 (observed red with digestSigner.Sign broken). Negative TestRFC5880KeyedSHA1OtherAlgorithmFieldsDiscarded, types 4 and 5, hashes Auth Type 2/3 or Auth Len 24 in after the alteration, exact ErrDigestMismatch, unaltered accepted; isolated as for 6.7.3-1 (Control Length correct, digest valid). Auth Type half recorded by mutant; Auth Len half isolated by construction, no record. Older confounded tags not relied on.",
       "requirement_sha": "4b2b81703111d3e1",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedSHA1OversizedKeyNotSigned": "6df6029d5da75c86",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedSHA1OversizedKeyNotSigned": "69049dc5fe6d5288",
         "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880KeyedSHA1OtherAlgorithmFieldsDiscarded": "7078094d8d649608",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1RejectsForeignSectionShape": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1SectionHeader": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1RejectsForeignSectionShape": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1SectionHeader": "2b2cf0a065ff6293"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedSHA1OversizedKeyNotSigned": "cf119a6c947bdf87",
@@ -523,14 +562,120 @@
       },
       "verdict": "enforced"
     },
+    "RFC5880-6.7.4-10": {
+      "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880AuthKeyIDIsTheConfiguredKey (Keyed SHA1, ids 0/1/200/255 on the wire); judge break of the key-id write in digestSigner.Sign reds it. Negative TestRFC5880AuthKeyIDMismatchDiscarded is the receive-side handling of a peer PDU with a key id other than the configured one (owner ruling 2 reading of a generate row); judge break removing the key-id check in digestVerifier.Verify reds it through its replay-floor assertion, so it is isolated from the digest.",
+      "requirement_sha": "048f3b4dd6a640ac",
+      "tests": {
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDIsTheConfiguredKey": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "2b2cf0a065ff6293"
+      },
+      "units": {
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDIsTheConfiguredKey": "03e153db69b20d01",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "f0a849a58b8a9b34"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5880-6.7.4-11": {
+      "note": "Judge 2026-09-30 (phase 8). Keyed SHA1 via session Machine.Sign: positive TestRFC5880AuthSequenceFieldIsXmitAuthSeq pins 0x11223344 in the field; negative (forced input) TestRFC5880AuthSequenceFieldFollowsAdvance requires the field to follow AdvanceAuthSeq to first+1, so a constant or ignored seq fails; revert records observed red. Limit: neither unit drives the variable above 0x7FFFFFFF; the full-range unit TestRFC5880SequenceFieldIsXmitAuthSeqAcrossTheCounterRange loops the SHA1 types too but is tagged on 6.7.3-8 only (shared digestSigner.Sign producer).",
+      "requirement_sha": "4ef5c588e008528b",
+      "tests": {
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldFollowsAdvance": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldIsXmitAuthSeq": "ecf2d0a8dd648483"
+      },
+      "units": {
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldFollowsAdvance": "44c371e6ab17b536",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldIsXmitAuthSeq": "5e8f2d175a84a64b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5880-6.7.4-12": {
+      "note": "Judge 2026-09-30 (phase 8). Tags added on the four window units of auth/rfc5880_keyed_test.go that already loop Keyed SHA1: positive TestRFC5880KeyedWindowFollowsReceivedDetectMult (equal and +3*DM at DM 1/5/255, across the wrap), negative TestRFC5880KeyedOutsideWindowDiscarded (-1, +3*DM+1, +2^31, wrap) with the floor unmoved. Both inclusive bounds pinned; meticulous.go Check revert records observed red.",
+      "requirement_sha": "2a4207d116ffa400",
+      "tests": {
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedOutsideWindowDiscarded": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedWindowFollowsReceivedDetectMult": "69049dc5fe6d5288"
+      },
+      "units": {
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedOutsideWindowDiscarded": "ee20d5bc60ab988e",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedWindowFollowsReceivedDetectMult": "9d8a9202d010f797"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5880-6.7.4-13": {
+      "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880MeticulousWindowFollowsReceivedDetectMult (+1 and +3*DM at DM 1/5/255, both wraps) and negative TestRFC5880MeticulousOutsideWindowDiscarded (equal, -1, +3*DM+1, behind-across-wrap, floor unmoved), both looping Meticulous Keyed SHA1. The row keeps the RFC's own unbalanced parenthesis (verbatim). meticulous.go Check revert observed red.",
+      "requirement_sha": "ff5f19684a5a6295",
+      "tests": {
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousOutsideWindowDiscarded": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousWindowFollowsReceivedDetectMult": "69049dc5fe6d5288"
+      },
+      "units": {
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousOutsideWindowDiscarded": "3cf46d935b6c637a",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousWindowFollowsReceivedDetectMult": "185114b4680ecd35"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5880-6.7.4-14": {
+      "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880AuthTypeMatchAccepted (type 5). Negative TestRFC5880KeyedMissingSectionOrWrongTypeDiscarded covers types 4 and 5 (no section; types 0,1,2,3,6,255 and the other SHA1 variant) with the floor unset, and the judge break removing the Auth Type check reds it. The moved negative TestRFC5880AuthTypeMismatchDiscarded stayed GREEN under that break: it asserts only err != nil and the relabelled byte also breaks the hash, so it is digest-confounded and proves nothing alone. No-section clause at stack level: RFC5880-6.8.6-10.",
+      "requirement_sha": "02860cc2ca7e2994",
+      "tests": {
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880KeyedMissingSectionOrWrongTypeDiscarded": "561a897285e69b5a",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthTypeMatchAccepted": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthTypeMismatchDiscarded": "2b2cf0a065ff6293"
+      },
+      "units": {
+        "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880KeyedMissingSectionOrWrongTypeDiscarded": "1a8d6c886fe854df",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthTypeMatchAccepted": "976ecf2ac6bbb3b6",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthTypeMismatchDiscarded": "dc8745cc882fdf21"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5880-6.7.4-15": {
+      "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880AuthKeyIDMatchAccepted (key 3); negative TestRFC5880AuthKeyIDMismatchDiscarded (key 4 vs 3, ErrDigestMismatch, floor unset). Judge break removing the key-id check reds the negative through the floor assertion. Ze configures one key per session, so 'a configured key' is that key.",
+      "requirement_sha": "0c12526d28e5728b",
+      "tests": {
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMatchAccepted": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "2b2cf0a065ff6293"
+      },
+      "units": {
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMatchAccepted": "cecc1f0e4a2fd43c",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "f0a849a58b8a9b34"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5880-6.7.4-16": {
+      "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880AuthLenExpectedAccepted is sound. Negative TestRFC5880AuthLenMismatchDiscarded stayed GREEN under the judge break removing the Auth Len byte check (int(data[off+1]) != v.bodyLen) in digestVerifier.Verify: the forged-byte case asserts only err != nil and the byte is inside the hash, so the digest refuses it; only the Control Length cases (a neighbouring length rule) discriminate. Missing: assert the replay floor stays unset on the forged byte (as the MD5 twin TestRFC5880MD5AuthLenNot24Discarded does), or loop the SHA1 types in that twin. The panic-replacement records prove only that the unit reaches Verify.",
+      "requirement_sha": "63458ba24e676e18",
+      "tests": {
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenExpectedAccepted": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenMismatchDiscarded": "2b2cf0a065ff6293"
+      },
+      "units": {
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenExpectedAccepted": "b6f3973c05be57e6",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenMismatchDiscarded": "b06b29bf85489e1b"
+      },
+      "verdict": "weak"
+    },
+    "RFC5880-6.7.4-17": {
+      "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880DigestMatchAccepted (Keyed SHA1 signed packet accepted). Negative TestRFC5880DigestMismatchDiscarded: flipped hash and other-secret hash refused with the floor left at the known value. Judge break making the constant-time compare never fail reds the negative. The positive uses the product signer, not an independent SHA1 (the MD5 row has a crypto/md5 hand-built packet); acceptable because the negative pins the compare.",
+      "requirement_sha": "75a6863607b67f17",
+      "tests": {
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestMatchAccepted": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestMismatchDiscarded": "2b2cf0a065ff6293"
+      },
+      "units": {
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestMatchAccepted": "64e894f6f290ea44",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestMismatchDiscarded": "4da054c1d39b8bf7"
+      },
+      "verdict": "enforced"
+    },
     "RFC5880-6.7.4-2": {
       "note": "Judge 2026-09-28. Same units as RFC5880-6.7.3-2 for types 4 and 5: Sign's hash equals crypto/sha1 over the entire packet computed independently, and hashes over 24, off+4, off+8, Length-1 bytes plus every single-byte flip of the mandatory section, Reserved byte and Sequence Number are refused with ErrDigestMismatch.",
       "requirement_sha": "f31af88893941082",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestOverPartialPacketDiscarded": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestSpansEntirePacket": "6df6029d5da75c86",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestCoversWholePacket": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestRejectsMandatorySectionTamper": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestOverPartialPacketDiscarded": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestSpansEntirePacket": "69049dc5fe6d5288",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestCoversWholePacket": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestRejectsMandatorySectionTamper": "2b2cf0a065ff6293"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestOverPartialPacketDiscarded": "c0cb5d8a8b5d8678",
@@ -544,7 +689,7 @@
       "note": "TestRFC5880SecretKeyNotCarriedInPacket asserts neither the padded nor the raw secret appears in the emitted SHA1 packet (single-polarity).",
       "requirement_sha": "0f9e1b9af5de2b50",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SecretKeyNotCarriedInPacket": "0db40ad53e18e5c2"
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SecretKeyNotCarriedInPacket": "2b2cf0a065ff6293"
       },
       "units": {
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SecretKeyNotCarriedInPacket": "fada90398032f917"
@@ -555,7 +700,7 @@
       "note": "Judge 2026-09-29. Same units as 6.7.3-4 over type 5: the positive wrap test runs type 5 through Machine.Sign, and the negative loop runs type 5 after type 3 through the same Verify/Check path, repeat refused with ErrSequenceOutsideWindow and 0 accepted. The recorded red fired on the type-3 iteration; the type-5 iteration asserts the same outcome over the SHA1 verifier.",
       "requirement_sha": "688d11a4ee42cd94",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "0db40ad53e18e5c2",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "2b2cf0a065ff6293",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "5c1906d0d12f7987",
         "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "4991f8b5efadecf0",
         "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded": "ee4106e33861f3d9"
@@ -593,9 +738,9 @@
       "note": "Positive: TestRFC5880ShortKeyZeroPaddedIntoDigestField computes SHA1 independently over the signed packet with the Auth Key/Hash field replaced by the 11-byte key and nine zero bytes and requires Sign's transmitted hash to equal it; TestKeyedSecretLongerThanSlotRefused and TestParseAuthConfigKeyedSecretLength accept a 20-byte key for both SHA1 types. Negative: the same two refuse a 21-byte key.",
       "requirement_sha": "db17e705cc0050dc",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused#2": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880ShortKeyZeroPaddedIntoDigestField": "0db40ad53e18e5c2",
+        "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused#2": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880ShortKeyZeroPaddedIntoDigestField": "2b2cf0a065ff6293",
         "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength": "57ca680bd638e073",
         "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength#2": "57ca680bd638e073"
       },
@@ -608,11 +753,24 @@
       },
       "verdict": "enforced"
     },
+    "RFC5880-6.7.4-8": {
+      "code": {
+        "internal/component/bfd/config.go::parseAuthConfig": "e70e674e90c67142"
+      },
+      "note": "Judge 2026-09-30 (phase 8). Confirmed at the producer: parseAuthConfig stores []byte(secret) of the string leaf; no hexadecimal form is parsed, so a binary Keyed SHA1 key cannot be configured. The {gap} annotation is accurate; disclosed in Support remaining.",
+      "requirement_sha": "3480c98f9a9a7756",
+      "verdict": "unimplemented"
+    },
+    "RFC5880-6.7.4-9": {
+      "note": "Judge 2026-09-30 (phase 8). Untagged SHOULD (unsourced-ids, mirrors 6.7.3-5). Ze meets it by construction: the engine's transmit path (engine/loop.go) calls Machine.AdvanceAuthSeq after every signed packet, bumping bfd.XmitAuthSeq, which covers state changes and content changes. No test is tagged, so nothing would fail if that stopped: implemented-but-unverified.",
+      "requirement_sha": "51f88b2639cb8558",
+      "verdict": "weak"
+    },
     "RFC5880-6.8.1-1": {
       "note": "single-polarity positive: Init state is Down.",
       "requirement_sha": "bc399e49abeb4c4f",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "05c25578fc1db9d1"
@@ -623,8 +781,8 @@
       "note": "Forbidden: bfd.DetectMult zero. Red: TestRFC5880DetectMultZeroRequestSubstituted Inits with DetectMult 0 and Fatalf if DetectMult()==0 or != DefaultDetectMult; positive keeps the configured 3. Init (session/session.go:256) is the only writer of vars.DetectMult.",
       "requirement_sha": "0e5a8a8651ce1a63",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultConfiguredValue": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultZeroRequestSubstituted": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultConfiguredValue": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultZeroRequestSubstituted": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultConfiguredValue": "43ec829f148de834",
@@ -636,8 +794,8 @@
       "note": "Judge 2026-09-28. Positive TestRFC5880NewSessionAuthSeqKnownZero: a new Machine with SetAuth has AuthSeqKnown 0 and accepts a first packet at 0x80000000, which Check would refuse from any initialized floor of 0. Negative TestRFC5880AuthSeqKnownOneDiscardsFirstPacket builds the violating initial state (AuthSeqKnown 1) and shows the same packet is refused, so the observable outcome depends on the zero start; an initialization has no refusal path, and the violating state is the non-conforming input.",
       "requirement_sha": "af0148874e278084",
       "tests": {
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthSeqKnownSetAfterFirstPacket": "0db40ad53e18e5c2",
-        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthSeqKnownStartsZero": "0db40ad53e18e5c2",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthSeqKnownSetAfterFirstPacket": "2b2cf0a065ff6293",
+        "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthSeqKnownStartsZero": "2b2cf0a065ff6293",
         "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880AuthSeqKnownOneDiscardsFirstPacket": "4991f8b5efadecf0",
         "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880NewSessionAuthSeqKnownZero": "4991f8b5efadecf0"
       },
@@ -655,7 +813,7 @@
       "tests": {
         "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionAskedAgainKeepsRemoteState": "4d673e57cff28d5a",
         "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionPreservedForOneDetectionTime": "4d673e57cff28d5a",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880StatePreservedForOneDetectionTime": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880StatePreservedForOneDetectionTime": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionAskedAgainKeepsRemoteState": "fe408f2ae27cd8f4",
@@ -668,7 +826,7 @@
       "note": "single-polarity positive: RemoteSessionState is Down after Init.",
       "requirement_sha": "bc399e49abeb4c4f",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "05c25578fc1db9d1"
@@ -693,7 +851,7 @@
       "requirement_sha": "750f5c751756b7d1",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880InitClearsLearnedRemoteDiscr": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880InitClearsLearnedRemoteDiscr": "653238f848f341bc",
@@ -707,9 +865,9 @@
       "requirement_sha": "8cfcec714af32cf8",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteDiscrClearedDespiteInvalidPackets": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedOnDetectionExpiry": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedOnDetectionExpiry": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteDiscrClearedDespiteInvalidPackets": "c2d1d5b3c5502064",
@@ -723,8 +881,8 @@
       "note": "Judge rejudge 2026-09-30 (bfd engine 2). Unit re-read after TestRFC5880InitVariablesAreNotConstants lost its 6.8.1-4 tag (doc comment only, body unchanged). Judgement unchanged: Forbidden: bfd.LocalDiag initialised to anything but 0. TestRFC5880InitVariableDefaults fails on LocalDiag() != DiagNone straight after Init. Negative TestRFC5880InitVariablesAreNotConstants shows the value is an initial value, not a constant: a peer-signalled Down moves it to DiagNeighborSignaledDown.",
       "requirement_sha": "4597dc20147d96e2",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "a5a2b73d55f078ff",
@@ -736,8 +894,8 @@
       "note": "RA-BFD strict re-read 2026-09-27. One clause: bfd.DesiredMinTxInterval initialised to at least 1,000,000 us. Forbidden: Init storing a value below 1 s (here the configured 300 ms). Red: TestRFC5880SlowStartFloorWhileNotUp Fatalf when DesiredMinTxIntervalUs() < 1000000 straight after Init (Init, session.go, assigns SlowStartIntervalUs), and when TransmitInterval is below 1 s while Down. Contrast: TestRFC5880SlowStartFloorLiftedWhenUp fails unless the same accessor reads the configured 300000 at Up, so the positive cannot pass on a constant.",
       "requirement_sha": "24cc2b965bbb1988",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "b6c65bc1a7a3e4b0",
@@ -749,8 +907,8 @@
       "note": "Judge rejudge 2026-09-30 (bfd engine 2). Unit re-read after TestRFC5880InitVariablesAreNotConstants lost its 6.8.1-4 tag (doc comment only, body unchanged). Judgement unchanged: Forbidden: bfd.RemoteMinRxInterval initialised to anything but 1. TestRFC5880InitVariableDefaults fails on RemoteMinRxInterval != 1 after Init. Negative TestRFC5880InitVariablesAreNotConstants shows the value is replaced by the advertised 700000, so the 1 is an initial value.",
       "requirement_sha": "1be29b393319aa00",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "a5a2b73d55f078ff",
@@ -762,8 +920,8 @@
       "note": "Judge rejudge 2026-09-30 (bfd engine 2). Unit re-read after TestRFC5880InitVariablesAreNotConstants lost its 6.8.1-4 tag (doc comment only, body unchanged). Judgement unchanged: Forbidden: bfd.RemoteDemandMode initialised true. TestRFC5880InitVariableDefaults fails on RemoteDemandMode true after Init. Negative TestRFC5880InitVariablesAreNotConstants shows it follows a received D=1, so false is an initial value.",
       "requirement_sha": "af0148874e278084",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "a5a2b73d55f078ff",
@@ -797,8 +955,8 @@
       "note": "Judge 2026-09-30 (rejudge, netns+pinning). RFC 5880 \u00a76.8.16 \"If enabling session Set bfd.SessionState to Down\". Positive TestRFC5880AdministrativeDisableEnable asserts exact Down after AdminEnable on an AdminDown session. Negative TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit (R1 b) pushes the inputs toward the violation: Up session disabled, peer keeps sending Up then Init so bfd.RemoteSessionState is Up/Init (asserted as precondition), AdminEnable still lands on Down and Build() announces Down; an overlay adopting RemoteSessionState reds it (author e4-ov7). Old TestRFC5880AdministrativeCallsAreGuarded untagged (asserted a Ze guard, not this row). Revert records on fsm.go::AdminEnable observed red for both.",
       "requirement_sha": "66f31b32ebff29aa",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "9facc85ee86d0975",
@@ -812,7 +970,7 @@
       "tests": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableCeasesEchoes": "836d84530c95a8b2",
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableIgnoresPeerEchoRequest": "836d84530c95a8b2",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableCeasesEchoes": "5012cb3889d587a1",
@@ -827,9 +985,9 @@
       "requirement_sha": "2afbdb9ec892567b",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880SlowStartFloorInEveryStateButUp": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorRestoredOnAdminDown": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorRestoredOnAdminDown": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880SlowStartFloorInEveryStateButUp": "c1f5381cf350b5eb",
@@ -846,8 +1004,8 @@
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedForEachIntervalAlone": "73ca576e23cbd659",
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedWhenDownEntryRaisesDesiredMinTx": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NoPollWhenIntervalsUnchanged": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NoPollWhenIntervalsUnchanged": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedForEachIntervalAlone": "26a54d966b13b4a6",
@@ -861,8 +1019,8 @@
       "note": "RA-BFD3 first verdict 2026-09-27 (gap closed by DF-BFD-7: desiredMinTxInForceUs, holdDesiredMinTxLocked, releaseDesiredMinTxLocked in timers.go). The sentence has one condition pair (increase AND Up) and one prohibition (actual interval unchanged until the Poll terminates). Forbidden behaviour: TX at the raised interval while the Poll is outstanding. Both writers of an increase in Up are driven by the positive TestRFC5880RaisedDesiredMinTxHeldUntilPollTerminates: echo slow-down (300 ms to 1 s, RemoteMinRx 100 ms) requires TransmitInterval == 300 ms, NextTxDeadline == last TX + 300 ms after AdvanceTxWithJitter, and still +300 ms after a non-Final packet (the Receive reschedule path); Up transition with a 2 s configured interval requires TransmitInterval == 1 s (remote 300 ms) with the Poll outstanding. Each goes red if TransmitInterval reads the live bfd.DesiredMinTxInterval (1 s, 2 s). Negative TestRFC5880RaisedDesiredMinTxAppliedAtFinal: the terminating Final makes TransmitInterval 1 s and moves the pending deadline to last TX + 1 s, red on a hold that is never released or released without rescheduling; a session leaving Up drops the hold (TransmitInterval 1 s slow-start, not the held 300 ms). The only runtime writers of bfd.DesiredMinTxInterval in Up are ApplyEchoSlowdown and onStateChange, both covered; a decrease (revertEchoSlowdownLocked) is not held, as the sentence covers only an increase.",
       "requirement_sha": "12e30fb3c317e5f5",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RaisedDesiredMinTxAppliedAtFinal": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RaisedDesiredMinTxHeldUntilPollTerminates": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RaisedDesiredMinTxAppliedAtFinal": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RaisedDesiredMinTxHeldUntilPollTerminates": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RaisedDesiredMinTxAppliedAtFinal": "00440ebb295d0ff0",
@@ -874,10 +1032,10 @@
       "note": "RA-BFD2 strict re-read 2026-09-27 (stale on Receive: echo reschedule and pollSettling added after rescheduleTxLocked, which is still called on every accepted packet). Forbidden: keeping the old, longer wait after a reduction. TestRFC5880RemoteMinRxChangeReschedulesNextTx requires last TX + 400 ms after 900 to 400 ms, and a jittered 900 of 1.2 s rescaled to 300 of 400 ms, already due. TestRFC5880RemoteMinRxReductionHonoredImmediately pins TransmitInterval at 400 ms at once. Negatives: TestRFC5880UnchangedRemoteMinRxKeepsNextTx (no change, deadline kept) and TestRFC5880TransmitIntervalFlooredByLocalDesired (a reduction below the local desired value does not shorten TX). The Demand-mode condition only removes the obligation; Ze runs no Demand mode, so it always honours the reduction.",
       "requirement_sha": "2ebce90286cf6632",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitIntervalFlooredByLocalDesired": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnchangedRemoteMinRxKeepsNextTx": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitIntervalFlooredByLocalDesired": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnchangedRemoteMinRxKeepsNextTx": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "ffcbcc003dae3e02",
@@ -894,7 +1052,7 @@
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownPollsAfterSettledPoll": "5c1906d0d12f7987",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownRevertWaitsForOutstandingPoll": "5c1906d0d12f7987",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownWaitsForOutstandingPoll": "5c1906d0d12f7987",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownPollsAfterSettledPoll": "165a4fb4b38e504d",
@@ -910,7 +1068,7 @@
       "requirement_sha": "c37aac5a40480499",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteTimingChangeMovesDetectionTimeAtOnce": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteTimingChangeMovesDetectionTimeAtOnce": "24cc801f63e3244e",
@@ -923,8 +1081,8 @@
       "requirement_sha": "6694052db4b70630",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880DetectionExpiryFromUpDownDiagOne": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryDownDiagOne": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryIgnoredWhenDown": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryDownDiagOne": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryIgnoredWhenDown": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880DetectionExpiryFromUpDownDiagOne": "7b4e312a6ed5ff2d",
@@ -938,8 +1096,8 @@
       "requirement_sha": "6dd9b077f5fb61ca",
       "tests": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes": "836d84530c95a8b2",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoMissDetectedAndReported": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoReturnClearsMissAndFailIsScoped": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoMissDetectedAndReported": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoReturnClearsMissAndFailIsScoped": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes": "5f35cc568d6e73aa",
@@ -965,8 +1123,8 @@
       "note": "Forbidden: processing A=0 at an authenticated session. TestRFC5880AuthenticatedSessionDiscardsUnauthenticatedPacket fails unless Receive returns ErrAuthMismatch with the state unchanged; the engine skips Verify for A=0 and relies on this check. Positive TestRFC5880AuthenticatedSessionAcceptsAuthenticatedPacket: A=1 accepted.",
       "requirement_sha": "9405b660f6bfac60",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionAcceptsAuthenticatedPacket": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionDiscardsUnauthenticatedPacket": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionAcceptsAuthenticatedPacket": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionDiscardsUnauthenticatedPacket": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionAcceptsAuthenticatedPacket": "5056347b3821fdbd",
@@ -995,8 +1153,8 @@
       "note": "RA-BFD strict re-read 2026-09-27. One clause: a received Required Min Echo RX of zero ends echo transmission. Forbidden: an echo sent after that packet. Red: TestRFC5880EchoCeasesWhenPeerAdvertisesZero Fatal when EchoEnabled stays true, when PrimeEcho leaves the already-armed deadline set, or when EchoInterval is nonzero. The engine sends only from an armed deadline after its own EchoEnabled gate (echoTickLocked, echo.go), and PrimeEcho clears the deadline when echo is off, so removing either gate alone sends nothing and removing PrimeEcho's check reddens this unit. Contrast: TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero keeps echo enabled and armed on a nonzero value.",
       "requirement_sha": "771a6b211318ba08",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoCeasesWhenPeerAdvertisesZero": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoCeasesWhenPeerAdvertisesZero": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoCeasesWhenPeerAdvertisesZero": "d58be07aeade079a",
@@ -1008,8 +1166,8 @@
       "note": "Forbidden: a Poll that survives F=1. TestRFC5880FinalTerminatesPoll fails if PollOutstanding stays set after F=1; TestRFC5880NonFinalDoesNotTerminatePoll fails if F=0 clears it, so a clear-on-any-packet mutation goes red.",
       "requirement_sha": "140c100a0d8cbc0d",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalTerminatesPoll": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NonFinalDoesNotTerminatePoll": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalTerminatesPoll": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NonFinalDoesNotTerminatePoll": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalTerminatesPoll": "e878271930434503",
@@ -1152,8 +1310,8 @@
       "note": "RA-BFD2 strict re-read 2026-09-27 (stale on Receive: additions sit after the discard test, which is still the first statement). Both State values the sentence names are driven: TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive sends Your Discriminator 0 with State Init and Up to local Down, Init and Up, and requires ErrYourDiscriminatorReset, unchanged state and unchanged RemoteDiscr (a guard moved below the field updates goes red on RemoteDiscr). Positive TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown accepts State Down and AdminDown in Down, AdminDown and Up. Local AdminDown is not in the negative loop; the sentence conditions only on the packet's State.",
       "requirement_sha": "f97c1b0e3d385d3f",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown": "756f069fe7854031",
@@ -1165,8 +1323,8 @@
       "note": "Forbidden: processing A=1 at an AuthType-0 session. TestRFC5880UnauthenticatedSessionDiscardsAuthenticatedPacket fails unless Receive returns ErrAuthMismatch and the state stays Down; the engine hands such a packet to Receive because HasAuth is false. Positive TestRFC5880UnauthenticatedSessionAcceptsUnauthenticatedPacket: A=0 accepted.",
       "requirement_sha": "bf5577632350e4b8",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionAcceptsUnauthenticatedPacket": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionDiscardsAuthenticatedPacket": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionAcceptsUnauthenticatedPacket": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionDiscardsAuthenticatedPacket": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionAcceptsUnauthenticatedPacket": "fefd4abc134dc118",
@@ -1180,8 +1338,8 @@
       "tests": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880TickSpacesControlPacketsByLargerInterval": "836d84530c95a8b2",
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880TransmitDeadlineUsesLargerOfBothIntervals": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineClampsBadJitter": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineUsesNegotiatedInterval": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineClampsBadJitter": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineUsesNegotiatedInterval": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880TickSpacesControlPacketsByLargerInterval": "d21db73b30daaf67",
@@ -1225,10 +1383,10 @@
       "note": "RA-BFD3 strict re-read 2026-09-27 after DF-BFD-7 moved settlePoll before the 1 s precondition in TestRFC5880DesiredMinTxChangeReschedulesNextTx (the old order asserted the Section 6.8.3 defect; no assertion removed). Clause 1, recalculated when bfd.DesiredMinTxInterval changes: forbidden is a pending TX still drawn from the old interval. Decrease: after the revert (1 s to 300 ms, RemoteMinRx 100 ms) the final Fatalf requires NextTxDeadline == last TX + 300 ms, red without the rescheduleTxLocked call in revertEchoSlowdownLocked (deadline stays at +1 s). Increase: the precondition Fatalf requires last TX + 1 s once the slow-down Poll has settled, red if TransmitInterval ignored the raised variable. Clause 2, recalculated when bfd.RemoteMinRxInterval changes: TestRFC5880RemoteMinRxChangeReschedulesNextTx requires the pending deadline at +400 ms after 900 to 400 and at +1.2 s after 400 to 1.2 s, red without the Receive reschedule. Clause 3, equal to the greater: 900 remote over 300 local (RemoteMinRxReductionHonoredImmediately), 1.2 s remote over 300 local, 300 local over 1 us remote (TransmitIntervalFlooredByLocalDesired, which is the negative: a remote value below the local target must not shorten TX, and RequiredMinRx alone must not move it). An increase of DesiredMinTx while Up is held until its Poll ends by Section 6.8.3, judged under RFC5880-6.8.3-3.",
       "requirement_sha": "b529e0c4d926fbb0",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DesiredMinTxChangeReschedulesNextTx": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitIntervalFlooredByLocalDesired": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DesiredMinTxChangeReschedulesNextTx": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitIntervalFlooredByLocalDesired": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DesiredMinTxChangeReschedulesNextTx": "1e5e7bce434f1bc9",
@@ -1243,10 +1401,10 @@
       "requirement_sha": "3729c7cbc96f7652",
       "tests": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr": "836d84530c95a8b2",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveSilentOnceRemoteDiscrCleared": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveSilentOnceRemoteDiscrCleared": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr": "03d82a5544a77ee7",
@@ -1278,8 +1436,8 @@
       "tests": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes": "836d84530c95a8b2",
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineReturnedEchoesKeepSessionUp": "836d84530c95a8b2",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoMissDetectedAndReported": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoReturnClearsMissAndFailIsScoped": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoMissDetectedAndReported": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoReturnClearsMissAndFailIsScoped": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes": "5f35cc568d6e73aa",
@@ -1310,8 +1468,8 @@
       "requirement_sha": "257741ef5146bf9c",
       "tests": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880EchoFollowsLastAdvertisement": "73ca576e23cbd659",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoNotTransmittedWithoutPeerAdvertisement": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoNotTransmittedWithoutPeerAdvertisement": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880EchoFollowsLastAdvertisement": "317e5bc43f8bec13",
@@ -1327,8 +1485,8 @@
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EchoSteadySpacingHonorsPeerFloor": "836d84530c95a8b2",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoLoweredPeerFloorTakesEffect": "5c1906d0d12f7987",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoRaisedPeerFloorDelaysNextEcho": "5c1906d0d12f7987",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalHonorsPeerFloor": "4ef31a77205319dd",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalNotBelowLocalTarget": "4ef31a77205319dd"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalHonorsPeerFloor": "ecf2d0a8dd648483",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalNotBelowLocalTarget": "ecf2d0a8dd648483"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EchoSteadySpacingHonorsPeerFloor": "004978766e2e2801",

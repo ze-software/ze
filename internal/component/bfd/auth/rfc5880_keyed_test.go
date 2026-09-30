@@ -322,7 +322,10 @@ func TestRFC5880KeyedSHA1OversizedKeyNotSigned(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.3-9 positive -- for Keyed MD5 (and Keyed SHA1)
+// RFC requirement: RFC5880-6.7.3-9 positive -- for Keyed MD5 a Sequence
+// Number equal to bfd.RcvAuthSeq and one exactly 3 * Detect Mult ahead of it
+// are accepted, as described below.
+// RFC requirement: RFC5880-6.7.4-12 positive -- the same run for Keyed SHA1:
 // a Sequence Number equal to bfd.RcvAuthSeq and one exactly 3 * Detect Mult
 // ahead of it are accepted, with Detect Mult read from the received packet
 // and driven at 1, 5 and 255; across the 32-bit wrap, 3 * Detect Mult ahead
@@ -360,7 +363,9 @@ func TestRFC5880KeyedWindowFollowsReceivedDetectMult(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.3-9 negative -- for Keyed MD5 (and Keyed SHA1)
+// RFC requirement: RFC5880-6.7.3-9 negative -- for Keyed MD5 the discards
+// described below.
+// RFC requirement: RFC5880-6.7.4-12 negative -- the same run for Keyed SHA1:
 // a Sequence Number one below bfd.RcvAuthSeq, one past bfd.RcvAuthSeq + 3 *
 // Detect Mult, and one half the circular space away is discarded with
 // ErrSequenceOutsideWindow, with Detect Mult read from the received packet and
@@ -400,8 +405,10 @@ func rfc5880RequireOutside(t *testing.T, v Verifier, cfg Settings, mult uint8, f
 	}
 }
 
-// RFC requirement: RFC5880-6.7.3-10 positive -- for Meticulous Keyed MD5 (and
-// Meticulous Keyed SHA1) bfd.RcvAuthSeq+1 and bfd.RcvAuthSeq + 3 * Detect Mult
+// RFC requirement: RFC5880-6.7.3-10 positive -- for Meticulous Keyed MD5 the
+// acceptances described below.
+// RFC requirement: RFC5880-6.7.4-13 positive -- the same runs for Meticulous
+// Keyed SHA1: bfd.RcvAuthSeq+1 and bfd.RcvAuthSeq + 3 * Detect Mult
 // are accepted, with Detect Mult read from the received packet and driven at
 // 1, 5 and 255; across the 32-bit wrap, 0 after 0xFFFFFFFF and 3 * Detect
 // Mult ahead of 0xFFFFFFFE are accepted too.
@@ -432,8 +439,10 @@ func TestRFC5880MeticulousWindowFollowsReceivedDetectMult(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.3-10 negative -- for Meticulous Keyed MD5 (and
-// Meticulous Keyed SHA1) a Sequence Number equal to bfd.RcvAuthSeq, one below
+// RFC requirement: RFC5880-6.7.3-10 negative -- for Meticulous Keyed MD5 the
+// discards described below.
+// RFC requirement: RFC5880-6.7.4-13 negative -- the same runs for Meticulous
+// Keyed SHA1: a Sequence Number equal to bfd.RcvAuthSeq, one below
 // it, and one past bfd.RcvAuthSeq + 3 * Detect Mult is discarded with
 // ErrSequenceOutsideWindow, with Detect Mult read from the received packet and
 // driven at 1, 5 and 255; 0xFFFFFFFF behind a floor of 2 across the wrap is
