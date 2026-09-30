@@ -1,5 +1,9 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2661-10-1": {
@@ -7,9 +11,9 @@
       "requirement_sha": "7eadfdeae6dfa6d7",
       "tests": {
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661CDNCleansUpAndSendsNothing": "c0e9ed1fbd858625",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_AnyState": "7470b9faf5801057",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_EstablishedSession": "7470b9faf5801057",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "7470b9faf5801057",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_AnyState": "99bdcf87bcb0dfa3",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_EstablishedSession": "99bdcf87bcb0dfa3",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "99bdcf87bcb0dfa3",
         "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CDNCleansUpSilently": "ed0cb3271bdc0590",
         "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CDNCleansUpSilently#2": "ed0cb3271bdc0590"
       },
@@ -31,8 +35,8 @@
         "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered": "0cc7f6cc41e76f75",
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661LocalIDsNeverZero": "c0e9ed1fbd858625",
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerZeroTunnelIDRefused": "c0e9ed1fbd858625",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_MaxUint16": "7470b9faf5801057",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_Zero": "7470b9faf5801057",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_MaxUint16": "99bdcf87bcb0dfa3",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_Zero": "99bdcf87bcb0dfa3",
         "internal/component/l2tp/tunnel_initiator_test.go::TestParseSCCRP_Rejects": "5d58b580cd1af8b6",
         "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "5d58b580cd1af8b6",
         "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci": "aca9894b4579f5a6",
@@ -77,7 +81,7 @@
       "tests": {
         "internal/component/l2tp/reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel": "967923124e21ac52",
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661EveryEmittedMessageOpensWithMessageType": "c0e9ed1fbd858625",
-        "internal/component/l2tp/session_fsm_test.go::TestWriteICRPBody": "7470b9faf5801057",
+        "internal/component/l2tp/session_fsm_test.go::TestWriteICRPBody": "99bdcf87bcb0dfa3",
         "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
       },
       "units": {
@@ -89,25 +93,31 @@
       "verdict": "enforced"
     },
     "RFC2661-4.1-3": {
-      "note": "IETF shape proven: TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession asserts one CDN, no session and the tunnel still established for an undefined IETF type with M=1, and one ICRP plus a session with M=0; dropping the FlagUnrecognized branch of parseICRQ turns it red. Vendor shape still unproven: TestSession_UnknownMandatoryAVP (tags moved from 24.12-1) asserts only len(out)==1 and tunnel established, so a parser that skipped the M=1 vendor AVP and answered ICRP passes; its positive claim 'exactly one CDN' states more than the body checks. Only ICRQ is exercised; the same branch in parseICCN/OCRQ/OCCN/CDN/ICRP/OCRP/WEN/SLI parsers has no discriminating unit. Fix: assert MsgCDN and sessionCount 0 in TestSession_UnknownMandatoryAVP, and one table case per session parser.",
+      "note": "Judge 2026-09-30 (cont 8, D-8 fix). Scope checked against RFC 2661 section 4.1: a message associated with a particular session ends that session, the tunnel only for tunnel-scoped messages (4.1-4). Producer: parseSingleAVPMessage wraps errUnrecognizedMandatoryAVP for IETF and vendor M=1; handleWEN/handleSLI tear down that session with CDN (quote above each). + TestRFC2661UnrecognizedMandatoryAVPInWENOrSLITerminatesSession (WEN, SLI x IETF 200 / vendor 9999: exactly one CDN, session gone; failing-first observed before the fix), + TestRFC2661UnrecognizedMandatoryAVPInEverySessionParserTerminatesSession (OCRQ, ICRP, OCRP, ICCN, OCCN x IETF/vendor: one CDN, 0 sessions), + TestSession_UnknownMandatoryAVP now asserts MsgCDN and 0 sessions (earlier overstatement fixed), + TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession. - TestRFC2661UnrecognizedMandatoryAVPInWENOrSLIEndsOnlyThatSession: two sessions, M=1 gives one CDN never StopCCN, tunnel established and the sibling session kept (the over-reaction polarity), M=0 sends nothing. Every tagged unit has an observed-red record. CDN not tabled: a received CDN ends the session whatever it carries. Residual supplementary positive at session_fsm_test.go (well-formed ICRQ accepted) has no record.",
       "requirement_sha": "8af8f6c776a076f3",
       "tests": {
-        "internal/component/l2tp/session_fsm_test.go::TestSession_IncomingLNS_ICRQ": "7470b9faf5801057",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "7470b9faf5801057",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "7470b9faf5801057",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#3": "7470b9faf5801057",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_IncomingLNS_ICRQ": "99bdcf87bcb0dfa3",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "99bdcf87bcb0dfa3",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "99bdcf87bcb0dfa3",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#3": "99bdcf87bcb0dfa3",
+        "internal/component/l2tp/unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInEverySessionParserTerminatesSession": "c0360f2e4708f9ce",
+        "internal/component/l2tp/unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLIEndsOnlyThatSession": "c0360f2e4708f9ce",
+        "internal/component/l2tp/unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLITerminatesSession": "c0360f2e4708f9ce",
         "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession": "beb7a378ea5d3333",
         "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession#2": "beb7a378ea5d3333"
       },
       "units": {
         "internal/component/l2tp/session_fsm_test.go::TestSession_IncomingLNS_ICRQ": "9ab121ace211e8cc",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "25288f3ff6c28abc",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "25288f3ff6c28abc",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#3": "25288f3ff6c28abc",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "d10589e80d4fa207",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "d10589e80d4fa207",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#3": "d10589e80d4fa207",
+        "internal/component/l2tp/unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInEverySessionParserTerminatesSession": "1efe1887de472085",
+        "internal/component/l2tp/unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLIEndsOnlyThatSession": "bbf56fb399b9d653",
+        "internal/component/l2tp/unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLITerminatesSession": "3824611792b8923c",
         "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession": "f26a74ab9c3fa8dc",
         "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession#2": "f26a74ab9c3fa8dc"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2661-4.1-4": {
       "note": "TestUnrecognizedMandatoryAVPInHelloClearsTunnel drives handleMessage with a HELLO on an established tunnel holding one session, for a vendor AVP, an undefined IETF type and a reserved-bit AVP: M=1 sends one StopCCN, clears the session and closes the tunnel; M=0 sends nothing and keeps both. This closes the '(and all sessions within)' clause the earlier verdict found missing. TestTunnelSCCCNUnknownMandatoryAVP_StopCCN keeps the SCCCN case; TestTunnelInitiatorHandshake is the clean-exchange positive. Producer checked: parseHello/handleHello (Error Code 8), parseSCCCN/parseStopCCN/parseSCCRP branch on FlagUnrecognized, handleStopCCN now closes on a malformed StopCCN.",
@@ -314,29 +324,33 @@
       "verdict": "enforced"
     },
     "RFC2661-7.1-1": {
-      "note": "Malformed entry and unknown M=1 Message Type: TestRFC2661InvalidOrMalformedMessageClearsControlConnection (unchanged judgement). Out-of-order SCCCN now proven: TestRFC2661OutOfOrderSCCCNClearsControlConnection shows a warning, one StopCCN, sessions cleared and tunnel closed in established and wait-ctl-reply, and a clean establish in wait-ctl-conn. Still missing, a producer defect: the section 7.2.1 table also says 'wait-ctl-conn Receive SCCRP, SCCRQ Send StopCCN, Clean up' and 'established Receive SCCRQ, SCCRP, SCCCN Send StopCCN Clean up', but tunnel_initiator.go::handleSCCRP drops an SCCRP outside wait-ctl-reply at Debug and tunnel_fsm.go::handleSCCRQ drops an SCCRQ outside idle at Debug, so those improper sequences neither log at warning level nor clear the control connection.",
+      "note": "Judge 2026-09-30 (cont 8, D-8 fix). Section 7.1 counts a message in an improper sequence as invalid; the section 7.2.1 rows 'wait-ctl-conn Receive SCCRP, SCCRQ Send StopCCN, Clean up' and 'established Receive SCCRQ, SCCRP, SCCCN Send StopCCN Clean up' are now followed: handleSCCRQ/handleSCCRP call clearImproperSequence (Warn naming type and state, StopCCN RC 1, sessions cleared). + TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection (both messages x both states: one StopCCN, 0 sessions, closed, WARN), + TestRFC2661OutOfOrderSCCCNClearsControlConnection, + TestRFC2661InvalidOrMalformedMessageClearsControlConnection (malformed, unknown M=1 type). - TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection (SCCRQ in idle -> SCCRP, SCCRP in wait-ctl-reply -> SCCCN, no WARN, no StopCCN). Records observed red on every unit. Engine dedup keeps a retransmitted SCCRQ (same Ns) from reaching handleSCCRQ, so no false clear on retransmit. Outside this row: the section 7.2.1 'idle Receive SCCRP Send StopCCN' row (a stray SCCRP is dropped at Debug, nothing to clear) is journaled in plan/journal/silent-fall-through.md.",
       "requirement_sha": "947a54aca921510b",
       "tests": {
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection": "c0e9ed1fbd858625",
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection#2": "c0e9ed1fbd858625",
         "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection": "a707da59110efbb3",
-        "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection#2": "a707da59110efbb3"
+        "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection#2": "a707da59110efbb3",
+        "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection": "9421cfe2fb92d4fb",
+        "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection": "9421cfe2fb92d4fb"
       },
       "units": {
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection": "c8f2f2254c65393d",
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection#2": "c8f2f2254c65393d",
         "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection": "8d2cdc7dfe6556fe",
-        "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection#2": "8d2cdc7dfe6556fe"
+        "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection#2": "8d2cdc7dfe6556fe",
+        "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection": "92fb896fd0809edc",
+        "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection": "7fa0f405a1240534"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2661-9-1": {
       "note": "TestRFC2661StopCCNClearsSessionsSilently clears an established and a wait-connect session and now asserts sendQueue does not grow beside no datagram and nextSendSeq unchanged, which removes the cwnd-1 confound the earlier verdict named: a CDN handleStopCCN enqueued behind the unacknowledged ICRP now turns it red. Clearing also held by TestSession_StopCCN_CascadeSessions, and TestStopCCNQueuesAllTeardowns is the negative.",
       "requirement_sha": "d0add38fb6db42ea",
       "tests": {
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661StopCCNClearsSessionsSilently": "c0e9ed1fbd858625",
-        "internal/component/l2tp/session_fsm_test.go::TestSession_StopCCN_CascadeSessions": "7470b9faf5801057",
-        "internal/component/l2tp/session_fsm_test.go::TestStopCCNQueuesAllTeardowns": "7470b9faf5801057"
+        "internal/component/l2tp/session_fsm_test.go::TestSession_StopCCN_CascadeSessions": "99bdcf87bcb0dfa3",
+        "internal/component/l2tp/session_fsm_test.go::TestStopCCNQueuesAllTeardowns": "99bdcf87bcb0dfa3"
       },
       "units": {
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661StopCCNClearsSessionsSilently": "327914a7c874074a",

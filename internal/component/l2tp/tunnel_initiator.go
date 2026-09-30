@@ -80,7 +80,18 @@ func (t *L2TPTunnel) initiate(now time.Time, defaults TunnelDefaults, tieBreaker
 //
 // On success the SCCCN is enqueued and the tunnel is established.
 func (t *L2TPTunnel) handleSCCRP(now time.Time, defaults TunnelDefaults, payload []byte) []sendRequest {
+	if t.state == L2TPTunnelWaitCtlConn {
+		// RFC 2661 Section 7.2.1: "wait-ctl-conn  Receive SCCRP, SCCRQ
+		// Send StopCCN, Clean up  idle".
+		return t.clearImproperSequence(now, MsgSCCRP)
+	}
+	if t.state == L2TPTunnelEstablished {
+		// RFC 2661 Section 7.2.1: "established  Receive SCCRQ, SCCRP,
+		// SCCCN  Send StopCCN Clean up  idle".
+		return t.clearImproperSequence(now, MsgSCCRP)
+	}
 	if t.state != L2TPTunnelWaitCtlReply {
+		// idle holds no connection to clear, and closed is already cleared.
 		t.logger.Debug("l2tp: SCCRP on non-wait-ctl-reply tunnel ignored", "state", t.state.String())
 		return nil
 	}

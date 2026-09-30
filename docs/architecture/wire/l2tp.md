@@ -74,17 +74,35 @@ Section 4.1):
 
 | Message | Unrecognized AVP with M=1 |
 |---------|---------------------------|
-| Session message (ICRQ, ICRP, ICCN, CDN and the others) | The session is cleared with CDN |
+| Session message (ICRQ, ICRP, ICCN, CDN, WEN, SLI and the others) | The session is cleared with CDN; the tunnel and every other session stay up |
 | SCCRQ | StopCCN, Result Code 2, Error Code 8. A reserved bit set gives Error Code 3 |
 | HELLO | StopCCN, Result Code 2, Error Code 8, and every session is cleared. Any other refused HELLO AVP gives Error Code 3 |
 <!-- source: internal/component/l2tp/avp.go -- AVPIterator.Next, ietfAVPDefined -->
 <!-- source: internal/component/l2tp/tunnel_fsm.go -- parseSCCRQ, handleHello, parseHello -->
+<!-- source: internal/component/l2tp/session_fsm.go -- handleWEN, handleSLI, parseSingleAVPMessage -->
 
-Two other tunnel messages clear the control connection. A StopCCN that does
-not parse still closes the tunnel and clears every session. An SCCCN received
-in `wait-ctl-reply` or `established` is out of order (RFC 2661 Section 7.2.1):
-Ze logs a warning and sends StopCCN with Result Code 1.
-<!-- source: internal/component/l2tp/tunnel_fsm.go -- handleStopCCN, closeOnPeerStopCCN, handleSCCCN -->
+A WEN or SLI that is malformed in any other way (a missing Call Errors or ACCM
+AVP, a wrong first AVP) is logged at warning level and ignored: the session
+keeps the values it already holds. Only the unrecognized mandatory AVP ends it.
+
+Other tunnel messages clear the control connection. A StopCCN that does not
+parse still closes the tunnel and clears every session. An establishment
+message received in a state that does not await it is in an improper sequence
+(RFC 2661 Sections 7.1 and 7.2.1): Ze logs a warning, sends StopCCN with
+Result Code 1, and clears every session.
+
+| Message | States that clear the connection |
+|---------|----------------------------------|
+| SCCRQ | `wait-ctl-conn`, `established` |
+| SCCRP | `wait-ctl-conn`, `established` |
+| SCCCN | `wait-ctl-reply`, `established` |
+
+An SCCRQ colliding with Ze's own in `wait-ctl-reply` is the tie-breaker case,
+resolved by the reactor before dispatch. An SCCRP or SCCCN on an idle tunnel,
+and any of the three on a closed one, is dropped with a debug log: there is no
+connection left to clear.
+<!-- source: internal/component/l2tp/tunnel_fsm.go -- handleStopCCN, closeOnPeerStopCCN, handleSCCCN, handleSCCRQ, clearImproperSequence -->
+<!-- source: internal/component/l2tp/tunnel_initiator.go -- handleSCCRP -->
 
 ## Buffer discipline
 

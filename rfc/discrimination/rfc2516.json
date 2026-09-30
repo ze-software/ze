@@ -532,6 +532,28 @@
     {
       "rid": "RFC2516-x-9",
       "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling",
+      "unit-sha": "f35151f980823f59",
+      "claim-sha": "a2082773ac451f3a",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
+      "producer-sha": "153cc5bb411d0861",
+      "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-9",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling",
+      "unit-sha": "f791fb88c6e188ea",
+      "claim-sha": "9f0c3986c71ae69a",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption",
+      "producer-sha": "9fd88333faf59f88",
+      "break": "body of negotiatePeerOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-9",
+      "polarity": "positive",
       "unit": "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling",
       "unit-sha": "bdc86c8691186ff7",
       "claim-sha": "accb254f96e968ba",

@@ -449,7 +449,7 @@ func TestSession_WEN_CallErrors(t *testing.T) {
 
 	ce := CallErrorsValue{CRCErrors: 42, FramingErrors: 7}
 	wenPayload := buildWEN(ce)
-	tun.handleWEN(sess.localSID, wenPayload, logger)
+	tun.handleWEN(sess.localSID, wenPayload, now, logger)
 
 	if sess.callErrors.CRCErrors != 42 {
 		t.Fatalf("expected CRC errors 42, got %d", sess.callErrors.CRCErrors)
@@ -476,7 +476,7 @@ func TestSession_SLI_ACCM(t *testing.T) {
 
 	accm := ACCMValue{SendACCM: 0x000A0000, RecvACCM: 0xFFFFFFFF}
 	sliPayload := buildSLI(accm)
-	tun.handleSLI(sess.localSID, sliPayload, logger)
+	tun.handleSLI(sess.localSID, sliPayload, now, logger)
 
 	if sess.accm.SendACCM != 0x000A0000 {
 		t.Fatalf("expected send ACCM 0x000A0000, got 0x%08x", sess.accm.SendACCM)
@@ -581,6 +581,12 @@ func TestSession_UnknownMandatoryAVP(t *testing.T) {
 	out := tun.handleICRQ(payload, now, logger)
 	if len(out) != 1 {
 		t.Fatalf("expected 1 send (CDN), got %d", len(out))
+	}
+	if mt := sentMessageType(t, out[0].bytes); mt != MsgCDN {
+		t.Fatalf("answered with message type %d, want CDN", mt)
+	}
+	if n := len(tun.sessions); n != 0 {
+		t.Fatalf("%d sessions after the refused ICRQ, want 0", n)
 	}
 	// Tunnel should still be established (not torn down).
 	if tun.state != L2TPTunnelEstablished {

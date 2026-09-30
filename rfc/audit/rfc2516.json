@@ -418,14 +418,18 @@
       "verdict": "enforced"
     },
     "RFC2516-x-9": {
-      "note": "Judge 2026-09-30 (cont 7 re-judge). Marker removal is right: the old {single-polarity: positive ... no negative} was false, a Configure-Nak refusal path exists (ppp LCPNegPolicy MaxMRU). Host half now proven for negotiateLCP: TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling (Configure-Request names 1492, AC MRU 1492 Acked, peerMRU 1492) and TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling (AC asks 1500 -> Nak carrying MRU 1492 alone, never Ack, opens at 1492; AC Nak suggesting 1500 -> next request still 1492), both observed red under a revert of negotiateLCP. STILL WEAK, two gaps: (1) the sentence binds the Access Concentrator too and Ze runs one (pppoe/server.go handlePADR passes MaxMRU PPPoEMaxMTU to the PPP driver); no tagged unit shows the Ze AC Naks a client MRU above 1492 or requests at most 1492. (2) both Host tests pass sessionConfig{mtu: 1492} in themselves, so the bound on the input (iface/config.go refusing mtu > 1492, default 1492; Dial's 1492 fallback when cfg.MTU is 0) is untagged: raising that cap or default leaves every tagged unit green. Missing: an AC-side +/- pair over the pppoe server's PPP start, and a tagged assertion on the client MTU bound.",
+      "note": "Judge 2026-09-30 (cont 8 re-judge). AC half now proven: TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling (handlePADR starts the production PPP driver; AC Configure-Request carries MRU <= 1492, client MRU 1492 Acked) and TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling (client MRU 1500 -> Configure-Nak suggesting 1492), observed red under handlePADR and negotiatePeerOption reverts. Host negotiateLCP pair unchanged and proven. STILL WEAK, one gap: the Host tests pass sessionConfig{mtu: 1492} themselves, so the bound on the Host input (iface/config.go refusing mtu > 1492 and defaulting 1492; Dial's 1492 fallback when cfg.MTU is 0) is untagged: raising that cap or default leaves every tagged unit green. Missing: a tagged +/- over the Host MTU default and refusal flowing into negotiateLCP.",
       "requirement_sha": "046d4d35e71ec861",
       "tests": {
+        "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling": "814632e748815652",
+        "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling": "814632e748815652",
         "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling": "1abe555a0381b2e0",
         "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling": "1abe555a0381b2e0",
         "internal/component/l2tp/pppoeclient/session_test.go::TestLCPConfigRequestMRU": "50a2fa5b77fbaf66"
       },
       "units": {
+        "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling": "38d2f6162ca49fd6",
+        "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling": "dd09b9fccc575e61",
         "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling": "248fcf02c25c044b",
         "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling": "0e443aa624b617bf",
         "internal/component/l2tp/pppoeclient/session_test.go::TestLCPConfigRequestMRU": "cbfae410eef77856"

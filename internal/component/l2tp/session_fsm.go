@@ -75,10 +75,10 @@ func (t *L2TPTunnel) dispatchToSession(msgType MessageType, sessionID uint16, pa
 		return t.handleCDN(sessionID, payload, logger)
 	}
 	if msgType == MsgWEN {
-		return t.handleWEN(sessionID, payload, logger)
+		return t.handleWEN(sessionID, payload, now, logger)
 	}
 	if msgType == MsgSLI {
-		return t.handleSLI(sessionID, payload, logger)
+		return t.handleSLI(sessionID, payload, now, logger)
 	}
 
 	// ICRP, ICCN, OCRP, OCCN require an existing session.
@@ -404,7 +404,12 @@ func (t *L2TPTunnel) handleCDN(sessionID uint16, payload []byte, logger *slog.Lo
 
 // handleWEN processes a WAN-Error-Notify. AC-10.
 // RFC 2661 S19.1: LAC -> LNS, carries Call Errors AVP.
-func (t *L2TPTunnel) handleWEN(sessionID uint16, payload []byte, logger *slog.Logger) []sendRequest {
+//
+// A WEN is a message associated with a particular session, so an unrecognized
+// AVP with the M bit set ends that session with a CDN and leaves the tunnel
+// up. Any other malformed body is logged and ignored: the session keeps
+// running on the Call Errors it already holds.
+func (t *L2TPTunnel) handleWEN(sessionID uint16, payload []byte, now time.Time, logger *slog.Logger) []sendRequest {
 	sess := t.lookupSession(sessionID)
 	if sess == nil {
 		logger.Debug("l2tp: WEN for unknown session; dropped", "session-id", sessionID)
@@ -417,6 +422,14 @@ func (t *L2TPTunnel) handleWEN(sessionID uint16, payload []byte, logger *slog.Lo
 	}
 
 	info, err := parseWEN(payload)
+	if errors.Is(err, errUnrecognizedMandatoryAVP) {
+		logger.Warn("l2tp: WEN carries an unrecognized mandatory AVP; sending CDN RC=2",
+			"local-sid", sessionID, "error", err.Error())
+		// RFC 2661 Section 4.1: "If the M bit is set on an unrecognized AVP
+		// within a message associated with a particular session, the session
+		// associated with this message MUST be terminated."
+		return t.teardownSession(sess, cdnResultGeneralError, l2tpevents.TerminateCauseNASError, now, logger)
+	}
 	if err != nil {
 		logger.Warn("l2tp: malformed WEN; ignored", "local-sid", sessionID, "error", err.Error())
 		return nil
@@ -432,7 +445,10 @@ func (t *L2TPTunnel) handleWEN(sessionID uint16, payload []byte, logger *slog.Lo
 
 // handleSLI processes a Set-Link-Info. AC-11.
 // RFC 2661 S19.2: LNS -> LAC, carries ACCM AVP.
-func (t *L2TPTunnel) handleSLI(sessionID uint16, payload []byte, logger *slog.Logger) []sendRequest {
+//
+// An SLI is a message associated with a particular session: an unrecognized
+// AVP with the M bit set ends that session, the same way as in handleWEN.
+func (t *L2TPTunnel) handleSLI(sessionID uint16, payload []byte, now time.Time, logger *slog.Logger) []sendRequest {
 	sess := t.lookupSession(sessionID)
 	if sess == nil {
 		logger.Debug("l2tp: SLI for unknown session; dropped", "session-id", sessionID)
@@ -445,6 +461,14 @@ func (t *L2TPTunnel) handleSLI(sessionID uint16, payload []byte, logger *slog.Lo
 	}
 
 	info, err := parseSLI(payload)
+	if errors.Is(err, errUnrecognizedMandatoryAVP) {
+		logger.Warn("l2tp: SLI carries an unrecognized mandatory AVP; sending CDN RC=2",
+			"local-sid", sessionID, "error", err.Error())
+		// RFC 2661 Section 4.1: "If the M bit is set on an unrecognized AVP
+		// within a message associated with a particular session, the session
+		// associated with this message MUST be terminated."
+		return t.teardownSession(sess, cdnResultGeneralError, l2tpevents.TerminateCauseNASError, now, logger)
+	}
 	if err != nil {
 		logger.Warn("l2tp: malformed SLI; ignored", "local-sid", sessionID, "error", err.Error())
 		return nil
@@ -1044,9 +1068,12 @@ func parseSingleAVPMessage(payload []byte, expectedMsg MessageType, targetAVP AV
 			}
 			break
 		}
+		// Both unrecognized shapes wrap errUnrecognizedMandatoryAVP so the
+		// handler can tell them from a malformed body: only these end the
+		// session (RFC 2661 Section 4.1, quoted at handleWEN).
 		if flags&FlagUnrecognized != 0 {
 			if flags&FlagMandatory != 0 {
-				return nil, fmt.Errorf("l2tp: mandatory %s AVP type %d not recognized", msgName, attrType)
+				return nil, fmt.Errorf("%w: %s AVP type %d", errUnrecognizedMandatoryAVP, msgName, attrType)
 			}
 			continue
 		}
@@ -1057,7 +1084,7 @@ func parseSingleAVPMessage(payload []byte, expectedMsg MessageType, targetAVP AV
 		}
 		if vendorID != 0 {
 			if flags&FlagMandatory != 0 {
-				return nil, fmt.Errorf("l2tp: mandatory %s vendor %d AVP not recognized", msgName, vendorID)
+				return nil, fmt.Errorf("%w: %s vendor %d AVP type %d", errUnrecognizedMandatoryAVP, msgName, vendorID, attrType)
 			}
 			continue
 		}

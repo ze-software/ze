@@ -198,7 +198,20 @@ func (t *L2TPTunnel) handleMessage(entry RecvEntry, now time.Time, defaults Tunn
 // Tie breaker: the parsed value (if present) is stored on the tunnel for
 // the reactor to consult if a second SCCRQ collides with this one.
 func (t *L2TPTunnel) handleSCCRQ(now time.Time, defaults TunnelDefaults, sccrq *sccrqInfo) []sendRequest {
+	if t.state == L2TPTunnelWaitCtlConn {
+		// RFC 2661 Section 7.2.1: "wait-ctl-conn  Receive SCCRP, SCCRQ
+		// Send StopCCN, Clean up  idle".
+		return t.clearImproperSequence(now, MsgSCCRQ)
+	}
+	if t.state == L2TPTunnelEstablished {
+		// RFC 2661 Section 7.2.1: "established  Receive SCCRQ, SCCRP,
+		// SCCCN  Send StopCCN Clean up  idle".
+		return t.clearImproperSequence(now, MsgSCCRQ)
+	}
 	if t.state != L2TPTunnelIdle {
+		// wait-ctl-reply: a colliding SCCRQ is the tie-breaker case the
+		// reactor resolves before dispatch (locateTunnelLocked). closed:
+		// the connection is already cleared.
 		t.logger.Debug("l2tp: SCCRQ on non-idle tunnel ignored", "state", t.state.String())
 		return nil
 	}
@@ -319,6 +332,21 @@ func (t *L2TPTunnel) handleSCCCN(now time.Time, defaults TunnelDefaults, payload
 		"peer-host", strconv.Quote(t.peerHostName),
 		"peer-tid", t.remoteTID)
 	return nil
+}
+
+// clearImproperSequence answers a control connection message received in a
+// state whose RFC 2661 Section 7.2.1 row says "Send StopCCN, Clean up": it
+// logs a warning naming the message and the state, sends StopCCN with Result
+// Code 1, and clears every session.
+//
+// RFC 2661 Section 7.1: "Receipt of an invalid or unrecoverable malformed
+// control message should be logged appropriately and the control connection
+// cleared to ensure recovery to a known state." An invalid message includes
+// "a control message that is received in an improper sequence".
+func (t *L2TPTunnel) clearImproperSequence(now time.Time, msgType MessageType) []sendRequest {
+	t.logger.Warn("l2tp: control message received in an improper sequence; clearing the control connection",
+		"message-type", uint16(msgType), "state", t.state.String())
+	return t.teardownStopCCN(now, ResultCodeValue{Result: resultGeneralError}, l2tpevents.TerminateCauseNASError)
 }
 
 // teardownStopCCN encodes a StopCCN with the given Result Code into a
