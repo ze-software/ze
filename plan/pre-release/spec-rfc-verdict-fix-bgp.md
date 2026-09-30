@@ -286,6 +286,9 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | ID | Verdict | Blocking spec |
 |----|---------|---------------|
 | RFC8669-6-1 | weak | `spec-bgp-prefix-sid-rfc-defects` |
+| RFC9252-7-2 | weak | `spec-bgp-prefix-sid-rfc-defects` (AC-7, 2026-09-30) |
+| RFC8669-3.1-2 | weak | `spec-bgp-prefix-sid-rfc-defects` (AC-7, 2026-09-30) |
+| RFC8669-3.2-4 | weak | `spec-bgp-prefix-sid-rfc-defects` (AC-7, 2026-09-30) |
 | RFC9252-3.4-1 | weak | `spec-bgp-prefix-sid-rfc-defects` |
 | RFC9252-3.2.1-3 | weak | `spec-bgp-prefix-sid-rfc-defects` |
 | RFC9252-5-1 | weak | `spec-bgp-prefix-sid-rfc-defects` |

@@ -182,6 +182,9 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | ID | Verdict | Blocking spec |
 |----|---------|---------------|
 | SFLOW-V5-x-11 | weak | `spec-bmp-sflow-export-rfc-defects` (D2, the code; the row correction in the split table stays here) |
+| RFC7950-7.19-1 | weak | `spec-config-yang-loader-structural-checks` (AC-2, 2026-09-30) |
+| RFC7950-9.4.4-1 | weak | `spec-config-yang-loader-structural-checks` (AC-2, 2026-09-30) |
+| RFC7950-9.6.4.2-1 | weak | `spec-config-yang-loader-structural-checks` (AC-2, 2026-09-30) |
 | RFC9728-3.1-3 | wrong | `spec-mcp-protected-resource-metadata-path` |
 | RFC9728-3-2 | weak | `spec-mcp-protected-resource-metadata-path` (AC-5; trailing-slash identifier, same defect as 3.1-3; the query clause is proven) |
 | RFC9728-3.3-1 | weak | `spec-mcp-protected-resource-metadata-path` (AC-6; trailing-slash identifier, same defect as 3.1-3) |

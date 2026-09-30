@@ -46,6 +46,7 @@ The schema build error accumulator `recordSchemaBuildError` and the `ValidationE
 ## Acceptance Criteria
 
 - AC-1: every requirement id in the Task table carries a positive and a negative tagged test with a discrimination record, and its `{gap}` annotation leaves `rfc/short/rfc7950.md`.
+- AC-2: the weak verdicts RFC7950-7.19-1 (extension substatement syntax), RFC7950-9.4.4-1 (length values non-negative, disjoint, ascending) and RFC7950-9.6.4.2-1 (enum value range and uniqueness; the last sentence of §9.6.4.2) are re-judged `enforced` once the loader performs these structural checks. The untracked red `internal/component/config/yang/loader_rfc7950_structural_red_test.go` is replaced by tagged proofs. Moved here from spec-rfc-verdict-fix-services under P-3 (ruling R4), 2026-09-30.
 
 ## Risks & Assumptions
 

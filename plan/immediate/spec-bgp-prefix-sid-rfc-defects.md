@@ -104,6 +104,7 @@ semantic-validity half that spec names as separate work.
 | AC-4 | path whose only SRv6 SID information is invalid, or whose transposition length exceeds the label width | not a best-path candidate |
 | AC-5 | two L3 Service TLVs, the first without a valid SID | the second is ignored; no SID is used |
 | AC-6 | the `weak` verdicts of RFC8669-6-1, RFC9252-3.4-1, RFC9252-3.2.1-3, RFC9252-5-1 and RFC9252-7-1, after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (parent P-3, 2026-09-28) |
+| AC-7 | the `weak` verdicts of RFC9252-7-2 (the L2 Service half of D5), RFC8669-3.1-2 and RFC8669-3.2-4 (both turn on D1's validator), after this spec's producer fix | each verdict reaches `enforced`, re-judged as in AC-6. Moved here from the BGP child under parent P-3, 2026-09-30 |
 
 ## 🧪 TDD Test Plan
 
