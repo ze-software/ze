@@ -71,8 +71,8 @@
       "rid": "RFC4301-4.1-12",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration",
-      "unit-sha": "5377cd340f5d6a0e",
-      "claim-sha": "94510c836bab114a",
+      "unit-sha": "d927ede081b4f56b",
+      "claim-sha": "9d4ebabfb6bc427c",
       "route": "revert",
       "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
       "producer-sha": "6a340d64849a22e0",
@@ -165,6 +165,39 @@
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
       "producer-sha": "20b949de8627ad06",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go::TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused",
+      "unit-sha": "e96281cceedeaef2",
+      "claim-sha": "40c0148e3c0d6884",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/vpp.go::vppCryptoAlg",
+      "producer-sha": "305a63bd17bfd509",
+      "break": "body of vppCryptoAlg replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity",
+      "unit-sha": "effaf30cc29ec955",
+      "claim-sha": "6e36c9ce2f401abc",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
+      "producer-sha": "30c3ee956902c48e",
+      "break": "body of validateIPsecInterface replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity",
+      "unit-sha": "effaf30cc29ec955",
+      "claim-sha": "2aab61bb9fd843ca",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
+      "producer-sha": "30c3ee956902c48e",
+      "break": "body of validateIPsecInterface replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4301-4.4.1-10",
@@ -341,6 +374,28 @@
       "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
       "producer-sha": "633e57f6c14caa5b",
       "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.1-6",
+      "polarity": "positive",
+      "unit": "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection",
+      "unit-sha": "7289973e0e911779",
+      "claim-sha": "d5ee6ce0ad119627",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/config.go::parseSiteToSitePeer",
+      "producer-sha": "eaba4e6ee9a18352",
+      "break": "body of parseSiteToSitePeer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.1-6",
+      "polarity": "negative",
+      "unit": "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart",
+      "unit-sha": "1bbda0f03578ca40",
+      "claim-sha": "9e7a2e409df924dc",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/config.go::parseSiteToSitePeer",
+      "producer-sha": "eaba4e6ee9a18352",
+      "break": "body of parseSiteToSitePeer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4301-4.4.1-7",

@@ -1,8 +1,10 @@
 // VALIDATES: RFC 4301 Section 4.2, "A compliant implementation MUST NOT allow
 // instantiation of an ESP SA that employs both NULL encryption and no integrity
-// algorithm." Every ESP SA Ze instantiates, an IKEv2 Child SA (engine/child.go) and an
-// RFC 4552 manually keyed OSPFv3 SA (ospf/ipsec_install.go) alike, becomes a kernel
-// state through xfrmStateFromParams, so that is where the refusal has to hold.
+// algorithm." On the XFRM backend every ESP SA Ze instantiates, an IKEv2 Child SA
+// (engine/child.go) and an RFC 4552 manually keyed OSPFv3 SA (ospf/ipsec_install.go)
+// alike, becomes a kernel state through xfrmStateFromParams, so that is where the
+// refusal has to hold. The ze_vpp backend is the second instantiation path; its
+// refusal is proven in rfc4301_esp_null_vpp_test.go.
 // PREVENTS: a NULL-encryption ESP SA with no integrity transform reaching the kernel
 // from any path, while NULL encryption with an integrity algorithm stays installable.
 

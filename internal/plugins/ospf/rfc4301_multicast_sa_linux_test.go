@@ -3,8 +3,8 @@
 // real XFRM backend in its own user and network namespace, and the kernel's SAD lookup is
 // then asked for each group by SPI and destination.
 // PREVENTS: a multicast SA the inbound lookup cannot find by its group, two group SAs that
-// share their SPI (RFC 4552 Section 7) collapsing into one, and a group SA whose source
-// address is pinned so that a neighbor's datagram maps to nothing.
+// share their SPI (RFC 4552 Section 7) collapsing into one, and a group SA whose state
+// selector pins the source so that a neighbor's datagram fails the inbound selector check.
 
 //go:build linux
 
@@ -167,23 +167,77 @@ func TestRFC4301MulticastSALookupRefusesAnUnconfiguredSPIOrGroup(t *testing.T) {
 }
 
 // TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration proves the manual SA
-// configuration is what decides that a multicast SA is found without matching the source:
-// every group SA the installer puts in the kernel carries the unspecified source, so the
-// SPI and the group alone map a neighbor's datagram to it. Method: install the interface in
-// a namespace and read each group's state back from the kernel.
+// configuration sets the indication that no source address match is demanded of inbound
+// traffic on a group SA. On Linux the inbound ESP lookup (xfrm_state_lookup) keys on
+// destination, SPI and protocol only, so the lookup never reads a source; the source match
+// for a transport-mode state is decided afterwards by its state selector (x->sel), checked
+// by xfrm_selector_match in __xfrm_policy_check. The installer sets that selector's source
+// to ::/0, so a neighbor's datagram from any source passes it. Method: install the interface
+// in a namespace, find each group's state by (group, SPI), and read its selector back from
+// the kernel. A control state with a pinned selector source is read back first, so the
+// read-back is shown to report a pinned source when one is installed.
 func TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration(t *testing.T) {
-	// RFC requirement: RFC4301-4.1-12 positive -- the SA the manual configuration installs for ff02::5 and for ff02::6 is found in the kernel by SPI and group and carries the unspecified source address, so no source address matching is required to map inbound traffic to it.
+	// RFC requirement: RFC4301-4.1-12 positive -- the SA the manual configuration installs for ff02::5 and for ff02::6 is found in the kernel by SPI and group, and the state selector read back from it carries the wildcard source ::/0, so no source address match is demanded of inbound traffic mapped to it.
 	if !mcastSAOwnNamespace(t) {
 		return
 	}
 	mcastSAInstall(t)
+	pinned := mcastSAPinnedSelectorControl(t)
+	if ones, _ := pinned.Mask.Size(); ones != 128 {
+		t.Fatalf("control: the pinned selector source read back as %v, want a /128: the read-back cannot tell a pinned source from a wildcard", pinned)
+	}
 	for _, group := range []netip.Addr{ospfv3transport.AllSPFRouters, ospfv3transport.AllDRouters} {
 		state, err := mcastSALookup(group, mcastSASPI)
 		if err != nil {
 			t.Fatalf("SAD lookup (%s, spi %#x): %v", group, mcastSASPI, err)
 		}
+		// The address source is not what inbound matching reads; it lets one state serve
+		// every source the interface picks on output (__xfrm6_state_addr_check).
 		if !state.Src.Equal(net.IPv6zero) {
-			t.Errorf("SA for %s carries source %v, want the unspecified address: a pinned source would demand source matching", group, state.Src)
+			t.Errorf("SA for %s carries address source %v, want the unspecified address", group, state.Src)
+		}
+		if state.Selector == nil || state.Selector.Src == nil {
+			t.Fatalf("SA for %s: the kernel returned no state selector source", group)
+		}
+		ones, bits := state.Selector.Src.Mask.Size()
+		if ones != 0 || bits != 128 || !state.Selector.Src.IP.Equal(net.IPv6zero) {
+			t.Errorf("SA for %s has state selector source %v, want ::/0: xfrm_selector_match would refuse inbound datagrams from any other source", group, state.Selector.Src)
 		}
 	}
+}
+
+// mcastSAPinnedSelectorControl installs, beside the installer's SAs, one AH state whose
+// selector source is pinned to fe80::2/128, and returns the selector source the kernel
+// reports for it. It is the control for the wildcard read-back above.
+func mcastSAPinnedSelectorControl(t *testing.T) *net.IPNet {
+	t.Helper()
+	group := ospfv3transport.AllSPFRouters
+	pinnedSource := &net.IPNet{IP: net.ParseIP("fe80::2"), Mask: net.CIDRMask(128, 128)}
+	control := &netlink.XfrmState{
+		Src:   net.IPv6zero,
+		Dst:   group.AsSlice(),
+		Proto: netlink.XFRM_PROTO_AH,
+		Mode:  netlink.XFRM_MODE_TRANSPORT,
+		Spi:   mcastSAStraySPI,
+		Auth:  &netlink.XfrmStateAlgo{Name: "hmac(sha256)", Key: []byte(strings.Repeat("k", 32)), TruncateLen: 128},
+		Selector: &netlink.XfrmPolicy{
+			Src:   pinnedSource,
+			Dst:   &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)},
+			Proto: netlink.Proto(ospfv3transport.Protocol),
+		},
+	}
+	if err := netlink.XfrmStateAdd(control); err != nil {
+		t.Fatalf("control: add the pinned-selector state: %v", err)
+	}
+	state, err := netlink.XfrmStateGet(&netlink.XfrmState{Dst: group.AsSlice(), Spi: mcastSAStraySPI, Proto: netlink.XFRM_PROTO_AH})
+	if err != nil {
+		t.Fatalf("control: read the pinned-selector state back: %v", err)
+	}
+	if state.Selector == nil || state.Selector.Src == nil {
+		t.Fatal("control: the kernel returned no state selector source")
+	}
+	if !state.Selector.Src.IP.Equal(pinnedSource.IP) {
+		t.Fatalf("control: selector source read back as %v, want %v", state.Selector.Src, pinnedSource)
+	}
+	return state.Selector.Src
 }

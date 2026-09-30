@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -21,15 +22,15 @@
       "verdict": "enforced"
     },
     "RFC4301-4.1-12": {
-      "note": "Downgraded from enforced: the claim is wider than the check, and the mechanism it names is not Linux's. The unit asserts each group SA is found by (group, SPI) and that its props source is ::. On Linux the inbound ESP lookup, xfrm_state_lookup(daddr, spi, proto), reads no source for ANY SA, so both assertions hold whether or not source matching is required; the unit's failure text ('a pinned source would demand source matching') is false for inbound. What decides inbound source matching on Linux for a transport-mode SA is the state selector x->sel, checked by xfrm_selector_match in __xfrm_policy_check (XfrmInStateMismatch); buildIPsecSA sets Sel.Src to the wildcard ::/0 with UpperProto 89, and nothing asserts that. The props source :: matters for OUTBOUND resolution (__xfrm6_state_addr_check). The claim should be: the manually configured group SA is found by SPI and group with no source key, and the state selector Ze installs carries a wildcard source (::/0), so no source address match is demanded of inbound traffic. Missing: read back x->sel (or assert SAParams.Sel.Src from buildIPsecSA) against a pinned-selector control; fix the unit's doc comment and failure text.",
+      "note": "Re-judged pass 6. The unit now asserts what Linux actually reads for inbound source matching on a transport-mode SA: the state selector x->sel (xfrm_selector_match in __xfrm_policy_check), read back from the kernel for the ff02::5 and ff02::6 states found by (group, SPI), with source ::/0; a control AH state installed with selector source fe80::2/128 is read back first as a /128, so the read-back discriminates a pinned source from the wildcard. The props-source :: assertion is kept and correctly described as the outbound address check, not claimed. Doc comment, PREVENTS line and failure text now name the right mechanism. Producer read: buildIPsecSA sets Sel.Src to ospfWildcardNet(). Each probe runs in its own user+net namespace (no cross-test state). Revert record of buildIPsecSA observed red; author's overlay pinning Sel.Src also went red. single-polarity holds: multicast SAs exist only as RFC 4552 manual config, which always sets the indication, so no refusal path exists. Full ospf package -race green.",
       "requirement_sha": "791090e9b5ff7269",
       "tests": {
-        "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration": "f212528041326c15"
+        "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration": "a6a0f4d19b34dfe4"
       },
       "units": {
-        "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration": "549e95b94622f69e"
+        "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration": "fb30c59b152d1308"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4301-4.1-2": {
       "note": "TestChildSAInstallsInDataplane asserts every installed policy is tunnel mode; single-polarity annotated",
@@ -68,8 +69,8 @@
       "note": "Judged on the path where Ze has multicast SAs (R24): the RFC 4552 manual OSPFv3 installer (buildIPsecInterfaceSAs/buildIPsecSA) run through onInterfaceUp over the real XFRM backend in a rootless user+net namespace; the lookup is netlink XFRM_MSG_GETSA against the kernel SAD (xfrm_state_lookup, the function XFRM input uses), not a mock (run by the judge 2026-09-30: child ran, not skipped). Positive: ff02::5 and ff02::6 share one SPI and each (group, SPI) lookup returns that group's own SA, i.e. step 2 (SPI + destination) of the section 4.1 search resolves an Any-Source Multicast group SA. Negative: after a control lookup, ff02::5 under an unconfigured SPI and the configured SPI to ff02::1 map to no SA (step 3 fails, packet has no SA). Step 1 (SPI+dst+src) is vacuous: Ze builds no source-specific multicast SA. Caveat recorded, not a finding against the tests: the ff02::1 case rests on Linux identifying the fe80:: unicast SA by (dst, SPI, proto) rather than the section 4.1 SPI(+protocol) identifier, so a literal step 3 would match that unicast SA; the stray-SPI case alone carries the negative without that reading. Records: revert buildIPsecSA, both polarities observed red.",
       "requirement_sha": "098fdde1487143c7",
       "tests": {
-        "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSALookupRefusesAnUnconfiguredSPIOrGroup": "f212528041326c15",
-        "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSAsAreMappedBySPIAndGroup": "f212528041326c15"
+        "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSALookupRefusesAnUnconfiguredSPIOrGroup": "a6a0f4d19b34dfe4",
+        "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSAsAreMappedBySPIAndGroup": "a6a0f4d19b34dfe4"
       },
       "units": {
         "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSALookupRefusesAnUnconfiguredSPIOrGroup": "1905c849baeea356",
@@ -95,21 +96,23 @@
       "verdict": "weak"
     },
     "RFC4301-4.2-1": {
-      "note": "The XFRM backend is now proven both ways at xfrmStateFromParams, the one instantiation point IKE Child SAs and RFC 4552 OSPFv3 manual SAs share there: NULL + sha256 builds a state with the null cipher and hmac(sha256); NULL + '' and NULL + 'none' are refused with no state (xfrmAuthName has no entry). The OSPF config units keep both polarities on the manual path. Revert records observed red. Still weak because the ze_vpp dataplane backend (vppBackend.InstallSA) is a second ESP instantiation path with no tagged unit: read at the producer, vppCryptoAlg refuses the null cipher outright and vppIntegAlg refuses '', so it complies, but nothing asserts it. Missing: one negative under -tags ze_vpp driving vppBackend.InstallSA (or vppCryptoAlg/vppIntegAlg) with NULL encryption and no integrity. The test file's doc comment ('Every ESP SA Ze instantiates ... becomes a kernel state through xfrmStateFromParams') is true only for the XFRM backend.",
+      "note": "Re-judged pass 6. Both ESP instantiation paths now carry the MUST NOT. XFRM (xfrmStateFromParams, shared by IKE Child SAs and RFC 4552 OSPFv3 manual SAs): NULL + sha256 instantiated, NULL + ''/'none' refused with no state. ze_vpp (vppBackend.InstallSA): new negative TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused, control install of the well-formed SA sends 1 message, then NULL with '', 'none' and sha256 each returns ErrNotSupported and sends VPP nothing, and vppCryptoAlg('null') errors; the sha256 variant shows the refusal comes from the cipher mapping, not only from vppIntegAlg. No VPP positive exists or is owed: the row is a MUST NOT, and VPP refusing NULL encryption outright is compliant (the XFRM positive shows the boundary where NULL is allowed). OSPF config units (validateIPsecInterface) keep both polarities on the manual path; their revert records were observed red and written by this judge (they were the unproven covers). Revert records: xfrmStateFromParams +/-, vppCryptoAlg -, validateIPsecInterface +/-. Ran with -tags ze_vpp -race: green.",
       "requirement_sha": "8977a7cc940a547b",
       "tests": {
-        "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithIntegrityIsInstantiated": "4e6fc2b2592630f4",
-        "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithoutIntegrityIsRefused": "4e6fc2b2592630f4",
+        "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithIntegrityIsInstantiated": "4fb15cdf24d02bbb",
+        "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithoutIntegrityIsRefused": "4fb15cdf24d02bbb",
+        "internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go::TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused": "431666bd66ee7755",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "24a99999625a9144",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "24a99999625a9144"
       },
       "units": {
         "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithIntegrityIsInstantiated": "5e6ac90d3d27e727",
         "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithoutIntegrityIsRefused": "fa5c495d3391c42a",
+        "internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go::TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused": "829860c392fcdeeb",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "d758e0d4d20c8f5f",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "d758e0d4d20c8f5f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4301-4.4.1-1": {
       "note": "Child SA install asserts two PROTECT policies reach the SPD; single-polarity annotated",
@@ -201,21 +204,25 @@
       "verdict": "enforced"
     },
     "RFC4301-4.4.1-6": {
-      "note": "SPD-I and SPD-O BYPASS/DISCARD entries asserted configurable, unknown dispositions refused; the SPD-S (PROTECT) clause of the sentence is proved by no tagged unit",
+      "note": "Re-judged pass 6. The SPD-S clause (RFC 4301 4.4.1: selectors, controls on how to create SAs, and the parameters needed to effect the protection) is now proven: TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection writes a site-to-site peer through ParseIPsecConfig + ValidateGroupRefs and reads back the traffic-selector prefixes, connection-type/remote-address/esp-group, and mode transport with proposal aes256/sha256. The negative refuses an undefined esp-group (by ValidateGroupRefs), mode beet, an unknown connection-type and a /33 selector, each naming the part: an entry is never accepted with a part silently dropped or replaced, which is the form in which an SPD fails to let the administrator specify it. SPD-I/SPD-O units at HEAD unchanged. Revert records parseSiteToSitePeer +/- and parseSPDPolicy +/- observed red. The undefined esp-group case is refused outside the recorded producer; the other three cases redden through it.",
       "requirement_sha": "9a8db889ed83ec54",
       "tests": {
         "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDPermitsEachDispositionInEachDatabase": "ae75f967654d5dea",
-        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDRefusesADispositionItDoesNotCarry": "ae75f967654d5dea"
+        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDRefusesADispositionItDoesNotCarry": "ae75f967654d5dea",
+        "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection": "b227c917ca2c9cdf",
+        "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart": "b227c917ca2c9cdf"
       },
       "units": {
         "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDPermitsEachDispositionInEachDatabase": "af771292a62fe375",
-        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDRefusesADispositionItDoesNotCarry": "583e8dfdd1f139cf"
+        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDRefusesADispositionItDoesNotCarry": "583e8dfdd1f139cf",
+        "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection": "b5a58e3f4fdacf58",
+        "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart": "03e9d4d8cd61b7ed"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4301-4.4.1.2-1": {
-      "note": "NOT enforced. The row's MUST NOT binds users and is conditional on an SPD entry that can hold multiple selector sets (Section 4.4.1.2: 'One to N selector sets'); Ze's SPDPolicy holds exactly one (N=1) and the YANG policy list has single prefix/port leaves, so the condition never arises. The new reflect unit TestRFC4301SPDEntryCannotCarryASecondSelectorSet proves that ABSENCE (red if a slice/array/map of selectors is added); its recorded break (parseSPDPolicy -> panic) proves only that the unit reaches the parser, and the discriminating overlay (a MoreSets field) is unrecorded. Proving the feature absent does not prove the obligation met: under the rfc-compliance rule an obligation conditional on an absent feature is excluded, not counted. Route (pass 6): exclude the row as feature-out-of-scope quoting the 'Until IKE provides ...' condition and the N=1 structure; keep the reflect unit as the guard that reopens the row if multi-set entries arrive.",
-      "requirement_sha": "645903bf753ab4c8",
+      "note": "Re-judged pass 6 after the R3 split. The row now quotes, verbatim at 4.4.1.2, the SPD-entry structure item 'One to N selector sets that correspond to the \"condition\" for applying a particular IPsec action.' (MUST under D-3: the item carries no keyword and takes the level of the list 'each of which contains the following fields'; declared in the 4.4.1.2 unsourced-ids because the extractor reads keyword sentences only). Ze's operator SPD entry (parseSPDPolicy) holds exactly one selector set, and N = 1 lies within 'one to N', so the claim is honest. TestRFC4301SPDEntryHoldsOneSelectorSet proves the entry holds a complete set (local and remote prefix, protocol, port pair as written); TestRFC4301SPDEntryCannotCarryASecondSelectorSet guards N = 1 (the model has no slice/array/map of a selector). single-polarity positive holds: no input yields zero or several sets. The users MUST NOT moved verbatim to RFC4301-4.4.1.2-2 under {feature-declined}, quoting 'It is possible to associate multiple protocols (and ports) with a single SA by specifying multiple selector sets for that SA' (verbatim in 4.4.1.2) and naming parseSPDPolicy: the obligation is conditional on the multi-set entry the RFC makes possible and Ze does not offer, which is what the annotation means (docs/contributing/rfc-conformance-gates.md).",
+      "requirement_sha": "b7e3b12a692cdf74",
       "tests": {
         "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryCannotCarryASecondSelectorSet": "13ad9b85e33ee432",
         "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryHoldsOneSelectorSet": "13ad9b85e33ee432"
@@ -224,7 +231,8 @@
         "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryCannotCarryASecondSelectorSet": "9795b2cb7d61e49c",
         "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryHoldsOneSelectorSet": "d96c393ccd9f6ba5"
       },
-      "verdict": "weak"
+      "upgrade_reason": "The units are unchanged but the row they prove changed: the earlier weak verdict judged them against the users MUST NOT, which they could only show vacuous. Against the new text, the 'One to N selector sets' structure item, the one-set read-back is the obligation met, not the feature absent.",
+      "verdict": "enforced"
     },
     "RFC4301-4.4.2-1": {
       "code": {},
