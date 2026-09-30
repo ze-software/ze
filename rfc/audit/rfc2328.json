@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-29",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -690,10 +691,10 @@
       "note": "Forbidden: an authentic packet's sequence number not becoming the stored value, and an AuType 2 sequence treated as anything but non-decreasing. Red: TestOSPFAuthReplay accepts 10 then 11, accepts a second 11 (D.4.3 discards only 'less than'), then rejects 10 with reason replay, which holds only if 11 (not 10) was stored; 5 is rejected. TestOSPFAuthReplayEqualSequenceByAuType asserts the AuType 2 equal-sequence acceptance on its own. TestNeighborDownResetsCryptoSeq adds the per-neighbor reset. RFC 7474's strictly-greater rule governs only its AuType 3 (replayedSequence).",
       "requirement_sha": "affd17c59f70abd9",
       "tests": {
-        "internal/plugins/ospf/auth_keystore_test.go::TestNeighborDownResetsCryptoSeq": "9456809df1e1c7b9",
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "9456809df1e1c7b9",
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "9456809df1e1c7b9",
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayEqualSequenceByAuType": "9456809df1e1c7b9"
+        "internal/plugins/ospf/auth_keystore_test.go::TestNeighborDownResetsCryptoSeq": "0416e890e9f2f366",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "0416e890e9f2f366",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "0416e890e9f2f366",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayEqualSequenceByAuType": "0416e890e9f2f366"
       },
       "units": {
         "internal/plugins/ospf/auth_keystore_test.go::TestNeighborDownResetsCryptoSeq": "a2e9cf922c7bdc9c",

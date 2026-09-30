@@ -99,6 +99,17 @@
       "producer": "internal/plugins/ospf/sr_install.go::forwarding",
       "producer-sha": "a9570e77c7e311a6",
       "break": "body of forwarding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8666-8.4.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8666_adjsid_fsm_test.go::TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay",
+      "unit-sha": "95d62f580d9c070f",
+      "claim-sha": "7d1093d2f418ff05",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_adjsid.go::srAdjNeighborLost",
+      "producer-sha": "2e1760bdd5357412",
+      "break": "body of srAdjNeighborLost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

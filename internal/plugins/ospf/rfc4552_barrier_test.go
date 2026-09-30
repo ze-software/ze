@@ -11,6 +11,7 @@
 package ospf
 
 import (
+	"net"
 	"net/netip"
 	"testing"
 
@@ -28,7 +29,9 @@ import (
 // transform and whose request id is the one the interface's SAs carry.
 // RFC requirement: RFC4552-11-3 positive -- rules 2 and 3 of the enabled-interface SPD:
 // OSPF traffic out of the interface is protected by the ESP or AH transform, and OSPF
-// traffic into it is protected, so it must arrive under that transform.
+// traffic into it is protected, so it must arrive under that transform. Each policy's
+// source selector covers fe80::/10 (Ze installs ::/0, wider) and its destination selector
+// is any (::/0), the table's source and destination columns.
 func TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -38,6 +41,7 @@ func TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection(t *testing.T) {
 		{name: "esp", iface: espIface(256), proto: dataplane.ProtoESP},
 		{name: "ah", iface: ahIface(256), proto: dataplane.ProtoAH},
 	}
+	linkLocal := netip.MustParsePrefix("fe80::/10")
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			inst, fake := testInstaller(t, netip.MustParseAddr("fe80::1"))
@@ -63,6 +67,12 @@ func TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection(t *testing.T) {
 				if p.UpperProto != ospfv3transport.Protocol {
 					t.Errorf("policy dir=%d upper proto = %d, want OSPF (%d)", p.Dir, p.UpperProto, ospfv3transport.Protocol)
 				}
+				if !selectorCovers(p.Src, linkLocal) {
+					t.Errorf("policy dir=%d source selector %v does not cover %v", p.Dir, p.Src, linkLocal)
+				}
+				if !selectorCovers(p.Dst, netip.MustParsePrefix("::/0")) {
+					t.Errorf("policy dir=%d destination selector %v is not any (::/0)", p.Dir, p.Dst)
+				}
 			}
 			for _, d := range []dataplane.SADir{dataplane.SADirOut, dataplane.SADirIn, dataplane.SADirFwd} {
 				if !dirs[d] {
@@ -71,4 +81,24 @@ func TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection(t *testing.T) {
 			}
 		})
 	}
+}
+
+// selectorCovers reports whether the policy selector n matches every address of want:
+// n is an IPv6 prefix no longer than want whose network contains want's first address.
+func selectorCovers(n *net.IPNet, want netip.Prefix) bool {
+	if n == nil {
+		return false
+	}
+	addr, ok := netip.AddrFromSlice(n.IP)
+	if !ok {
+		return false
+	}
+	ones, bits := n.Mask.Size()
+	if bits != 128 {
+		return false
+	}
+	if ones > want.Bits() {
+		return false
+	}
+	return netip.PrefixFrom(addr.Unmap(), ones).Contains(want.Addr())
 }

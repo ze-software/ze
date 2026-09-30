@@ -480,12 +480,21 @@ func signedHelloWith(t *testing.T, key packet.AuthKey, seq uint64) []byte {
 // TestVerifyRejectsOutsideAcceptLifetime drives AC-1/AC-2: a packet signed with a chain
 // key verifies only while the store's clock is inside that key's accept-lifetime. The
 // packet bytes are identical in all three assertions, so the clock is the only variable.
+// The chain also holds a successor, Key ID 2, whose window opens on 2026-06-15: Key ID 1
+// is then never the chain's last key, whose expiry RFC 5709 Section 3.2 treats as an
+// infinite lifetime (TestRFC5709LastKeyExpiredKeepsAdjacency).
 func TestVerifyRejectsOutsideAcceptLifetime(t *testing.T) {
 	s := newAuthStore()
-	s.configure(lifetimeAuthCfg(keyConfig{
-		KeyID: 1, Algorithm: "hmac-sha-256", Secret: "topsecret",
-		AcceptLifetime: lifetimeConfig{Start: "2026-03-01T00:00:00Z", End: "2026-06-01T00:00:00Z"},
-	}))
+	s.configure(lifetimeAuthCfg(
+		keyConfig{
+			KeyID: 1, Algorithm: "hmac-sha-256", Secret: "topsecret",
+			AcceptLifetime: lifetimeConfig{Start: "2026-03-01T00:00:00Z", End: "2026-06-01T00:00:00Z"},
+		},
+		keyConfig{
+			KeyID: 2, Algorithm: "hmac-sha-256", Secret: "successor",
+			AcceptLifetime: lifetimeConfig{Start: "2026-06-15T00:00:00Z", End: "2027-01-01T00:00:00Z"},
+		},
+	))
 	peer := ridOf("2.2.2.2")
 	wire := signedHelloWith(t, packet.AuthKey{KeyID: 1, Algorithm: "hmac-sha-256", Secret: []byte("topsecret")}, 1)
 
@@ -501,7 +510,7 @@ func TestVerifyRejectsOutsideAcceptLifetime(t *testing.T) {
 	assert.True(t, ok, "inside the accept window the same packet verifies")
 	assert.Empty(t, reason)
 
-	// RFC requirement: RFC7474-4-1 negative -- the same packet is refused again once the clock (2026-07-01) is past AcceptLifetimeEnd (2026-06-01), so the window closes as well as opens.
+	// RFC requirement: RFC7474-4-1 negative -- the same packet is refused again once the clock (2026-07-01) is past Key ID 1's AcceptLifetimeEnd (2026-06-01) while the chain's successor Key ID 2 is inside its window, so the window closes as well as opens.
 	s.now = func() time.Time { return rfc3339(t, "2026-07-01T00:00:00Z") }
 	reason, ok = s.verify("eth0", peer, [4]byte{}, wire)
 	assert.False(t, ok, "after the accept window closes the packet is refused")
@@ -574,9 +583,11 @@ func TestAcceptLifetimeReachesVerifyFromConfig(t *testing.T) {
 	_, inside := s.verify("eth0", peer, [4]byte{}, wire)
 	assert.True(t, inside, "the configured window admits the packet")
 
-	s.now = func() time.Time { return rfc3339(t, "2026-09-01T00:00:00Z") }
+	// Before the window opens: after it closes, the only key is the chain's last key and
+	// RFC 5709 Section 3.2 keeps it (TestRFC5709LastKeyExpiredKeepsAdjacency).
+	s.now = func() time.Time { return rfc3339(t, "2026-02-01T00:00:00Z") }
 	reason, outside := s.verify("eth0", peer, [4]byte{}, wire)
-	assert.False(t, outside, "the configured window refuses the packet once it closes")
+	assert.False(t, outside, "the configured window refuses the packet before it opens")
 	assert.Equal(t, "accept-lifetime", reason)
 }
 
@@ -601,14 +612,16 @@ func TestVerifyWrongSecretInsideAcceptLifetimeReportsDigestMismatch(t *testing.T
 
 // TestVerifyUnknownKeyIDOutsideEveryWindow pins the chain-level arm of the reason: a
 // packet naming a key the chain does not hold, received when no key is in its window, is
-// refused as "accept-lifetime" because no key could have been tried at all.
+// refused as "accept-lifetime" because no key could have been tried at all. The clock sits
+// before the window opens: past its end the only key would be an expired last key, which
+// RFC 5709 Section 3.2 keeps trying.
 func TestVerifyUnknownKeyIDOutsideEveryWindow(t *testing.T) {
 	s := newAuthStore()
 	s.configure(authCfg(keyConfig{
 		KeyID: 1, Algorithm: "hmac-sha-256", Secret: "topsecret",
 		AcceptLifetime: lifetimeConfig{Start: "2026-03-01T00:00:00Z", End: "2026-06-01T00:00:00Z"},
 	}))
-	s.now = func() time.Time { return rfc3339(t, "2026-09-01T00:00:00Z") }
+	s.now = func() time.Time { return rfc3339(t, "2026-02-01T00:00:00Z") }
 
 	wire := signedHelloWith(t, packet.AuthKey{KeyID: 9, Algorithm: "hmac-sha-256", Secret: []byte("topsecret")}, 1)
 	reason, ok := s.verify("eth0", ridOf("2.2.2.2"), [4]byte{}, wire)

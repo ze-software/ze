@@ -77,17 +77,33 @@ type authStore struct {
 	// accept-lifetime gate. It defaults to time.Now and is overridden in tests for
 	// deterministic lifetime windows.
 	now func() time.Time
+	// lastKeyNoticed records the interfaces already notified that their last key expired
+	// (RFC 5709 Section 3.2), so the notification is sent once per chain and not once per
+	// packet. configure clears it with the chain it describes.
+	lastKeyNoticed map[string]bool
+	// sink is the operator event bus the notification goes to; nil when the engine runs
+	// without one, in which case the warning log alone carries it.
+	sink *eventSink
 }
 
 func newAuthStore() *authStore {
 	return &authStore{
-		chains:     map[string][]resolvedKey{},
-		srcByIface: map[string][4]byte{},
-		sendSeq:    map[string]uint32{},
-		recvSeq:    map[replayKey]uint64{},
-		bootCount:  0,
-		now:        time.Now,
+		chains:         map[string][]resolvedKey{},
+		srcByIface:     map[string][4]byte{},
+		sendSeq:        map[string]uint32{},
+		recvSeq:        map[replayKey]uint64{},
+		bootCount:      0,
+		now:            time.Now,
+		lastKeyNoticed: map[string]bool{},
 	}
+}
+
+// setSink installs the operator event bus RFC 5709's last-key notification is sent on.
+// Safe for concurrent use.
+func (s *authStore) setSink(sink *eventSink) {
+	s.mu.Lock()
+	s.sink = sink
+	s.mu.Unlock()
 }
 
 // setBootCount installs the durably incremented high word and the callback used
@@ -177,6 +193,9 @@ func (s *authStore) configure(cfg ospfConfig) {
 	s.mu.Lock()
 	s.chains = chains
 	s.srcByIface = srcByIface
+	// A new chain is a new key configured: RFC 5709 Section 3.2's infinite lifetime ends
+	// with it, and a later expiry of the new chain is notified afresh.
+	s.lastKeyNoticed = map[string]bool{}
 	s.mu.Unlock()
 }
 
@@ -204,19 +223,51 @@ func resolveChainKeys(kc keyChainConfig) []resolvedKey {
 	return keys
 }
 
-// selectSendKey picks the key that signs at time now. RFC 5709 §X / RFC 7210: the
-// active send key is the one whose send-lifetime [sendStart, sendStop) covers now; a
-// zero bound is unbounded. Among several active keys the latest-starting one wins
-// (the freshest rolled-in key). If NO key is currently active -- every send-lifetime
-// has already expired -- the implementation does NOT revert to unauthenticated
-// (AuType 0). It keeps signing with the most-recently-starting key so the adjacency
-// survives an operator who forgot to refresh the chain; an expired key is far safer
-// than dropping authentication. The caller has already checked keys is non-empty.
-func selectSendKey(keys []resolvedKey, now time.Time) resolvedKey {
-	var (
-		active     *resolvedKey
-		mostRecent = &keys[0]
-	)
+// lastKeyIndex returns the index of the chain's last key: the latest-starting send
+// key, and on a tie the one whose accept-lifetime ends later (a zero end is unbounded,
+// so it ends last). The signer and the verifier both use this one choice, so two
+// routers holding the same expired chain keep signing and accepting the same key.
+// The caller has already checked keys is non-empty.
+func lastKeyIndex(keys []resolvedKey) int {
+	last := 0
+	for i := 1; i < len(keys); i++ {
+		k, best := &keys[i], &keys[last]
+		if k.sendStart.After(best.sendStart) {
+			last = i
+			continue
+		}
+		if k.sendStart.Equal(best.sendStart) && endsLater(k.acceptStop, best.acceptStop) {
+			last = i
+		}
+	}
+	return last
+}
+
+// endsLater reports whether the window end a is later than b, a zero end being
+// unbounded.
+func endsLater(a, b time.Time) bool {
+	if b.IsZero() {
+		return false
+	}
+	return a.IsZero() || a.After(b)
+}
+
+// ended reports whether a lifetime whose end is stop is over at now. A zero stop is
+// an unbounded lifetime and never ends.
+func ended(stop, now time.Time) bool {
+	return !stop.IsZero() && !now.Before(stop)
+}
+
+// selectSendKey picks the key that signs at time now, and reports whether it signs only
+// because RFC 5709 Section 3.2 extends the last key's lifetime. RFC 7210: the active send
+// key is the one whose send-lifetime [sendStart, sendStop) covers now; a zero bound is
+// unbounded. Among several active keys the latest-starting one wins (the freshest
+// rolled-in key). With NO active key the chain's last key signs, so the implementation
+// never reverts to unauthenticated (AuType 0); the result is true when that key's
+// send-lifetime has ended, and false when no key has started yet. The caller has already
+// checked keys is non-empty.
+func selectSendKey(keys []resolvedKey, now time.Time) (resolvedKey, bool) {
+	var active *resolvedKey
 	for i := range keys {
 		k := &keys[i]
 		started := k.sendStart.IsZero() || !now.Before(k.sendStart)
@@ -226,16 +277,58 @@ func selectSendKey(keys []resolvedKey, now time.Time) resolvedKey {
 				active = k
 			}
 		}
-		if k.sendStart.After(mostRecent.sendStart) {
-			mostRecent = k
-		}
 	}
 	if active != nil {
-		return *active
+		return *active, false
 	}
-	// No active key: keep using the most-recently-starting key rather than reverting
-	// to no authentication.
-	return *mostRecent
+	last := keys[lastKeyIndex(keys)]
+	// RFC 5709 Section 3.2: "In the event that the last key associated with an interface
+	// expires, it is unacceptable to revert to an unauthenticated condition, and not
+	// advisable to disrupt routing. Therefore, the router should send a "last
+	// Authentication Key expiration" notification to the network manager and treat the key
+	// as having an infinite lifetime until the lifetime is extended, the key is deleted by
+	// network management, or a new key is configured."
+	return last, ended(last.sendStop, now)
+}
+
+// lastKeyExtendedIndex returns the index of the chain's last key when RFC 5709 Section
+// 3.2 extends its accept-lifetime at now: no key of the chain accepts at now and the last
+// key's accept-lifetime has ended. It returns -1 otherwise, including when the chain's
+// windows have not opened yet, which is not an expiry.
+func lastKeyExtendedIndex(keys []resolvedKey, now time.Time) int {
+	for i := range keys {
+		if keys[i].acceptsAt(now) {
+			return -1
+		}
+	}
+	last := lastKeyIndex(keys)
+	if !ended(keys[last].acceptStop, now) {
+		return -1
+	}
+	return last
+}
+
+// noticeLocked returns RFC 5709 Section 3.2's notification for iface the first time its
+// last key is found expired, and nil after that until configure installs a new chain.
+// The caller MUST hold s.mu and MUST pass the result to notifyLastKeyExpiration after
+// releasing it.
+func (s *authStore) noticeLocked(iface string, keyID uint32, direction string) *lastKeyExpirationEvent {
+	if s.lastKeyNoticed[iface] {
+		return nil
+	}
+	s.lastKeyNoticed[iface] = true
+	return &lastKeyExpirationEvent{Interface: iface, KeyID: keyID, Direction: direction}
+}
+
+// notifyLastKeyExpiration sends notice to the network manager: a warning in the OSPF log
+// and a last-key-expiration event on the operator event bus. A nil notice sends nothing.
+func notifyLastKeyExpiration(sink *eventSink, notice *lastKeyExpirationEvent) {
+	if notice == nil {
+		return
+	}
+	logger().Warn("ospf: last Authentication Key expiration, keeping the key as if its lifetime were infinite",
+		"interface", notice.Interface, "key-id", notice.KeyID, "direction", notice.Direction)
+	sink.lastKeyExpired(notice)
 }
 
 // signKey returns the active signing key, its AuType, the next cryptographic sequence
@@ -243,13 +336,24 @@ func selectSendKey(keys []resolvedKey, now time.Time) resolvedKey {
 // A false result with AuTypeNull means no authentication is configured. A false
 // result with another AuType refuses signing; the caller MUST discard that packet.
 func (s *authStore) signKey(iface string) (packet.AuthKey, packet.AuType, uint64, [4]byte, bool) {
+	var (
+		notice *lastKeyExpirationEvent
+		sink   *eventSink
+	)
+	// Deferred first so it runs after the unlock below: the notification never holds s.mu.
+	defer func() { notifyLastKeyExpiration(sink, notice) }()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	keys := s.chains[iface]
 	if len(keys) == 0 {
 		return packet.AuthKey{}, packet.AuTypeNull, 0, [4]byte{}, false
 	}
-	k := selectSendKey(keys, s.now())
+	k, lastExpired := selectSendKey(keys, s.now())
+	if lastExpired {
+		// RFC 5709 Section 3.2
+		notice, sink = s.noticeLocked(iface, k.keyID, "send"), s.sink
+	}
 	var seq uint64
 	if k.auType != packet.AuTypeSimple {
 		c := s.sendSeq[iface] + 1
@@ -289,12 +393,12 @@ func (s *authStore) signKey(iface string) (packet.AuthKey, packet.AuType, uint64
 // reason and false.
 //
 // Only a key whose accept-lifetime covers the current time is tried, so an operator
-// retires a key by closing its window and never has to delete it from the chain. The
-// receive side of an expired chain fails CLOSED: no key is tried, no digest is compared,
-// and the packet is refused. That is the opposite of selectSendKey, which keeps signing
-// with an expired key, and both choices point the same way -- signing with a stale key is
-// safer than sending unauthenticated, and refusing a stale key is safer than
-// authenticating a neighbor the operator believes is retired.
+// retires a key by closing its window while a successor is live, and never has to delete
+// it from the chain. When EVERY window of the chain has closed, the chain's last key
+// (lastKeyIndex, the same key selectSendKey signs with) keeps verifying as if its lifetime
+// were infinite, and the network manager is notified once: RFC 5709 Section 3.2 rules out
+// both the unauthenticated fallback and the routing disruption a refusal would cause. A
+// packet with a non-cryptographic AuType is still refused as autype-mismatch.
 //
 // The "accept-lifetime" reason is reported when the window is what refused the packet:
 // the sender named a key this chain holds and that key is outside its window, or no key
@@ -305,7 +409,18 @@ func (s *authStore) verify(iface string, rid types.RouterID, src [4]byte, wire [
 	s.mu.Lock()
 	keys := s.chains[iface]
 	now := s.now()
+	extended := -1
+	var notice *lastKeyExpirationEvent
+	if len(keys) > 0 {
+		extended = lastKeyExtendedIndex(keys, now)
+	}
+	if extended >= 0 {
+		// RFC 5709 Section 3.2
+		notice = s.noticeLocked(iface, keys[extended].keyID, "receive")
+	}
+	sink := s.sink
 	s.mu.Unlock()
+	notifyLastKeyExpiration(sink, notice)
 	h, _, err := packet.DecodeHeader(wire)
 	if err != nil {
 		return "decode", false
@@ -327,12 +442,14 @@ func (s *authStore) verify(iface string, rid types.RouterID, src [4]byte, wire [
 	senderKeyID, senderNamedKey := packet.AuthKeyID(h)
 	senderKeyRetired := false
 	inWindow := 0
-	for _, k := range keys {
+	for i, k := range keys {
 		// RFC 7474 Section 4: "For packet reception, the key validity interval as
 		// defined by AcceptLifetimeStart and AcceptLifetimeEnd must include the current
 		// time." A key outside its window is skipped before the digest is computed, so
-		// it can neither accept the packet nor record its sequence number.
-		if !k.acceptsAt(now) {
+		// it can neither accept the packet nor record its sequence number. The one
+		// exception is the chain's expired last key, whose validity interval RFC 5709
+		// Section 3.2 makes infinite ("treat the key as having an infinite lifetime").
+		if i != extended && !k.acceptsAt(now) {
 			if senderNamedKey && k.keyID == senderKeyID {
 				senderKeyRetired = true
 			}

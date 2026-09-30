@@ -1,5 +1,6 @@
 // Design: docs/architecture/ospf/ospf-4-component-config.md -- OSPFv2 event bus types
 // Related: register.go -- registers the namespace and wires the EventBus
+// RFC: rfc/short/rfc5709.md (Section 3.2 last-key-expiration notification)
 package ospf
 
 import (
@@ -21,7 +22,20 @@ const (
 	EventInterfaceState = "interface-state"
 	EventDRChange       = "dr-change"
 	EventNeighborChange = "neighbor-change"
+	// EventLastKeyExpiration is RFC 5709 Section 3.2's "last Authentication Key
+	// expiration" notification to the network manager.
+	EventLastKeyExpiration = "last-key-expiration"
 )
+
+// lastKeyExpirationEvent names the interface whose last key expired, the key Ze keeps
+// using as if its lifetime were infinite, and the direction that first met the expiry:
+// "send" when the signer found no live send-lifetime, "receive" when the verifier found
+// no live accept-lifetime.
+type lastKeyExpirationEvent struct {
+	Interface string `json:"interface"`
+	KeyID     uint32 `json:"key-id"`
+	Direction string `json:"direction"`
+}
 
 type neighborEvent struct {
 	Interface  string `json:"interface"`
@@ -54,13 +68,14 @@ type lsdbChangeEvent struct {
 }
 
 var (
-	NeighborUp     = events.Register[*neighborEvent](Namespace, EventNeighborUp)
-	NeighborDown   = events.Register[*neighborEvent](Namespace, EventNeighborDown)
-	spfRun         = events.Register[*spfRunEvent](Namespace, EventSPFRun)
-	lsdbChange     = events.Register[*lsdbChangeEvent](Namespace, EventLSDBChange)
-	InterfaceState = events.Register[*interfaceEvent](Namespace, EventInterfaceState)
-	DRChange       = events.Register[*interfaceEvent](Namespace, EventDRChange)
-	NeighborChange = events.Register[*interfaceEvent](Namespace, EventNeighborChange)
+	NeighborUp        = events.Register[*neighborEvent](Namespace, EventNeighborUp)
+	NeighborDown      = events.Register[*neighborEvent](Namespace, EventNeighborDown)
+	spfRun            = events.Register[*spfRunEvent](Namespace, EventSPFRun)
+	lsdbChange        = events.Register[*lsdbChangeEvent](Namespace, EventLSDBChange)
+	InterfaceState    = events.Register[*interfaceEvent](Namespace, EventInterfaceState)
+	DRChange          = events.Register[*interfaceEvent](Namespace, EventDRChange)
+	NeighborChange    = events.Register[*interfaceEvent](Namespace, EventNeighborChange)
+	LastKeyExpiration = events.Register[*lastKeyExpirationEvent](Namespace, EventLastKeyExpiration)
 )
 
 type eventSink struct {
@@ -95,6 +110,20 @@ func (s *eventSink) emitNeighbor(handle *events.Event[*neighborEvent], label str
 	}
 	if _, err := handle.Emit(s.bus, &neighborEvent{Interface: snap.Interface, NeighborID: snap.RouterID, State: snap.State}); err != nil {
 		logger().Debug("ospf: event emit", "event", label, "interface", snap.Interface, "neighbor", snap.RouterID, "err", err)
+	}
+}
+
+// lastKeyExpired emits RFC 5709 Section 3.2's "last Authentication Key expiration"
+// notification. A nil sink or bus emits nothing; the caller has already logged it.
+func (s *eventSink) lastKeyExpired(notice *lastKeyExpirationEvent) {
+	if s == nil {
+		return
+	}
+	if s.bus == nil {
+		return
+	}
+	if _, err := LastKeyExpiration.Emit(s.bus, notice); err != nil {
+		logger().Debug("ospf: event emit", "event", EventLastKeyExpiration, "interface", notice.Interface, "err", err)
 	}
 }
 

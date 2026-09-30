@@ -445,21 +445,25 @@
       "verdict": "enforced"
     },
     "RFC3101-x-5": {
-      "note": "Re-judged 2026-09-30 (continuation 5): the Type-7 half is now proven on a border router: TestRFC3101BorderRouterDefaultCarriesConfiguredMetric (ABR on backbone + NSSAs 0.0.0.5/0.0.0.6, default-cost 77/5000 -> Type-7 defaults carry 77 and 5000) and TestRFC3101BorderRouterDefaultMetricIsNotBorrowed (unconfigured 0.0.0.6 carries DefaultAreaCost, not the sibling's 77), revert records observed red. MISSING: the row's 'default LSA that a border router advertises into its directly attached NSSAs' also reaches the Type-3 summary default, which Section 2.7 makes the default LSA of a no-summary NSSA ('the default LSA originated into it by its border routers must be a Type-3 summary-LSA'); its metric comes from DefaultCost (spf/area_type.go) and no unit tagged x-5 asserts it. Needs a no-summary NSSA border-router test of the configured Type-3 default metric.",
+      "note": "Re-judged 2026-09-30 (continuation 6, judge): both halves proven on a border router through config. Type-7 half: TestRFC3101BorderRouterDefaultCarriesConfiguredMetric (continuation 5). Type-3 half (no-summary NSSA, s2.7): TestRFC3101BorderRouterType3DefaultCarriesConfiguredMetric (config JSON default-cost 77 and 5000 on two no-summary NSSAs -> setConfig -> SPF run -> the self-originated Type-3 default, mask 0, carries 77 and 5000) and negative TestRFC3101BorderRouterType3DefaultMetricIsNotBorrowed (unconfigured sibling carries DefaultAreaCost, not 77). Revert records on applyAreaTypePolicy observed red for both polarities.",
       "requirement_sha": "725dc7d97d22097d",
       "tests": {
         "internal/plugins/ospf/rfc3101_border_default_cost_test.go::TestRFC3101BorderRouterDefaultCarriesConfiguredMetric": "c056623d9ae42854",
         "internal/plugins/ospf/rfc3101_border_default_cost_test.go::TestRFC3101BorderRouterDefaultMetricIsNotBorrowed": "c056623d9ae42854",
         "internal/plugins/ospf/rfc3101_default_cost_test.go::TestOSPFNSSADefaultCarriesConfiguredMetric": "638697abb7eae3c0",
-        "internal/plugins/ospf/rfc3101_default_cost_test.go::TestOSPFNSSADefaultMetricIsNotFixed": "638697abb7eae3c0"
+        "internal/plugins/ospf/rfc3101_default_cost_test.go::TestOSPFNSSADefaultMetricIsNotFixed": "638697abb7eae3c0",
+        "internal/plugins/ospf/rfc3101_nssa_type3_default_cost_test.go::TestRFC3101BorderRouterType3DefaultCarriesConfiguredMetric": "c80a6302c153bc6d",
+        "internal/plugins/ospf/rfc3101_nssa_type3_default_cost_test.go::TestRFC3101BorderRouterType3DefaultMetricIsNotBorrowed": "c80a6302c153bc6d"
       },
       "units": {
         "internal/plugins/ospf/rfc3101_border_default_cost_test.go::TestRFC3101BorderRouterDefaultCarriesConfiguredMetric": "1bd2e9e59a261705",
         "internal/plugins/ospf/rfc3101_border_default_cost_test.go::TestRFC3101BorderRouterDefaultMetricIsNotBorrowed": "6a1ca03bff0c1d77",
         "internal/plugins/ospf/rfc3101_default_cost_test.go::TestOSPFNSSADefaultCarriesConfiguredMetric": "99b35d5b63783578",
-        "internal/plugins/ospf/rfc3101_default_cost_test.go::TestOSPFNSSADefaultMetricIsNotFixed": "04ec824a17940c19"
+        "internal/plugins/ospf/rfc3101_default_cost_test.go::TestOSPFNSSADefaultMetricIsNotFixed": "04ec824a17940c19",
+        "internal/plugins/ospf/rfc3101_nssa_type3_default_cost_test.go::TestRFC3101BorderRouterType3DefaultCarriesConfiguredMetric": "a5e99c75036f9995",
+        "internal/plugins/ospf/rfc3101_nssa_type3_default_cost_test.go::TestRFC3101BorderRouterType3DefaultMetricIsNotBorrowed": "eccef6f184377dd1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc3101"

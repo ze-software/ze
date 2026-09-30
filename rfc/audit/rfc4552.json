@@ -1,16 +1,17 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4552-11-1": {
-      "note": "Re-judged 2026-09-30 (continuation 5), single-polarity positive (a barrier is installed, never refused). New TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection (esp and ah) asserts every out/in/fwd OSPF policy has Action protect (not the template-free bypass), Proto the configured ESP/AH transform, ReqID equal to the interface SAs' ReqID and UpperProto 89, with all three directions present; TestIPsecPoliciesInterfaceScopedWildcard adds the ::/0 source and destination selectors (so no OSPF packet on the interface falls outside the policies) and transport mode. A bypass installer or a narrowed selector now goes red (judge overlay: Src 2001:db8::/32 reds TestIPsecPoliciesInterfaceScopedWildcard). Revert record on buildIPsecPolicies observed red.",
+      "note": "Re-judged 2026-09-30 (continuation 6, judge): single-polarity positive holds. TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection asserts out/in/fwd proto-89 protect policies with the ESP or AH transform on both esp and ah interfaces; the revert record on buildIPsecPolicies was re-observed red after the test gained selector assertions.",
       "requirement_sha": "34643c7aa4f918a3",
       "tests": {
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "6030e8816e85665f",
-        "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection": "b3a06565d2a9c99a"
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "976d07eeb9539b2b",
+        "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection": "638d96a72d0e1911"
       },
       "units": {
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "d54b45173f449945",
-        "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection": "e24702278ace346a"
+        "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection": "6a89a5d53b6bb99a"
       },
       "verdict": "enforced"
     },
@@ -18,7 +19,7 @@
       "note": "Forbidden: a protect policy or SA on an interface with OSPFv3 security disabled. TestIPsecDisabledInterfaceBypass configures an interface with no ipsec block, brings it up, and asserts zero SAs and zero policies, so OSPF falls to the kernel default (bypass); TestIPsecPoliciesInterfaceScopedWildcard asserts an enabled interface's policies are IfIndex-scoped, so they cannot cover the disabled one. Single-polarity marker.",
       "requirement_sha": "47d8095219ad4c47",
       "tests": {
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecDisabledInterfaceBypass": "6030e8816e85665f"
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecDisabledInterfaceBypass": "976d07eeb9539b2b"
       },
       "units": {
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecDisabledInterfaceBypass": "dd52a76e2d13724d"
@@ -26,23 +27,23 @@
       "verdict": "enforced"
     },
     "RFC4552-11-3": {
-      "note": "Re-judged 2026-09-30 (continuation 5): the row now quotes rules 2 and 3 only; rules 4 and 5 (virtual link) are carried by gap row RFC4552-11-4, whose sentence 'These rules MUST be installed ... connected to the transit area for the virtual link' is about exactly those rules, so nothing is double-counted. The ::/0 source (wider than fe80::/10) is disclosed on the row; it protects every packet rules 2 and 3 select and is stricter on the rest (non-link-local OSPF, which rules 4 and 5 would also protect), so it is not a deviation that fails this MUST. Tagged units: TestIPsecInstallOnInterfaceUp (three policies) and TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection (protect action, ESP/AH template, OSPF, all directions). MISSING: no unit tagged 11-3 asserts the source selector, the field that defines rules 2 and 3: a judge overlay setting Src to 2001:db8::/32 (link-local OSPF left unprotected) keeps both tagged units green; only TestIPsecPoliciesInterfaceScopedWildcard, tagged 11-1/6-3 but not 11-3, goes red. Tagging that unit (or asserting Src covers fe80::/10 in the barrier test) closes it.",
+      "note": "Re-judged 2026-09-30 (continuation 6, judge): the weak finding (source selector unasserted) is closed. TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection now asserts, for every out/in/fwd policy on esp and ah interfaces, that the source selector covers fe80::/10 (selectorCovers: prefix length <= 10 containing fe80::; Ze installs ::/0, wider, as the row annotation states) and the destination is any (::/0), plus upper protocol 89 and the protect transform. Records: installLocked mutant and buildIPsecPolicies revert, observed red. Single-polarity positive per annotation (the rules are installed, never refused). Virtual-link rules 4 and 5 stay gap row RFC4552-11-4.",
       "requirement_sha": "9868de92654cd2e0",
       "tests": {
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp": "6030e8816e85665f",
-        "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection": "b3a06565d2a9c99a"
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp": "976d07eeb9539b2b",
+        "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection": "638d96a72d0e1911"
       },
       "units": {
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp": "a145323c432300dc",
-        "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection": "e24702278ace346a"
+        "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection": "6a89a5d53b6bb99a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4552-6-2": {
       "note": "Forbidden: one SPD applied regardless of interface. Ze realises the per-interface SPD as IfIndex-scoped XFRM policies; TestIPsecPoliciesInterfaceScopedWildcard asserts every installed policy has IfIndex == testIfIndex, red if a policy were global (IfIndex 0), and TestIPsecDisabledInterfaceBypass asserts a disabled interface on the same installer gets no policy. Single-polarity marker: no reject path.",
       "requirement_sha": "1673b7a562541a00",
       "tests": {
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "6030e8816e85665f"
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "976d07eeb9539b2b"
       },
       "units": {
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "d54b45173f449945"
@@ -53,7 +54,7 @@
       "note": "Forbidden: inbound OSPF handled without regard to its arrival interface. The kernel tags; Ze owns the interface selector it installs. TestIPsecPoliciesInterfaceScopedWildcard asserts the policy set contains the SADirIn direction and that every policy, the inbound one included, carries IfIndex == testIfIndex, red if the inbound policy were unscoped. Single-polarity marker.",
       "requirement_sha": "44b605a955cabf24",
       "tests": {
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "6030e8816e85665f"
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "976d07eeb9539b2b"
       },
       "units": {
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "d54b45173f449945"
@@ -64,7 +65,7 @@
       "note": "Re-judged 2026-09-29 (independent judge). TestRFC4552EveryStateSharesSPIAndKeys builds the ESP interface's whole SA set (inbound unicast plus the two bidirectional multicast states) and asserts every state carries the one configured SPI and byte-identical integrity and encryption keys; the second half configures another SPI and other keys and finds those on every state, which refuses keys not taken from manual configuration. Records on buildIPsecInterfaceSAs and buildIPsecSA. The stale {single-polarity} annotation was removed from the row by the judge (./le rfc check demanded it). Not driven: the per-neighbour outbound unicast state (onNeighborSeen), which calls the same buildIPsecSA with the same spec.",
       "requirement_sha": "6b651075953b9d6e",
       "tests": {
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "6030e8816e85665f",
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "976d07eeb9539b2b",
         "internal/plugins/ospf/rfc4552_same_keys_test.go::TestRFC4552EveryStateSharesSPIAndKeys": "3024909f4b444b0f",
         "internal/plugins/ospf/rfc4552_same_keys_test.go::TestRFC4552EveryStateSharesSPIAndKeys#2": "3024909f4b444b0f"
       },

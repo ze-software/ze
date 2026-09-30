@@ -44,6 +44,16 @@ the adjacency at Full for the grace period.
   <!-- source: internal/plugins/ospf/gr_nvs.go -- restartFact, writeRestartFact -->
   <!-- source: internal/plugins/ospf/gr_preserve.go -- captureInterfaceIDs, capturePrefixLSIDs -->
   <!-- source: internal/plugins/ospf/gr_show.go -- grSnapshot -->
+- **An unplanned restart sends its Grace-LSAs before the first Hello.** With
+  `support planned-and-unplanned` and no planned restart fact, engine start runs
+  in two steps. It first opens and registers every configured interface with the
+  Hellos held. It then enters in-restart and floods one Grace-LSA per active
+  interface, in a Link State Update to AllSPFRouters, although no adjacency
+  exists yet. Only then do the interfaces start and send Hellos. The Grace-LSA
+  pass walks the running interfaces, so it cannot run before they open.
+  <!-- source: internal/plugins/ospf/instance.go -- openInterfaces, releaseHelloHold -->
+  <!-- source: internal/plugins/ospf/gr_restarter.go -- maybeUnplannedRestart -->
+  <!-- source: internal/plugins/ospf/lsdb/link_scope.go -- floodLink -->
 - **A restored OSPFv3 Interface ID remains the protocol identity after restart.**
   Runtime Hellos, the neighbor table and native LSAs use the same ID even when the
   live kernel ifindex differs. Ending suppression does not renumber an adjacency;

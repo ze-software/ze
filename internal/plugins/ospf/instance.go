@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"maps"
 	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -49,9 +50,15 @@ type engine struct {
 	areas      map[types.AreaID]*area
 	running    map[string]interfaceConfig
 	interfaces map[string]*ospfiface.Interface
-	neighbors  *ospfneighbor.Table
-	lsdb       *ospflsdb.LSDB
-	spf        *ospfspf.Computer
+	// helloHold is set while openInterfaces opens and registers the configured interfaces:
+	// startInterfaceLocked then builds each runtime but records its name in helloHeld
+	// instead of starting it, so no Hello leaves before the unplanned-restart Grace-LSAs
+	// (RFC 3623 Section 5). releaseHelloHold starts the held runtimes. Guarded by mu.
+	helloHold bool
+	helloHeld []string
+	neighbors *ospfneighbor.Table
+	lsdb      *ospflsdb.LSDB
+	spf       *ospfspf.Computer
 	// srInstaller programs Segment Routing MPLS forwarding (spec-ospf-ext-5) from the
 	// post-SPF hook; nil until initSPF wires it. It reads remote SR state from the LSDB
 	// and emits push/swap/pop entries on the shared mpls-fib bus.
@@ -663,6 +670,7 @@ func (e *engine) setMetrics(reg metrics.Registry) {
 func (e *engine) setEventSink(s *eventSink) {
 	e.mu.Lock()
 	e.sink = s
+	e.auth.setSink(s)
 	if e.neighbors != nil {
 		e.neighbors.SetEventSink(e.neighborEventSinkValue())
 	}
@@ -673,12 +681,13 @@ func (e *engine) openInterfaces() error {
 	if err := e.initializeState(); err != nil {
 		return err
 	}
-	// RFC 3623 sec 5: with unplanned-outage support enabled (opt-in) and no planned fact,
-	// originate Grace-LSAs before any Hello for an unexpected restart. No-op by default.
-	e.gr.maybeUnplannedRestart()
 	e.mu.Lock()
 	enrolled := e.cfg.enrolledInterfaces()
 	activeCount := len(e.cfg.activeInterfaces())
+	// Start is two steps: open and register every configured interface with its Hellos
+	// held, then originate any unplanned-restart Grace-LSAs over the open interfaces,
+	// then start the Hellos. The Grace-LSA pass walks e.running, which the open fills.
+	e.helloHold = true
 	e.mu.Unlock()
 	if activeCount > 0 && e.transport != nil {
 		e.startReceiveLoop()
@@ -703,6 +712,12 @@ func (e *engine) openInterfaces() error {
 			continue
 		}
 	}
+	// RFC 3623 Section 5: "The grace-LSAs must be originated and be sent *before* the
+	// restarted router sends any OSPF Hello Packets." With unplanned-outage support
+	// enabled (opt-in) and no planned fact, the Grace-LSAs flood here, while every
+	// interface is open and its Hellos are still held. No-op by default.
+	e.gr.maybeUnplannedRestart()
+	e.releaseHelloHold()
 	// Create the LDP-sync machines for any enabled ldp-sync interface now open, so a
 	// link that comes up before LDP originates at LSInfinity (RFC 5443 §2, AC-1).
 	e.updateLDPSyncMachines()
@@ -956,7 +971,29 @@ func (e *engine) startInterfaceLocked(ic interfaceConfig) {
 	}
 	e.interfaces[ic.Name] = rt
 	if ic.Passive || ic.NetworkType == types.NetworkLoopback || e.transport == nil || e.transport.InterfaceOpen(ic.Name) {
+		if e.helloHold {
+			if !slices.Contains(e.helloHeld, ic.Name) {
+				e.helloHeld = append(e.helloHeld, ic.Name)
+			}
+			return
+		}
 		rt.Start()
+	}
+}
+
+// releaseHelloHold ends the openInterfaces hold and starts every runtime it deferred.
+// The name is looked up again because a link event may have replaced the runtime
+// while the hold was on. Callers MUST NOT hold e.mu.
+func (e *engine) releaseHelloHold() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	held := e.helloHeld
+	e.helloHold = false
+	e.helloHeld = nil
+	for _, name := range held {
+		if rt := e.interfaces[name]; rt != nil {
+			rt.Start()
+		}
 	}
 }
 

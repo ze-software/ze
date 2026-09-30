@@ -11,6 +11,72 @@
       "producer": "internal/plugins/ospf/auth_keystore.go::replayedSequence",
       "producer-sha": "72fc611d0163d903",
       "break": "body of replayedSequence replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5709-3.1-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5709_crypto_sequence_test.go::TestRFC5709CryptoSequenceNonDecreasingOnInterface",
+      "unit-sha": "92840c78dc06c3d4",
+      "claim-sha": "a0d5637e917de918",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::signKey",
+      "producer-sha": "412de4d415a5f680",
+      "break": "body of signKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5709-3.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/auth_keystore_test.go::TestSignKeyNoRevertWhenAllExpired",
+      "unit-sha": "c177bbe3c52bb087",
+      "claim-sha": "1902a4311c14432e",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::selectSendKey",
+      "producer-sha": "ad009618437903c2",
+      "break": "body of selectSendKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5709-3.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709LastKeyExpiredRefusesUnauthenticated",
+      "unit-sha": "99ac4f1826cf43d6",
+      "claim-sha": "303872efd18feea6",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::verify",
+      "producer-sha": "a12ff0e3b710dbf5",
+      "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5709-3.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709LastKeyExpiredStillSigns",
+      "unit-sha": "14d9c98ee8a6c445",
+      "claim-sha": "4320ab54ac755231",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::selectSendKey",
+      "producer-sha": "ad009618437903c2",
+      "break": "body of selectSendKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5709-3.2-5",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709ExpiredKeyRefusedOnceNotLast",
+      "unit-sha": "bde6eeed328423e9",
+      "claim-sha": "7e849d4dbcb3b372",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::lastKeyExtendedIndex",
+      "producer-sha": "acf8ec3e05f78f1f",
+      "break": "body of lastKeyExtendedIndex replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5709-3.2-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709LastKeyExpiredKeepsAdjacency",
+      "unit-sha": "1f4375570cdd152d",
+      "claim-sha": "a80e1de3322d3f23",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::lastKeyExtendedIndex",
+      "producer-sha": "acf8ec3e05f78f1f",
+      "break": "body of lastKeyExtendedIndex replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

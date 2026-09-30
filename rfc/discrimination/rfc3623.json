@@ -35,6 +35,17 @@
       "break": "body of floodLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC3623-5-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc3623_unplanned_cold_start_test.go::TestRFC3623UnplannedColdStartOriginatesGraceLSA",
+      "unit-sha": "9ce7e3c6c29988af",
+      "claim-sha": "3f202cef4ae2336a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/instance.go::openInterfaces",
+      "producer-sha": "c05e3b12568669c7",
+      "break": "body of openInterfaces replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3623-5-3",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go::TestRFC3623RestartGraceLSAFloodedToAllSPFRouters",

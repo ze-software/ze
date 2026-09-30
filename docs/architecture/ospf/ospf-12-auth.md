@@ -51,12 +51,22 @@ extended 64-bit cryptographic sequence).
   skipped and can neither accept the packet nor record its sequence number. A
   gate placed after the digest comparison would let an out-of-window key advance
   the high-water mark, and the packet the operator meant to refuse would then
-  block the legitimate one behind it. The send side and the receive side point
-  the same way but do the opposite thing: `selectSendKey` keeps signing with an
-  expired key (signing stale beats sending unauthenticated), and `verify` refuses
-  every key whose window has closed (refusing stale beats authenticating a
-  neighbor the operator retired).
+  block the legitimate one behind it. A key whose window closed while another
+  key of the chain is live is retired and refused.
   <!-- source: internal/plugins/ospf/auth_keystore.go -- resolvedKey.acceptsAt, authStore.verify -->
+- **The last key never expires in effect.** RFC 5709 Section 3.2 rules out both
+  reverting to an unauthenticated condition and disrupting routing when the last
+  key of an interface expires. When every window of the chain has closed, the
+  chain's last key (`lastKeyIndex`: the latest-starting send key, then the latest
+  accept end) keeps signing and keeps verifying as if its lifetime were infinite,
+  until the operator configures a new chain. Signer and verifier choose the same
+  key, so two Ze routers holding the same expired chain keep their adjacency. The
+  first time an interface meets the expiry, Ze logs a warning and emits the
+  `ospf` / `last-key-expiration` event (interface, key ID, and the direction that
+  met it), the "last Authentication Key expiration" notification the RFC asks
+  for. A chain whose windows have not opened yet is not expired: it is refused.
+  <!-- source: internal/plugins/ospf/auth_keystore.go -- lastKeyIndex, selectSendKey, lastKeyExtendedIndex, notifyLastKeyExpiration -->
+  <!-- source: internal/plugins/ospf/events.go -- EventLastKeyExpiration -->
 - **Replay treats an EQUAL sequence by AuType.** On AuType 3 (extended
   sequence) RFC 7474 Section 2 requires the received sequence to be strictly
   greater than the last accepted, so an equal sequence is a replay. On AuType 2
