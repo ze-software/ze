@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -32,15 +32,17 @@
       "verdict": "enforced"
     },
     "RFC5310-3.2-5": {
-      "note": "Single-polarity positive. (a) forbidden: computing the IIH CRYPTO_AUTH result before padding to MTU; (b) TestISISHelloSignedOverPaddedPDU len(cs.pdu)!=wantPDU and the Padding TLV 8 check go red on sign-before-pad, but only on a LAN circuit (lanCircuit, SendHello->sendLANHello). The P2P IIH producer (sendP2PHello, runtime.go) has no tagged assertion, so a sign-before-pad there stays green. Ze has no padding-disable option, so the conditional branch does not arise.",
+      "note": "Single-polarity positive (no sign-before-pad path, no padding-disable option). Both IIH producers are now asserted: circuit TestISISHelloSignedOverPaddedPDU on the LAN IIH (sendLANHello) and TestRFC5310P2PHelloSignedOverPaddedPDU on the point-to-point IIH (sendP2PHello), each capturing the bytes handed to the CRYPTO_AUTH signer and requiring length MTU - LLC with Padding TLV 8 present, so signing before padding on either path goes red. Recorded + on hello.go padHello for the P2P unit.",
       "requirement_sha": "117c020645b89acb",
       "tests": {
+        "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5310P2PHelloSignedOverPaddedPDU": "103ec73a1dc2a973",
         "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU": "544e1e1ec48412a8"
       },
       "units": {
+        "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5310P2PHelloSignedOverPaddedPDU": "8ff43de19dc120b0",
         "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU": "3431ee8e9d228c16"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5310-3.4-1": {
       "note": "Single-polarity positive. (a) forbidden: computing the digest before the auth-type byte and TLV length are in place; (b) TestISISAuthHMACSHAApadPreimage recomputes HMAC-SHA-256 over the signed PDU (which carries the final type 3 byte and length) with the data region Apad-filled and asserts bytes.Equal(onWire, wantApad): a digest computed over a pre-image lacking the type or length differs and goes red. TestISISAuthSignVerifyHMACSHA256 pins AuthType 3 and value length 34 on every PDU class.",
@@ -56,28 +58,34 @@
       "verdict": "enforced"
     },
     "RFC5310-3.4-2": {
-      "note": "Same unit and gap as RFC5310-3.2-5: the pad-before-sign assertion (len == MTU-LLC, Padding TLV 8 present) runs on the LAN IIH only; the P2P IIH producer sendP2PHello has no tagged assertion.",
+      "note": "Same units as RFC5310-3.2-5: the LAN IIH (TestISISHelloSignedOverPaddedPDU) and the point-to-point IIH (TestRFC5310P2PHelloSignedOverPaddedPDU) are both handed to the signer already padded to MTU - LLC with Padding TLV 8, so authentication data computed before padding on either producer goes red. Single-polarity positive per the row. Recorded + on padHello.",
       "requirement_sha": "a825f69fb3dfd783",
       "tests": {
+        "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5310P2PHelloSignedOverPaddedPDU": "103ec73a1dc2a973",
         "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU": "544e1e1ec48412a8"
       },
       "units": {
+        "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5310P2PHelloSignedOverPaddedPDU": "8ff43de19dc120b0",
         "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU": "3431ee8e9d228c16"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5310-3.5-1": {
-      "note": "Discard clause enforced: root TestRFC1195InvalidAuthLSPDiscardedAtReceive delivers a CRYPTO_AUTH (HMAC-SHA-256) L1 LSP whose calculated data matches to the L1 LSP handler once and drops the copy with one digest octet changed before the handler (recorded +/- on verifyFrame); packet TestISISAuthWrongKeyRejected and TestISISAuthKeyIDMismatchRejected refuse a mismatching digest and an unmatched Key ID at VerifyPDU (recorded on VerifyPDU). Weak because the second clause, 'an error event SHOULD be logged', has no assertion: verifyFrame increments authFailures and logs at Debug, but no tagged unit asserts the counter or the log on a mismatch, so removing both stays green.",
+      "note": "Discard clause enforced: root TestRFC1195InvalidAuthLSPDiscardedAtReceive and TestRFC5310MismatchLogsAnErrorEvent deliver a matching HMAC-SHA-256 L1 LSP through the dispatcher and drop the copy with one digest octet changed before the handler (recorded +/- on auth_wiring.go verifyFrame); packet TestISISAuthWrongKeyRejected and TestISISAuthKeyIDMismatchRejected refuse at VerifyPDU. Weak on the second clause, 'an error event SHOULD be logged': verifyFrame logs the failure at Debug (e.log.Debug \"isis: auth verification failed\"), which the default log level does not emit, so no operator sees the event. TestRFC5310MismatchLogsAnErrorEvent installs a Debug-level handler to observe the line, so it asserts what the code does rather than a logged event; the ze_isis_auth_failures_total counter is recorded but is a metric, not a log. D-8 (R41): raise the line to a rate-limited Warn and assert it at the default level. The recorded negative break halts the whole verifyFrame, not the event lines.",
       "requirement_sha": "011f0397946d90fe",
       "tests": {
         "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive": "5a1b7e8882c21ead",
         "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive#2": "5a1b7e8882c21ead",
+        "internal/plugins/isis/auth_error_event_rfc5310_test.go::TestRFC5310MismatchLogsAnErrorEvent": "c91f7d4ccc1eec6f",
+        "internal/plugins/isis/auth_error_event_rfc5310_test.go::TestRFC5310MismatchLogsAnErrorEvent#2": "c91f7d4ccc1eec6f",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthKeyIDMismatchRejected": "6263fe382fc10923",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthWrongKeyRejected": "6263fe382fc10923"
       },
       "units": {
         "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive": "f8cbc414d75be51d",
         "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive#2": "f8cbc414d75be51d",
+        "internal/plugins/isis/auth_error_event_rfc5310_test.go::TestRFC5310MismatchLogsAnErrorEvent": "d3ed1d48f4614a72",
+        "internal/plugins/isis/auth_error_event_rfc5310_test.go::TestRFC5310MismatchLogsAnErrorEvent#2": "d3ed1d48f4614a72",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthKeyIDMismatchRejected": "5b02ad2a1ec80768",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthWrongKeyRejected": "5dfed394d545126c"
       },

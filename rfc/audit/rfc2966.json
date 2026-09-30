@@ -1,18 +1,23 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2966-2-1": {
-      "note": "Unchanged on re-read: TestISISLeakOriginationL1L2 gained only the RFC5305-4.1-1 tag comments. Forbidden behaviour: an L1L2 router originating an L2-derived prefix in its L1 LSP with bit 8 of the default metric clear. TestISISLeakOriginationL1L2 asserts hasLeak(leak.IntoL1, l2Derived, true), i.e. the LeakedPrefix.UpDown flag from spf.LeakPrefixes, not the bit in the originated L1 LSP; an encoder that dropped UpDown when writing TLV 128/130 would leave it green. The negative (L1 prefix leaked up with the flag clear) is likewise struct-level. No tagged assertion decodes the L1 LSP.",
+      "note": "Forbidden: an L1L2 router originating an L2-derived prefix in its L1 LSP with bit 8 of the default metric clear. RFC 2966 Section 2 defines the bit in the default metric field of TLVs 128 and 130 ('... field in TLVs 128 and 130 to be the up/down bit. L1L2 routers must set this bit to one ...'). root TestISISEngineLeakOrigination now decodes the engine's originated L1 LSP and requires the L2-derived prefix with the up/down bit set (positive) and the L1-derived prefix in the L2 LSP with it clear (negative), recorded +/- on lsdb_wiring.go leakedToPrefixInfos, but it decodes TLV 135 (wide metrics), whose up/down bit is RFC 5305 Section 4.1's. Narrow leaks keep TLV 128/130 (lsdb/origination.go, p.Narrow -> narrowIPReachEntryBytes), and no tagged unit decodes bit 8 of a narrow leaked entry, so an encoder that dropped UpDown on the narrow path stays green. spf TestISISLeakOriginationL1L2 proves the LeakedPrefix.UpDown flag only. Missing: a narrow-metric engine origination unit asserting bit 8 of the TLV 128/130 default metric.",
       "requirement_sha": "02c0456492e68635",
       "tests": {
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "38b9fda7904587b3",
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "38b9fda7904587b3",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "a790301b58d73b23",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "a790301b58d73b23"
       },
       "units": {
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "86fa460856391370",
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "86fa460856391370",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "d20f48a434482076",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "d20f48a434482076"
       },
@@ -48,8 +53,8 @@
       "note": "Forbidden: a less preferred class selected for a lower metric, or two members of one class ranked against each other. TestRFC2966EveryClassMemberOutranksNextClass drives every member of each class the fixture can express (L1 internal and external-with-internal-metric; L2 internal and external-with-internal-metric, which is also the L1->L2 inter-area member to the receiver; L2->L1 internal and external-with-internal-metric; L1 external-metric; L2 external-metric; L2->L1 external-metric) against every member of the next class, preferred one at cost 100/metric 60 against 1/1. TestRFC2966EqualClassMembersCompareByMetric requires the lower metric to win between two members of one class in both orders, so a member ranked apart from its class goes red. Recorded red on preferenceRank and better; the older adjacent-pair tests remain.",
       "requirement_sha": "4b658f5f14dd60c3",
       "tests": {
-        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC2966EqualClassMembersCompareByMetric": "e6d3e6dc3c5c468c",
-        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC2966EveryClassMemberOutranksNextClass": "e6d3e6dc3c5c468c",
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC2966EqualClassMembersCompareByMetric": "1ef6f2102a068439",
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC2966EveryClassMemberOutranksNextClass": "1ef6f2102a068439",
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966ExternalL1DoesNotOverrideDownInternal": "2fd56cd76cc7d907",
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966SixPreferenceClasses": "2fd56cd76cc7d907"
       },

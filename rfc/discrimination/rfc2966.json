@@ -2,6 +2,28 @@
   "rfc": "rfc2966",
   "records": [
     {
+      "rid": "RFC2966-2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination",
+      "unit-sha": "49bde07950d95024",
+      "claim-sha": "eee725cd8f1e1861",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb_wiring.go::leakedToPrefixInfos",
+      "producer-sha": "f4832c3a5aef6c22",
+      "break": "body of leakedToPrefixInfos replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2966-2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination",
+      "unit-sha": "49bde07950d95024",
+      "claim-sha": "7d0c360a65e6c17c",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb_wiring.go::leakedToPrefixInfos",
+      "producer-sha": "f4832c3a5aef6c22",
+      "break": "body of leakedToPrefixInfos replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2966-3.2-1",
       "polarity": "negative",
       "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC2966EqualClassMembersCompareByMetric",

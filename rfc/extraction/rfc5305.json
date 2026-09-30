@@ -4,8 +4,9 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc5305.txt",
   "source-sha": "1bb1a875678e75b2",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-09-30",
   "reviewer": "claude",
+  "resign-reason": "Sites 3:1 and 3.7:1 (the MAX_PATH_METRIC clamp 'within a traffic engineering Shortest Path First (SPF) implementation') move from mapped to excluded as feature-out-of-scope: Ze runs no TE SPF (owner decision 2026-09-21 'Keep configured routes', the decision RFC5305-3.7-1 records), so row RFC5305-3-2 is retired (rfc/corrections/rfc5305.md, Retired 2026-09-30). No other site changed.",
   "sections": [
     {
       "id": "front",
@@ -155,8 +156,9 @@
     {
       "id": "3:1",
       "quote": "To preclude overflow within a traffic engineering Shortest Path First (SPF) implementation, all metrics greater than or equal to MAX_PATH_METRIC SHALL be considered to have a metric of MAX_PATH_METRIC.",
-      "disposition": "mapped",
-      "mapped-to": "RFC5305-3-2"
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on a traffic engineering SPF implementation, a feature Ze does not provide. RFC 5305 Section 3: 'To preclude overflow within a traffic engineering Shortest Path First (SPF) implementation, all metrics greater than or equal to MAX_PATH_METRIC SHALL be considered to have a metric of MAX_PATH_METRIC.' Section 3.7 repeats it for the TE Default metric sub-TLV. Ze runs no TE SPF: owner decision 2026-09-21 'Keep configured routes' for TE path computation (the same scope decision RFC5305-3.7-1 records), so RSVP-TE paths come from configured EROs, native next-hop lookups and configured bypasses (internal/plugins/rsvpte parseERO, resolveExplicitPath, selectBypass), and Ze decodes no TE metric sub-TLV. Ze's normal SPF saturates path sums at MAX_PATH_METRIC anyway (spf.go clampMetric), which RFC 5308 Section 5 obliges and RFC5308-5-2 carries. This is a SCOPE DECISION: TE SPF is an implementation gap, not a conformance gap."
     },
     {
       "id": "3:2",
@@ -191,8 +193,9 @@
     {
       "id": "3.7:1",
       "quote": "To preclude overflow within a traffic engineering SPF implementation, all metrics greater than or equal to MAX_PATH_METRIC SHALL be considered to have a metric of MAX_PATH_METRIC.",
-      "disposition": "mapped",
-      "mapped-to": "RFC5305-3-2"
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Conditional on a traffic engineering SPF implementation, a feature Ze does not provide. RFC 5305 Section 3: 'To preclude overflow within a traffic engineering Shortest Path First (SPF) implementation, all metrics greater than or equal to MAX_PATH_METRIC SHALL be considered to have a metric of MAX_PATH_METRIC.' Section 3.7 repeats it for the TE Default metric sub-TLV. Ze runs no TE SPF: owner decision 2026-09-21 'Keep configured routes' for TE path computation (the same scope decision RFC5305-3.7-1 records), so RSVP-TE paths come from configured EROs, native next-hop lookups and configured bypasses (internal/plugins/rsvpte parseERO, resolveExplicitPath, selectBypass), and Ze decodes no TE metric sub-TLV. Ze's normal SPF saturates path sums at MAX_PATH_METRIC anyway (spf.go clampMetric), which RFC 5308 Section 5 obliges and RFC5308-5-2 carries. This is a SCOPE DECISION: TE SPF is an implementation gap, not a conformance gap."
     },
     {
       "id": "3.7:2",

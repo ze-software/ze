@@ -1,6 +1,7 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -35,7 +36,7 @@
       "note": "Forbidden: a reachability entry used with no default metric. The default metric octet has no S (unsupported) bit in the 12-octet TLV 128/130 layout, so an entry lacking it can only arrive as a short entry, and the length refusal is this rule's own refusal. TestRFC1195InternalEntryWithoutDefaultMetricRefused asserts DecodeNarrowIPReachTLV returns ErrLength for the entry with its first octet removed while the complete entry decodes with metric 9, and the full LSDB/SPF path keeps the competing route (3 then 2,160); a floor(len/12) decoder goes red. Positive TestRFC1195RouteForEachReachabilityEntry: SPF uses each entry's own default metric. Both units carry observed-red revert records.",
       "requirement_sha": "740c15f229932bfa",
       "tests": {
-        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195InternalEntryWithoutDefaultMetricRefused": "e6d3e6dc3c5c468c",
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195InternalEntryWithoutDefaultMetricRefused": "1ef6f2102a068439",
         "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195RouteForEachReachabilityEntry": "21a45be2072f321b"
       },
       "units": {
@@ -61,7 +62,7 @@
       "note": "Forbidden: more than one L2 entry for a prefix several L1 routers announce, or an L2 metric above the minimum. metricLeak fails unless exactly one L2 entry for the prefix is originated; TestRFC1195SpecificLeakCollapsesDuplicatePrefix (two routers, 20 and 9) and TestRFC1195SpecificLeakKeepsOnlyMinimum (three routers, 20, 12 and 9, cheapest not first in system-id order) each require metric 9. Distinct inputs, so no longer one assertion with two tags; a first-seen or last-seen leak producer fails the three-router case. No refusal path exists for an originator. Negative carries an observed-red record on leakInto; the positive has none but reads red on the same breaks.",
       "requirement_sha": "bdf8c500d5a357fb",
       "tests": {
-        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SpecificLeakKeepsOnlyMinimum": "e6d3e6dc3c5c468c",
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SpecificLeakKeepsOnlyMinimum": "1ef6f2102a068439",
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195SpecificLeakCollapsesDuplicatePrefix": "2fd56cd76cc7d907"
       },
       "units": {
@@ -140,33 +141,33 @@
       "verdict": "weak"
     },
     "RFC1195-4.4-2": {
-      "note": "Positive clauses are asserted: TestRFC1195ISHTransmitReceive fails if no ISH is sent to AllESs before the IIH or if a received ISH does not initialize the adjacency; the veth test covers the AF_PACKET path. The negatives (corrupt ISH, wrong circuit, wrong/missing password) prove neighbouring rules, not a failure to transmit or receive ISH, and the row has no {single-polarity} marker. ish_auth tests prove the per-link password (7-7).",
+      "note": "Positive clauses are asserted: TestRFC1195ISHTransmitReceive fails if no ISH is sent to AllESs before the IIH or if a received ISH does not initialize the adjacency; the veth test covers the AF_PACKET path. The negatives (corrupt ISH, wrong circuit, wrong/missing password) prove neighbouring rules, not a failure to transmit or receive ISH, and the row has no {single-polarity} marker. ish_auth tests prove the per-link password (7-7). Re-judged 2026-09-30: TestRFC1195ISHTransmitReceive changed only by an added RFC1195-5.2-1 tag comment; the finding stands.",
       "requirement_sha": "8c66d07c7d1e3d6f",
       "tests": {
         "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHConfiguredPassword": "53ff993953928049",
         "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHWrongPassword": "53ff993953928049",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHRejectsCorruptionAndWrongCircuit": "e4d9a34a0933c3a4",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "e4d9a34a0933c3a4",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHRejectsCorruptionAndWrongCircuit": "8ef15f47b162b125",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "8ef15f47b162b125",
         "internal/plugins/isis/transport/ish_integration_linux_test.go::TestRFC1195ISHVethTransport": "dde962b1c6246aa3"
       },
       "units": {
         "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHConfiguredPassword": "5f12832206a0378f",
         "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHWrongPassword": "6a49678dca8c530b",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHRejectsCorruptionAndWrongCircuit": "1e254aaaf552ac6f",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "7fc74f1315458e89",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "6d343718f2972a57",
         "internal/plugins/isis/transport/ish_integration_linux_test.go::TestRFC1195ISHVethTransport": "84afac45bef8b1b8"
       },
       "verdict": "weak"
     },
     "RFC1195-4.4-3": {
-      "note": "Enabling IPv6 on one interface gives identical NLPIDs in both IIHs and the LSP; after reload no stale IPv6 capability remains on the unchanged circuit.",
+      "note": "Enabling IPv6 on one interface gives identical NLPIDs in both IIHs and the LSP; after reload no stale IPv6 capability remains on the unchanged circuit. Re-judged 2026-09-30: TestRFC1195NodeProtocolsAcrossInterfaces changed only by an added RFC1195-5.2-1 tag comment.",
       "requirement_sha": "df01baf86fc8de6e",
       "tests": {
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "e4d9a34a0933c3a4",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsReload": "e4d9a34a0933c3a4"
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "8ef15f47b162b125",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsReload": "8ef15f47b162b125"
       },
       "units": {
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "dd1d33b5ab8c5360",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "18e394a55516b315",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsReload": "178ba95fda4334ef"
       },
       "verdict": "enforced"
@@ -193,37 +194,43 @@
       "verdict": "enforced"
     },
     "RFC1195-5.2-1": {
-      "note": "The tagged unit lsdb TestISISOriginateOnAdjacencyUp proves only the LSP-number-0 clause (TLV 129 with NLPID 0xCC in fragment 0). The quoted span also obliges Protocols Supported in every IS-IS Hello and in ISO 9542 ISHs on point-to-point links; those clauses are asserted by TestRFC1195NodeProtocolsAcrossInterfaces and TestRFC1195ISHTransmitReceive, which carry other tags, not this one.",
+      "note": "Single-polarity positive per the row. Now asserted: TLV 129 with NLPID 0xCC in the LAN IIH each interface transmits and in the node's LSP number 0 (root TestRFC1195NodeProtocolsAcrossInterfaces), in the ISO 9542 ISH a point-to-point circuit transmits (root TestRFC1195ISHTransmitReceive), and in LSP fragment 0 (lsdb TestISISOriginateOnAdjacencyUp); recorded + on circuit/hello.go protocolsSupportedTLV. Still weak on 'all IS-IS Hello packets': no unit carrying this tag asserts TLV 129 in a point-to-point IIH. TestRFC1195ISHTransmitReceive decodes the post-ISH P2P IIH but checks only its TLV 240, and circuit TestISISIIHOriginationTLVs, which does check TLV 129 in the P2P IIH, carries RFC3787-x-2 only. A buildP2PHello that dropped originationTLVs' TLV 129 stays green under this row's tags. Missing: a TLV 129 assertion on the transmitted P2P IIH in a unit tagged RFC1195-5.2-1.",
       "requirement_sha": "7dd876d267bd817e",
       "tests": {
-        "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "66ccab517853dff8"
+        "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "66ccab517853dff8",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "8ef15f47b162b125",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "8ef15f47b162b125"
       },
       "units": {
-        "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "8d1385b0faf90a94"
+        "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "8d1385b0faf90a94",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "6d343718f2972a57",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "18e394a55516b315"
       },
       "verdict": "weak"
     },
     "RFC1195-5.2-2": {
-      "note": "lsdb TestISISOriginateOnAdjacencyUp fails if the Originator omits TLV 132 when the test hands it InterfaceAddrs, but it checks only the TLV type, not the addresses, and the engine path that collects the router's interface addresses (lsdb_wiring.go) is not exercised by any tagged unit, so an engine that passed none stays green. The codec test proves decoding only.",
+      "note": "Single-polarity positive per the row. root TestRFC1195SameInterfaceAddressesBothLevels runs an L1L2 engine with two circuits on the connected-prefix test backend and requires fragment 0's TLV 132 at each level to be exactly {192.0.2.9, 198.51.100.9}: the engine path (lsdb_wiring.go levelState) that collects the router's own interface addresses into its LSPs is now exercised, closing the earlier gap (only the Originator was driven, with addresses the test supplied, and only the TLV type was checked). An engine that passed no addresses, or the wrong ones, goes red. Recorded + on levelState. lsdb TestISISOriginateOnAdjacencyUp remains tagged.",
       "requirement_sha": "a975bea804aee1af",
       "tests": {
         "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "66ccab517853dff8",
-        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4InterfaceAddr": "a9c7db27fc400dcf"
+        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4InterfaceAddr": "a9c7db27fc400dcf",
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels": "1ef6f2102a068439"
       },
       "units": {
         "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "8d1385b0faf90a94",
-        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4InterfaceAddr": "875bee7c0cecca99"
+        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4InterfaceAddr": "875bee7c0cecca99",
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels": "7ddfe3c23f1ba086"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1195-5.2-3": {
-      "note": "Single-polarity positive per the row annotation (no per-level divergence path to drive a refusal). TestRFC1195SameInterfaceAddressesBothLevels runs an L1L2 engine with two circuits on the connected-prefix test backend and requires the TLV 132 set of its own fragment 0 at Level 1 and at Level 2 to equal exactly {192.0.2.9, 198.51.100.9}; a producer that dropped or added an address at one level goes red. Recorded red on lsdb_wiring.go levelState. The old tag on TestISISEngineOriginateOnAdjacencyUp, which compared nothing, is gone.",
+      "note": "Single-polarity positive per the row annotation (no per-level divergence path to drive a refusal). TestRFC1195SameInterfaceAddressesBothLevels runs an L1L2 engine with two circuits on the connected-prefix test backend and requires the TLV 132 set of its own fragment 0 at Level 1 and at Level 2 to equal exactly {192.0.2.9, 198.51.100.9}; a producer that dropped or added an address at one level goes red. Recorded red on lsdb_wiring.go levelState. The old tag on TestISISEngineOriginateOnAdjacencyUp, which compared nothing, is gone. Re-judged 2026-09-30: TestRFC1195SameInterfaceAddressesBothLevels changed only by an added RFC1195-5.2-2 tag comment.",
       "requirement_sha": "c525e1bf6aa7c48d",
       "tests": {
-        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels": "e6d3e6dc3c5c468c"
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels": "1ef6f2102a068439"
       },
       "units": {
-        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels": "d42ee33b48ee6e8c"
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels": "7ddfe3c23f1ba086"
       },
       "verdict": "enforced"
     },
@@ -231,8 +238,8 @@
       "note": "The TLV 135 tag on packet TestISISTLVIPv4RoundTrip (RFC 5305 extended reachability, not an RFC 1195 entry) is gone, which was the only reason for weak. Positive TestRFC1195OriginatedExternalEntriesCarryDefaultMetric decodes every TLV 130 entry the Originator emits and requires the configured default metric (7 internal type, 33 external type), so an originator that dropped or zeroed it goes red. Negative TestRFC1195ExternalEntryWithoutDefaultMetricRefused removes the default metric octet from a TLV 130 entry: requireNoDefaultMetricRefused requires ErrLength and the route falls back to the competing entry (winner 2, metric 160). Both recorded red.",
       "requirement_sha": "1aa511355973b83b",
       "tests": {
-        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalEntryWithoutDefaultMetricRefused": "e6d3e6dc3c5c468c",
-        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195OriginatedExternalEntriesCarryDefaultMetric": "e6d3e6dc3c5c468c"
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalEntryWithoutDefaultMetricRefused": "1ef6f2102a068439",
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195OriginatedExternalEntriesCarryDefaultMetric": "1ef6f2102a068439"
       },
       "units": {
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalEntryWithoutDefaultMetricRefused": "a8fc3327b50ab2ff",
@@ -297,7 +304,7 @@
       "note": "Obligation: a periodic full update recovers what incremental processing missed. TestRFC1195PeriodicSPFRecoversMissedUpdate: a foreign metric change stored with no trigger leaves the route stale at 11, and the aging timer's refresh repairs it to 15. TestRFC1195PeriodicSPFRemovesMissedWithdrawal: a silently withdrawn prefix stays installed (asserted) until ageOnce's periodic pass removes it. Two separate inputs (changed metric, withdrawal); both go red if the periodic pass stops running SPF. The negative is recorded red on refreshOwnLSPs. The 'studies suggest' clause is descriptive and carries no obligation.",
       "requirement_sha": "0b92b9bc4e437fb6",
       "tests": {
-        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195PeriodicSPFRemovesMissedWithdrawal": "e6d3e6dc3c5c468c",
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195PeriodicSPFRemovesMissedWithdrawal": "1ef6f2102a068439",
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PeriodicSPFRecoversMissedUpdate": "2fd56cd76cc7d907"
       },
       "units": {
@@ -323,7 +330,7 @@
       "note": "Forbidden: L2 internal and external routes compared as one set. TestRFC1195InternalMetricOutranksExternal: the internal route at cost 163 beats an external-metric route at cost 2, so merging the sets by cost goes red. TestRFC1195ExternalSetRetainedBesideInternal: after the internal route is withdrawn the external set is still there and installs at its external metric 1, not the internal sum 2, so discarding or folding the external set into internal-metric arithmetic goes red. Negative recorded red on spf/route.go better. The old negative (external TLV with internal metric) no longer carries this tag.",
       "requirement_sha": "2fa4ebf4b250f210",
       "tests": {
-        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalSetRetainedBesideInternal": "e6d3e6dc3c5c468c",
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalSetRetainedBesideInternal": "1ef6f2102a068439",
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalMetricOutranksExternal": "2fd56cd76cc7d907"
       },
       "units": {

@@ -13,6 +13,28 @@
       "break": "line 227: \"e.Metric \u003e= types.MaxMetric\" -\u003e \"false\""
     },
     {
+      "rid": "RFC5305-4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5305PrefixAboveMaxPathMetricNotConsidered",
+      "unit-sha": "2cf110fa0d2dfbbc",
+      "claim-sha": "3b79d4f32383d6db",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf/route.go::BuildRoutes",
+      "producer-sha": "7beede9dd623825b",
+      "break": "body of BuildRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5305PrefixAboveMaxPathMetricNotConsidered",
+      "unit-sha": "2cf110fa0d2dfbbc",
+      "claim-sha": "e75c54d9e6fbb76d",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf/route.go::BuildRoutes",
+      "producer-sha": "7beede9dd623825b",
+      "break": "body of BuildRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5305-4.1-1",
       "polarity": "positive",
       "unit": "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2",

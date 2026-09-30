@@ -1,0 +1,71 @@
+{
+  "rfc": "rfc5303",
+  "records": [
+    {
+      "rid": "RFC5303-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsCurrentThreeWayState",
+      "unit-sha": "236ce68af0ab10c7",
+      "claim-sha": "a84d7bdcf9f5e542",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
+      "producer-sha": "ff7005409d43b373",
+      "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5303-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsCurrentThreeWayState",
+      "unit-sha": "236ce68af0ab10c7",
+      "claim-sha": "aa70a6e481828210",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
+      "producer-sha": "ff7005409d43b373",
+      "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5303-3.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsDownWithoutAdjacency",
+      "unit-sha": "1c71649fc999dc1f",
+      "claim-sha": "42052adc907cfafe",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
+      "producer-sha": "ff7005409d43b373",
+      "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5303-3.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsDownWithoutAdjacency",
+      "unit-sha": "1c71649fc999dc1f",
+      "claim-sha": "c837c34dba158ba1",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
+      "producer-sha": "ff7005409d43b373",
+      "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5303-3.2-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHEchoesKnownNeighbor",
+      "unit-sha": "53bc757ec7836617",
+      "claim-sha": "f52b30f3f73b96a8",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
+      "producer-sha": "ff7005409d43b373",
+      "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5303-3.2-5",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHEchoesKnownNeighbor",
+      "unit-sha": "53bc757ec7836617",
+      "claim-sha": "ff589834e97f724f",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/hello.go::threeWayTLV",
+      "producer-sha": "a5af50b8d659af59",
+      "break": "body of threeWayTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

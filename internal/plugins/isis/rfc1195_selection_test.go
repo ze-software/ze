@@ -318,6 +318,7 @@ func ownInterfaceAddrs(t *testing.T, eng *engine, level lsdb.Level) []netip.Addr
 }
 
 // RFC requirement: RFC1195-5.2-3 positive -- a level 1 and level 2 router with two circuits originates fragment zero at both levels, and each LSP's TLV 132 set is exactly both circuit addresses, 192.0.2.9 and 198.51.100.9.
+// RFC requirement: RFC1195-5.2-2 positive -- the engine collects the router's own interface addresses into its LSPs: fragment zero at each level carries TLV 132 listing exactly the two circuit addresses, 192.0.2.9 and 198.51.100.9.
 func TestRFC1195SameInterfaceAddressesBothLevels(t *testing.T) {
 	if err := registerConnectedPrefixBackend(); err != nil {
 		t.Fatal(err)

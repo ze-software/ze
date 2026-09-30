@@ -145,6 +145,39 @@
       "break": "body of DecodeIPv4InterfaceAddrTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC1195-5.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive",
+      "unit-sha": "f1a2526422b8829f",
+      "claim-sha": "c7960a830f2501c5",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+      "producer-sha": "1d45130d31599694",
+      "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-5.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces",
+      "unit-sha": "e063b6b3b89f9e14",
+      "claim-sha": "79e274d578e41819",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+      "producer-sha": "1d45130d31599694",
+      "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-5.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels",
+      "unit-sha": "f40d8c8617a7f784",
+      "claim-sha": "ad1204d88f8e21da",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb_wiring.go::levelState",
+      "producer-sha": "3a25a6b2e7d74162",
+      "break": "body of levelState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1195-5.2-3",
       "polarity": "positive",
       "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels",
