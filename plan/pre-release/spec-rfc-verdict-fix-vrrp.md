@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the VRRP group before any row edit, parent R-11) |
-| Phase | - |
+| Phase | closure |
 | Handoff | - |
-| Updated | 2026-09-28 |
+| Updated | 2026-09-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -413,3 +413,131 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** tests + rows + verdicts + records + D-8 code + edited spec
 - [ ] **Commit B:** `remove plan/pre-release/spec-rfc-verdict-fix-vrrp.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- The work landed in eight commits before closure: `1edd22e34b` (top-level package), `a8df9fb378` (Backup virtual-MAC discard, D-8), `1668229d77` (discard/ARP/VRID/tx-order wiring), `5ccbd604ee` (packet, fsm and transport tests plus wire proof), `7fc9569163` (R17/R18 checksum split, last weak rows), `0286f6e966` (RFC9568-7.2-1 fill proven from state), `9621dd4d71` (AC-C3 split and missing rows), `e56bee5971` (RFC 9568 redirect rows, RFC5798-8.2.1-2 gap withdrawn), with the journal row in `835266cdc4`.
+- Final verdicts, 2026-09-30: rfc3768 38 enforced; rfc5798 47 enforced; rfc9568 53 enforced and 2 unimplemented (the `{gap}` rows RFC9568-5.2.8-2 and RFC9568-7.2-5, the disclosed keepalived checksum deviation, R17/R18). No weak or wrong verdict remains in the three stems.
+
+### Bugs Found/Fixed
+- D-8: a Backup forwarded frames sent to the Virtual Router MAC (RFC 9568/5798/3768 §6.4.2). `internal/plugins/vrrp/backupfilter.go` (`setBackupFilter`, `clearBackupFilter`, `backupFilterTables`) installs an inet prerouting drop on the macvlan while the instance is not Active; `instance.run`, `doRemoveVIPs` and `doInstallVIPs` own its lifetime. Covered by `TestVRRPBackupDoesNotForwardVirtualMACFrames` (QEMU guest record) and the backup filter unit tests.
+
+### Documentation Updates
+- `docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md`: the `ze_vrrp_backup` table, anchored `<!-- source: internal/plugins/vrrp/backupfilter.go -- backupFilterTables -->` and `instance.go -- run, doInstallVIPs, doRemoveVIPs` (commit `a8df9fb378`); the IPv6 redirect section (commit `e56bee5971`).
+- `docs/guide/vrrp.md`: "A Backup drops traffic sent to the virtual MAC" (commit `a8df9fb378`).
+- `rfc/short/rfc9568.md` and `rfc/short/rfc5798.md` Meta rows disclose the IPv4 checksum deviation. `docs/features/rfc-status.md` is derived on demand and untracked since `8ae7424594`, so it needs no edit.
+
+### Deviations from Plan
+- R17/R18 (main-thread rulings): RFC9568-7.2-1 and 5.2.8-1 split under R3 into a proven row and a `{gap}` row naming the keepalived interop deviation, instead of reaching `enforced` whole.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Goal (AC-C1): the derived listing holds only "Blocked by" ids | Done | `rfc/audit/rfc3768.json`, `rfc5798.json`, `rfc9568.json` | the listing returns 0 rows; no id is blocked |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-C1 | Done | Derived listing jq, 0 rows on 2026-09-30 | |
+| AC-C2 | Done | `./le rfc check` reports no VRRP-stem violation (no missing record, no stale verdict) | judges were separate agents per commit message |
+| AC-C3 | Done | RFC9568-7.1-4 (VRID MUST) and 7.1-12 (owner SHOULD, erratum 8298) enforced; RFC3768-8.2-4, RFC9568-8.1.2-6, 8.2.2-8, 5.2.8-3 new rows enforced; RFC5798-8.1.1-2 / 8.2.1-2 enforced; RFC5798-A.2-3 superseded (dropped) with correction | corrections in `rfc/corrections/rfc3768.md`, `rfc5798.md`, `rfc9568.md` |
+| AC-C4 | Done | no code-defect-list spec's defect fixed here; the one D-8 (Backup VMAC forwarding) is R4's, assigned to this child | |
+| AC-C5 | Done | `./le rfc check` on 2026-09-30: no line names rfc3768, rfc5798, rfc9568 or vrrp | its exit 2 is other sessions' uncommitted stems |
+| AC-C6 | Done | RFC3768-6.4.3-9 kept at MUST, dated correction in `rfc/corrections/rfc3768.md`, verdict enforced | |
+| AC-C7 | N-A | the Un-enrolled R-7 table holds no row of this child | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| tagged units, vrrp | Done | `internal/plugins/vrrp/*_test.go` | e.g. `backupfilter_test.go`, `rx_discard_rfc9568_test.go`, `redirect_v6_integration_linux_test.go` |
+| tagged units, packet | Done | `internal/plugins/vrrp/packet/rfc_rx_verdict_test.go`, `rfc9568_ipv6_pseudo_header_test.go` | |
+| tagged units, fsm | Done | `internal/plugins/vrrp/fsm/rfc_verdict_test.go` | |
+| tagged units, transport | Done | `internal/plugins/vrrp/transport/rfc_*_verdict*_test.go`, `advert_fill_checksum_test.go` | |
+| Functional `.ci` | N-A | | no verdict needed a `.ci` change |
+| Interop (D-8) | N-A | | the Backup discard is local forwarding behaviour; no peer observes it. Proven in the QEMU guest by `TestVRRPBackupDoesNotForwardVirtualMACFrames` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `rfc/{short,audit,discrimination,corrections,extraction}/rfc3768, rfc5798, rfc9568` | Done | owned stems only |
+| `internal/plugins/vrrp/backupfilter.go`, `instance.go`, `register.go` | Done | D-8 producer, `a8df9fb378` |
+
+### Audit Summary
+- **Total items:** 13
+- **Done:** 10
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0 (3 N-A, reasons above)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every weak or wrong verdict in scope resolved: enforced by an independent judge, or the row corrected, split or retired | ledger query + gate | derived listing 0 rows; per-stem tally 38/47/53 enforced plus 2 `{gap}` unimplemented; `./le rfc check` names no VRRP stem |
+| The D-8 defect fixed in the product | QEMU integration test | `TestVRRPBackupDoesNotForwardVirtualMACFrames` (`vmac_state_integration_linux_test.go`), discrimination record observed red under the break |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every row in scope is resolved | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfc-verdict-fix-vrrp-869df689-cc8f-4d78-9161-1d7c87434c8e.md` |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | logic+wiring (backup filter lifetime, owner key reuse across restart), security+edge-cases (drop scope on the macvlan), tagged-test weakening (`./le commit audit base 1edd22e34b~1`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | none above NOTE | - | - |
+
+NOTEs, recorded and not blocking:
+- `TestValidateVIPFamilyMatchesGroupFamily` (`groups_test.go`) swapped the lone wrong-family VIP case for a mixed list with the wrong address second. The IPv6 swap removes a confound (the link-local-first rule refused it first); the IPv4 case lost its index-0 wrong-family input. `validateGroup` loops over every VIP, so no product gap.
+- `./le commit audit` lists the VRRP tagged-unit edits as `[WEAKENED]`. Each unit's commit carries its `RFC-approved:` D-15 trailer (P-1), and the diffs read as strengthened assertions (for example `TestInstanceRxDecodeErrorMapsReason` now pins the `truncated` reason and no FSM event).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/vrrp/backupfilter.go` | yes | `git show a8df9fb378 --stat` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-C1 | listing empty | derived jq, `wc -l` = 0 on 2026-09-30 |
+| AC-C3 | split and missing rows carry verdicts | jq: RFC9568-8.1.2-6, 8.2.2-8, 5.2.8-3, 7.1-4, 7.1-12, RFC3768-8.2-4, RFC5798-8.1.1-2, 8.2.1-2 all `enforced` |
+| AC-C5 | no VRRP violation | `./le rfc check` output holds no rfc3768/rfc5798/rfc9568/vrrp line |
+| AC-C6 | 6.4.3-9 reviewed | the dated RFC3768-6.4.3-9 paragraph in `rfc/corrections/rfc3768.md` |
+| all | package tests green | `go test -race ./internal/plugins/vrrp/...` under `./le job run`: vrrp, fsm, packet, transport, yang ok |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc check` | none (ledger gate) | ran 2026-09-30, no VRRP-stem finding |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | every re-judge in the eight commits went through `audit-stamp ... mode rejudge` |
+| A-2 | confirmed | the listing reached 0 rows with no id needing another spec's producer fix |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Backup drops Virtual Router MAC traffic via `ze_vrrp_backup` | `backupfilter.go` `backupFilterTables`, `instance.go` `setBackupDiscard` | yes |
+| RFC status (#9) | `rfc/short/rfc9568.md` / `rfc5798.md` Meta disclose the checksum deviation; the status page is derived | yes |
