@@ -12,11 +12,12 @@ import (
 	"sort"
 
 	"golang.org/x/tools/gopls/internal/protocol"
+	"golang.org/x/tools/gopls/internal/tool"
 )
 
 // symbols implements the symbols verb for gopls
 type symbols struct {
-	app *application
+	app *Application
 }
 
 func (r *symbols) Name() string      { return "symbols" }
@@ -32,7 +33,7 @@ Example:
 }
 func (r *symbols) Run(ctx context.Context, args ...string) error {
 	if len(args) != 1 {
-		return commandLineErrorf("symbols expects 1 argument (position)")
+		return tool.CommandLineErrorf("symbols expects 1 argument (position)")
 	}
 
 	cli, _, err := r.app.connect(ctx)

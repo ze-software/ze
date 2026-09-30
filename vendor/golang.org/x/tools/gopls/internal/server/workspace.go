@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/tools/gopls/internal/cache"
 	"golang.org/x/tools/gopls/internal/file"
+	"golang.org/x/tools/gopls/internal/filecache"
 	"golang.org/x/tools/gopls/internal/golang/completion"
 	"golang.org/x/tools/gopls/internal/protocol"
 	"golang.org/x/tools/gopls/internal/settings"
@@ -143,7 +144,9 @@ func (s *server) DidChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 	// An options change may have affected the detected Go version.
 	s.checkViewGoVersions()
 
-	updateGlobalOptions(options)
+	if options.MaxFileCacheBytes > 0 {
+		filecache.SetBudget(options.MaxFileCacheBytes)
+	}
 
 	return nil
 }

@@ -14,10 +14,11 @@ import (
 
 	"golang.org/x/tools/gopls/internal/protocol"
 	"golang.org/x/tools/gopls/internal/settings"
+	"golang.org/x/tools/gopls/internal/tool"
 )
 
-// A definitionJSON is the result of a 'definition' query.
-type definitionJSON struct {
+// A Definition is the result of a 'definition' query.
+type Definition struct {
 	Span        span   `json:"span"`        // span of the definition
 	Description string `json:"description"` // description of the denoted object
 }
@@ -33,7 +34,7 @@ const (
 
 // definition implements the definition verb for gopls.
 type definition struct {
-	app *application
+	app *Application
 
 	JSON              bool `flag:"json" help:"emit output in JSON format"`
 	MarkdownSupported bool `flag:"markdown" help:"support markdown in responses"`
@@ -59,7 +60,7 @@ definition-flags:
 // results to stdout.
 func (d *definition) Run(ctx context.Context, args ...string) error {
 	if len(args) != 1 {
-		return commandLineErrorf("definition expects 1 argument")
+		return tool.CommandLineErrorf("definition expects 1 argument")
 	}
 	// Plaintext makes more sense for the command line.
 	opts := d.app.options
@@ -118,7 +119,7 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 		description = strings.TrimSpace(hover.Contents.Value)
 	}
 
-	result := &definitionJSON{
+	result := &Definition{
 		Span:        definition,
 		Description: description,
 	}
