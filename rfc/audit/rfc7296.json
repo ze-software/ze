@@ -165,17 +165,21 @@
       "verdict": "wrong"
     },
     "RFC7296-2.15-2": {
-      "note": "asserts parseAuthConfig keeps the PSK length and adds no NUL; the claimed use path computePSKAuth (engine/auth.go) is not exercised, so a NUL appended at use would stay green",
+      "note": "The weak finding (use path unexercised) is closed. Parse side: ipsec TestPSKHasNoNullTerminatorAdded (parseAuthConfig keeps the PSK octets, adds and strips nothing). Use side, new engine/rfc7296_psk_terminator_test.go: positive TestRFC7296PSKIsUsedWithoutANullTerminator compares computePSKAuth's AUTH with an independent stdlib HMAC-SHA2-256 prf(prf(secret,'Key Pad for IKEv2'),SignedOctets) over the secret octets alone (equal) and over secret+0x00 (not equal), and verifyPSKAuth accepts the no-terminator AUTH; negative TestRFC7296PSKWithANullTerminatorAddedIsRefused: verifyPSKAuth refuses the AUTH over secret+0x00 with errAuthFailed, so the receiving side adds no terminator either. Producers read: both pass []byte(sa.PeerCfg.Auth.PSK) to computeAuthFromSharedSecret/verifyAuthFromSharedSecret. Records: computePSKAuth and verifyPSKAuth panic reverts observed red. Judge ran both: PASS. Prose defect, not a proof gap: psktermSecret is 65 octets, while its comment and both claims say 64; the claim wording should be corrected (and the records re-recorded) by the author.",
       "requirement_sha": "2cc3de1d48a12793",
       "tests": {
+        "internal/component/ike/engine/rfc7296_psk_terminator_test.go::TestRFC7296PSKIsUsedWithoutANullTerminator": "314b2fbffa4889fe",
+        "internal/component/ike/engine/rfc7296_psk_terminator_test.go::TestRFC7296PSKWithANullTerminatorAddedIsRefused": "314b2fbffa4889fe",
         "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded": "ceba76468bf16893",
         "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded#2": "ceba76468bf16893"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_psk_terminator_test.go::TestRFC7296PSKIsUsedWithoutANullTerminator": "0cc0f438be919023",
+        "internal/component/ike/engine/rfc7296_psk_terminator_test.go::TestRFC7296PSKWithANullTerminatorAddedIsRefused": "7252b903efd90870",
         "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded": "6bffd906d334a3b1",
         "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded#2": "6bffd906d334a3b1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-2.16-11": {
       "note": "EAP responder AUTH is an RFC 7427 signature verified under the cert key; no-cert EAP refused at setup and config; initiator refuses PSK AUTH from EAP responder; PSK peers unaffected",
@@ -1194,7 +1198,7 @@
       "verdict": "enforced"
     },
     "RFC7296-3.3.2-1": {
-      "note": "Row quotes the Section 3.3.3 span: the understand-all-types sentence and the IKE line (ENCR, PRF, INTEG*, D-H). The IKE line is now proven through the responder's selection (wireProposalsToIKE + crypto.NegotiateIKE): a complete proposal is chosen and an AES-GCM proposal without INTEG is chosen with integrity NONE (TestRFC7296PeerIKEProposalWithTheMandatoryTypesIsAccepted); proposals missing ENCR or INTEG draw ErrProposalIncomplete and one missing D-H draws ErrDHGroupNone (TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused); missing PRF draws ErrNoProposalChosen (TestIKEWireProposalHasAllTransforms). TestResponderRequiresKEForDH proves the KE payload, a neighbour. Missing under THIS id: the understand-every-type clause, proven only under RFC7296-3.3.3-1 (rfc7296_transformtype_test.go, crypto/rfc7296_proposal_test.go). Tag those units with this id too, or trim the duplicated sentence from this row. Re-judged 2026-09-30 after ikeProposalComplete gained the 3.3.6 UnacceptableTransformType check (ahead of the mandatory-type checks; both wrap ErrNoProposalChosen); the negative record was re-recorded and observed red. Tags unchanged, so the missing understand-every-type clause still stands and the verdict stays weak.",
+      "note": "Row quotes the Section 3.3.3 span: the understand-all-types sentence and the IKE line (ENCR, PRF, INTEG*, D-H). IKE line through the responder's selection (wireProposalsToIKE + crypto.NegotiateIKE): a complete proposal is chosen and an AES-GCM proposal without INTEG is chosen with integrity NONE (TestRFC7296PeerIKEProposalWithTheMandatoryTypesIsAccepted); proposals missing ENCR or INTEG draw ErrProposalIncomplete and one missing D-H draws ErrDHGroupNone (TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused); missing PRF draws ErrNoProposalChosen (TestIKEWireProposalHasAllTransforms). TestResponderRequiresKEForDH proves the KE payload, a neighbour. Re-judged 2026-09-30 (leftovers): the weak finding (understand-every-type clause unproven under this id) is closed by tagging TestTftUnknownTransformTypeMakesProposalUnacceptable: positive, a wire IKE proposal of ENCR, PRF, INTEG and D-H is converted and accepted, so every IKE-line type is understood (an ununderstood one would mark the proposal unacceptable); negative, the same proposal plus an unassigned type 6 or an ESN transform is refused with ErrNoProposalChosen, which shows the understood predicate is what admits the four. The negative is the table-bound side (shared with RFC7296-3.3.3-1 and 3.3.6-4); the missing-type negatives above remain this row's direct violations. Records: TransformTypeUnderstoodIKE panic revert observed red both polarities. Judge ran the unit: PASS.",
       "requirement_sha": "8057d3405db4009b",
       "tests": {
         "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused": "ec6adab8b8441718",
@@ -1202,7 +1206,9 @@
         "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms": "e032382b6fba7977",
         "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "e032382b6fba7977",
         "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "e032382b6fba7977",
-        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "e032382b6fba7977"
+        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "e032382b6fba7977",
+        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable": "c6f9e1efcdc6b0c3",
+        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable#2": "c6f9e1efcdc6b0c3"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused": "5961576dc40f0d93",
@@ -1210,24 +1216,26 @@
         "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms": "6cd078090f25af90",
         "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "6cd078090f25af90",
         "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "9150a5e7ed60264f",
-        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "9150a5e7ed60264f"
+        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "9150a5e7ed60264f",
+        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable": "7e5e0ddfaf77e91c",
+        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable#2": "7e5e0ddfaf77e91c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-3.3.3-1": {
-      "note": "transformTypeUnderstood per protocol matches the Section 3.3.3 table; engine refuses ESN in an IKE proposal",
+      "note": "transformTypeUnderstood per protocol matches the Section 3.3.3 table; engine refuses ESN in an IKE proposal. Re-judged 2026-09-30 (leftovers): TestTftUnknownTransformTypeMakesProposalUnacceptable changed only by the two added RFC7296-3.3.2-1 tag lines; body identical to HEAD, judge ran it: PASS; verdict unchanged.",
       "requirement_sha": "b346b35bec83b562",
       "tests": {
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol": "08f2f5dac8da8a2b",
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol#2": "08f2f5dac8da8a2b",
-        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable": "9cc8a5a2893de8b9",
-        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable#2": "9cc8a5a2893de8b9"
+        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable": "c6f9e1efcdc6b0c3",
+        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable#2": "c6f9e1efcdc6b0c3"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol": "282e572dfb0c83ef",
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol#2": "282e572dfb0c83ef",
-        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable": "0b9cc19fe7225bda",
-        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable#2": "0b9cc19fe7225bda"
+        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable": "7e5e0ddfaf77e91c",
+        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable#2": "7e5e0ddfaf77e91c"
       },
       "verdict": "enforced"
     },

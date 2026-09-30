@@ -970,22 +970,22 @@
       "break": "body of parseUnmatched replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC4301-5.1-1",
+      "rid": "RFC4301-5.1-4",
       "polarity": "positive",
       "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate",
       "unit-sha": "075346df146e2c73",
-      "claim-sha": "08b89a2b60c203f8",
+      "claim-sha": "c4084705f35a6858",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
       "producer-sha": "9560ce5abe6dc41e",
       "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC4301-5.1-1",
+      "rid": "RFC4301-5.1-4",
       "polarity": "negative",
       "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened",
       "unit-sha": "8a1441ff18da4131",
-      "claim-sha": "4cbe8fb681651d54",
+      "claim-sha": "6455a563b3a08b01",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
       "producer-sha": "9560ce5abe6dc41e",
@@ -1082,6 +1082,28 @@
     {
       "rid": "RFC4301-5.2-2",
       "polarity": "positive",
+      "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate",
+      "unit-sha": "075346df146e2c73",
+      "claim-sha": "5b6144fdb8fdc77c",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
+      "producer-sha": "9560ce5abe6dc41e",
+      "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-5.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened",
+      "unit-sha": "8a1441ff18da4131",
+      "claim-sha": "ffaaeded5c73eced",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
+      "producer-sha": "9560ce5abe6dc41e",
+      "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-5.2-2",
+      "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors",
       "unit-sha": "62e327bd649a7cca",
       "claim-sha": "77ebe30c38d2fa34",
@@ -1122,28 +1144,6 @@
       "producer": "internal/component/ike/engine/child.go::childPolicyParams",
       "producer-sha": "96cd5283ad39b417",
       "break": "body of childPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4301-5.2-3",
-      "polarity": "positive",
-      "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate",
-      "unit-sha": "075346df146e2c73",
-      "claim-sha": "2481e3f3e2fcb996",
-      "route": "revert",
-      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
-      "producer-sha": "9560ce5abe6dc41e",
-      "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4301-5.2-3",
-      "polarity": "negative",
-      "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened",
-      "unit-sha": "8a1441ff18da4131",
-      "claim-sha": "9ad2495342df7f89",
-      "route": "revert",
-      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
-      "producer-sha": "9560ce5abe6dc41e",
-      "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4301-5.2-4",

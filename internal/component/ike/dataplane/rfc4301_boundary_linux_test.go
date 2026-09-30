@@ -128,8 +128,8 @@ func TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong(t *testing.T) 
 // RFC requirement: RFC4301-3.1-1 positive -- a tunnel mode entry (gateway) and a transport mode entry (host) each build with the mode the kernel applies.
 // RFC requirement: RFC4301-4.4.1-10 positive -- the entry carries the priority the kernel's ordered search reads.
 // RFC requirement: RFC4301-4.4.1.1-3 positive -- an entry requiring one port carries that exact port, so a fragment without ports cannot match it.
-// RFC requirement: RFC4301-5.1-1 positive -- the outbound entry carries the out direction, the selector and the ESP tunnel template the kernel's outbound steps read.
-// RFC requirement: RFC4301-5.2-3 positive -- the inbound entry carries the in direction and the same selector the kernel's inbound steps check.
+// RFC requirement: RFC4301-5.1-4 positive -- the outbound entry carries the out direction and the exact selector (source and destination prefixes, source port 443) the kernel matches outbound packet headers against.
+// RFC requirement: RFC4301-5.2-2 positive -- the inbound entry carries the in direction, the outbound entry's source prefix, the exact source port 443 and one template: the selector the kernel verifies a received packet against.
 // RFC requirement: RFC4301-7.3-3 positive -- the outbound entry carries its exact port selector unchanged, which is what stops the kernel matching a non-initial fragment to it.
 // RFC requirement: RFC4301-7.3-4 positive -- the inbound entry carries its exact port selector unchanged, which is what makes the kernel refuse a non-initial fragment on it.
 // RFC requirement: RFC4301-7.3-5 positive -- the inbound entry carries the selector and the template the kernel checks every fragment of a packet against.
@@ -189,8 +189,8 @@ func TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate(t *test
 // RFC requirement: RFC4301-3.1-1 negative -- an entry whose mode is neither tunnel nor transport is refused and no policy is built.
 // RFC requirement: RFC4301-4.4.1-10 negative -- a refused entry never reaches the kernel's ordered search at any priority.
 // RFC requirement: RFC4301-4.4.1.1-3 negative -- a port mask the selector cannot carry exactly is refused rather than widened to any port, so no entry that would admit a portless fragment is built.
-// RFC requirement: RFC4301-5.1-1 negative -- an outbound entry with a port mask the selector cannot express is refused.
-// RFC requirement: RFC4301-5.2-3 negative -- an inbound entry with a port mask the selector cannot express is refused.
+// RFC requirement: RFC4301-5.1-4 negative -- an outbound entry with a port mask the selector cannot express is refused, so no entry with a widened selector is built for the header match.
+// RFC requirement: RFC4301-5.2-2 negative -- an inbound entry with a port mask the selector cannot express is refused, so no entry with a widened selector is built for the inbound check.
 // RFC requirement: RFC4301-7.3-3 negative -- a port selector is never widened on the way to the kernel: the inexpressible mask is refused.
 // RFC requirement: RFC4301-7.3-4 negative -- an inbound port selector is never widened on the way to the kernel: the inexpressible mask is refused.
 // RFC requirement: RFC4301-7.3-5 negative -- a bypass entry never carries a template, so no fragment can be handed to a transform the entry did not name.

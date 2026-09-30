@@ -39,6 +39,8 @@ func tftIKEOffer(extra wire.Transform) []wire.Proposal {
 // list of cases. A type outside a protocol's set never reaches negotiation unnoticed.
 // RFC requirement: RFC7296-3.3.3-1 positive -- every type the table gives IKE is understood, so the
 // proposal built from ENCR, PRF, INTEG and D-H negotiates.
+// RFC requirement: RFC7296-3.3.2-1 positive -- every mandatory type of the IKE line (ENCR, PRF, INTEG, D-H) is understood: an IKE proposal carrying all four is accepted by the responder's selection.
+// RFC requirement: RFC7296-3.3.2-1 negative -- a type outside the IKE line is not understood for IKE: an IKE proposal that also carries an unassigned type or an Extended Sequence Numbers transform is refused with ErrNoProposalChosen.
 func TestTftUnknownTransformTypeMakesProposalUnacceptable(t *testing.T) {
 	local := buildIKEProposals(testIKEGroup())
 
