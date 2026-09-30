@@ -1,25 +1,30 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC3579-1-1": {
-      "note": "positive requires AttrEAPMessage declared in dict.go; negative walks unofferedServiceAttrs, which EAP is not on, so no EAP-related change can turn it red. Nothing ties the EAP attribute constants to a live EAP auth-method (parseAuthMethod eap-md5/eap-mschapv2): removing EAP service and keeping the attributes stays green",
+      "note": "+ TestRFC3579EAPAttributesServeALiveEAPMethod: the NAS that implements EAP-Message offers EAP (admin login, auth-method eap-mschapv2 completes, every Access-Request carries EAP-Message; red when authenticateEAP is disabled). - TestRFC3579SubscriberNASRefusesEAPMessage: the L2TP subscriber NAS, which offers PPP peers no EAP, answers CoA-Request and Disconnect-Request carrying EAP-Message with NAK Error-Cause 401, no event, no teardown; adding EAP-Message to coaSupportedAttrs/disconnectSupportedAttrs turns it red (recorded at coa.go unsupportedAttr). The older dictionary units stay as declaration-only supplementary tags.",
       "requirement_sha": "aad6c53c7b5fd4f1",
       "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC3579SubscriberNASRefusesEAPMessage": "b439fffbe386e859",
         "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryCoversTheServicesZeOffers": "5f2ad3bca62785d7",
-        "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService": "5f2ad3bca62785d7"
+        "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService": "5f2ad3bca62785d7",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRFC3579EAPAttributesServeALiveEAPMethod": "fdb8524d78824d96"
       },
       "units": {
+        "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC3579SubscriberNASRefusesEAPMessage": "d459dfd5f3a5c539",
         "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryCoversTheServicesZeOffers": "987750fa14bb745b",
-        "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService": "4e59f2261d508766"
+        "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService": "4e59f2261d508766",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRFC3579EAPAttributesServeALiveEAPMethod": "c8803292d52bcf96"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3579-1.2-1": {
       "note": "negative compares verdict, profiles and source with and without a Notification carrying text; positive shows the message is delivered (logged, Notification Response sent) and not acted on",
       "requirement_sha": "b4d25f1afc2523b5",
       "tests": {
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationDoesNotSteerTheLogin": "09e397a79e1958ca",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationIsAnsweredAndLogged": "09e397a79e1958ca"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationDoesNotSteerTheLogin": "fdb8524d78824d96",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationIsAnsweredAndLogged": "fdb8524d78824d96"
       },
       "units": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationDoesNotSteerTheLogin": "4e0b92ccd35d86a7",
@@ -31,8 +36,8 @@
       "note": "Access-Reject returns aaa.ErrAuthRejected with no profiles; the negative carries an EAP-Success inside the Access-Reject and still denies",
       "requirement_sha": "9fa69412a76bab90",
       "tests": {
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesAccess": "09e397a79e1958ca",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesEvenCarryingEAPSuccess": "09e397a79e1958ca"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesAccess": "fdb8524d78824d96",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesEvenCarryingEAPSuccess": "fdb8524d78824d96"
       },
       "units": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesAccess": "7d9c6511a23b39ec",
@@ -44,8 +49,8 @@
       "note": "positive compares User-Name to the Type-Data of the peer's EAP-Response/Identity read off the wire; negative checks every subsequent request (method Responses, not Identity) carries the same User-Name. Both clauses covered",
       "requirement_sha": "555d0d30082cff3c",
       "tests": {
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameIsThePeerIdentity": "09e397a79e1958ca",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameRidesEverySubsequentRequest": "09e397a79e1958ca"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameIsThePeerIdentity": "fdb8524d78824d96",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameRidesEverySubsequentRequest": "fdb8524d78824d96"
       },
       "units": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameIsThePeerIdentity": "6acb2f74a0370b8e",
@@ -57,8 +62,8 @@
       "note": "only the Length field is validated under test (corruptEAPFrom declares a Length past the octets). Nothing forwards a server EAP packet with a wrong Code (not 1) or observes Identifier validation; the positive's Identifier-echo assertion is peer behaviour, not validation. Two of the three named fields unproven",
       "requirement_sha": "6b571411bc1dddb1",
       "tests": {
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapReadsTheServerEAPHeaderFields": "09e397a79e1958ca",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapRefusesAMalformedServerEAPHeader": "09e397a79e1958ca"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapReadsTheServerEAPHeaderFields": "fdb8524d78824d96",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapRefusesAMalformedServerEAPHeader": "fdb8524d78824d96"
       },
       "units": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapReadsTheServerEAPHeaderFields": "3fec42f133d29080",
@@ -96,8 +101,8 @@
       "note": "a concluding Access-Accept's EAP Notification (and, in the negative, an undecodable EAP-Message) reaches the log before the code decides; a loop that reads resp.Code first and returns would log nothing",
       "requirement_sha": "42d9170152e845c0",
       "tests": {
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesAnUnparseableEAPMessageBeforeTheCode": "09e397a79e1958ca",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesTheEAPMessageBeforeTheCode": "09e397a79e1958ca"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesAnUnparseableEAPMessageBeforeTheCode": "fdb8524d78824d96",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesTheEAPMessageBeforeTheCode": "fdb8524d78824d96"
       },
       "units": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesAnUnparseableEAPMessageBeforeTheCode": "0ccd4635075ff29a",
@@ -106,17 +111,27 @@
       "verdict": "enforced"
     },
     "RFC3579-3-1": {
-      "note": "The MUST clause is proven: every Access-Request carries NAS-Identifier, with and without a source address, so dropping it fails both tests. The quote's first clause, 'The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets', has no assertion in either unit, and the client never appends AttrNASPort (5) or AttrNASPortID (87) (dict.go declares them; authenticator.go exchange sends neither). The negative-tagged test is a second conforming input, not a violating one.",
-      "requirement_sha": "76fe4977daa16d95",
+      "note": "Row now quotes the MUST clause only (SHOULD half is RFC3579-3-2, {gap}). + TestRadiusAdminEapAccessRequestNamesTheNAS and TestRadiusAdminEapNamesTheNASWithoutASourceAddress: every Access-Request of the EAP conversation carries a non-empty NAS-Identifier, with and without a source address (one of the three suffices). - TestRadiusAdminEapWithNoNASIdentityIsNotSent: nasID empty and no IPv4 source -> Authenticate errors 'no NAS identity' and the server receives zero requests; observed red against the pre-fix exchange, which sent a zero-length NAS-Identifier. Producer exchange (authenticator.go) refuses before sending; NAS-IPv6-Address is never sent, so an IPv6-only source with no NAS-Identifier is refused, which is conservative, not non-conformant. Records at exchange observed red for all three units.",
+      "requirement_sha": "bf24254bbc91edea",
       "tests": {
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesTheNAS": "09e397a79e1958ca",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNamesTheNASWithoutASourceAddress": "09e397a79e1958ca"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesTheNAS": "fdb8524d78824d96",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNamesTheNASWithoutASourceAddress": "fdb8524d78824d96",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapWithNoNASIdentityIsNotSent": "fdb8524d78824d96"
       },
       "units": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesTheNAS": "34258572dcc17d7c",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNamesTheNASWithoutASourceAddress": "3489af272d162277"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNamesTheNASWithoutASourceAddress": "425de593a5587668",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapWithNoNASIdentityIsNotSent": "9fbb16895a6f32b6"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
+    },
+    "RFC3579-3-2": {
+      "code": {
+        "internal/component/radius/authenticator.go::exchange": "839b43223369950e"
+      },
+      "note": "Applicable SHOULD not met. Every EAP-bearing Access-Request ze sends is the admin login's, built by (*radiusAuthenticator).exchange, which appends Service-Type, NAS-Identifier, User-Name and NAS-IP-Address and never NAS-Port or NAS-Port-Id: an admin login over SSH, the web or the API has no NAS port. The L2TP subscriber Access-Request sends NAS-Port (session id) but carries no EAP-Message. Row carries {gap}; not counted conformant.",
+      "requirement_sha": "54081f847fd5c92e",
+      "verdict": "unimplemented"
     },
     "RFC3579-3.1-1": {
       "note": "split at 253 in order (join reproduces the packet), no foreign attribute inside the run (Message-Authenticator and State after it), and receive-side concatenation around foreign attributes",
@@ -215,8 +230,8 @@
       "note": "a successful and a rejected eap-mschapv2 login put an EAP-Message and no User-Password or CHAP-Password on every request, and the rejection produces no weaker retry",
       "requirement_sha": "293e15fa7692bbf7",
       "tests": {
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapDoesNotDowngradeAfterARejection": "09e397a79e1958ca",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNeverSendsAPasswordCredential": "09e397a79e1958ca"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapDoesNotDowngradeAfterARejection": "fdb8524d78824d96",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNeverSendsAPasswordCredential": "fdb8524d78824d96"
       },
       "units": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapDoesNotDowngradeAfterARejection": "c32369e026aeff83",

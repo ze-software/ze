@@ -122,7 +122,7 @@
       "id": "3.2",
       "sites": 3,
       "disposition": "walked",
-      "reason": "Message-Authenticator. The attribute format and the HMAC-MD5 construction. The construction itself is written without an RFC 2119 keyword, so the site scan does not see it, and it is declared here as an unsourced id: 'MUST calculate the correct value' at sites 3.1:4 and 3.1:6 has no meaning without the formula this section states.",
+      "reason": "Message-Authenticator. The attribute format and the HMAC-MD5 construction. The construction itself is written without an RFC 2119 keyword, so the site scan does not see it, and it is declared here as an unsourced id: 'MUST calculate the correct value' at sites 3.1:4 and 3.1:6 has no meaning without the formula this section states. The response-side paragraph, 'For Access-Challenge, Access-Accept, and Access-Reject packets, the Message-Authenticator is calculated as follows' through 'The Message-Authenticator is calculated and inserted in the packet before the Response Authenticator is calculated.', binds whoever writes those three packets, the RADIUS server: ze writes none of them (the admin and L2TP paths only send Access-Requests, and the CoA listener's reply, (*coaListener).sendResponse in internal/component/l2tp/plugins/authradius/coa.go, carries no Message-Authenticator). The client's side of that formula, recomputing it over a received reply with the Request Authenticator in place, is RFC3579-3.1-4. The narrowing audit of 2026-09-28 called the ordering sentence dropped from RFC3579-3.2-1; it is recorded here and not added to that row, because no Ze producer performs it.",
       "unsourced-ids": [
         "RFC3579-3.2-1"
       ]

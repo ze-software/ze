@@ -11,6 +11,7 @@ package radius
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -139,21 +140,26 @@ func (a *radiusAuthenticator) exchange(ctx context.Context, username string, cre
 		return nil, fmt.Errorf("radius: random authenticator: %w", err)
 	}
 
-	// RFC 2865 Section 4.1: an Access-Request MUST carry NAS-IP-Address or
-	// NAS-Identifier.
 	attrs := make([]Attr, 0, len(credential)+4)
 	attrs = append(attrs, credential...)
-	attrs = append(attrs,
-		Attr{Type: AttrServiceType, Value: AttrUint32(serviceTypeLogin)},
-		Attr{Type: AttrNASIdentifier, Value: AttrString(a.nasID)},
-	)
+	attrs = append(attrs, Attr{Type: AttrServiceType, Value: AttrUint32(serviceTypeLogin)})
+	// RFC 3579 Section 3: "either NAS-Identifier, NAS-IP-Address or
+	// NAS-IPv6-Address attributes MUST be included." RFC 2865 Section 4.1
+	// states the same for every Access-Request. NewAAA always supplies a
+	// NAS-Identifier; an authenticator built with none and no source address
+	// has nothing to name the NAS with, so it sends nothing.
+	v4 := a.sourceIP.To4()
+	if a.nasID == "" && v4 == nil {
+		return nil, errors.New("radius: no NAS identity: neither a NAS-Identifier nor a source address")
+	}
+	attrs = AppendTextAttr(attrs, AttrNASIdentifier, a.nasID)
 	// RFC 2865 Section 5: "Text of length zero (0) MUST NOT be sent; omit the
 	// entire attribute instead." A login carrying no name would otherwise put a
 	// zero-length User-Name on the wire. Section 4.1 makes User-Name a SHOULD,
 	// and NAS-Identifier above already meets the MUST that Section 4.1 states,
 	// so omitting it leaves the request conformant.
 	attrs = AppendTextAttr(attrs, AttrUserName, username)
-	if v4 := a.sourceIP.To4(); v4 != nil {
+	if v4 != nil {
 		attrs = append(attrs, Attr{Type: AttrNASIPAddress, Value: v4})
 	}
 

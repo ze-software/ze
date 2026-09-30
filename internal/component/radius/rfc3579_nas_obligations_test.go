@@ -324,7 +324,7 @@ func TestRadiusAdminEapAccessRequestNamesTheNAS(t *testing.T) {
 // PREVENTS: a deployment whose only NAS identification came from an optional
 // leaf, which would leave the requirement unmet as soon as that leaf is unset.
 //
-// RFC requirement: RFC3579-3-1 negative -- the same sentence read as a
+// RFC requirement: RFC3579-3-1 positive -- the same sentence read as a
 // disjunction: one of the three is enough, and the absent NAS-IP-Address does
 // not leave the request unidentified (authenticator.go exchange, which appends
 // NAS-IP-Address only when sourceIP.To4() resolves).
@@ -537,4 +537,70 @@ func TestRadiusAdminEapDoesNotDowngradeAfterARejection(t *testing.T) {
 		assert.NotNilf(t, pkt.FindAttr(AttrEAPMessage),
 			"request %d stayed on the configured EAP method", index)
 	}
+}
+
+// TestRFC3579EAPAttributesServeALiveEAPMethod ties the EAP attribute to the
+// service that uses it, rather than to its declaration in dict.go.
+//
+// VALIDATES: with `auth-method eap-mschapv2` every Access-Request of the
+// conversation carries EAP-Message, and the login completes over it.
+// PREVENTS: an EAP-Message attribute kept in the client after the EAP service
+// that sends it is gone, or an EAP service whose attribute is not on the wire.
+//
+// RFC requirement: RFC3579-1-1 positive -- the NAS that implements the RADIUS
+// attributes for EAP is one that offers EAP service: the admin login runs an
+// EAP conversation and carries it in EAP-Message (authenticator_eap.go
+// authenticateEAP).
+func TestRFC3579EAPAttributesServeALiveEAPMethod(t *testing.T) {
+	secret := []byte("testing123")
+	srv := newEAPMockServer(t, secret, eap.TypeMSCHAPv2, "Hello",
+		[]Attr{{Type: AttrFilterID, Value: []byte("admin")}})
+
+	a := eapAuthenticator(t, srv.addr, secret, AuthMethodEAPMSCHAPv2)
+	res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello"})
+	require.NoError(t, err)
+	require.True(t, res.Authenticated, "the login completed over EAP")
+
+	captured := srv.captured(t)
+	require.Greater(t, len(captured), 1)
+	for index, pkt := range captured {
+		assert.NotNilf(t, pkt.FindAttr(AttrEAPMessage), "request %d carries EAP-Message", index)
+	}
+}
+
+// TestRadiusAdminEapWithNoNASIdentityIsNotSent builds the one authenticator
+// that has none of the three identity attributes to offer: an empty
+// NAS-Identifier and no source address.
+//
+// VALIDATES: such an Access-Request is never sent. Authenticate fails, the
+// server receives nothing, and the failure names the missing identity.
+// PREVENTS: an Access-Request that carries a zero-length NAS-Identifier, or
+// none, and so names no NAS at all.
+//
+// RFC requirement: RFC3579-3-1 negative -- "either NAS-Identifier,
+// NAS-IP-Address or NAS-IPv6-Address attributes MUST be included": with none
+// of the three available, no Access-Request leaves ze (authenticator.go
+// exchange, which refuses before SendToServers).
+func TestRadiusAdminEapWithNoNASIdentityIsNotSent(t *testing.T) {
+	secret := []byte("testing123")
+	srv := newEAPMockServer(t, secret, eap.TypeMSCHAPv2, "Hello",
+		[]Attr{{Type: AttrFilterID, Value: []byte("admin")}})
+
+	client, err := NewClient(ClientConfig{
+		Servers: []Server{{Address: srv.addr, SharedKey: secret}},
+		Timeout: 300 * time.Millisecond,
+		Retries: 2,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = client.Close() })
+	a := newRadiusAuthenticator(client, ExtractedConfig{
+		Servers:     []Server{{Address: srv.addr, SharedKey: secret}},
+		ProfileAttr: AttrFilterID,
+		AuthMethod:  AuthMethodEAPMSCHAPv2,
+	}, "", nil)
+
+	res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello"})
+	require.ErrorContains(t, err, "no NAS identity")
+	assert.False(t, res.Authenticated)
+	assert.Zero(t, srv.requestCount(), "no Access-Request reached the server")
 }

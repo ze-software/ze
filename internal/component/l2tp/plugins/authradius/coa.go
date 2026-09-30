@@ -259,11 +259,12 @@ var coaSupportedAttrs = map[uint8]bool{
 // Acct-Terminate-Cause, Proxy-State, Event-Timestamp and Message-Authenticator.
 // Service-Type and State are 0 in that table, so neither is here.
 //
-// EAP-Message is in that table and is NOT here. Ze offers no EAP service, and
-// RFC 2865 Section 1.1 says "A NAS that does not implement a given service MUST
-// NOT implement the RADIUS attributes for that service", so dict.go declares no
-// EAP-Message constant. Section 2.3 gives the answer for an attribute the NAS
-// does not support: a Disconnect-NAK with Error-Cause 401.
+// EAP-Message is in that table and is NOT here. This subscriber NAS offers its
+// PPP peers no EAP service (only the admin login runs EAP, in the radius
+// package), and RFC 2865 Section 1.1 says "A NAS that does not implement a
+// given service MUST NOT implement the RADIUS attributes for that service".
+// Section 2.3 gives the answer for an attribute the NAS does not support: a
+// Disconnect-NAK with Error-Cause 401.
 //
 // Vendor-Specific is in that table and is NOT here either. This NAS reads no
 // vendor attribute in a Disconnect-Request, and Section 2.3 makes every
