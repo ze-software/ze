@@ -708,6 +708,32 @@
       "requirement_sha": "fdb9cfe570b6775e",
       "verdict": "unimplemented"
     },
+    "RFC9568-8.1.1-1": {
+      "note": "vrrp judge 2026-09-30 (independent, 9568 rows): same unit as RFC9568-8.1.1-2. The address the end-host used for its next-hop decision is the VIP of the virtual router whose MAC it sent to (positive: redirect sourced from that VIP, not the physical address the reverse route would pick); a host whose next hop is the physical router gets the physical address (negative). Lowercase should rated SHOULD under D-3. Both polarities recorded observed red on applyDataplaneSysctls.",
+      "requirement_sha": "42569b4351f020e0",
+      "tests": {
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "afef5030ea18066a",
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "afef5030ea18066a"
+      },
+      "units": {
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "5eeecb8e06c0769f",
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "5eeecb8e06c0769f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9568-8.1.1-2": {
+      "note": "vrrp judge 2026-09-30 (independent, 9568 rows): TestVRRPRedirectSourceFollowsVirtualMAC (Linux guest integration, two non-owner virtual-MAC macvlans under the product sysctl recipe, icmp_errors_use_inbound_ifaddr reset to 0 before applyDataplaneSysctls) asserts the IPv4 redirect for a packet sent to a virtual MAC is sourced from that virtual router's VIP despite a reverse route via the real interface; the negative sends to the physical MAC and sees 192.0.2.254, so the capture separates the two. Both polarities recorded observed red on applyDataplaneSysctls.",
+      "requirement_sha": "271090d6061b89dd",
+      "tests": {
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "afef5030ea18066a",
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "afef5030ea18066a"
+      },
+      "units": {
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "5eeecb8e06c0769f",
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "5eeecb8e06c0769f"
+      },
+      "verdict": "enforced"
+    },
     "RFC9568-8.1.2-1": {
       "note": "vrrp closure judge 2026-09-30 (independent) re-judged: the tagged units changed only by added RFC requirement tag comment lines for the new rows (8.1.2-6 / 8.2.2-8 / 8.2-4 / 8.1.1-2); test bodies byte-identical, records current, verdict unchanged. Prior note: vrrp judge 2026-09-29 (independent, continuation 3): Both halves proven. Owner: TestOwnerFilterWiredOnPromotionForEveryFamily (ipv4-v3) drives an owner to setOwnerFilter with the parent and exactly the owned IPv4 address before install, and the same group as non-owner names none (records observed red on doInstallVIPs); TestVRRPOwnerAnswersWithVirtualMACOnly (QEMU guest) captures the parent's physical-MAC ARP reply without the filter and after withdrawal, and only the Virtual Router MAC with it (records on ownerARPReplyTerm, ownerFilterTables). Non-owner: TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly captures the physical MAC without applyDataplaneSysctls and only the virtual MAC with it.",
       "requirement_sha": "1e2a000e0692b566",
@@ -768,6 +794,19 @@
         "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "1dc83cc933132bee",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "e394a1b59e5a96d5",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "e394a1b59e5a96d5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9568-8.2.1-2": {
+      "note": "vrrp judge 2026-09-30 (independent, 9568 rows): TestVRRPIPv6RedirectFollowsVirtualMAC (Linux guest integration, two non-owner Active Router dataplanes built with the product's CreateMacvlanDevice, VirtualMAC, vipCIDRs and IPv6 applyDataplaneSysctls) sends one datagram to each virtual MAC and one to the physical MAC, and asserts the single ICMPv6 redirect (type 137, checksum and target verified) is sourced from a link-local held by the macvlan whose virtual MAC was hit and by no other device; the negative sees the physical-MAC datagram redirected from a parent link-local held by neither macvlan. Stack-level: Ze supplies the per-VR virtual-MAC macvlan, and Linux ndisc_send_redirect sources the redirect from the ingress device's link-local, so the destination MAC selects the Virtual Router (the method \u00a78.2.1 names). Linux redirects only when the route leaves by the ingress device (ip6_forward), which the test arranges; otherwise no redirect is sent and none can be misattributed. Which macvlan link-local (VIP or VMAC-derived) is used is not pinned: that is the separate RFC9568-8.2.1-1 SHOULD, not judged here. Records: + on packet.VirtualMAC, - on applyDataplaneSysctls, both observed red (revert route).",
+      "requirement_sha": "d7c501641d1c6a2f",
+      "tests": {
+        "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC": "05acf8d26f2ef330",
+        "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC#2": "05acf8d26f2ef330"
+      },
+      "units": {
+        "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC": "078f48d06e02b5ed",
+        "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC#2": "078f48d06e02b5ed"
       },
       "verdict": "enforced"
     },

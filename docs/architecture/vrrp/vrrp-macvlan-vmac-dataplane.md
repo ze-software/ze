@@ -207,6 +207,23 @@ the parent's real source address. The test runs under `integration && linux`
 against the runtime kernel; it exercises the product's netlink backend,
 `vipCIDRs`, and the apply/reassert sysctl path.
 
+IPv6 needs no knob. `net/ipv6/ndisc.c::ndisc_send_redirect` always takes the
+redirect's source from a link-local address of the device the packet arrived
+on, so a packet sent to a group's virtual MAC draws a redirect from a link-local
+address of that group's macvlan, and a packet sent to the physical MAC draws one
+from the parent's. That is the attribution RFC 9568 Section 8.2.1 asks for ("it
+has to determine to which Virtual Router the packet was sent"). Linux sends an
+ICMPv6 redirect only when the route forwards the packet back out the device it
+arrived on (`net/ipv6/ip6_output.c::ip6_forward`), so a packet taken in on a
+macvlan and routed out the parent draws no redirect at all, and none is ever
+attributed to the wrong router. The test routes each probe out its ingress
+device to meet that condition. Which of the
+macvlan's link-local addresses Linux picks (the configured virtual link-local or
+the one it derives from the virtual MAC) is the kernel's choice, and no test
+pins it. `TestVRRPIPv6RedirectFollowsVirtualMAC` runs two IPv6 groups on one
+parent and asserts that each redirect's source is held by the macvlan the packet
+was sent to and by no other device.
+
 ### Namespace-wide settings are not restored on SIGKILL
 
 An abrupt termination leaves both `all.rp_filter=0` and

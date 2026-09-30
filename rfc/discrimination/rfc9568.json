@@ -662,6 +662,50 @@
       "break": "body of SendAdvert replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9568-8.1.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC",
+      "unit-sha": "c08f520363cd7718",
+      "claim-sha": "1885af5386a872a0",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
+      "producer-sha": "cd7a5179f145bb82",
+      "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.1.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC",
+      "unit-sha": "c08f520363cd7718",
+      "claim-sha": "989970d9cc936cf6",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
+      "producer-sha": "cd7a5179f145bb82",
+      "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.1.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC",
+      "unit-sha": "c08f520363cd7718",
+      "claim-sha": "975d8578868cb6db",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
+      "producer-sha": "cd7a5179f145bb82",
+      "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.1.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC",
+      "unit-sha": "c08f520363cd7718",
+      "claim-sha": "ac2e707057c8adf9",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
+      "producer-sha": "cd7a5179f145bb82",
+      "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9568-8.1.2-1",
       "polarity": "positive",
       "unit": "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly",
@@ -810,6 +854,28 @@
       "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly",
       "unit-sha": "b700c87dc50de836",
       "claim-sha": "d224592a3a3540bf",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
+      "producer-sha": "cd7a5179f145bb82",
+      "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.2.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC",
+      "unit-sha": "5b89afa85b5ab8da",
+      "claim-sha": "0c211406e1c25b7d",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/packet/packet.go::VirtualMAC",
+      "producer-sha": "cdd77c9a8bee9c78",
+      "break": "body of VirtualMAC replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-8.2.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC",
+      "unit-sha": "5b89afa85b5ab8da",
+      "claim-sha": "07d7bc9c3243f721",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
       "producer-sha": "cd7a5179f145bb82",

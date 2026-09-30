@@ -1388,6 +1388,28 @@
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5798-8.2.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC",
+      "unit-sha": "5b89afa85b5ab8da",
+      "claim-sha": "b5821bae03a2eeb7",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/packet/packet.go::VirtualMAC",
+      "producer-sha": "cdd77c9a8bee9c78",
+      "break": "body of VirtualMAC replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5798-8.2.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC",
+      "unit-sha": "5b89afa85b5ab8da",
+      "claim-sha": "846f25c883ec2839",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
+      "producer-sha": "cd7a5179f145bb82",
+      "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5798-8.2.2-1",
       "polarity": "positive",
       "unit": "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice",

@@ -325,7 +325,10 @@
     {
       "id": "8.1.1",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9568-8.1.1-1"
+      ]
     },
     {
       "id": "8.1.2",
@@ -351,7 +354,8 @@
       "sites": 0,
       "disposition": "walked",
       "unsourced-ids": [
-        "RFC9568-8.2.1-1"
+        "RFC9568-8.2.1-1",
+        "RFC9568-8.2.1-2"
       ]
     },
     {
@@ -771,9 +775,8 @@
     {
       "id": "8.1.1:1",
       "quote": "If a VRRP Router is acting as the Active Router for Virtual Router(s) containing address(es) it does not own, then it must determine to which Virtual Router the packet was sent when selecting the redirect source address.",
-      "disposition": "excluded",
-      "excluded-kind": "not-a-requirement",
-      "reason": "Descriptive prose with a lowercase \"must\" about how an Active Router picks an ICMP redirect source address; the normative redirect guidance is the SHOULD at Section 8.2.1 (RFC9568-8.2.1-1)."
+      "disposition": "mapped",
+      "mapped-to": "RFC9568-8.1.1-2"
     },
     {
       "id": "8.1.2:1",
