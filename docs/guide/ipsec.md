@@ -874,8 +874,26 @@ control-plane bypass at order 100 is installed either way, so the tunnels can
 still be negotiated. The entry is re-asserted on every apply and removed when
 the engine stops.
 
+#### When the entry is not there
+
+A `discard` entry that is not installed would let the kernel pass exactly the
+traffic you asked it to drop, so Ze never reports such a configuration as
+applied:
+
+| Situation | `discard` | `bypass` |
+|---|---|---|
+| The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, a kernel without XFRM, or a daemon without `CAP_NET_ADMIN` | Refused at commit | Accepted; no entry is installed, and the kernel passes the traffic |
+| No dataplane loaded (the daemon logged that the load failed) | Refused at commit | Accepted; no entry is installed |
+| The install itself fails when the configuration is applied | The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error | Logged as a warning; the kernel passes the traffic |
+| Before the first configuration is applied, and after the engine stops | No entry exists, and the kernel passes the traffic in the clear | Same |
+
+The catch-all is installed before the `policy` entries and the peers of the
+same configuration, so a refused apply leaves the previous entries in place.
+
 <!-- source: internal/component/ike/ipsec/config.go -- parseUnmatched -->
-<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched -->
+<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable -->
+<!-- source: internal/component/ike/engine/apply.go -- applyConfig -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- CatchAllInstaller -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction -->

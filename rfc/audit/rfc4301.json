@@ -5,6 +5,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -179,10 +180,10 @@
     },
     "RFC4301-4.4.1-3": {
       "code": {
-        "internal/component/ike/engine/unmatched.go::installUnmatched": "1837830eeeca011b",
+        "internal/component/ike/engine/unmatched.go::installUnmatched": "5d0e47124bc0eddf",
         "internal/component/ike/ipsec/config.go::parseUnmatched": "ce574002482b65f2"
       },
-      "note": "Disclosed deviation (R27, owner gate pending): with the default configuration the final SPD entry is a BYPASS, not the discard the SHOULD asks for. parseUnmatched returns SPActionBypass for an absent `unmatched` leaf and installUnmatched installs that action at PriorityUnmatched in all 3 directions x 2 families. The gap unit TestRFC4301DefaultFinalSPDEntryDiscards (rfcgap.Demonstrate) runs the real config -> ParseIPsecConfig -> installUnmatched path and asserts every final entry discards; it fails today, so the gap is demonstrated. `unmatched discard` installs the final discard (untagged TestRFC4301FinalSPDEntryFollowsTheUnmatchedLeaf). Row, Support remaining and docs/guide/ipsec.md disclose it. Not counted conformant.",
+      "note": "Re-judged 2026-09-30 after installUnmatched gained an error return (R29-a). Unchanged finding: disclosed deviation (R27, owner gate pending), with the default configuration the final SPD entry is a BYPASS, not the discard the SHOULD asks for. parseUnmatched returns SPActionBypass for an absent `unmatched` leaf and installUnmatched installs it at PriorityUnmatched in 3 directions x 2 families. The gap unit TestRFC4301DefaultFinalSPDEntryDiscards (rfcgap.Demonstrate) runs config -> ParseIPsecConfig -> installUnmatched (finalEntriesFor now fails on an install error) and asserts every final entry discards; it fails today, so the gap is demonstrated. `unmatched discard` installs the final discard, and since R29-a a discard that cannot be installed fails the apply or is refused at verify. Row, Support remaining and docs/guide/ipsec.md disclose it. Not counted conformant.",
       "requirement_sha": "79a186b4ae7a6067",
       "verdict": "unimplemented"
     },
@@ -538,8 +539,8 @@
       "tests": {
         "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "dac292180c08600d",
         "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "dac292180c08600d",
-        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "1f1129b613aeb812",
-        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "1f1129b613aeb812"
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "8a9d29661d983142",
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "8a9d29661d983142"
       },
       "units": {
         "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4f6a7698e201b01f",
@@ -553,8 +554,8 @@
       "note": "Step 3a: process as the matching entry says, BYPASS, DISCARD or PROTECT. PROTECT: the datagram reaches the remote endpoint as ESP carrying the Child SA outbound SPI, no XfrmOutNoStates. BYPASS: delivered in the clear, and no ESP copy on the raw socket. DISCARD: operator DISCARD entry refuses the write with EPERM, XfrmOutPolBlock +1, not delivered. All three dispositions asserted on kernel counters and delivery; AH is not installed by IKE (ESP only), so the PROTECT case is ESP. Records: producer revert red both polarities; overlays discard->ALLOW and bypass->BLOCK each redden exactly the unit that asserts that disposition.",
       "requirement_sha": "3e509f5a715e6822",
       "tests": {
-        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "1f1129b613aeb812",
-        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "1f1129b613aeb812"
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "8a9d29661d983142",
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "8a9d29661d983142"
       },
       "units": {
         "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "3dd4e913175fac34",
@@ -566,8 +567,8 @@
       "note": "Step 3b SPD search. With no kernel SPD cache every packet, including the first of a flow, is looked up in the SPD (SPD-S: the Child SA PROTECT entry; SPD-O: operator BYPASS/DISCARD and the catch-all). Positive: first packets on the PROTECT and BYPASS entries take those entries' dispositions. Negative: a packet selecting no operator entry takes the catch-all's discard (EPERM, XfrmOutPolBlock +1), not a neighbouring entry's bypass. Claims name the cache absence rather than proving a cache. Records as 5.1-4.",
       "requirement_sha": "61a00d3b97e3843a",
       "tests": {
-        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "1f1129b613aeb812",
-        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "1f1129b613aeb812"
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "8a9d29661d983142",
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "8a9d29661d983142"
       },
       "units": {
         "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "3dd4e913175fac34",
@@ -586,10 +587,12 @@
     },
     "RFC4301-5.2-1": {
       "code": {
-        "internal/component/ike/engine/unmatched.go::installUnmatched": "1837830eeeca011b",
+        "internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface": "00554018ad645f31",
+        "internal/component/ike/engine/unmatched.go::installUnmatched": "5d0e47124bc0eddf",
+        "internal/component/ike/engine/unmatched.go::verifyUnmatchedEnforceable": "0fe4879c61edab47",
         "internal/component/ike/ipsec/config.go::parseUnmatched": "ce574002482b65f2"
       },
-      "note": "Section 4.4.1 discard of an inbound packet the SPD-I cannot match (RFC text line 1134, read). First judgement after the {not-applicable} was replaced: the reason 'kernel datapath function' excluded nothing under the whole-stack rule, since the entry such a packet meets is the catch-all installUnmatched installs with the action parseUnmatched returns; an absent `vpn ipsec unmatched` leaf gives SPActionBypass, so by default the packet is delivered. Same disclosed deviation as RFC4301-4.4.1-3 and RFC4301-5.2-9 (ruling R27, owner gate pending); note this row is a MUST, not the 4.4.1-3 SHOULD, which the owner gate should see. `unmatched discard` gives the RFC behaviour: untagged TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf (discard: XfrmInPolBlock +1, not delivered; bypass: delivered). Row {gap} and Support remaining both disclose it. Not counted conformant.",
+      "note": "Re-judged 2026-09-30 on the R29-a fail-closed code (RULINGS R28). RFC 4301 Section 4.4.1 text read: 'if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded.' Where installUnmatched has installed the catch-all at PriorityUnmatched every inbound packet meets an SPD-I entry, but paths with NO entry remain and were each verified at the producer: (a) VPP: vppPolicyInterface refuses IfIndex 0 with ErrNotSupported, vppBackend.CatchAllSupported refuses, and installUnmatched under the default bypass logs and returns nil, so no catch-all and the config is accepted; (b) before the first apply (applyConfig is the only caller) and after exit (register.go removeUnmatched when unmatchedApplied); (c) a bypass install failure is logged (Warn) and an XFRM-unsupported error returns nil. `unmatched discard` is refused at verify on (a) and fails the apply on an install error (untagged TestUnmatchedDiscardRefusedAtVerifyWhereItCannotBeEnforced, TestUnmatchedDiscardInstallFailureFailsTheApply, judge ran both: PASS). Under the default bypass the catch-all delivers the packet (the R27 deviation). Row {gap} and Support remaining name all three paths. Not counted conformant.",
       "requirement_sha": "627457a03bb75173",
       "verdict": "unimplemented"
     },
@@ -597,8 +600,8 @@
       "note": "Step 4 first sentence: ESP processing with the SAD entry step 3a selected. Positive: the packet on the Child SA SPI is decrypted with that SA's key and delivered, XfrmInStateProtoError unchanged. Negative: right SPI, fresh sequence number, sealed with a zero key: ICV fails, XfrmInStateProtoError +1, not delivered, so processing uses the selected SA's key and not a pass-through. Judge ran both: PASS. Records: xfrmStateFromParams revert red both. AH processing (OSPFv3) not probed here.",
       "requirement_sha": "72d27927ab4b6176",
       "tests": {
-        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPFailingIntegrityIsDiscarded": "1a6d52ebd601a7b8",
-        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "1a6d52ebd601a7b8"
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPFailingIntegrityIsDiscarded": "489961ccb0034382",
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "489961ccb0034382"
       },
       "units": {
         "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPFailingIntegrityIsDiscarded": "824920b3c07d7595",
@@ -631,8 +634,8 @@
       "note": "Step 3a SAD lookup of an ESP packet addressed to Ze. Positive: ESP on the Child SA inbound SPI, sealed with the kernel key around an inner packet inside the selectors, is delivered with XfrmInNoStates and XfrmInStateProtoError unchanged. Negative: the same packet under SPI^0x5a5a5a5a finds nothing (XfrmInNoStates +1, not delivered), so the lookup is keyed on the SPI. Judge ran both: PASS in own namespace. Records: xfrmStateFromParams panic revert red both polarities. Scope: ESP, unicast; the AH case (OSPFv3 manual SAs) is the same kernel lookup and is not probed here.",
       "requirement_sha": "c3bf609ab746a61f",
       "tests": {
-        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "1a6d52ebd601a7b8",
-        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPWithNoSADMatchIsDiscarded": "1a6d52ebd601a7b8"
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "489961ccb0034382",
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPWithNoSADMatchIsDiscarded": "489961ccb0034382"
       },
       "units": {
         "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "7705731634c17541",
@@ -644,8 +647,8 @@
       "note": "Step 3a no-match discard. Negative: an ESP packet on an SPI no SA holds is counted XfrmInNoStates +1 and never delivered. Positive: the same packet on the installed SPI is delivered, so the discard is the SAD miss and not a blanket drop. Unicast probed here; the multicast lookup miss (SPI+group) is proven under RFC4301-4.1-6 (ospf rfc4301_multicast_sa_linux_test.go) as a kernel SAD lookup, not a delivered-packet probe. Records: xfrmStateFromParams revert red both polarities.",
       "requirement_sha": "aeea63df9335d748",
       "tests": {
-        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "1a6d52ebd601a7b8",
-        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPWithNoSADMatchIsDiscarded": "1a6d52ebd601a7b8"
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "489961ccb0034382",
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPWithNoSADMatchIsDiscarded": "489961ccb0034382"
       },
       "units": {
         "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "7705731634c17541",
@@ -657,8 +660,8 @@
       "note": "Step 3b SPD-I lookup of a clear packet addressed to Ze. Positive: UDP from 10.3.0.5 to local port 7101 matches the operator in-BYPASS entry ranked ahead of a DISCARD catch-all: delivered, no XfrmInPolBlock. Negative: to port 7102 on the operator in-DISCARD entry with a BYPASS catch-all: XfrmInPolBlock +1, not delivered, so only the matched entry can have dropped it. Each unit isolates its disposition by the opposite catch-all. Judge ran both: PASS. Records: xfrmPolicyFromParams revert red both; overlays bypass->BLOCK / discard->ALLOW redden exactly the matching polarity (scratch p7-ovin-*.log). Not-addressed-to-device (forwarded) packets are not probed; the SPD-I lookup is the same fwd/in policy check.",
       "requirement_sha": "7bcc19079e0f3e4d",
       "tests": {
-        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsBypassedByTheSPDIEntryItMatches": "1a6d52ebd601a7b8",
-        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsDiscardedByTheSPDIEntryItMatches": "1a6d52ebd601a7b8"
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsBypassedByTheSPDIEntryItMatches": "489961ccb0034382",
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsDiscardedByTheSPDIEntryItMatches": "489961ccb0034382"
       },
       "units": {
         "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsBypassedByTheSPDIEntryItMatches": "25be6287a16d5d03",
@@ -668,10 +671,12 @@
     },
     "RFC4301-5.2-9": {
       "code": {
-        "internal/component/ike/engine/unmatched.go::installUnmatched": "1837830eeeca011b",
+        "internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface": "00554018ad645f31",
+        "internal/component/ike/engine/unmatched.go::installUnmatched": "5d0e47124bc0eddf",
+        "internal/component/ike/engine/unmatched.go::verifyUnmatchedEnforceable": "0fe4879c61edab47",
         "internal/component/ike/ipsec/config.go::parseUnmatched": "ce574002482b65f2"
       },
-      "note": "Step 3b no-match discard. The entry a packet matching no other SPD-I entry meets is the catch-all installUnmatched installs, with the action parseUnmatched returns; an absent `unmatched` leaf gives SPActionBypass, so by default such a packet is delivered. Same disclosed deviation as RFC4301-4.4.1-3 (ruling R27, owner gate pending), not counted conformant. `unmatched discard` gives the RFC behaviour: untagged TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf (discard: XfrmInPolBlock +1, not delivered; bypass: delivered), judge ran it: PASS. Disclosed on the row and Support remaining.",
+      "note": "Re-judged 2026-09-30 on the R29-a fail-closed code (RULINGS R28). Step 3b 'If there is no match, discard the traffic.' Same producer walk as RFC4301-5.2-1: the no-entry paths (VPP with no node-wide SPD under the default bypass, before first apply and after exit, a tolerated bypass install failure or no XFRM) each leave an unmatched inbound packet delivered, and with the catch-all installed the default bypass delivers it too (R27 deviation). `unmatched discard` gives the RFC behaviour where enforceable and is refused or fails the apply where not (verifyUnmatchedEnforceable, installUnmatched). Row {gap} names the paths. Not counted conformant.",
       "requirement_sha": "85de5f441399996b",
       "verdict": "unimplemented"
     },

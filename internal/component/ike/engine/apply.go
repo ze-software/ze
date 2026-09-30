@@ -263,25 +263,39 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 		}
 	}
 
-	// RFC 7296 Section 2.6. Published before any peer is reconciled, so an initiation
-	// that arrives during the reconcile is judged against the configuration being
-	// applied rather than the one being replaced.
-	setCookieThreshold(cfg.CookieThreshold)
-
 	// RFC 4301 Section 4.4.1 gives the SPD three dispositions, and the operator writes
-	// the two that no negotiation produces. They are reconciled BEFORE the peers for
-	// the reason the cookie threshold is published first: an entry that discards
-	// traffic must be in force before the tunnels that traffic could otherwise take are
-	// built. They also outrank a peer's entries by default, so installing them second
-	// would leave a window in which the lower-ranked entry is the only match
-	// (installSPDPolicies, spd_policy.go).
+	// the two that no negotiation produces. They are reconciled BEFORE the peers: an
+	// entry that discards traffic must be in force before the tunnels that traffic
+	// could otherwise take are built. They also outrank a peer's entries by default, so
+	// installing them second would leave a window in which the lower-ranked entry is
+	// the only match (installSPDPolicies, spd_policy.go).
+	//
+	// The catch-all goes in first, ahead of the operator's entries and the cookie
+	// threshold, and it is the one step of an apply that
+	// can refuse the configuration after the interface check above. A DISCARD
+	// catch-all that could not be installed leaves the kernel passing the traffic the
+	// operator asked to stop, so the apply fails and the configuration is not reported
+	// applied (installUnmatched, unmatched.go). Running it before the operator's entries
+	// and the cookie threshold means a refusal leaves those unchanged. The entries a
+	// partial install did place are discards, and they fail closed. The catch-all is
+	// re-asserted on every apply, because the backend upserts a template-free policy, so
+	// a changed disposition replaces the entry in place.
+	//
+	// Before the first apply no catch-all exists at all, so the kernel passes an
+	// unmatched packet in the clear until the configuration the daemon starts with is
+	// applied (docs/guide/ipsec.md, "Traffic no entry matches").
+	s.unmatchedApplied = true
+	if err := installUnmatched(dataplane.Get(), cfg.Unmatched, s.log); err != nil {
+		return err
+	}
 	installSPDPolicies(dataplane.Get(), s.installedSPD, cfg.Policies, s.log)
 	s.installedSPD = cfg.Policies
-	// The catch-all is re-asserted on every apply, because the backend upserts a
-	// template-free policy, so a changed disposition replaces the entry in place
-	// (installUnmatched, unmatched.go).
-	installUnmatched(dataplane.Get(), cfg.Unmatched, s.log)
-	s.unmatchedApplied = true
+
+	// RFC 7296 Section 2.6. Published before any peer is reconciled, so an initiation
+	// that arrives during the reconcile is judged against the configuration being
+	// applied rather than the one being replaced. It follows the catch-all so that a
+	// refused catch-all leaves the running threshold unchanged.
+	setCookieThreshold(cfg.CookieThreshold)
 
 	// Resolve the configured source once. open uses it as the IKE bind and the
 	// default NAT-T source, even when mobility needs a wildcard NAT-T listener.

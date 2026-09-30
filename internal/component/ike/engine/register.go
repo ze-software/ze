@@ -479,6 +479,11 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return fmt.Errorf("ike config: %w", err)
 		}
+		// A discard catch-all the loaded dataplane cannot hold is refused here, at
+		// commit, rather than failing the apply (verifyUnmatchedEnforceable, unmatched.go).
+		if err := verifyUnmatchedEnforceable(dataplane.Get(), cfg.Unmatched); err != nil {
+			return fmt.Errorf("ike config: %w", err)
+		}
 		staging.stage(cfg)
 		return nil
 	})
@@ -490,8 +495,9 @@ func runEngine(conn net.Conn) int {
 		}
 		// applyStartup: the interface branch inside applyConfig (apply.go) states why the
 		// two deliveries answer an unbindable peer set differently. It logs that
-		// condition and applies the configuration, so this phase returns an error only
-		// for a failure a running daemon could not have.
+		// condition and applies the configuration. This phase returns an error for a
+		// failure a running daemon could not have, and for a discard catch-all that did
+		// not install (installUnmatched, unmatched.go), which would otherwise fail open.
 		return state.applyConfig(cfg, applyStartup)
 	})
 

@@ -33,7 +33,9 @@ func finalEntriesFor(tb testing.TB, value string) []dataplane.SPParams {
 		tb.Fatalf("ParseIPsecConfig(unmatched %q): %v", value, err)
 	}
 	dp := &bypassDP{}
-	installUnmatched(dp, cfg.Unmatched, slogutil.Logger("test"))
+	if err := installUnmatched(dp, cfg.Unmatched, slogutil.Logger("test")); err != nil {
+		tb.Fatalf("install the catch-all: %v", err)
+	}
 	if len(dp.installed) != 6 {
 		tb.Fatalf("unmatched %q: installed %d entries, want 3 directions x 2 families", value, len(dp.installed))
 	}

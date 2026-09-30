@@ -66,7 +66,9 @@ func TestRFC4301UnmatchedDiscardIsTheLastEntryOfEveryDatabase(t *testing.T) {
 	}
 
 	dp := &bypassDP{}
-	installUnmatched(dp, dataplane.SPActionDiscard, slogutil.Logger("test"))
+	if err := installUnmatched(dp, dataplane.SPActionDiscard, slogutil.Logger("test")); err != nil {
+		t.Fatalf("install the catch-all: %v", err)
+	}
 	if len(dp.installed) != 6 {
 		t.Fatalf("installed %d policies, want 3 directions x 2 families", len(dp.installed))
 	}
@@ -82,7 +84,9 @@ func TestRFC4301UnmatchedDiscardIsTheLastEntryOfEveryDatabase(t *testing.T) {
 // catch-all is ever ranked at or above an operator entry.
 func TestRFC4301UnmatchedNeverDiscardsWhatTheOperatorDidNotAskToDiscard(t *testing.T) {
 	dp := &bypassDP{}
-	installUnmatched(dp, dataplane.SPActionBypass, slogutil.Logger("test"))
+	if err := installUnmatched(dp, dataplane.SPActionBypass, slogutil.Logger("test")); err != nil {
+		t.Fatalf("install the catch-all: %v", err)
+	}
 	if len(dp.installed) != 6 {
 		t.Fatalf("installed %d policies, want 6", len(dp.installed))
 	}
@@ -104,7 +108,9 @@ func TestRFC4301UnmatchedNeverDiscardsWhatTheOperatorDidNotAskToDiscard(t *testi
 	}
 
 	refused := &bypassDP{}
-	installUnmatched(refused, dataplane.SPActionProtect, slogutil.Logger("test"))
+	if err := installUnmatched(refused, dataplane.SPActionProtect, slogutil.Logger("test")); err == nil {
+		t.Fatal("a protect catch-all was installed without an error")
+	}
 	if len(refused.installed) != 0 {
 		t.Fatalf("a refused disposition installed %d policies", len(refused.installed))
 	}

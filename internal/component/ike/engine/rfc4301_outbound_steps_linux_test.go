@@ -120,7 +120,9 @@ func outStepSPD(t *testing.T) *ChildSA {
 	}
 	installSPDPolicies(dp, nil, entries, log)
 	t.Cleanup(func() { removeSPDPolicies(dp, entries, log) })
-	installUnmatched(dp, dataplane.SPActionDiscard, log)
+	if err := installUnmatched(dp, dataplane.SPActionDiscard, log); err != nil {
+		t.Fatalf("install the catch-all: %v", err)
+	}
 	t.Cleanup(func() { removeUnmatched(dp, log) })
 	return child
 }

@@ -611,6 +611,20 @@ type TunnelMigrator interface {
 	MigrateTunnel(TunnelMigration) error
 }
 
+// CatchAllInstaller is implemented by a backend that states, ahead of any install,
+// whether it can hold an SPD entry bound to no interface. The engine's catch-all
+// (engine/unmatched.go) is such an entry, and config verify asks this question before
+// it accepts `unmatched discard`, so a discard the backend cannot enforce is refused at
+// commit rather than discovered at apply.
+//
+// A backend that does not implement the interface has declared nothing, and the
+// engine treats that as unable: a new backend is refused a discard until it answers.
+type CatchAllInstaller interface {
+	// CatchAllSupported returns nil when the backend can install an entry bound to no
+	// interface, and the reason, wrapping ErrNotSupported, when it cannot.
+	CatchAllSupported() error
+}
+
 // ErrTunnelMigrationLost means rollback could not restore the live SA pair.
 // Protective policies remain owned until the caller tears down the Child SA.
 var ErrTunnelMigrationLost = errors.New("dataplane: tunnel lost during migration")

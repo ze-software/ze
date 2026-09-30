@@ -27,6 +27,9 @@ func (noopDataplane) RemovePolicy(*net.IPNet, *net.IPNet, SADir) error { return 
 func (noopDataplane) RemovePolicyParams(SPParams) error                { return nil }
 func (noopDataplane) Close() error                                     { return nil }
 
+// CatchAllSupported answers yes, as every other install of this test-only backend does.
+func (noopDataplane) CatchAllSupported() error { return nil }
+
 // ListSAs and ListPolicies REFUSE rather than report an empty dataplane.
 //
 // The write methods above succeed so an unprivileged .ci can complete an IKEv2

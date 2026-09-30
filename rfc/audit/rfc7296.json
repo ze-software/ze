@@ -7,6 +7,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -103,8 +104,8 @@
       "note": "HMAC PRFs accept 1..200-octet keys and consume the key",
       "requirement_sha": "a4adab3d42e08661",
       "tests": {
-        "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys": "c4394c607e6b8ca3",
-        "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys#2": "c4394c607e6b8ca3"
+        "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys": "92f4c9e647e3de21",
+        "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys#2": "92f4c9e647e3de21"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys": "9dae1dd2fe963564",
@@ -128,8 +129,11 @@
       "verdict": "enforced"
     },
     "RFC7296-2.10-3": {
-      "note": "Positive reads the PRF list from the registry and asserts every emission site: IKE_SA_INIT Ni and Nr, Child SA rekey Ni and Nr, IKE SA rekey Ni and Nr, the four rekey nonces decrypted off the wire by the other side. Negative is R1(b): an IKE SA rekey that negotiates prf-hmac-sha2-512 (checked on the replacement SA's Proposal.PRF, half 32 > the 16-octet wire minimum), and its Ni and Nr off the wire each meet half that key. A per-site shortening at any of the six sites reddens the positive. The IKE_SA_INIT nonces are read from SA.LocalNonce, not the wire.",
-      "requirement_sha": "310ac223e95176d0",
+      "code": {
+        "internal/component/ike/engine/sa.go::GenerateNonce": "2dfa6888005dfce1"
+      },
+      "note": "Re-judged 2026-09-30 after the row text was widened to the whole verbatim Section 2.10 sentence (D-10, rfc/corrections/rfc7296.md). The gated clause is the half-PRF-key floor; the random choice is gated by RFC7296-2.10-4 and the 128-bit floor by RFC7296-2.10-2, which quote the leading spans of the same sentence, so this row's tests are judged on the final clause alone. Positive TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey reads every PRF from the registry and asserts all six emission sites (IKE_SA_INIT Ni/Nr, Child SA rekey Ni/Nr, IKE SA rekey Ni/Nr, rekey nonces off the wire); negative TestRFC7296EmittedNoncesMeetTheLargestPRFBound negotiates prf-hmac-sha2-512 on a rekey and checks the wire Ni/Nr meet 32 octets. Records re-recorded (GenerateNonce revert). Judge's own clause probe: GenerateNonce capped at 16 octets via go test -overlay reddens both units (sha384/sha512 halves), so both discriminate the half-PRF clause, not merely call the producer.",
+      "requirement_sha": "81e294f01574238f",
       "tests": {
         "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey": "65add4d99ee3e401",
         "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetTheLargestPRFBound": "65add4d99ee3e401"
@@ -210,8 +214,8 @@
       "note": "DeriveChildSAKeys slices recomputed prf+ KEYMAT with both initiator keys before responder keys",
       "requirement_sha": "5420d232f664a6b1",
       "tests": {
-        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "c4394c607e6b8ca3",
-        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "c4394c607e6b8ca3"
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "92f4c9e647e3de21",
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "92f4c9e647e3de21"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "275a850ead3da96a",
@@ -223,8 +227,8 @@
       "note": "encryption key then integrity key per direction, positional, asserted against recomputed KEYMAT",
       "requirement_sha": "6a907b588d629355",
       "tests": {
-        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "c4394c607e6b8ca3",
-        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "c4394c607e6b8ca3"
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "92f4c9e647e3de21",
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "92f4c9e647e3de21"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "275a850ead3da96a",
@@ -1387,19 +1391,22 @@
       "verdict": "enforced"
     },
     "RFC7296-5-2": {
-      "note": "The negotiation path is now exercised. New TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher: NegotiateIKE (responder) and VerifyAcceptedIKE (initiator) each refuse an otherwise complete IKE proposal carrying AUTH_NONE beside AES-CBC, and one carrying ENCR_NULL (ID 11), with local policy holding the identical proposal so only the forbidden value can refuse; the AES-CBC/HMAC-SHA2-256-128 proposal is accepted by both. Producer read: ikeProposalComplete refuses AUTH_NONE with a non-AEAD cipher; ENCR_NULL is refused as an unspecified cipher. Residual: the negative asserts err != nil, not a specific error. HEAD unit TestIKENeverNegotiatesNullAlgorithms (registry lookups) stays tagged; its 'negative' tag asserts supported names resolve, which is a control and not a violating input, so it should be retagged (author's own note). Records: ikeProposalComplete and NegotiateIKE reverts observed red.",
+      "code": {
+        "internal/component/ike/crypto/proposal.go::NegotiateIKE": "3013350d3ad7914b",
+        "internal/component/ike/crypto/proposal.go::ikeProposalComplete": "575fd0e6fe3deaf7",
+        "internal/component/ike/crypto/transform.go::LookupIntegrity": "ce3cea3ad320b5e0"
+      },
+      "note": "Re-judged 2026-09-30. RFC 7296 Section 5: 'implementations MUST NOT negotiate NONE as the IKE integrity protection algorithm or ENCR_NULL as the IKE encryption algorithm.' The earlier residual is closed: the negative in TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher now asserts errors.Is ErrProposalIncomplete for AUTH_NONE beside AES-CBC and ErrTransformUnspecified for ENCR_NULL, on both NegotiateIKE (responder) and VerifyAcceptedIKE (initiator), with policy holding the identical proposal; its positive accepts AES-CBC/HMAC-SHA2-256-128 on both. TestIKENeverNegotiatesNullAlgorithms keeps only its positive tag (the lookups refuse none/null, so ze cannot build a null proposal); its trailing block is now labelled a control, which it is. Three records observed red. Judge's own probe: removing the AUTH_NONE clause of ikeProposalComplete via go test -overlay reddens the negative on both sides.",
       "requirement_sha": "0636fb68d1c52210",
       "tests": {
-        "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher": "01df3cd088abf968",
-        "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher#2": "01df3cd088abf968",
-        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms": "c4394c607e6b8ca3",
-        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms#2": "c4394c607e6b8ca3"
+        "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher": "a8fab4f57f36573f",
+        "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher#2": "a8fab4f57f36573f",
+        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms": "92f4c9e647e3de21"
       },
       "units": {
-        "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher": "9adf83ccc5cf992e",
-        "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher#2": "9adf83ccc5cf992e",
-        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms": "04bc32fb68231a7d",
-        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms#2": "04bc32fb68231a7d"
+        "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher": "791ac49b89778163",
+        "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher#2": "791ac49b89778163",
+        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms": "cbb056d65d5c77a0"
       },
       "verdict": "enforced"
     },

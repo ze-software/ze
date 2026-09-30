@@ -24,6 +24,12 @@ func (b *xfrmBackend) RemoveSA(_ uint32, _ net.IP, _ uint8) error {
 	return fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
 }
 
+// CatchAllSupported refuses: no XFRM exists off Linux, so no entry of any kind can be
+// installed.
+func (b *xfrmBackend) CatchAllSupported() error {
+	return fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
+}
+
 func (b *xfrmBackend) InstallPolicy(_ SPParams) error {
 	return fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
 }

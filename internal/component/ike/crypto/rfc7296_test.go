@@ -301,9 +301,11 @@ func TestChildSAKeymatOrder(t *testing.T) {
 // cipher. integrityRegistry registers no name for AUTH_NONE (transform.go:132-136), and
 // encryptionRegistry registers no null cipher (transform.go:119-124). LookupIntegrity and
 // LookupEncryption refuse both, so no IKEProposal can carry them.
-// RFC requirement: RFC7296-5-2 negative -- the refusal is specific. The real integrity and
-// encryption algorithms this implementation supports do resolve, so the registries are not
-// empty.
+//
+// The block at the end is a CONTROL, not a negative of RFC7296-5-2: it shows the real
+// integrity and encryption algorithms resolve, so the refusals above are not an empty
+// registry. The negative, a null IKE proposal refused by the negotiation with the error
+// the null transform causes, is TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher.
 func TestIKENeverNegotiatesNullAlgorithms(t *testing.T) {
 	for _, name := range []string{"none", "null"} {
 		if got, err := LookupIntegrity(name); err == nil {
@@ -326,7 +328,7 @@ func TestIKENeverNegotiatesNullAlgorithms(t *testing.T) {
 		}
 	}
 
-	// Negative: the algorithms this implementation does support resolve.
+	// Control: the algorithms this implementation does support resolve.
 	if _, err := LookupIntegrity("sha256"); err != nil {
 		t.Errorf("LookupIntegrity(\"sha256\") = %v, want a transform", err)
 	}

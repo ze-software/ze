@@ -64,6 +64,14 @@ func vppPortRange(m PortMatch) (start, stop uint16, err error) {
 		"%w: vpp: port mask %#04x names no contiguous port range, and an SPD entry carries a range",
 		ErrNotSupported, m.Mask)
 }
+
+// CatchAllSupported refuses, for the reason vppPolicyInterface gives: a VPP SPD takes
+// effect only on the interfaces it is bound to, so VPP holds no entry bound to no
+// interface, and the engine's catch-all is exactly that entry.
+func (b *vppBackend) CatchAllSupported() error {
+	return fmt.Errorf("%w: vpp: an SPD entry applies only to the interfaces its SPD is bound to; VPP has no node-wide SPD", ErrNotSupported)
+}
+
 func (b *vppBackend) InstallPolicy(p SPParams) error {
 	swIfIndex, err := vppPolicyInterface(p)
 	if err != nil {

@@ -102,7 +102,9 @@ func inStepSPDI(t *testing.T, unmatched dataplane.SPAction) {
 	}
 	installSPDPolicies(dp, nil, entries, log)
 	t.Cleanup(func() { removeSPDPolicies(dp, entries, log) })
-	installUnmatched(dp, unmatched, log)
+	if err := installUnmatched(dp, unmatched, log); err != nil {
+		t.Fatalf("install the catch-all: %v", err)
+	}
 	t.Cleanup(func() { removeUnmatched(dp, log) })
 }
 
@@ -305,7 +307,9 @@ func TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf(t *test
 	}
 
 	// The default: installUnmatched replaces the catch-all under the same selector.
-	installUnmatched(dataplane.Get(), dataplane.SPActionBypass, slogutil.DiscardLogger())
+	if err := installUnmatched(dataplane.Get(), dataplane.SPActionBypass, slogutil.DiscardLogger()); err != nil {
+		t.Fatalf("install the catch-all: %v", err)
+	}
 	inStepSendClear(t, inStepStrayPort)
 	if !sadSelDelivered(t, stray) {
 		t.Fatal("with the default unmatched bypass, a clear datagram no SPD-I entry names was not delivered")

@@ -233,8 +233,15 @@ traffic in the clear.
 `PriorityUnmatched`, the largest u32 the kernel holds, so it is searched last.
 The kernel passes an unmatched packet with no policy at all, so the discard the
 section mandates is an entry Ze installs rather than a default it inherits. VPP
-refuses the fwd direction (`vppBackend.spdEntry`), and that refusal is logged
-as a fail-open.
+holds no entry bound to no interface (`vppPolicyInterface`), so it installs no
+catch-all at all. A DISCARD catch-all that is not installed is never a warning:
+config verify refuses `unmatched discard` when the loaded backend's
+`CatchAllSupported` (`dataplane.CatchAllInstaller`) says no, or when no
+dataplane is loaded, and `installUnmatched` returns an error for a discard
+install that fails, which fails the apply before the operator's entries, the
+cookie threshold or any peer change. A BYPASS catch-all that is not installed is
+logged and tolerated, because the kernel then passes the packet as the entry
+would have. Before the first apply no catch-all exists.
 The engine records whether configuration reached this catch-all writer.
 Cleanup removes catch-all policies only after that apply boundary; an earlier
 SDK startup failure must not delete a pre-existing policy it never managed.

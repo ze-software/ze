@@ -6,6 +6,7 @@
 package crypto
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -33,9 +34,9 @@ func nullIKEProposals() map[string]IKEProposal {
 
 // RFC requirement: RFC7296-5-2 negative -- the peer's offer is refused on both sides of the
 // negotiation: NegotiateIKE (ze responding) and VerifyAcceptedIKE (ze initiating and
-// reading the accepted proposal) each answer an error for an IKE proposal carrying
-// AUTH_NONE beside AES-CBC, and for one carrying ENCR_NULL, with local policy holding the
-// same values.
+// reading the accepted proposal) each refuse an IKE proposal carrying AUTH_NONE beside
+// AES-CBC with ErrProposalIncomplete, and one carrying ENCR_NULL with
+// ErrTransformUnspecified, with local policy holding the same values.
 // RFC requirement: RFC7296-5-2 positive -- the same proposal with HMAC-SHA2-256-128 and
 // AES-CBC is negotiated by both, so the refusal is caused by NONE or NULL alone.
 //
@@ -43,14 +44,24 @@ func nullIKEProposals() map[string]IKEProposal {
 // protection algorithm or ENCR_NULL as the IKE encryption algorithm." An AEAD cipher
 // carries its own integrity, so AUTH_NONE beside AES-GCM is not this case.
 func TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher(t *testing.T) {
+	// The refusal is the one the null transform causes, not any error: AUTH_NONE beside
+	// a non-AEAD cipher is an IKE proposal missing its mandatory integrity transform
+	// (ikeProposalComplete), and ENCR_NULL is a cipher this implementation does not
+	// specify for the IKE SA (acceptEncryption, specifiedEncryption).
+	want := map[string]error{
+		"AUTH_NONE beside AES-CBC": ErrProposalIncomplete,
+		"ENCR_NULL":                ErrTransformUnspecified,
+	}
 	for name, p := range nullIKEProposals() {
 		offer := []IKEProposal{p}
 		policy := []IKEProposal{p}
-		if got, err := NegotiateIKE(offer, policy); err == nil {
-			t.Errorf("NegotiateIKE(%s) = %+v, want a refusal", name, got)
+		got, err := NegotiateIKE(offer, policy)
+		if !errors.Is(err, want[name]) {
+			t.Errorf("NegotiateIKE(%s) = %+v, %v; want %v", name, got, err, want[name])
 		}
-		if got, err := VerifyAcceptedIKE(offer, policy); err == nil {
-			t.Errorf("VerifyAcceptedIKE(%s) = %+v, want a refusal", name, got)
+		got, err = VerifyAcceptedIKE(offer, policy)
+		if !errors.Is(err, want[name]) {
+			t.Errorf("VerifyAcceptedIKE(%s) = %+v, %v; want %v", name, got, err, want[name])
 		}
 	}
 
