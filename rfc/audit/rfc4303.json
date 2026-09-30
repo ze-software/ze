@@ -1,30 +1,44 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4303-1-1": {
-      "note": "Two clauses. Configurable via management interfaces: forbidden behaviour is refusing an integrity-only ESP configuration; TestIPsecESPRequiresIntegrity (ospf/config_ipsec_test.go) fails via t.Fatalf when validateConfig rejects esp null-cipher + sha256, so that clause is proven. Offered as a service selection option, e.g. negotiable in SA management protocols: no tagged assertion, and Ze's IKEv2 ESP vocabulary has no ENCR_NULL (ike/ipsec/types.go EncryptionAlgo), so integrity-only ESP is not negotiable. The negative tag (null cipher with no integrity refused) proves the neighbouring RFC4303-3.2-1 rule, not a violation of this one.",
-      "requirement_sha": "654a2176f2f218cf",
+      "note": "Re-judged after the R3 split: the row is now only the Section 1 clause 'MUST be configurable via management interfaces' (the IKE negotiation clause is the gap row RFC4303-1-2). Forbidden behaviour: the management interface refusing, or silently altering, an integrity-only ESP configuration. Positive: TestIPsecESPRequiresIntegrity drives esp + null cipher + sha256 through parseOSPFConfig/validateConfig and t.Fatalf on any refusal. Negative (R1(b), inputs pushed toward a refusal): TestRFC4303IntegrityOnlyESPIsConfigurable, for every integrity algorithm in ipsecAuthKeyLen x {cipher leaf omitted, explicit null}, validates and installs and asserts proto 50 (not AH), cipher null with no key, and the configured integrity algorithm and key length, so a validator requiring a cipher for ESP or accepting integrity-only for one algorithm only goes red. The old negative (null cipher with no integrity refused) proved RFC4303-3.2-1 and was removed from this row. Revert records on validateESPConfidentiality for both units observed red (positive recorded by this judge). Only the OSPFv3 manual-SA surface offers integrity-only ESP; IKE's absence is RFC4303-1-2.",
+      "requirement_sha": "029162b34730685e",
       "tests": {
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "24a99999625a9144",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "24a99999625a9144"
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "b4ec6d2f07dfacb6",
+        "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303IntegrityOnlyESPIsConfigurable": "01b10f93731e39a0"
       },
       "units": {
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "d758e0d4d20c8f5f",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "d758e0d4d20c8f5f"
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "86bbfd0cbbcea447",
+        "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303IntegrityOnlyESPIsConfigurable": "0b869b7e29d6fe12"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
+    },
+    "RFC4303-1-2": {
+      "code": {
+        "internal/component/ike/engine/initiator.go::resolveESPTransforms": "7982c0c3dcc99445",
+        "internal/component/ike/ipsec/types.go::ParseEncryptionAlgo": "7684fad58b1c12cf"
+      },
+      "note": "First judgement. The Section 1 clause 'Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols' is unmet in Ze's IKEv2: the ESP encryption vocabulary (ike/ipsec/types.go encryptionNames, ParseEncryptionAlgo) has no null entry, so no configuration can propose ENCR_NULL, and resolveESPTransforms (engine/initiator.go) resolves only registered ciphers; TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher shows the matcher refuses a peer's null proposal. Integrity-only ESP is offered only by manual OSPFv3 SA configuration (RFC4303-1-1). The {gap} annotation and the Support remaining text disclose it; the row quote is a verbatim span of Section 1, split from RFC4303-1-1 under R3 with a correction paragraph and an extraction unsourced-ids entry.",
+      "requirement_sha": "46f85f32b9b3e82e",
+      "verdict": "unimplemented"
     },
     "RFC4303-2-1": {
-      "note": "Forbidden behaviour: an ESP SA installed so the header preceding ESP carries a value other than 50. TestIPsecSAProtocolNumber (ospf/ipsec_install_test.go) asserts esp.Proto == 50 for the OSPFv3 manual SA only; the IKE Child SA producer (engine/child.go installChildSA, Proto: protoESP) has no tagged assertion. The negative tag (ah SA carries 51) catches a blanket-50 installer, which violates RFC 4302 Section 2, not this sentence, so the negative polarity proves a neighbouring rule. Assertion is at SAParams.Proto; the kernel projection (xfrm_linux.go:149) is outside the unit.",
+      "note": "Re-judged. OSPFv3 manual SAs are proven end to end on real XFRM: TestRFC4303ESPPacketOnTheWireCarriesProtocol50 (netns, aes128+sha256 esp, OSPF to ff02::5 captured on AF_PACKET, IPv6 Next Header == 50) and the R1(b) negative TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH (null cipher + sha256, the AH-shaped input, still 50 on the wire), plus TestIPsecSAProtocolNumber (SAParams.Proto 50); ipsecProtoNumber revert records observed red. The old ah->51 negative proves RFC4302-2-1 and was rightly removed. Stays weak on the whole-stack reading: Ze fills this role on a second producer, the IKE Child SA install (engine/child.go installChildSA, Proto: protoESP, inbound and outbound), and no test tagged to this row would go red if that producer installed another protocol. Owed: tag the IKE producer, e.g. engine/rfc4301_esp_test.go TestRFC4301ChildSAIsInstalledAsESP (asserts Proto 50 on both SAs from createFirstChildSA) as an RFC4303-2-1 positive with a revert record on installChildSA; the backend-to-wire step (xfrmStateFromParams) is shared and already proven by the OSPF probe.",
       "requirement_sha": "2af799f338be795e",
       "tests": {
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "6030e8816e85665f",
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber#2": "6030e8816e85665f"
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "976d07eeb9539b2b",
+        "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303ESPPacketOnTheWireCarriesProtocol50": "1b959a720a9dcc8e",
+        "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH": "1b959a720a9dcc8e"
       },
       "units": {
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "ad9a18c924aafdd8",
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber#2": "ad9a18c924aafdd8"
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "48e6e7401d9679b4",
+        "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303ESPPacketOnTheWireCarriesProtocol50": "33320dc1c2381ac9",
+        "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH": "bcc62677e870d43d"
       },
       "verdict": "weak"
     },
@@ -44,8 +58,8 @@
         "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderUsesPeerSPI": "a9f7e73ec596693c",
         "internal/component/ike/engine/rfc4303_spi_test.go::TestGenerateESPSPISkipsTheReservedZero": "61f8a26d3d189263",
         "internal/component/ike/engine/rfc4303_spi_test.go::TestGenerateESPSPISkipsTheReservedZero#2": "61f8a26d3d189263",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary": "24a99999625a9144",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary#2": "24a99999625a9144",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary": "b4ec6d2f07dfacb6",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary#2": "b4ec6d2f07dfacb6",
         "internal/plugins/ospf/rfc4303_spi_test.go::TestIPsecSPIZeroRefused": "121ed1737048ba4f",
         "internal/plugins/ospf/rfc4303_spi_test.go::TestIPsecSPIZeroRefused#2": "121ed1737048ba4f"
       },
@@ -70,17 +84,19 @@
       "verdict": "enforced"
     },
     "RFC4303-2.1-2": {
-      "note": "The sentence governs the SA identifier used for the inbound SAD lookup: whether destination, or destination and source, addresses are matched in addition to the SPI. TestIPsecSAAddressMatchIndication (ospf/ipsec_install_test.go) asserts the state's traffic selector (sa.Sel non-nil, Src /0, UpperProto 89), which restricts which inner traffic may use the SA after lookup (RFC 4301 traffic selectors). It asserts nothing about the lookup key (SAParams Dst/SPI identity) or about which address-match indication the manual configuration sets; a change that made the lookup key also match the source, or dropped the destination, stays green. The unit proves a neighbouring rule. Sibling agent reached the same reading; confirmed independently.",
+      "note": "Re-judged (was wrong: the old tags asserted the traffic selector, not the lookup key; they were removed). OSPFv3 manual SAs now proven at the lookup key: TestRFC4303InboundESPSAKeyedOnConfiguredDestination (every installed state carries the configured SPI, proto 50, a configured destination {local fe80::1, ff02::5, ff02::6}, each once, source unspecified); netns probes on real XFRM: positive TestRFC4303InboundESPMapsByConfiguredDestination (ESP to fe80::1 from another source finds the SA: XfrmInNoStates +0, XfrmInStateProtoError +1, nothing reaches OSPF), negative TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA (same SPI to fe80::2, XfrmInNoStates +1). buildIPsecSA revert records observed red. So the manual-configuration branch of the sentence is enforced. Stays weak on the whole-stack reading: the IKE Child SA producer (engine/child.go installChildSA, inbound SA Src=child.RemoteAddr Dst=child.LocalAddr) is the negotiation branch Ze also fills, and no test tagged to this row covers it. Owed: an engine test tagged RFC4303-2.1-2 positive asserting the inbound SA createFirstChildSA installs is keyed on the negotiated inbound SPI, ESP and the negotiated local address, plus a negative (netns, mirroring the OSPF probe: ESP under that SPI to a local address other than the negotiated one maps to no SA, XfrmInNoStates +1), each with a revert record on installChildSA.",
       "requirement_sha": "126e1e0efcd369e0",
       "tests": {
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAAddressMatchIndication": "6030e8816e85665f",
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAAddressMatchIndication#2": "6030e8816e85665f"
+        "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPMapsByConfiguredDestination": "1b959a720a9dcc8e",
+        "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA": "1b959a720a9dcc8e",
+        "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303InboundESPSAKeyedOnConfiguredDestination": "01b10f93731e39a0"
       },
       "units": {
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAAddressMatchIndication": "e53a42f831d5e1b8",
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAAddressMatchIndication#2": "e53a42f831d5e1b8"
+        "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPMapsByConfiguredDestination": "7d737a0ac5e6b270",
+        "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA": "27157bcd97512612",
+        "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303InboundESPSAKeyedOnConfiguredDestination": "d29b114c82c680df"
       },
-      "verdict": "wrong"
+      "verdict": "weak"
     },
     "RFC4303-2.2.1-2": {
       "note": "Forbidden behaviour: keying an SA with ESN that the SA management protocol did not negotiate. Negative: TestEsnInitiatorRefusesAnESNValueItNeverOffered requires verifyAcceptedOffer to return errAcceptedOfferESN for an answer selecting ESN (and for two ESN values), t.Fatalf otherwise. Positive: the offered non-ESN value is accepted and the offer is pinned to the single value. Ze never offers ESN and manual OSPFv3 SAs set none, so no un-negotiated ESN path exists.",
@@ -96,15 +112,15 @@
       "verdict": "enforced"
     },
     "RFC4303-3.2-1": {
-      "note": "Forbidden behaviour: an ESP SA with both encryption and integrity NULL. Negative: TestIPsecESPRequiresIntegrity requires validateConfig(esp, encryption-algorithm null, no integrity) to return ErrIPsecAuthAlgo, t.Fatalf otherwise, so accepting the forbidden pair goes red. Positive: null cipher + sha256 accepted (exactly one service). The only producer that admits a NULL cipher is the OSPFv3 manual path; the IKE ESP vocabulary has no ENCR_NULL (ike/ipsec/types.go), so every IKE Child SA carries encryption. Both clauses (at least one selected; not both NULL) are the same obligation and both are covered.",
+      "note": "Re-judged: TestIPsecESPRequiresIntegrity changed only by removing the RFC4303-1-1 negative comment; its assertions are unchanged. Forbidden behaviour: an ESP SA with both encryption and integrity NULL. Negative: validateConfig(esp, encryption-algorithm null, no integrity) must return ErrIPsecAuthAlgo, t.Fatalf otherwise. Positive: null cipher + sha256 accepted (exactly one service). The only producer that admits a NULL cipher is the OSPFv3 manual path; the IKE ESP vocabulary has no ENCR_NULL (ike/ipsec/types.go encryptionNames), so every IKE Child SA carries encryption. Both clauses are the same obligation and both are covered.",
       "requirement_sha": "1d1b19364f28dbeb",
       "tests": {
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "24a99999625a9144",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "24a99999625a9144"
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "b4ec6d2f07dfacb6",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "b4ec6d2f07dfacb6"
       },
       "units": {
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "d758e0d4d20c8f5f",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "d758e0d4d20c8f5f"
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "86bbfd0cbbcea447",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "86bbfd0cbbcea447"
       },
       "verdict": "enforced"
     },
@@ -120,15 +136,19 @@
       "verdict": "enforced"
     },
     "RFC4303-3.4.3-2": {
-      "note": "Forbidden behaviour: an SA with anti-replay enabled and no ESP integrity. IKE: TestChildSAReplayRequiresIntegrity asserts every installed SA with ReplayWin > 0 has AEAD or AuthAlgo+AuthKey, red if integrity were dropped. OSPFv3 manual SAs also enable anti-replay from the replay-window leaf (buildIPsecSA, TestIPsecSAReplayWindow); that producer is guarded only by the integrity-required validation, which no RFC4303-3.4.3-2-tagged unit asserts (a replay-window + null cipher + no integrity ESP interface is never tested under this tag).",
+      "note": "Re-judged. {single-polarity} rightly dropped: the OSPFv3 producer has a refusal path. Positive: TestRFC4303ESPReplayWindowCarriesIntegrity installs replay-window 64 with null and aes128 ciphers and asserts every SA has ReplayWin 64, AuthAlgo sha256 and a 32-octet key; IKE: TestChildSAReplayRequiresIntegrity asserts every installed Child SA with ReplayWin > 0 is AEAD or carries AuthAlgo+AuthKey (non-AEAD proposals always resolve an integrity transform, resolveESPTransforms). Negative: TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused, replay-window 64 with no integrity under no cipher, null and aes128, each refused ErrIPsecAuthAlgo by validateConfig, so anti-replay without integrity never reaches the installer. The refusal comes from the integrity-always-required check, which is exactly how Ze meets this MUST NOT; the input enables anti-replay without integrity, so it violates this requirement. Records: buildIPsecSA (positive) and validateIPsecInterface (negative) reverts observed red. Supplementary gap: the IKE negative (a non-AEAD proposal with no INTEG never installed) is structural, not tested.",
       "requirement_sha": "16584ecb77b304f8",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAReplayRequiresIntegrity": "3c602227a7107a32"
+        "internal/component/ike/engine/child_test.go::TestChildSAReplayRequiresIntegrity": "3c602227a7107a32",
+        "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303ESPReplayWindowCarriesIntegrity": "01b10f93731e39a0",
+        "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused": "01b10f93731e39a0"
       },
       "units": {
-        "internal/component/ike/engine/child_test.go::TestChildSAReplayRequiresIntegrity": "80a5ac80e8544e9e"
+        "internal/component/ike/engine/child_test.go::TestChildSAReplayRequiresIntegrity": "80a5ac80e8544e9e",
+        "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303ESPReplayWindowCarriesIntegrity": "af65fc10e0a4a17e",
+        "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused": "33b888070db21256"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4303-3.4.3-4": {
       "note": "Forbidden behaviour (SHOULD): a default window other than 64. TestChildSAReplayWindowDefault asserts ReplayWin == 64 on both IKE Child SAs with no window configured; any other default goes red. Single-polarity marker present. The OSPFv3 manual path defaults to no anti-replay, which RFC 4303 Section 3.3.3 advises for manually keyed SAs, so the default-window sentence binds the IKE path.",

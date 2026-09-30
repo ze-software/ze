@@ -6,6 +6,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -15,7 +16,7 @@
       "requirement_sha": "db38daf7ff5cee61",
       "tests": {
         "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32",
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "6030e8816e85665f"
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "976d07eeb9539b2b"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d",
@@ -98,21 +99,21 @@
       "verdict": "weak"
     },
     "RFC4301-4.2-1": {
-      "note": "Re-judged pass 6. Both ESP instantiation paths now carry the MUST NOT. XFRM (xfrmStateFromParams, shared by IKE Child SAs and RFC 4552 OSPFv3 manual SAs): NULL + sha256 instantiated, NULL + ''/'none' refused with no state. ze_vpp (vppBackend.InstallSA): new negative TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused, control install of the well-formed SA sends 1 message, then NULL with '', 'none' and sha256 each returns ErrNotSupported and sends VPP nothing, and vppCryptoAlg('null') errors; the sha256 variant shows the refusal comes from the cipher mapping, not only from vppIntegAlg. No VPP positive exists or is owed: the row is a MUST NOT, and VPP refusing NULL encryption outright is compliant (the XFRM positive shows the boundary where NULL is allowed). OSPF config units (validateIPsecInterface) keep both polarities on the manual path; their revert records were observed red and written by this judge (they were the unproven covers). Revert records: xfrmStateFromParams +/-, vppCryptoAlg -, validateIPsecInterface +/-. Ran with -tags ze_vpp -race: green.",
+      "note": "Re-judged: the OSPF unit TestIPsecESPRequiresIntegrity changed only by removing an RFC4303-1-1 negative comment; its assertions and both RFC4301-4.2-1 tags are unchanged, and its validateIPsecInterface revert records still replay. Re-judged pass 6. Both ESP instantiation paths now carry the MUST NOT. XFRM (xfrmStateFromParams, shared by IKE Child SAs and RFC 4552 OSPFv3 manual SAs): NULL + sha256 instantiated, NULL + ''/'none' refused with no state. ze_vpp (vppBackend.InstallSA): new negative TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused, control install of the well-formed SA sends 1 message, then NULL with '', 'none' and sha256 each returns ErrNotSupported and sends VPP nothing, and vppCryptoAlg('null') errors; the sha256 variant shows the refusal comes from the cipher mapping, not only from vppIntegAlg. No VPP positive exists or is owed: the row is a MUST NOT, and VPP refusing NULL encryption outright is compliant (the XFRM positive shows the boundary where NULL is allowed). OSPF config units (validateIPsecInterface) keep both polarities on the manual path; their revert records were observed red and written by this judge (they were the unproven covers). Revert records: xfrmStateFromParams +/-, vppCryptoAlg -, validateIPsecInterface +/-. Ran with -tags ze_vpp -race: green.",
       "requirement_sha": "8977a7cc940a547b",
       "tests": {
         "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithIntegrityIsInstantiated": "4fb15cdf24d02bbb",
         "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithoutIntegrityIsRefused": "4fb15cdf24d02bbb",
         "internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go::TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused": "431666bd66ee7755",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "24a99999625a9144",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "24a99999625a9144"
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "b4ec6d2f07dfacb6",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "b4ec6d2f07dfacb6"
       },
       "units": {
         "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithIntegrityIsInstantiated": "5e6ac90d3d27e727",
         "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithoutIntegrityIsRefused": "fa5c495d3391c42a",
         "internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go::TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused": "829860c392fcdeeb",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "d758e0d4d20c8f5f",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "d758e0d4d20c8f5f"
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "86bbfd0cbbcea447",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "86bbfd0cbbcea447"
       },
       "verdict": "enforced"
     },
@@ -499,7 +500,7 @@
       "requirement_sha": "7ace33c19c76dd42",
       "tests": {
         "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32",
-        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp": "6030e8816e85665f"
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp": "976d07eeb9539b2b"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d",

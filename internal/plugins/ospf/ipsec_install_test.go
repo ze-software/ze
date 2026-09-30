@@ -364,9 +364,6 @@ func TestIPsecDisabledInterfaceBypass(t *testing.T) {
 // 50 in its Protocol (IPv4) or Next Header (IPv6, Extension) field". An esp interface builds
 // an SA whose protocol number is 50, which is what makes the kernel write 50 in the header
 // preceding ESP (buildIPsecSA -> ipsecProtoNumber, ipsec_install.go).
-// RFC requirement: RFC4303-2-1 negative -- the number tracks the configured protocol rather
-// than being 50 for everything: an ah interface builds an SA carrying 51, so a blanket-50
-// installer fails this test.
 // RFC requirement: RFC4302-2-1 positive -- RFC 4302 Section 2: "The protocol header (IPv4,
 // IPv6, or IPv6 Extension) immediately preceding the AH header SHALL contain the value 51 in
 // its Protocol (IPv4) or Next Header (IPv6, Extension) fields [DH98]." An ah interface builds
@@ -389,15 +386,12 @@ func TestIPsecSAProtocolNumber(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC4303-2.1-2 positive -- RFC 4303 Section 2.1: "The indication of whether
-// source and destination address matching is required to map inbound IPsec traffic to SAs
-// MUST be set either as a side effect of manual SA configuration or via negotiation using an
-// SA management protocol". The RFC 4552 manual configuration sets it: buildIPsecSA gives the
-// state an explicit selector, so the indication is a configured value and never a default the
-// kernel supplies.
-// RFC requirement: RFC4303-2.1-2 negative -- the indication that is set is a narrowing one. The
-// selector names OSPF (upper protocol 89), so traffic other than OSPF cannot map to this SA;
-// an installer that left the selector at the wildcard 0 fails this test.
+// TestIPsecSAAddressMatchIndication checks the state selector buildIPsecSA gives a manual SA,
+// which narrows the traffic that may use the SA once the inbound lookup has found it: the
+// ::/0 prefixes RFC 4552 Section 7 keys one SA for every OSPFv3 address, and upper protocol
+// 89, so traffic other than OSPF cannot use this SA. The lookup key itself (SPI and
+// destination) is RFC 4303 Section 2.1's address-match indication, proven by
+// TestRFC4303InboundESPSAKeyedOnConfiguredDestination and the rfc4303 XFRM probes.
 func TestIPsecSAAddressMatchIndication(t *testing.T) {
 	sa := buildIPsecSA(testIfIndex, ospfv3transport.AllSPFRouters, ipsecSharedDir, ipsecInterfaceConfig{
 		SPI: 256, Protocol: "esp", AuthAlgo: "sha256", AuthKey: hexKey(32),

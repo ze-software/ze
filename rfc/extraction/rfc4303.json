@@ -20,7 +20,10 @@
       "id": "1",
       "sites": 2,
       "disposition": "walked",
-      "reason": "Introduction. It states the service model and the three service combinations, and its two sites carry the integrity-only obligation this walk declares as RFC4303-1-1. The RFC 2119 key-words paragraph sits here too and binds nobody, which is why the derivation excludes it from the site inventory."
+      "reason": "Introduction. It states the service model and the three service combinations, and its two sites carry the integrity-only obligation this walk declares as RFC4303-1-1. The RFC 2119 key-words paragraph sits here too and binds nobody, which is why the derivation excludes it from the site inventory. Site 1:1 was split on 2026-09-30 (rfc/corrections/rfc4303.md): its negotiable-in-SA-management-protocols clause is RFC4303-1-2, which shares the site and so is declared unsourced here.",
+      "unsourced-ids": [
+        "RFC4303-1-2"
+      ]
     },
     {
       "id": "2",

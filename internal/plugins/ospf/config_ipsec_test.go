@@ -109,9 +109,6 @@ func TestIPsecESPRequiresIntegrity(t *testing.T) {
 	// confidentiality and integrity are optional, at least one of these services MUST be
 	// selected, hence both algorithms MUST NOT be simultaneously NULL". The refusal is the
 	// guard: a null cipher with no integrity algorithm never reaches an installed SA.
-	// RFC requirement: RFC4303-1-1 negative -- the integrity-only ESP service Ze offers is
-	// integrity BEARING. A configuration that names the null cipher and omits integrity does
-	// not select it; it is refused rather than installed as an unauthenticated ESP SA.
 	cfg, err := parseOSPFConfig(ospfSec(v6IPsecCfg(
 		`"protocol":"esp","spi":256,"encryption-algorithm":"null"`, "")), nil)
 	if err != nil {

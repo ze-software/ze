@@ -2,6 +2,61 @@
   "rfc": "rfc4303",
   "records": [
     {
+      "rid": "RFC4303-1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity",
+      "unit-sha": "effaf30cc29ec955",
+      "claim-sha": "1423e7346a83b540",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config_ipsec.go::validateESPConfidentiality",
+      "producer-sha": "6c765386d4847d11",
+      "break": "body of validateESPConfidentiality replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4303-1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303IntegrityOnlyESPIsConfigurable",
+      "unit-sha": "ebcc10693727afa9",
+      "claim-sha": "bd6313c74729cefc",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config_ipsec.go::validateESPConfidentiality",
+      "producer-sha": "6c765386d4847d11",
+      "break": "body of validateESPConfidentiality replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4303-2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber",
+      "unit-sha": "ca8f825ae96efac8",
+      "claim-sha": "86ffc7588a6cf9c5",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+      "producer-sha": "c05a39ef55486b0e",
+      "break": "body of ipsecProtoNumber replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4303-2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303ESPPacketOnTheWireCarriesProtocol50",
+      "unit-sha": "d9de2775b8a7a723",
+      "claim-sha": "ee692f605c576597",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+      "producer-sha": "c05a39ef55486b0e",
+      "break": "body of ipsecProtoNumber replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4303-2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH",
+      "unit-sha": "29a96203cc427641",
+      "claim-sha": "bd3e84dd9eda8415",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+      "producer-sha": "c05a39ef55486b0e",
+      "break": "body of ipsecProtoNumber replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4303-2.1-1",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestRefusesPeerSPIZero",
@@ -132,6 +187,72 @@
       "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
       "producer-sha": "30c3ee956902c48e",
       "break": "line 117: \"\u003c\" -\u003e \"\u003e\""
+    },
+    {
+      "rid": "RFC4303-2.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPMapsByConfiguredDestination",
+      "unit-sha": "8fd49a7e6609f3c1",
+      "claim-sha": "9d65caa6b95def26",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "6a340d64849a22e0",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4303-2.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA",
+      "unit-sha": "46f15ab1a31bb96c",
+      "claim-sha": "453cd87aaf24b275",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "6a340d64849a22e0",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4303-2.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303InboundESPSAKeyedOnConfiguredDestination",
+      "unit-sha": "e6b3c478bfb1ec1e",
+      "claim-sha": "5aba42d807f20e70",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "6a340d64849a22e0",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4303-3.4.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/child_test.go::TestChildSAReplayRequiresIntegrity",
+      "unit-sha": "db69a8892babeeac",
+      "claim-sha": "5d9b9f9297591100",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::installChildSA",
+      "producer-sha": "00d35a0a4eb4f737",
+      "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4303-3.4.3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303ESPReplayWindowCarriesIntegrity",
+      "unit-sha": "aa742a3c5b6702ef",
+      "claim-sha": "c08eb5bcde463362",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "6a340d64849a22e0",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4303-3.4.3-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused",
+      "unit-sha": "8a99f0cc5b46e9bb",
+      "claim-sha": "59567e7d510317a9",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
+      "producer-sha": "30c3ee956902c48e",
+      "break": "body of validateIPsecInterface replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
