@@ -2,6 +2,28 @@
   "rfc": "rfc8654",
   "records": [
     {
+      "rid": "RFC8654-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling",
+      "unit-sha": "c5e4bdea4cf7d3ac",
+      "claim-sha": "983e1eb9bd353b6d",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
+      "producer-sha": "29b57c597e6fde4a",
+      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling",
+      "unit-sha": "c5e4bdea4cf7d3ac",
+      "claim-sha": "32396e4f9a54c9de",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::rfc7606SessionReset",
+      "producer-sha": "60127dd475be3c95",
+      "break": "body of rfc7606SessionReset replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8654-3-2",
       "polarity": "positive",
       "unit": "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageWireIsCode6Length0",

@@ -6,17 +6,21 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8654-3-1": {
-      "note": "Non-compliant: an extended-message peer whose malformed UPDATE resets the session instead of RFC 7606 handling. The tagged units call ValidateUpdateRFC7606 directly with no session and no Extended Message negotiation: the positive asserts a well-formed MP_REACH gets ActionNone, the negative that a COMMUNITY length conflict is treat-as-withdraw. They prove RFC 7606 behaviour in isolation, not that the extended-message session path applies it.",
+      "note": "New unit TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling runs on a live session that negotiated Extended Message (asserted) with UPDATEs over 4096 octets (1100 /24s). Positive: malformed ORIGIN length -> RFC 7606 treat-as-withdraw: no error, Established, no NOTIFICATION, all 1100 routes dispatched as withdrawn with no attributes. Negative: Total Attribute Length overruns the message -> RFC 7606 Section 3 b (\"the Error Subcode MUST be set to Malformed Attribute List\"): NOTIFICATION 3/1, Idle, nothing dispatched. Observed-red records: + revert enforceRFC7606, - revert rfc7606SessionReset. Replaces the old weak finding that only isolated ValidateUpdateRFC7606 calls were tagged; those stay as supplementary.",
       "requirement_sha": "58d67f2664ef1bc5",
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "669936946251c215",
-        "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted": "669936946251c215"
+        "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted": "669936946251c215",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling": "a44e07949b80f520",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling#2": "a44e07949b80f520"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "6215492127a94045",
-        "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted": "ef0a5b1fd070bfe9"
+        "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted": "ef0a5b1fd070bfe9",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling": "982a28adef00913c",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling#2": "982a28adef00913c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8654-3-2": {
       "note": "Code 6 is the whole obligation; row single-polarity positive (a fixed code has no refusal form). TestRFC8654ExtendedMessageWireIsCode6Length0 reads the octet WriteTo puts at a non-zero offset (06), Code()==6, and Parse(06 00) yields *ExtendedMessage: a code drift in WriteTo or in Parse's dispatch goes red. The old TestCapabilityCodeConstants tag (constant only) is supplementary. Judge 2026-09-30.",

@@ -202,6 +202,12 @@ type Peer struct {
 	dialer   network.Dialer
 	session  *Session
 
+	// defaultOriginateRefusalLog bounds the Warn for a default-originate route
+	// the builder refuses to one line per second for this peer. The refusal
+	// recurs on every session establishment, so a flapping peer would otherwise
+	// repeat it at the flap rate. Zero value is ready; see peer_initial_sync.go.
+	defaultOriginateRefusalLog wellKnownScanLog
+
 	// remoteRouterID is the peer's BGP Identifier from their OPEN message.
 	// Set in validateOpen when OPEN is received, cleared on teardown.
 	// Used by route reflection to set ORIGINATOR_ID (RFC 4456 Section 8).

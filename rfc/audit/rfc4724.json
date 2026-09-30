@@ -115,17 +115,21 @@
       "verdict": "weak"
     },
     "RFC4724-4.1-7": {
-      "note": "TestBuildEOR_IPv4Unicast proves only the marker's encoding, not that it is sent once the initial update completes; the negative tests EoR detection, a neighbouring rule. No tagged unit drives the send",
+      "note": "New unit TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete drives peer.sendInitialRoutes on an established peer and reads the socket. Positive: empty table -> the wire is exactly the IPv4 unicast EoR (the RFC's \"including the case that there is no routing update to send\"); with default-originate -> [UPDATE 0.0.0.0/0, EoR], EORSent 1. Negative: no EoR precedes the route and exactly one follows it (a marker before completion violates \"Once the initial update is complete\"). Observed-red records +/- (revert peer_initial_sync.go::sendEORFamilies); both polarities share one break, which reddens the unit as a whole rather than the ordering clause alone. Message-level EoR encoding units stay as supplementary.",
       "requirement_sha": "53683d3892cd3a1e",
       "tests": {
         "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
-        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878"
+        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
+        "internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go::TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete": "dd37c4251f3d4722",
+        "internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go::TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete#2": "dd37c4251f3d4722"
       },
       "units": {
         "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",
-        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "e93ddad02f874260"
+        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "e93ddad02f874260",
+        "internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go::TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete": "a332b94df7832b59",
+        "internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go::TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete#2": "a332b94df7832b59"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4724-4.2-10": {
       "note": "Insert of a stale prefix clears StaleLevel to fresh with the new attributes; the negative keeps an unrefreshed stale prefix stale while a new prefix is fresh",

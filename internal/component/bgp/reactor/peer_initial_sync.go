@@ -842,9 +842,16 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 			LinkLocalNextHop: p.linkLocalNextHopFor(nextHop),
 		}
 		update, err := ub.BuildUnicast(&params)
-		if err == nil {
-			err = p.SendUpdate(update)
+		if err != nil {
+			message.PutUpdateBuilder(ub)
+			// RFC 4271 Section 5: "NEXT_HOP (type code 3) is a well-known
+			// mandatory attribute", and BuildUnicast refuses a route it cannot
+			// give one. The configured default route then never reaches this
+			// peer, which the operator must see at the default log level.
+			p.warnDefaultOriginateRefused(familyKey, defaultPrefix, nextHop, err)
+			continue
 		}
+		err = p.SendUpdate(update)
 		message.PutUpdateBuilder(ub)
 		if err != nil {
 			routesLogger().Debug("default-originate send error", "peer", addr, "family", familyKey, "error", err)
@@ -852,6 +859,21 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 		}
 		routesLogger().Debug("sent default route", "peer", addr, "family", familyKey)
 	}
+}
+
+// warnDefaultOriginateRefused says, at Warn, that the default route configured
+// for this peer was not built, naming the peer, the prefix, the family and the
+// next hop the builder was given. One line per second per peer: the refusal
+// repeats on every session establishment, and suppressed-since-last reports
+// how many the window swallowed.
+func (p *Peer) warnDefaultOriginateRefused(familyKey string, prefix netip.Prefix, nextHop netip.Addr, err error) {
+	emit, suppressed := p.defaultOriginateRefusalLog.allow(p.clock.Now().UnixNano())
+	if !emit {
+		return
+	}
+	routesLogger().Warn("default-originate: route refused, not sent",
+		"peer", p.settings.Address, "prefix", prefix, "family", familyKey,
+		"next-hop", nextHop, "error", err, "suppressed-since-last", suppressed)
 }
 
 // defaultOriginateFilterAccepts runs the named filter as a dry-run against a

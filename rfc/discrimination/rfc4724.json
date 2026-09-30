@@ -79,6 +79,28 @@
       "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4724-4.1-7",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go::TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete",
+      "unit-sha": "81c28c36a517a00f",
+      "claim-sha": "f68f671fec4e4461",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendEORFamilies",
+      "producer-sha": "cd6d66e3c0e2a2ea",
+      "break": "body of sendEORFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4.1-7",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go::TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete",
+      "unit-sha": "81c28c36a517a00f",
+      "claim-sha": "fbd6d270082fec4b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendEORFamilies",
+      "producer-sha": "cd6d66e3c0e2a2ea",
+      "break": "body of sendEORFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4724-4.2-9",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/reactor_b_rfc4724_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes",
