@@ -238,9 +238,11 @@ func TestRFC5176CoAWithoutServiceTypeIsACKed(t *testing.T) {
 // RFC requirement: RFC5176-3-1 positive -- a Disconnect-Request that carries,
 // beside its session identification, an attribute that is neither NAS nor
 // session identification (Filter-Id, Framed-MTU, Session-Timeout, Idle-Timeout,
-// Service-Type, State, Vendor-Specific, EAP-Message) is answered with a
-// Disconnect-NAK carrying Error-Cause 401 (Unsupported Attribute), and the
-// session is not torn down.
+// Service-Type, State, EAP-Message) is answered with a Disconnect-NAK carrying
+// Error-Cause 401 (Unsupported Attribute), and the session is not torn down.
+// Vendor-Specific is not in the list: Section 3 names it a session
+// identification attribute, and Section 3.6 Note 7 lets a VSA identify a
+// session in a Disconnect-Request, so its refusal is RFC5176-3.6-2's.
 func TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed(t *testing.T) {
 	secret := []byte("test-rfc5176-3-secret")
 	fake := oneSessionService()
@@ -256,7 +258,6 @@ func TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed(t *testing.T) {
 		{"Idle-Timeout", radius.Attr{Type: 28, Value: radius.AttrUint32(600)}},
 		{"Service-Type", radius.Attr{Type: radius.AttrServiceType, Value: radius.AttrUint32(2)}},
 		{"State", radius.Attr{Type: radius.AttrState, Value: []byte{0xde, 0xad}}},
-		{"Vendor-Specific", vsa(t, radius.VendorMikrotik, radius.MikrotikRateLimit, "10M/10M")},
 		{"EAP-Message", radius.Attr{Type: 79, Value: []byte{2, 1, 0, 5, 1}}},
 	}
 	for _, other := range others {
@@ -301,6 +302,50 @@ func TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed(t *testing.T) {
 	}
 	if got := fake.teardowns.Load(); got != 1 {
 		t.Errorf("teardowns: got %d, want 1", got)
+	}
+}
+
+// RFC requirement: RFC5176-3-1 positive -- the Section 3.6 Disconnect table
+// admits Reply-Message (0+), Class (0+) and Acct-Terminate-Cause (0-1) in a
+// Disconnect-Request, so none of them is an "other attribute": a
+// Disconnect-Request carrying one of them, or all three, beside its session
+// identification is answered with a Disconnect-ACK carrying no Error-Cause, and
+// the session is torn down each time.
+//
+// Method: one listener, one fresh request per case; the teardown count rises by
+// one for every ACK.
+func TestRFC5176DisconnectAdmitsTheSection36TableAttributes(t *testing.T) {
+	secret := []byte("test-rfc5176-3-table-secret")
+	fake := oneSessionService()
+	addr := coaTestListener(t, secret, &recordingBus{}, fake)
+
+	replyMessage := radius.Attr{Type: radius.AttrReplyMessage, Value: radius.AttrString("session ended by operator")}
+	class := radius.Attr{Type: radius.AttrClass, Value: []byte{0x01, 0x02, 0x03}}
+	terminateCause := radius.Attr{Type: radius.AttrAcctTerminateCause, Value: radius.AttrUint32(6)}
+	cases := []struct {
+		name  string
+		attrs []radius.Attr
+	}{
+		{"Reply-Message", []radius.Attr{replyMessage}},
+		{"Class", []radius.Attr{class}},
+		{"Acct-Terminate-Cause", []radius.Attr{terminateCause}},
+		{"all three", []radius.Attr{replyMessage, class, terminateCause}},
+	}
+	for i, tc := range cases {
+		attrs := append([]radius.Attr{
+			{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
+			{Type: radius.AttrUserName, Value: radius.AttrString("alice")},
+		}, tc.attrs...)
+		resp := sendCoAPacket(t, addr, radius.CodeDisconnectRequest, secret, attrs)
+		if resp.Code != radius.CodeDisconnectACK {
+			t.Errorf("%s: code %d, want %d (Disconnect-ACK)", tc.name, resp.Code, radius.CodeDisconnectACK)
+		}
+		if got := errorCauses(t, resp); len(got) != 0 {
+			t.Errorf("%s: Error-Cause %v, want none", tc.name, got)
+		}
+		if got := fake.teardowns.Load(); got != int32(i+1) {
+			t.Errorf("%s: teardowns %d, want %d", tc.name, got, i+1)
+		}
 	}
 }
 

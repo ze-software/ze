@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -9,8 +10,8 @@
       "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176UnsupportedServiceTypeValueIsNAKed: Service-Type 1/2/6/8 in a CoA-Request -> CoA-NAK with Error-Cause exactly [405], no change (MUST and the SHOULD both asserted). - TestRFC5176CoAWithoutServiceTypeIsACKed: the same request without Service-Type -> CoA-ACK, no Error-Cause, one change, so the NAK is owed to the value. Both over a real UDP socket; records observed red (handlePacket, handleCoA).",
       "requirement_sha": "a8f1a3401141717d",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176CoAWithoutServiceTypeIsACKed": "b65114c20f53e942",
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176UnsupportedServiceTypeValueIsNAKed": "b65114c20f53e942"
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176CoAWithoutServiceTypeIsACKed": "d958dd0603fa7efe",
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176UnsupportedServiceTypeValueIsNAKed": "d958dd0603fa7efe"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176CoAWithoutServiceTypeIsACKed": "cb880bbd5ea1a94b",
@@ -119,15 +120,17 @@
       "verdict": "enforced"
     },
     "RFC5176-3-1": {
-      "note": "Judge 2026-09-30 (access cont 10, independent). Behaviour judged met, not a defect: \u00a73 says 'A Disconnect-Request MUST contain only NAS and session identification attributes', but the \u00a73.6 Disconnect table (the RFC's own 'guide to which attributes may be found in which packets') lists Reply-Message 0+, Class 0+ and Acct-Terminate-Cause 0-1 in the Request column, and Note 4 defines Class 'When included within a successful Disconnect-Request'; Ze's disconnectSupportedAttrs follows that table (and still NAKs EAP-Message and VSA as unsupported, \u00a72.3/\u00a73.5 401). + TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed proves the NAK [401] and no teardown for Filter-Id, Framed-MTU, Session-Timeout, Idle-Timeout, Service-Type, State, EAP-Message; - TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed (identification only -> ACK, one teardown). WEAK because the positive asserts something \u00a73 does not say: it lists Vendor-Specific as 'neither NAS nor session identification', while \u00a73's session identification table lists Vendor-Specific 26 and \u00a73.6 Note 7 says 'Within Disconnect-Request packets, Vendor-Specific Attributes (VSAs) MAY be used for session identification'; that case's NAK is the \u00a72.3/\u00a73.5 unsupported-attribute answer, not this row. Missing: drop the VSA case from this unit (or move it to an unsupported-attribute row), and state the \u00a73.6 table reading (Reply-Message, Class, Acct-Terminate-Cause admitted) in the row gloss with a tagged positive pinning their acceptance.",
-      "requirement_sha": "9b494c098d5dfd17",
+      "note": "Re-judge 2026-09-30 (access cont 11, independent). The VSA case is gone and the gloss now adopts the \u00a73.6 table reading; + TestRFC5176DisconnectAdmitsTheSection36TableAttributes pins Reply-Message, Class, Acct-Terminate-Cause -> ACK, no Error-Cause, one teardown each; - identification-only -> ACK. STILL WEAK, same defect class as the VSA case: + TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed keeps EAP-Message as an 'other attribute', but the \u00a73.6 Disconnect table lists '0+ 0-1 0 79 EAP-Message (Note 2)' in the Request column, the same standing as Reply-Message (Note 2: 'an EAP-Message/Notification-Request Attribute is sent instead'), so under the row's own gloss it is not an 'other attribute'. Ze refuses it for a different reason, which coa.go's disconnectSupportedAttrs comment states: RFC 2865 \u00a71.1 (no EAP service on the subscriber NAS) and RFC 5176 \u00a72.3 unsupported attribute -> 401. That case proves a neighbouring obligation, not \u00a73. The other six cases (Filter-Id, Framed-MTU, Session-Timeout, Idle-Timeout, Service-Type 0, State 0) are sound. Missing: drop the EAP-Message case from this unit (tag it to an unsupported-attribute row if one exists) and name EAP-Message in the gloss as table-admitted but refused under \u00a72.3. Minor: the Admits unit is tagged positive but proves the ACK side (negative polarity by this row's convention). Records current (+ unsupportedAttr, + handleDisconnect, - handleDisconnect, observed red).",
+      "requirement_sha": "8a7362c7b56d7919",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed": "b65114c20f53e942",
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed": "b65114c20f53e942"
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectAdmitsTheSection36TableAttributes": "d958dd0603fa7efe",
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed": "d958dd0603fa7efe",
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed": "d958dd0603fa7efe"
       },
       "units": {
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectAdmitsTheSection36TableAttributes": "6cae3afb61a344fe",
         "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed": "9bc1b0d813b99437",
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed": "63786161393781c7"
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed": "4d33c8d7df821a3e"
       },
       "verdict": "weak"
     },
@@ -199,8 +202,8 @@
       "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176StateNeverChangesTheOutcome: no State, State shaped as a rate, as another session's Acct-Session-Id and as a Filter-Id TLV -> identical CoA-ACK and one 10 Mbit/s change on session 20, State returned octet-equal. - TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity: State '10mbit' with no change attribute -> NAK 401; State naming the live session beside an Acct-Session-Id naming none -> NAK 503; no change, State echoed. The Termination-Action usage is unreachable (Ze NAKs Termination-Action in a CoA). Records observed red (sendResponse, readCoAChange).",
       "requirement_sha": "7198cd9795c1a36d",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity": "b65114c20f53e942",
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateNeverChangesTheOutcome": "b65114c20f53e942"
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity": "d958dd0603fa7efe",
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateNeverChangesTheOutcome": "d958dd0603fa7efe"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity": "be4c0db326f20665",
@@ -311,8 +314,8 @@
       "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176ResidualSessionCauseOnlyInADisconnectACK: coaResponsePaths drives 15 response paths (both ACKs, NAK 401/404/405/407/503/504/506/508 for CoA and Disconnect), asserts each exact code+cause, requires all four response codes seen, and fails on 201 outside a Disconnect-ACK. - TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK (R1(b)): requests carrying Error-Cause 201 and a Proxy-State holding a 201 TLV -> NAK with only [401], Proxy-State whole, no teardown. Records observed red.",
       "requirement_sha": "bbee71285b27127d",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK": "b65114c20f53e942",
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176ResidualSessionCauseOnlyInADisconnectACK": "b65114c20f53e942"
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK": "d958dd0603fa7efe",
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176ResidualSessionCauseOnlyInADisconnectACK": "d958dd0603fa7efe"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK": "50a43786731391bc",
@@ -324,8 +327,8 @@
       "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176InvalidEAPPacketCauseNeverSent: no response on any of the 15 paths carries 202. - TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest (R1(b)): an injected 202 is never echoed (401 only), and a Disconnect with a malformed EAP-Message gets [401], never 202. Records observed red.",
       "requirement_sha": "bc03b14600f3e37f",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSent": "b65114c20f53e942",
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest": "b65114c20f53e942"
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSent": "d958dd0603fa7efe",
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest": "d958dd0603fa7efe"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSent": "807fe11eaec464b2",
@@ -337,8 +340,8 @@
       "note": "Judge 2026-09-30 (access cont 10, independent). Ze is the NAS. + TestRFC5176RequestNotRoutableCauseNeverSent: no response on any path carries 502. - TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession (R1(b)): injected 502 never echoed (401 only); a Disconnect naming another realm's user through another NAS-Identifier -> [503], never 502. Records observed red.",
       "requirement_sha": "105130563996c69c",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSent": "b65114c20f53e942",
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession": "b65114c20f53e942"
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSent": "d958dd0603fa7efe",
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession": "d958dd0603fa7efe"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSent": "6d63a1675f337700",
@@ -350,8 +353,8 @@
       "note": "Judge 2026-09-30 (access cont 10, independent). D-8 fixed here: handleDisconnect sent 503 (Session Context Not Found) for a located session whose teardown failed; it now sends 504 (radius.ErrorCauseSessionNotRemovable), also on the PPPoE not-wired branch (producer read). + TestRFC5176SessionNotRemovableOnlyInADisconnectNAK: the teardown-refused Disconnect path answers Disconnect-NAK [504] and no CoA-ACK, CoA-NAK or Disconnect-ACK on any path carries 504. - TestRFC5176SessionNotRemovableNeverInACoANAK: injected 504 never echoed; an undeliverable CoA gets CoA-NAK 506, never 504. Records observed red (handleDisconnect, handleCoA). Residual not proven here: the svc==nil branch after a found session still answers 503.",
       "requirement_sha": "6352c3926d6a3a8e",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176SessionNotRemovableNeverInACoANAK": "b65114c20f53e942",
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176SessionNotRemovableOnlyInADisconnectNAK": "b65114c20f53e942"
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176SessionNotRemovableNeverInACoANAK": "d958dd0603fa7efe",
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176SessionNotRemovableOnlyInADisconnectNAK": "d958dd0603fa7efe"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176SessionNotRemovableNeverInACoANAK": "2864a73fb2d14529",
@@ -376,8 +379,8 @@
       "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176VendorSpecificIsAChangeOnly: Acct-Session-Id + MikroTik rate VSA -> CoA-ACK and one 10 Mbit/s change on session 20 (VSA used for change only). - TestRFC5176VendorSpecificIsNeverAnIdentity: VSA alone -> NAK 503, VSA beside an unknown Acct-Session-Id -> 503 (the VSA never selects the one live session), Disconnect + VSA -> 401; no change, no teardown. Records observed red (readCoAChange, oneSession).",
       "requirement_sha": "74c4feca4fbe26ea",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsAChangeOnly": "b65114c20f53e942",
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsNeverAnIdentity": "b65114c20f53e942"
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsAChangeOnly": "d958dd0603fa7efe",
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsNeverAnIdentity": "d958dd0603fa7efe"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsAChangeOnly": "2d4aeb61bb0496f2",
@@ -419,8 +422,8 @@
       "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176DuplicateAndTimestampWindowsBothHoldInside: at coaReplayWindow-10s a duplicate is answered from the cache (same octets, one teardown) and an Event-Timestamp that old is answered. - TestRFC5176DuplicateAndTimestampWindowsBothEndOutside: at window+10s the duplicate is processed again (second teardown) and the Event-Timestamp is silently discarded. The pair pins both mechanisms to one window within +/-10s: a shorter dedup window fails the positive, a longer one the negative. Records observed red (cachedReplay, eventTimestampState).",
       "requirement_sha": "da9e1612d9270ee1",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DuplicateAndTimestampWindowsBothEndOutside": "b65114c20f53e942",
-        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DuplicateAndTimestampWindowsBothHoldInside": "b65114c20f53e942"
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DuplicateAndTimestampWindowsBothEndOutside": "d958dd0603fa7efe",
+        "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DuplicateAndTimestampWindowsBothHoldInside": "d958dd0603fa7efe"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DuplicateAndTimestampWindowsBothEndOutside": "d3308ec79d25b4e1",

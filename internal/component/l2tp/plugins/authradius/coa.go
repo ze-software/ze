@@ -540,9 +540,15 @@ func (cl *coaListener) handleDisconnect(pkt *radius.Packet, from *net.UDPAddr) {
 		return
 	}
 
+	// The session was located, and the L2TP service that would remove it stopped
+	// in between. RFC 5176 Section 3.5: "\"Session Context Not Removable\" is a
+	// fatal error sent in response to a Disconnect-Request if the NAS was able to
+	// locate the session context, but could not remove it for some reason." 503
+	// (Session Context Not Found) is for a context that "does not exist on the
+	// NAS", which is not what the NAS saw.
 	svc := l2tp.LookupService()
 	if svc == nil {
-		cl.sendResponse(from, pkt, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotFound)
+		cl.sendResponse(from, pkt, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotRemovable)
 		return
 	}
 

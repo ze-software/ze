@@ -850,7 +850,7 @@
       "quote": "It is intended to be human readable, and MUST NOT affect operation of the protocol.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Reply-Message repeating the Filter-Id sentence. RFC2865-5.11-1 names Section 5.18 and site 5.11:1 maps it.",
+      "reason": "Reply-Message repeating the Filter-Id sentence. RFC2865-5.11-1 quotes and cites Section 5.11 alone; the dated correction of 2026-09-30 in rfc/corrections/rfc2865.md names this Section 5.18 sentence as the same obligation, which the row's tagged units exercise for Reply-Message.",
       "mapped-to": "RFC2865-5.11-1"
     },
     {
@@ -858,7 +858,7 @@
       "quote": "It is intended to be human readable and MUST NOT affect operation of the protocol.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Framed-Route repeating the Filter-Id sentence. RFC2865-5.11-1 names Section 5.22 and site 5.11:1 maps it.",
+      "reason": "Framed-Route repeating the Filter-Id sentence. RFC2865-5.11-1 quotes and cites Section 5.11 alone; the dated correction of 2026-09-30 in rfc/corrections/rfc2865.md names this Section 5.22 sentence as the same obligation, which the row's tagged units exercise for Framed-Route.",
       "mapped-to": "RFC2865-5.11-1"
     },
     {
@@ -879,7 +879,7 @@
       "quote": "In either usage, the client MUST NOT interpret the attribute locally.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "State stating what Section 5.25 states for Class in the same words. RFC2865-5.25-1 names both sections and site 5.25:1 maps it.",
+      "reason": "State stating what Section 5.25 states for Class in the same words. RFC2865-5.25-1 quotes and cites Section 5.25 alone; the dated correction of 2026-09-30 in rfc/corrections/rfc2865.md names this Section 5.24 sentence as the same prohibition, proven for State by TestStateIsNotInterpretedLocally.",
       "mapped-to": "RFC2865-5.25-1"
     },
     {
@@ -893,7 +893,7 @@
       "quote": "It MUST not affect the operation of the RADIUS protocol.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Vendor-Specific repeating the Filter-Id sentence. RFC2865-5.11-1 names Section 5.26 and site 5.11:1 maps it.",
+      "reason": "Vendor-Specific repeating the Filter-Id sentence. RFC2865-5.11-1 quotes and cites Section 5.11 alone; the dated correction of 2026-09-30 in rfc/corrections/rfc2865.md names this Section 5.26 sentence as the same obligation, which the row's tagged units exercise for Vendor-Specific.",
       "mapped-to": "RFC2865-5.11-1"
     },
     {
@@ -951,7 +951,7 @@
       "quote": "The content of any Proxy-State other than the one added by the current server should be treated as opaque octets and MUST NOT affect operation of the protocol.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Proxy-State repeating the Filter-Id sentence for the Proxy-States a speaker did not add. RFC2865-5.11-1 names Section 5.33 and site 5.11:1 maps it.",
+      "reason": "Proxy-State repeating the Filter-Id sentence for the Proxy-States a speaker did not add. RFC2865-5.11-1 quotes and cites Section 5.11 alone; the dated correction of 2026-09-30 in rfc/corrections/rfc2865.md names this Section 5.33 sentence as the same obligation, which the row's tagged units exercise for Proxy-State.",
       "mapped-to": "RFC2865-5.11-1"
     },
     {

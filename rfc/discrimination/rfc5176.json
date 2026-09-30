@@ -196,7 +196,7 @@
       "claim-sha": "c5c8fa890e3e1c3a",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
-      "producer-sha": "f36a9eeb5cf271ae",
+      "producer-sha": "3dd44855461b6daa",
       "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -207,7 +207,7 @@
       "claim-sha": "bd80a8b60cb55fb1",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
-      "producer-sha": "f36a9eeb5cf271ae",
+      "producer-sha": "3dd44855461b6daa",
       "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -300,21 +300,32 @@
     },
     {
       "rid": "RFC5176-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectAdmitsTheSection36TableAttributes",
+      "unit-sha": "22794a1a5d09a1bb",
+      "claim-sha": "4819b80c42ba4cc4",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
+      "producer-sha": "3dd44855461b6daa",
+      "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-3-1",
       "polarity": "negative",
       "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed",
       "unit-sha": "bdd95504e73519c9",
       "claim-sha": "bec9deccc1f54d36",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
-      "producer-sha": "f36a9eeb5cf271ae",
+      "producer-sha": "3dd44855461b6daa",
       "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5176-3-1",
       "polarity": "positive",
       "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed",
-      "unit-sha": "576d56ad325ae0d5",
-      "claim-sha": "5f3250b24112e6fc",
+      "unit-sha": "4dba8b3cbab0ecd0",
+      "claim-sha": "23f5307e88f264d7",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::unsupportedAttr",
       "producer-sha": "d3c60711cf64c92d",
@@ -328,7 +339,7 @@
       "claim-sha": "b39cafb448b338a3",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
-      "producer-sha": "f36a9eeb5cf271ae",
+      "producer-sha": "3dd44855461b6daa",
       "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -614,7 +625,7 @@
       "claim-sha": "c9805e64403f3402",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
-      "producer-sha": "f36a9eeb5cf271ae",
+      "producer-sha": "3dd44855461b6daa",
       "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

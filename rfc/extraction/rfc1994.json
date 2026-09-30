@@ -6,7 +6,7 @@
   "source-sha": "f76fecfc276d54fb",
   "signed-off": "2026-09-29",
   "reviewer": "claude",
-  "resign-reason": "Walk redone at site 1.1:3 on 2026-09-28: the sentence is the second half of the RFC 2119 definition of MAY in the Section 1.1 keyword glossary, so it is excluded as not-a-requirement and RFC1994-1.1-1 is retired (rfc/corrections/rfc1994.md). Re-read against rfc/full/rfc1994.txt by the independent judge on 2026-09-29.",
+  "resign-reason": "Walk redone at site 1.1:3 on 2026-09-28: the sentence is the second half of the RFC 2119 definition of MAY in the Section 1.1 keyword glossary, so it is excluded as not-a-requirement and RFC1994-1.1-1 is retired (rfc/corrections/rfc1994.md). Re-read against rfc/full/rfc1994.txt by the independent judge on 2026-09-29. Row RFC1994-4.2-5 added on 2026-09-30 for the SHOULD clause of site 4.2:2 (\"SHOULD take action to terminate the link\"), which the narrowing audit found dropped: the site stays mapped to RFC1994-4.2-2 (its MUST clause), and the SHOULD row is listed in the section 4.2 unsourced-ids because one site maps to one row.",
   "sections": [
     {
       "id": "front",
@@ -85,7 +85,8 @@
       "sites": 4,
       "disposition": "walked",
       "unsourced-ids": [
-        "RFC1994-x-1"
+        "RFC1994-x-1",
+        "RFC1994-4.2-5"
       ]
     }
   ],

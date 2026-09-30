@@ -24,6 +24,28 @@
       "break": "body of authMethodToLCPOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC1994-2-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink",
+      "unit-sha": "6c9d131260e8a50b",
+      "claim-sha": "e3fc5aa1835bdd95",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::fail",
+      "producer-sha": "503aa0c8f885ff8e",
+      "break": "body of fail replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1994-2-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink",
+      "unit-sha": "46a6d8d8f90bef29",
+      "claim-sha": "e0a8cbc3e716dae0",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
+      "producer-sha": "68950dbf2425118b",
+      "break": "body of runCHAPAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1994-4.1-10",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded",
@@ -198,6 +220,28 @@
       "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
       "producer-sha": "c83d1658af0a4fc7",
       "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1994-4.2-5",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink",
+      "unit-sha": "6c9d131260e8a50b",
+      "claim-sha": "a07a455d6169e3e3",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::fail",
+      "producer-sha": "503aa0c8f885ff8e",
+      "break": "body of fail replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1994-4.2-5",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink",
+      "unit-sha": "46a6d8d8f90bef29",
+      "claim-sha": "d2fa7fa9b8ce2226",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
+      "producer-sha": "68950dbf2425118b",
+      "break": "body of runCHAPAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

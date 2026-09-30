@@ -634,12 +634,13 @@ a NAK carrying an Error-Cause.
 | The identification attributes match exactly one session | NAK 503 for none, NAK 508 for several |
 | Every part of the requested change can be carried out (a CoS profile needs an access interface) | NAK 506 |
 | The requested change reached the shaper | NAK 506 |
-| Disconnect-Request: the matched session was torn down | NAK 504 |
+| Disconnect-Request: the matched session was torn down (NAK 504 when its teardown fails, or when the L2TP service stopped after the match) | NAK 504 |
 
 A CoA-Request is atomic, as RFC 5176 Section 2.3 requires. Ze makes every check
 before the first change leaves, so a NAK never follows a partial change. A
-Disconnect-Request carries only identification attributes: Ze reads no
-Vendor-Specific attribute in one, so it answers a Disconnect-Request that
+Disconnect-Request carries identification attributes, plus the Reply-Message,
+Class and Acct-Terminate-Cause the RFC 5176 Section 3.6 table admits. Ze reads
+no Vendor-Specific attribute in one, so it answers a Disconnect-Request that
 carries one with NAK 401.
 
 One of these is stricter than RFC 5176, deliberately. Section 6.3 makes the

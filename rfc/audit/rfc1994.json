@@ -15,6 +15,19 @@
       },
       "verdict": "enforced"
     },
+    "RFC1994-2-1": {
+      "note": "Judge 2026-09-30 (access cont 11, independent). Same units and producer as RFC1994-4.2-5: values do not match (verifier rejects) -> Failure then EventSessionDown to the transport and the auth phase ends false (connection terminated); values match -> Success (acknowledged), true, no EventSessionDown. Both assertions would fail on the non-compliant behaviour (no teardown on reject; teardown on accept). Records: + fail, - runCHAPAuthPhase, observed red. The hash comparison is exercised under RFC1994-4.2-2.",
+      "requirement_sha": "2b62e35474e18f71",
+      "tests": {
+        "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink": "89f91d7745f1ad7a",
+        "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink": "89f91d7745f1ad7a"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink": "dcb733e92bc02910",
+        "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink": "34a7fdd3f98d5ca2"
+      },
+      "verdict": "enforced"
+    },
     "RFC1994-4.1-1": {
       "note": "Forbidden: an authenticator that does not send a Challenge (Code 1). TestCHAPResponseEmitsEvent reads the first wire frame runCHAPAuthPhase writes and asserts protocol 0xC223 and Code CHAPCodeChallenge, red otherwise. Single-polarity marker: there is no must-not-challenge branch.",
       "requirement_sha": "2cd22406261bb6de",
@@ -186,6 +199,19 @@
       "units": {
         "internal/component/l2tp/pppoeclient/rfc1994_chap_message_test.go::TestCHAPSuccessMessageDoesNotAffectOutcome": "93ac6a9695d6ffe2",
         "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994FailureMessageDoesNotAffectOutcome": "ef25c518f51bc510"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1994-4.2-5": {
+      "note": "Judge 2026-09-30 (access cont 11, independent). Producer read: chap.go runCHAPAuthPhase on a reject writes the Failure, then s.fail sends EventSessionDown (Cause NAS-Error) to the transport and returns false, so no NCP phase: the SHOULD action is taken. + TestRFC1994CHAPFailureTerminatesTheLink: reply Code 4, false, EventSessionDown 55/66 'auth rejected' NAS-Error (Fatal if absent). - TestRFC1994CHAPSuccessKeepsTheLink: Code 3, true, no lifecycle event, so the teardown is owed to the Failure alone. The Value comparison is injected through authRespCh; the comparison itself is RFC1994-4.2-2's (real local verifier). Records: + break of session_run.go::fail, - break of runCHAPAuthPhase, both observed red (whole-body panic breaks, coarse but real). Row quotes the whole 4.2 sentence at SHOULD, MUST clause stays on 4.2-2; listed in 4.2 unsourced-ids because site 4.2:2 maps to 4.2-2.",
+      "requirement_sha": "f5260f3870005e2e",
+      "tests": {
+        "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink": "89f91d7745f1ad7a",
+        "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink": "89f91d7745f1ad7a"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink": "dcb733e92bc02910",
+        "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink": "34a7fdd3f98d5ca2"
       },
       "verdict": "enforced"
     }
