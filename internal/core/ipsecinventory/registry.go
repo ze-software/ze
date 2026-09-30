@@ -94,6 +94,11 @@ type Tunnel struct {
 	Encryption        EncryptionID
 	EncryptionKeyBits uint16
 	Integrity         IntegrityID
+	// TransformErr is non-nil when the engine could not resolve the installed
+	// proposal's transforms, which only a Ze defect produces. The five transform
+	// fields above are then unset and name nothing, so a reader MUST check it before
+	// reading them and MUST report the transforms as unknown rather than as id 0.
+	TransformErr error
 }
 
 // Snapshot answers the live tunnels. It is called on the reader's goroutine, so the

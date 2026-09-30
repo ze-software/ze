@@ -1207,7 +1207,9 @@ exactly one request id.
 The `child-sa` object of `show vpn ipsec sa` describes the Child SA as installed.
 `esp-encryption` and `esp-integrity` name the proposal the peer accepted: with two
 proposals in the `esp-group` and a peer that accepts only the second, the payload names
-the second. `mode` is `tunnel` or `transport`, `udp-encapsulation` says the SA receives
+the second. If Ze cannot resolve that proposal's transforms, which only a Ze defect
+produces, `esp-integrity` is absent and `esp-transform-error` says why. `mode` is
+`tunnel` or `transport`, `udp-encapsulation` says the SA receives
 ESP inside UDP on port 4500, and `remote-address` is the endpoint the SA was installed
 on, which behind a NAT differs from the configured `remote-address` of the peer. Those
 three, with the transform, are what size an ESP packet on the tunnel.

@@ -66,7 +66,10 @@ as an address nobody holds.
 
 **`child-sa` carries the installed transform and the three facts that size an
 ESP packet.** `esp-encryption` and `esp-integrity` name the proposal the peer
-accepted, not the first one configured. `mode` is `tunnel` or `transport` as
+accepted, not the first one configured. When that proposal no longer resolves
+through the crypto registry (a Ze defect, since the child was keyed from it),
+`esp-integrity` is absent and `esp-transform-error` carries the error text
+instead, so no empty string reads as a negotiated transform. `mode` is `tunnel` or `transport` as
 installed, `udp-encapsulation` is a boolean saying the SA receives ESP inside UDP
 (RFC 3948), and `remote-address` is the endpoint the SA was installed on, which
 behind a NAT differs from the peer's configured address. `remote-address` is null

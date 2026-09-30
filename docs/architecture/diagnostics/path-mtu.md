@@ -96,7 +96,9 @@ value, which is an option and never data.
    policy-based (`if_id` 0), when no xfrm interface carries its `if_id`, when
    the child holds no traffic selector (the inner family comes from `TSRemote`,
    then `TSLocal`), when `deriveESPOverhead` refuses the transform (a fault
-   note, never a default), or when no peer path was measured. Otherwise the
+   note, never a default; this includes a tunnel whose transforms the engine
+   could not resolve, `Tunnel.TransformErr`, whose row then carries no
+   `transform`), or when no peer path was measured. Otherwise the
    path MTU is the tunnel's own measurement, or the tightest measured peer
    path marked `assumed` when its own target did not answer; then `ceiling`,
    `recommended` (absent when none), `mss`, `classifyTunnel`, and a

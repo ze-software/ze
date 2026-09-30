@@ -38,7 +38,8 @@ func inventorySnapshot() []ipsecinventory.Tunnel {
 // respond-only peer) leaves ConfiguredRemote invalid rather than carrying a sentinel;
 // InstalledRemote is the address the tunnel really uses. The child fields are copied
 // only while a Child SA exists, so a down tunnel carries the zero Mode and zero
-// transforms, which no installed SA can produce.
+// transforms, which no installed SA can produce. An up tunnel whose proposal did not
+// resolve carries TransformErr and no transform.
 func tunnelOf(info *PeerInfo) ipsecinventory.Tunnel {
 	t := ipsecinventory.Tunnel{Peer: info.PeerName}
 	if addr, err := netip.ParseAddr(info.RemoteAddress); err == nil {
@@ -61,6 +62,13 @@ func tunnelOf(info *PeerInfo) ipsecinventory.Tunnel {
 	}
 	if prefix, err := netip.ParsePrefix(info.TSRemote); err == nil {
 		t.TSRemote = prefix
+	}
+	// An unresolved proposal leaves PeerInfo's typed transforms unset, and copying
+	// them would publish ENCR 0 and AUTH_NONE as the negotiated pair. The reader gets
+	// the error instead and every transform field stays unset (Tunnel.TransformErr).
+	if info.ESPTransformErr != nil {
+		t.TransformErr = info.ESPTransformErr
+		return t
 	}
 	t.EncryptionName = info.ESPEncryption
 	t.IntegrityName = info.ESPIntegrity

@@ -109,10 +109,16 @@ func (o espOverhead) octets() uint16 {
 // deriveESPOverhead derives the overhead of one installed Child SA from the
 // transform it negotiated, its mode and its encapsulation. It refuses, rather
 // than defaults, a tunnel whose child is not installed, whose mode is not one
-// ESP defines, or whose transform the table above does not hold.
+// ESP defines, whose transforms the IKE engine could not resolve, or whose
+// transform the table above does not hold.
 func deriveESPOverhead(t *ipsecinventory.Tunnel) (espOverhead, error) {
 	if !t.Up {
 		return espOverhead{}, fmt.Errorf("%w: peer %s has no child SA installed", errOverheadRefused, t.Peer)
+	}
+	// The transform fields are unset beside TransformErr, so reading them would size
+	// the packet for ENCR 0.
+	if t.TransformErr != nil {
+		return espOverhead{}, fmt.Errorf("%w: peer %s has unknown transforms: %w", errOverheadRefused, t.Peer, t.TransformErr)
 	}
 	if !t.InstalledRemote.IsValid() {
 		return espOverhead{}, fmt.Errorf("%w: peer %s has no installed endpoint", errOverheadRefused, t.Peer)

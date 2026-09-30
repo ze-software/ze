@@ -47,17 +47,21 @@
       "verdict": "wrong"
     },
     "RFC3948-2.3-1": {
-      "note": "The tagged unit TestIsNATKeepalive proves only classification: IsNATKeepalive answers true for the single byte 0xFF and false for 0xFF 0x00 and 0x00. The obligation is that the receiver ignores the keepalive; the ignoring is the 'continue' in the receive loop of internal/component/ike/engine/register.go, and no tagged unit goes red if that loop processes a keepalive instead of dropping it.",
+      "note": "Rejudged 2026-09-30 (transport judge). Producer: UDPTransport.Run (transport/udp.go) drops every datagram shorter than the 28-octet IKE header, so a one-octet 0xFF keepalive never reaches Recv; the engine's IsNATKeepalive continue in dispatchNATTInbound is a second layer the transport makes unreachable and is not separately proven. Positive TestRFC3948KeepaliveAheadOfIKEIsIgnored: keepalive then an IKE datagram on one NAT-T socket, the first delivered packet is the IKE datagram byte for byte (ignored and the receive path unaffected). Negative TestRFC3948KeepaliveIsNotHandedOn: a lone keepalive never reaches Recv in 200ms (the non-compliant receiver hands it on). Removing the n<28 floor would turn both red (the keepalive is delivered first / at all); both carry observed-red revert records on udp.go::Run. TestIsNATKeepalive (+/-) proves the classification only and is supplementary.",
       "requirement_sha": "1ed60af40793d8f1",
       "tests": {
         "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive": "5e9bb9c1bf045ab6",
-        "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive#2": "5e9bb9c1bf045ab6"
+        "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive#2": "5e9bb9c1bf045ab6",
+        "internal/component/ike/transport/rfc3948_keepalive_receive_test.go::TestRFC3948KeepaliveAheadOfIKEIsIgnored": "26c14706d1427ca1",
+        "internal/component/ike/transport/rfc3948_keepalive_receive_test.go::TestRFC3948KeepaliveIsNotHandedOn": "26c14706d1427ca1"
       },
       "units": {
         "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive": "982bc94a9fc44d14",
-        "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive#2": "982bc94a9fc44d14"
+        "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive#2": "982bc94a9fc44d14",
+        "internal/component/ike/transport/rfc3948_keepalive_receive_test.go::TestRFC3948KeepaliveAheadOfIKEIsIgnored": "105a79dd53348a1c",
+        "internal/component/ike/transport/rfc3948_keepalive_receive_test.go::TestRFC3948KeepaliveIsNotHandedOn": "69e560e7af88c1b6"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3948-2.3-2": {
       "note": "Forbidden behaviour: a NAT-keepalive whose payload is longer than one octet or not 0xFF. TestNATKeepalive runs Keepalive.Run against a real UDP socket and fails unless the datagram read is exactly n == 1 and buf[0] == 0xFF, so both clauses (one octet, value 0xFF) go red on a change of keepaliveByte or of the write length. Single-polarity marker present.",
@@ -97,15 +101,19 @@
       "verdict": "enforced"
     },
     "RFC3948-4-1": {
-      "note": "Forbidden behaviour: not sending a NAT-keepalive when a need is detected (NAT behind this end) and nothing else was sent to the peer for M seconds. TestNATKeepalive proves Keepalive.Run emits a keepalive on its timer and TestKeepaliveDefaultInterval proves the default interval is positive and <= 20s. Neither clause of the condition is asserted: no unit shows keepalives start only when the RFC 3947 need is detected, and none shows the M-second window is measured from the last packet sent to the peer rather than a free-running ticker.",
+      "note": "Rejudged 2026-09-30 (transport judge). The M-second clause is now proven: TestRFC3948KeepaliveIdleWindowNeverExceedsM (M=80ms, three keepalives, every gap <= M+50ms, so no idle window to the peer exceeds M; a free-running ticker at M satisfies 'no other packet sent in M seconds') and TestRFC3948UnsetKeepaliveIntervalFallsBackToM (interval 0 and -1s, on which time.NewTicker would panic and no keepalive would be sent, fall back to DefaultKeepaliveInterval, asserted 20s); both carry observed-red revert records (keepalive.go Run, NewKeepalive). STILL WEAK: the clause 'if a need for it is detected according to [RFC3947]' is unproven: the gates are engine established.go startKeepalive (sa.NATDetected && !mobike) and mobike.go serviceMobike (sa.NATDetected), and no tagged unit goes red if keepalives start without a detected NAT or fail to start with one. TestKeepaliveDefaultInterval's claim ('well under a typical NAT UDP binding lifetime, so keepalives refresh the mapping before it can expire') states more than its body, which reads a constant and checks 0 < DefaultKeepaliveInterval <= 20s; it proves the RFC3948-4-2 default, not this row, and holds no record. TestNATKeepalive proves one 0xFF is emitted on the timer.",
       "requirement_sha": "7a70244ce37ee3c6",
       "tests": {
         "internal/component/ike/transport/keepalive_test.go::TestKeepaliveDefaultInterval": "953e0984234cb434",
-        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "953e0984234cb434"
+        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "953e0984234cb434",
+        "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948KeepaliveIdleWindowNeverExceedsM": "2c1dae638cc540d2",
+        "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948UnsetKeepaliveIntervalFallsBackToM": "2c1dae638cc540d2"
       },
       "units": {
         "internal/component/ike/transport/keepalive_test.go::TestKeepaliveDefaultInterval": "1b40e58f60aec171",
-        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "a170321f204d8470"
+        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "a170321f204d8470",
+        "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948KeepaliveIdleWindowNeverExceedsM": "02f299727c51f363",
+        "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948UnsetKeepaliveIntervalFallsBackToM": "0f102284c2310616"
       },
       "verdict": "weak"
     },

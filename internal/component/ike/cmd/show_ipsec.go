@@ -240,6 +240,13 @@ func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo,
 				"udp-encapsulation": info.ChildUDPEncap,
 				"remote-address":    installedAddressText(info.ChildRemoteAddr),
 			}
+			// Info leaves ESPIntegrity unset when the installed proposal did not
+			// resolve, so an empty string there would read as a negotiated value.
+			// The error replaces it.
+			if info.ESPTransformErr != nil {
+				delete(child, "esp-integrity")
+				child["esp-transform-error"] = info.ESPTransformErr.Error()
+			}
 			addChildCounters(child, &info, kernel)
 			m["child-sa"] = child
 		}

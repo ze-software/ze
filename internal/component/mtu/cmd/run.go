@@ -861,6 +861,11 @@ func tunnelRow(t *ipsecinventory.Tunnel) map[string]any {
 	}
 	row[fieldMode] = t.Mode.String()
 	row[fieldEncapsulation] = t.UDPEncap
+	// An unresolved transform names nothing; the row's reason says why
+	// (deriveESPOverhead refuses it), so no "/" stands in for a pair.
+	if t.TransformErr != nil {
+		return row
+	}
 	row[fieldTransform] = t.EncryptionName + "/" + t.IntegrityName
 	return row
 }

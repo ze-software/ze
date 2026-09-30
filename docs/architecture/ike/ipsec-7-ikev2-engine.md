@@ -48,7 +48,12 @@ operator sees: one value-type `Tunnel` per active peer session, sorted by name,
 carrying the configured and the installed endpoints, the interface id, the
 encapsulation, the mode and the NEGOTIATED ESP transform, as its name and as the
 RFC 7296 transform ids. A peer whose Child SA is down still appears with `Up`
-false, so a reader tells "down" from "absent". A build that does not link this
+false, so a reader tells "down" from "absent". An up tunnel whose accepted
+proposal no longer resolves through the crypto registry (a Ze defect, since the
+child was keyed from it) carries `TransformErr` and no transform at all, so a
+reader reports the transforms as unknown rather than as ENCR 0 and AUTH_NONE.
+`PeerInfo.ESPTransformErr` is the same fact on the engine side, and the
+metrics and dataplane-drift readers of `PeerInfoMap` read no transform field. A build that does not link this
 package makes `ipsecinventory.Tunnels` answer `ErrNotRegistered`, which is a
 named outcome distinct from a registered engine holding no tunnel. The leaf was
 added for the path MTU diagnostic (spec-path-mtu-diagnostic), its first reader.
