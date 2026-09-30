@@ -2,6 +2,28 @@
   "rfc": "rfc7313",
   "records": [
     {
+      "rid": "RFC7313-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence",
+      "unit-sha": "a4bb8202a5069236",
+      "claim-sha": "1ba257d831445dc5",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib.go::handleRefresh",
+      "producer-sha": "0d0ac3f7c44a4222",
+      "break": "body of handleRefresh replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7313-4-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence",
+      "unit-sha": "a4bb8202a5069236",
+      "claim-sha": "1a2655168075fc2a",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_commands.go::sendRoutes",
+      "producer-sha": "61de16c2a7d6e3ff",
+      "break": "body of sendRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7313-5-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength",

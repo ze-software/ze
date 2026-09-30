@@ -1,31 +1,35 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC7313-4-1": {
-      "note": "Single-polarity positive. (a) forbidden: re-advertising before the BoRR, and a locally initiated refresh with no BoRR; (b) TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR asserts the dispatched command list equals [borr, eorr] for a peer-requested (subtype 0) refresh on both rails, but the re-advertised routes do not pass through dispatchHook, so their order against the BoRR is not observed: a producer sending routes first stays green. The 'initiated locally' clause has no tagged unit: TestDispatchBGPPeerBoRR only proves an operator 'borr' command reaches SendBoRR, and TestRouteRefreshSubtypes only encodes subtype 1.",
+      "note": "Single-polarity positive, marker accepted: no input selects a re-advertisement without the BoRR and Ze's receipt of BoRR/EoRR is log-only (4-4/4-5 gaps), so neither a refusal path nor a handling-of-absence negative exists; no negative tag exists to hold. The peer-requested clause is now proven: TestRFC7313BoRRRoutesEoRRInOneSequence logs markers and routes in one order on both rails (handleRefresh, handleRefreshStructured) and asserts [BoRR, route, route, EoRR]; observed red with handleRefresh broken. The BoRR is written raw at once and the routes only after it, so no engine queue can put a route ahead of it. Still unproven: the 'initiated locally' clause. Ze has no locally initiated refresh (the only BoRR producers are the two peer-request handlers; soft clear sends an inbound ROUTE-REFRESH). The main thread has ruled that clause is R3-split into its own row excluded as feature-out-of-scope; once split, this row's remaining clause is enforced on the unit above.",
       "requirement_sha": "da0b53dde366af60",
       "tests": {
         "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "30b8b3abfb09b975",
+        "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "fe77d48f0e1fa729",
         "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "d1f258c5c47320ef",
         "internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go::TestDispatchBGPPeerBoRR": "bf7992ea6a608871"
       },
       "units": {
         "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "e6ccc2c8b29f98ab",
+        "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "e976b5455ae2814b",
         "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "ec4bff056223bc10",
         "internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go::TestDispatchBGPPeerBoRR": "240b1f83aa9371f3"
       },
       "verdict": "weak"
     },
     "RFC7313-4-2": {
-      "note": "Single-polarity positive. (a) forbidden: sending the EoRR before the re-advertisement of the entire Adj-RIB-Out completes; (b) the rib unit asserts [borr, eorr] only; the two ribOut routes are not in the captured sequence, so an EoRR sent before or without the routes stays green. Dispatch and encoding units prove the command path and subtype byte 2 only.",
+      "note": "Single-polarity positive, marker accepted (same reasoning as 4-1). Proven at the RIB: TestRFC7313BoRRRoutesEoRRInOneSequence asserts on both rails that the EoRR is the last entry, after both IPv4 unicast routes of the family's Adj-RIB-Out, with the IPv6 route absent; observed red with sendRoutes broken. Missing: the order on the wire. The EoRR leaves through reactorAPIAdapter.sendRouteRefresh -> Peer.SendRawMessage immediately, while each re-advertised route goes through the announce path, which diverts it into the peer's opQueue while peer.shouldQueue() holds (initial-sync window). A refresh answered in that window would put the EoRR ahead of the routes; suspected, not reproduced (plan/journal/marker-overtakes-the-queue-it-brackets.md). Needs a whole-Peer test reading the wire order for a refresh during initial sync.",
       "requirement_sha": "6584db627c7f1be9",
       "tests": {
         "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "30b8b3abfb09b975",
+        "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "fe77d48f0e1fa729",
         "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "d1f258c5c47320ef",
         "internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go::TestDispatchBGPPeerEoRR": "bf7992ea6a608871"
       },
       "units": {
         "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "e6ccc2c8b29f98ab",
+        "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "e976b5455ae2814b",
         "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "ec4bff056223bc10",
         "internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go::TestDispatchBGPPeerEoRR": "364103f5f9c61a8f"
       },

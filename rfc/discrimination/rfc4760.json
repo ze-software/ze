@@ -79,6 +79,39 @@
       "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4760-7-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes",
+      "unit-sha": "06dc98271f9e7939",
+      "claim-sha": "d8e3d9147579256c",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib.go::handleStructuredState",
+      "producer-sha": "21be99a9aa000963",
+      "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4760-7-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760CorrectMPReachRaisesNoPeerDown",
+      "unit-sha": "ea51ba57f18af0e5",
+      "claim-sha": "a7ff419c08ac52e3",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
+      "producer-sha": "29b57c597e6fde4a",
+      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4760-7-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB",
+      "unit-sha": "27bacb1819f7716e",
+      "claim-sha": "009b85381397a518",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyPeerClosed",
+      "producer-sha": "708c987d1f1c40b1",
+      "break": "body of notifyPeerClosed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4760-8-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4760FamilyNotAdvertisedIsNotExchanged",
