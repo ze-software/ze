@@ -202,16 +202,16 @@
       "verdict": "enforced"
     },
     "RFC1195-5.2-1": {
-      "note": "Re-judged 2026-09-30 (TestISISIIHOriginationTLVs claim block changed: its RFC3787 tags were split; this row's tag and the unit body are unchanged). Single-polarity positive per the row (Ze is unconditionally IP-capable). TestISISIIHOriginationTLVs asserts TLV 129 in the decoded sent L1 LAN IIH and P2P IIH; root TestRFC1195NodeProtocolsAcrossInterfaces asserts TLV 129 with NLPID 0xCC in each interface's IIH and LSP number 0; root TestRFC1195ISHTransmitReceive the ISH on a point-to-point circuit; lsdb TestISISOriginateOnAdjacencyUp LSP fragment 0. Every place the sentence names is asserted. Recorded + on circuit/hello.go protocolsSupportedTLV (three units); the lsdb unit carries no record of its own.",
+      "note": "Re-judged 2026-09-30 (TestISISIIHOriginationTLVs claim block changed: its RFC3787 tags were split; this row's tag and the unit body are unchanged). Single-polarity positive per the row (Ze is unconditionally IP-capable). TestISISIIHOriginationTLVs asserts TLV 129 in the decoded sent L1 LAN IIH and P2P IIH; root TestRFC1195NodeProtocolsAcrossInterfaces asserts TLV 129 with NLPID 0xCC in each interface's IIH and LSP number 0; root TestRFC1195ISHTransmitReceive the ISH on a point-to-point circuit; lsdb TestISISOriginateOnAdjacencyUp LSP fragment 0. Every place the sentence names is asserted. Recorded + on circuit/hello.go protocolsSupportedTLV (three units); the lsdb unit carries no record of its own. Re-read 2026-09-30 by judge after TestISISIIHOriginationTLVs gained a TLV 132 value assertion (RFC3787-10-1); its TLV 129 assertions in the LAN and P2P IIH are unchanged, so the verdict stands.",
       "requirement_sha": "7dd876d267bd817e",
       "tests": {
-        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "0206a1b06ee18af9",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "78bad3f1ac821eb8",
         "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "66ccab517853dff8",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "fc999353e8eb0648",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "fc999353e8eb0648"
       },
       "units": {
-        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "dd0208f02c409f7c",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "1cff299a6fa05a25",
         "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "8d1385b0faf90a94",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "14f35bf598ceaf3b",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "e56c9e796d3a92ca"

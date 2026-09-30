@@ -11,6 +11,7 @@
 package circuit
 
 import (
+	"bytes"
 	"net/netip"
 	"testing"
 
@@ -140,6 +141,27 @@ func hasTLV(tlvs []packet.TLV, typ uint8) bool {
 	return false
 }
 
+// assertIPInterfaceAddr fails the test unless the TLVs hold exactly one IP
+// Interface Address TLV (132) whose value is exactly the four octets of want.
+// A TLV 132 carrying 0.0.0.0 or any other address fails.
+func assertIPInterfaceAddr(t *testing.T, tlvs []packet.TLV, want string) {
+	t.Helper()
+	wantAddr := netip.MustParseAddr(want).As4()
+	var found int
+	for _, tlv := range tlvs {
+		if tlv.Type != packet.TLVIPInterfaceAddress {
+			continue
+		}
+		found++
+		if !bytes.Equal(tlv.Value, wantAddr[:]) {
+			t.Errorf("TLV 132 value = % x, want % x (%s)", tlv.Value, wantAddr[:], want)
+		}
+	}
+	if found != 1 {
+		t.Errorf("TLV 132 count = %d, want 1", found)
+	}
+}
+
 // TestISISIIHOriginationTLVs: the originated LAN IIH carries TLV 1/129/132/6 and
 // the P2P IIH carries TLV 1/129/132/240.
 //
@@ -149,7 +171,8 @@ func hasTLV(tlvs []packet.TLV, typ uint8) bool {
 //
 // RFC requirement: RFC3787-10-1 positive -- the originated IIH (both the LAN and
 // the P2P form) of a circuit with an IPv4 interface address, decoded from the
-// sent bytes, carries an IP Interface Address TLV (132).
+// sent bytes, carries exactly one IP Interface Address TLV (132) whose value is
+// exactly the circuit's configured address (192.0.2.1, four octets).
 //
 // RFC requirement: RFC1195-5.2-1 positive -- the Protocols Supported TLV (129) is
 // included in every IS-IS Hello this circuit transmits: the originated L1 LAN IIH
@@ -170,6 +193,7 @@ func TestISISIIHOriginationTLVs(t *testing.T) {
 				t.Errorf("LAN IIH missing TLV %d", typ)
 			}
 		}
+		assertIPInterfaceAddr(t, p.LANHello.TLVs, "192.0.2.1")
 		if p.LANHello.PDUType != packet.PDUTypeL1LANHello {
 			t.Errorf("LAN PDU type = %v, want L1 LAN hello", p.LANHello.PDUType)
 		}
@@ -193,6 +217,7 @@ func TestISISIIHOriginationTLVs(t *testing.T) {
 				t.Errorf("P2P IIH missing TLV %d", typ)
 			}
 		}
+		assertIPInterfaceAddr(t, p.P2PHello.TLVs, "192.0.2.1")
 		if !s.sent[len(s.sent)-1].both {
 			t.Error("P2P Hello should be sent to both level groups")
 		}
