@@ -518,9 +518,9 @@ func (l *Loop) Stop() error {
 // Otherwise the
 // engine creates the session, allocates a unique discriminator, and the
 // express loop will begin sending packets on the next tick. A request for the
-// key of a released session still inside its Detection Time gets a new session
-// built from this request on the released one's discriminator, so the peer's
-// packets keep matching and the new client's parameters apply.
+// key of a released session still inside its Detection Time revives that
+// session with this request's parameters (reviveReleasedLocked), so the state
+// learned from the peer survives.
 func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) {
 	key := req.Key()
 	l.mu.Lock()
@@ -528,7 +528,7 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 
 	if entry, ok := l.sessions[key]; ok {
 		if entry.released {
-			return l.replaceReleasedLocked(req, key, entry)
+			return l.reviveReleasedLocked(req, key, entry)
 		}
 		entry.machine.Acquire()
 		return &handle{loop: l, key: key}, nil
@@ -554,20 +554,34 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 	return l.createSessionLocked(req, key, discr)
 }
 
-// replaceReleasedLocked answers a request for the key of a released session
-// (ReleaseSession) that tick has not yet removed. The released session keeps
-// its discriminator and its place in every index until the new one is built,
-// so a request that fails leaves it to wait out its Detection Time. The caller
+// reviveReleasedLocked answers a request for the key of a released session
+// (ReleaseSession) that tick has not yet removed. The session is revived, as
+// the shared-join path revives one, and takes the new request's parameters.
+//
+// RFC 5880 Section 6.8.1: "This preserves timing parameters in case the
+// session flaps." A new session in its place would discard bfd.RemoteDiscr and
+// the remote timing the section keeps the entry for.
+//
+// The authentication pair is built before anything changes, so a request that
+// fails leaves the released session to wait out its Detection Time. The caller
 // MUST hold l.mu.
-func (l *Loop) replaceReleasedLocked(req api.SessionRequest, key api.Key, released *sessionEntry) (api.SessionHandle, error) {
-	h, err := l.createSessionLocked(req, key, released.machine.LocalDiscriminator())
-	if err != nil {
-		return nil, err
+func (l *Loop) reviveReleasedLocked(req api.SessionRequest, key api.Key, released *sessionEntry) (api.SessionHandle, error) {
+	var pair *session.AuthPair
+	if req.Auth != nil {
+		built, err := buildAuthPair(req, key)
+		if err != nil {
+			return nil, err
+		}
+		pair = built
 	}
 	if closeErr := released.machine.CloseAuth(); closeErr != nil {
 		engineLog().Debug("bfd auth persister close failed", "key", key, "err", closeErr)
 	}
-	return h, nil
+	released.machine.SetAuth(pair)
+	released.profile = req.Profile
+	l.acquireLocked(released)
+	released.machine.Reconfigure(req)
+	return &handle{loop: l, key: key}, nil
 }
 
 // createSessionLocked builds the session for req on discriminator discr and
@@ -623,25 +637,54 @@ func (l *Loop) createSessionLocked(req api.SessionRequest, key api.Key, discr ui
 // mean either of two sessions is not merged onto one of them by a guess, and
 // gets its own.
 //
+// A released session (ReleaseSession) has no client left to share with, so it
+// is matched only when no live session is: the live sessions are counted
+// first, and the released ones decide only when none of them matches. Counted
+// together, a released session kept for its Detection Time would make a
+// request that matches one live session ambiguous, and open a second session
+// to the same remote system.
+//
 // The scan is linear in the loop's sessions. EnsureSession runs once per
 // client per session lifetime, never per packet.
 func (l *Loop) sharedEntryLocked(key api.Key) (api.Key, *sessionEntry, bool) {
-	var (
-		foundKey api.Key
-		found    *sessionEntry
-		count    int
-	)
+	var live, released sharedMatch
 	for k, entry := range l.sessions {
 		if !sharesSession(key, entry.joined) {
 			continue
 		}
-		count++
-		foundKey, found = k, entry
+		if entry.released {
+			released.add(k, entry)
+			continue
+		}
+		live.add(k, entry)
 	}
-	if count != 1 {
+	if live.count > 0 {
+		return live.only()
+	}
+	return released.only()
+}
+
+// sharedMatch counts the sessions sharedEntryLocked matched in one class, live
+// or released, and remembers the last one.
+type sharedMatch struct {
+	key   api.Key
+	entry *sessionEntry
+	count int
+}
+
+// add records one more matching session.
+func (s *sharedMatch) add(key api.Key, entry *sessionEntry) {
+	s.key, s.entry = key, entry
+	s.count++
+}
+
+// only answers the matched session when exactly one matched; none, or more
+// than one, is no answer.
+func (s *sharedMatch) only() (api.Key, *sessionEntry, bool) {
+	if s.count != 1 {
 		return api.Key{}, nil, false
 	}
-	return foundKey, found, true
+	return s.key, s.entry, true
 }
 
 // sharesSession reports whether two keys can name one session: the same peer,

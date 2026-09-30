@@ -619,6 +619,17 @@
     },
     {
       "rid": "RFC5880-6.8.1-14",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionAskedAgainKeepsRemoteState",
+      "unit-sha": "9e2973f513649e99",
+      "claim-sha": "88eb27e84f38de84",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/engine.go::reviveReleasedLocked",
+      "producer-sha": "f05e58a37d6485c8",
+      "break": "body of reviveReleasedLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.1-14",
       "polarity": "positive",
       "unit": "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionPreservedForOneDetectionTime",
       "unit-sha": "9e6567c74208b16c",
@@ -627,6 +638,17 @@
       "producer": "internal/component/bfd/engine/engine.go::ReleaseSession",
       "producer-sha": "4ba20f8cbeabd01d",
       "break": "line 792: \"entry.machine.LastReceived().IsZero()\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC5880-6.8.1-4",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880InitClearsLearnedRemoteDiscr",
+      "unit-sha": "364a263a29a8c371",
+      "claim-sha": "8737e74470a49662",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/session.go::Init",
+      "producer-sha": "39bd57d2fe6e92b0",
+      "break": "body of Init replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.8.1-5",
@@ -649,6 +671,17 @@
       "producer": "internal/component/bfd/session/timers.go::CheckDetection",
       "producer-sha": "1386b1ea81534415",
       "break": "body of CheckDetection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.16-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableCeasesEchoes",
+      "unit-sha": "ff1b0066b05008c3",
+      "claim-sha": "c037968d28f895a6",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/timers.go::ClearEchoSchedule",
+      "producer-sha": "07279895939c8880",
+      "break": "body of ClearEchoSchedule replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.8.3-1",
@@ -794,6 +827,17 @@
       "break": "line 122: \"m.vars.SessionState != packet.StateInit \u0026\u0026 m.vars.SessionState != packet.StateUp\" -\u003e \"true\""
     },
     {
+      "rid": "RFC5880-6.8.5-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes",
+      "unit-sha": "e0b512f49c027c48",
+      "claim-sha": "dda7026ce221bce5",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/timers.go::EchoFail",
+      "producer-sha": "7b7f943d237a89c2",
+      "break": "body of EchoFail replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5880-6.8.6-18",
       "polarity": "positive",
       "unit": "internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces",
@@ -825,6 +869,17 @@
       "producer": "internal/component/bfd/session/fsm.go::Receive",
       "producer-sha": "a78f25ff2c103765",
       "break": "body of Receive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.7-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880TickSpacesControlPacketsByLargerInterval",
+      "unit-sha": "630d8dde59394d2b",
+      "claim-sha": "e140ef5f4046455b",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/timers.go::TransmitInterval",
+      "producer-sha": "5c5ea965c6b8cc02",
+      "break": "body of TransmitInterval replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.8.7-1",
@@ -862,6 +917,17 @@
     {
       "rid": "RFC5880-6.8.7-5",
       "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr",
+      "unit-sha": "bf885e431c2827de",
+      "claim-sha": "6ce31fe423a8b21f",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::tick",
+      "producer-sha": "c7fab4469719baf5",
+      "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.7-5",
+      "polarity": "positive",
       "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveSilentOnceRemoteDiscrCleared",
       "unit-sha": "692bec2a41e0aa3f",
       "claim-sha": "5711d4f449789214",
@@ -882,6 +948,28 @@
       "break": "body of transmitPermitted replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5880-6.8.8-2",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes",
+      "unit-sha": "e0b512f49c027c48",
+      "claim-sha": "fe69dac611b0736d",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/timers.go::EchoDetectionExpired",
+      "producer-sha": "31df6046092fc318",
+      "break": "body of EchoDetectionExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.8-2",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineReturnedEchoesKeepSessionUp",
+      "unit-sha": "69132c6d039d434e",
+      "claim-sha": "55f89ddcb791ba8c",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/timers.go::MatchEchoRx",
+      "producer-sha": "232f55aed4c43c8b",
+      "break": "body of MatchEchoRx replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5880-6.8.9-2",
       "polarity": "negative",
       "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880EchoFollowsLastAdvertisement",
@@ -891,6 +979,17 @@
       "producer": "internal/component/bfd/session/timers.go::EchoEnabled",
       "producer-sha": "a4608916499310d7",
       "break": "line 268: \"!=\" -\u003e \"==\""
+    },
+    {
+      "rid": "RFC5880-6.8.9-3",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EchoSteadySpacingHonorsPeerFloor",
+      "unit-sha": "c1c9bc140b6e357e",
+      "claim-sha": "ecad41cd70662601",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/timers.go::EchoInterval",
+      "producer-sha": "1042c678c03a1736",
+      "break": "body of EchoInterval replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.8.9-3",

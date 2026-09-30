@@ -371,3 +371,24 @@ func TestRFC5880PollInitiatedWhenDownEntryRaisesDesiredMinTx(t *testing.T) {
 		t.Fatal("bfd.DesiredMinTxInterval changed from 300 ms to 1 s on entry to Down and no Poll Sequence was initiated")
 	}
 }
+
+// RFC requirement: RFC5880-6.8.1-4 negative -- the input that would violate the
+// rule is a Machine that already holds a nonzero bfd.RemoteDiscr when it is
+// initialized: the machine learns the peer's discriminator (1) from a received
+// packet, is initialized again for a new session, and bfd.RemoteDiscr is zero
+// after that Init. An Init that carried the learned value over would leave 1.
+func TestRFC5880InitClearsLearnedRemoteDiscr(t *testing.T) {
+	clk := newFakeClock()
+	m, _ := newMachine(t, clk)
+	if err := m.Receive(recv(packet.StateDown, 0)); err != nil {
+		t.Fatalf("Receive: %v", err)
+	}
+	if got := m.RemoteDiscriminator(); got != 1 {
+		t.Fatalf("precondition: bfd.RemoteDiscr = %d after the first packet, want the peer's 1", got)
+	}
+
+	m.Init(m.configReq, 0xBEEF, clk, nil)
+	if got := m.RemoteDiscriminator(); got != 0 {
+		t.Fatalf("bfd.RemoteDiscr after Init = %d, want 0", got)
+	}
+}

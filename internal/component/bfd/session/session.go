@@ -258,14 +258,73 @@ func (m *Machine) Init(req api.SessionRequest, localDiscr uint32, clk clock.Cloc
 	}
 
 	m.key = req.Key()
+	m.clk = clk
+	m.notify = notify
+	m.refcount = 1
+
+	m.vars = Vars{
+		SessionState:         packet.StateDown,
+		RemoteSessionState:   packet.StateDown,
+		LocalDiscr:           localDiscr,
+		RemoteDiscr:          0,
+		LocalDiag:            packet.DiagNone,
+		DesiredMinTxInterval: SlowStartIntervalUs,
+		RemoteMinRxInterval:  1, // RFC 5880 Section 6.8.1 init
+	}
+	m.applyRequest(req)
+	m.vars.RequiredMinRxInterval = m.vars.ConfiguredRequiredMinRxInterval
+
+	m.createdAt = m.clk.Now()
+	if m.role == RoleActive {
+		m.nextTxAt = m.createdAt
+	}
+}
+
+// Reconfigure applies a new client request to a session that is not Up,
+// keeping everything the session learned from the remote end: bfd.RemoteDiscr,
+// the remote timing parameters, the last receive time, the discriminator and
+// the authentication sequence numbers. The engine calls it when a client asks
+// again for a session it released less than one Detection Time ago.
+//
+// The caller MUST call it after the session has left AdminDown, because
+// entering Down discards an outstanding Poll Sequence, and MUST NOT call it on
+// an Up session, whose intervals change only through a Poll Sequence it did
+// not start. Not safe for concurrent use: the engine holds its lock.
+func (m *Machine) Reconfigure(req api.SessionRequest) {
+	if m.vars.SessionState == packet.StateUp {
+		panic("BUG: bfd session Reconfigure called on an Up session")
+	}
+	requiredMinRx := m.vars.RequiredMinRxInterval
+	m.applyRequest(req)
+	m.vars.RequiredMinRxInterval = m.vars.ConfiguredRequiredMinRxInterval
+	// RFC 5880 Section 6.8.3: "If either bfd.DesiredMinTxInterval is changed
+	// or bfd.RequiredMinRxInterval is changed, a Poll Sequence MUST be
+	// initiated (see section 6.5)." bfd.DesiredMinTxInterval stays at the
+	// one-second floor outside Up, so only the receive interval can move here.
+	if m.vars.RequiredMinRxInterval != requiredMinRx {
+		m.vars.PollOutstanding = true
+	}
+	// A change of role can withdraw or grant permission to transmit
+	// (RFC 5880 Section 6.8.7), so the next deadline is recomputed.
+	if !m.transmitPermitted() {
+		m.nextTxAt = time.Time{}
+		return
+	}
+	if m.nextTxAt.IsZero() {
+		m.nextTxAt = m.clk.Now()
+	}
+}
+
+// applyRequest copies the client's configured parameters into the session:
+// its role, Detect Mult, configured Control intervals and Echo intervals. It
+// leaves the operating bfd.DesiredMinTxInterval and bfd.RequiredMinRxInterval
+// to its caller, since which of those may change depends on the state.
+func (m *Machine) applyRequest(req api.SessionRequest) {
 	m.configReq = req
 	m.role = RoleActive
 	if req.Passive {
 		m.role = RolePassive
 	}
-	m.clk = clk
-	m.notify = notify
-	m.refcount = 1
 
 	mult := req.DetectMult
 	if mult == 0 {
@@ -280,26 +339,11 @@ func (m *Machine) Init(req api.SessionRequest, localDiscr uint32, clk clock.Cloc
 		configRx = SlowStartIntervalUs
 	}
 
-	m.vars = Vars{
-		SessionState:                    packet.StateDown,
-		RemoteSessionState:              packet.StateDown,
-		LocalDiscr:                      localDiscr,
-		RemoteDiscr:                     0,
-		LocalDiag:                       packet.DiagNone,
-		DesiredMinTxInterval:            SlowStartIntervalUs,
-		RequiredMinRxInterval:           configRx,
-		RemoteMinRxInterval:             1, // RFC 5880 Section 6.8.1 init
-		ConfiguredDesiredMinTxInterval:  configTx,
-		ConfiguredRequiredMinRxInterval: configRx,
-		DetectMult:                      mult,
-		RequiredMinEchoRxInterval:       req.DesiredMinEchoTxInterval,
-		DesiredMinEchoTxInterval:        req.DesiredMinEchoTxInterval,
-	}
-
-	m.createdAt = m.clk.Now()
-	if m.role == RoleActive {
-		m.nextTxAt = m.createdAt
-	}
+	m.vars.ConfiguredDesiredMinTxInterval = configTx
+	m.vars.ConfiguredRequiredMinRxInterval = configRx
+	m.vars.DetectMult = mult
+	m.vars.RequiredMinEchoRxInterval = req.DesiredMinEchoTxInterval
+	m.vars.DesiredMinEchoTxInterval = req.DesiredMinEchoTxInterval
 }
 
 // Key returns the session's identity. Safe to call after Init.

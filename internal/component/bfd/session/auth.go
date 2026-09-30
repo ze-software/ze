@@ -26,8 +26,10 @@ type AuthPair struct {
 // SetAuth installs the authentication state on the Machine. Called
 // from Init by the engine when the session config carries an
 // `auth { ... }` block. A nil pair clears any previously-installed
-// state. Safe to call only before the session's first send or
-// receive (normally right after Init).
+// state. Safe to call before the session's first send or receive
+// (normally right after Init), or on a session outside Up whose client
+// asked for it again (the engine's released-session revival), where the
+// transmit sequence carries on unless a persister supplies a new start.
 func (m *Machine) SetAuth(pair *AuthPair) {
 	m.authPair = pair
 	if pair != nil {

@@ -110,9 +110,9 @@ func TestRFC5880InitVariableDefaults(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.8.1-4 negative -- the zero is an initial value,
-// not a constant: the first received packet installs the peer's My
-// Discriminator via Receive (internal/component/bfd/session/fsm.go:56).
+// The test also checks that bfd.RemoteDiscr's zero is an initial value, not a
+// constant: the first received packet installs the peer's My Discriminator via
+// Receive (internal/component/bfd/session/fsm.go).
 // RFC requirement: RFC5880-6.8.1-6 negative -- LocalDiag likewise moves off
 // zero when a transition records a reason (fsm.go:83).
 // RFC requirement: RFC5880-6.8.1-8 negative -- RemoteMinRxInterval is replaced
@@ -305,11 +305,8 @@ func TestRFC5880StatePreservedForOneDetectionTime(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.8.1-14 negative -- the preservation is bounded by
-// one Detection Time, not indefinite: once now reaches nextDetectAt,
-// CheckDetection (timers.go:69-84) tears the session down. Without this the
-// positive could pass on code that never times a session out.
-// RFC requirement: RFC5880-6.8.4-1 positive -- the same expiry sets
+// RFC requirement: RFC5880-6.8.4-1 positive -- once now reaches nextDetectAt,
+// CheckDetection (timers.go:69-84) tears the session down: the expiry sets
 // bfd.SessionState to Down and bfd.LocalDiag to 1 (timers.go:76-77) when the
 // session was Init or Up.
 func TestRFC5880DetectionExpiryDownDiagOne(t *testing.T) {

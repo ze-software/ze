@@ -222,13 +222,19 @@ kept, a released session appears in the engine snapshot (`snapshot.go`) in
 `AdminDown`.
 
 A client that asks again for a released session's exact key before it is
-removed gets a new session built from its own request on the released one's
-discriminator (`replaceReleasedLocked`), so its parameters apply and the
-peer's packets keep matching. A client that joins it through RFC 5882 §4.4
-sharing revives it instead: it leaves `AdminDown` for `Down` with the
-parameters it had.
+removed revives it (`reviveReleasedLocked`): the same session leaves
+`AdminDown` for `Down`, keeps its discriminator, `bfd.RemoteDiscr`, the remote
+timing parameters and its last receive time ("This preserves timing parameters
+in case the session flaps", §6.8.1), and takes the new request's role, Detect
+Mult, configured intervals and authentication (`Machine.Reconfigure`). A
+changed Required Min RX Interval starts a Poll Sequence (§6.8.3). A client that
+joins it through RFC 5882 §4.4 sharing revives it with the parameters it had.
+Sharing counts live sessions first (`sharedEntryLocked`): a released session is
+joined only when no live session matches the request, so a session kept for
+its Detection Time never makes a request that matches one live session
+ambiguous.
 
-<!-- source: internal/component/bfd/engine/engine.go -- ReleaseSession, acquireLocked, retireReleasedLocked, replaceReleasedLocked -->
+<!-- source: internal/component/bfd/engine/engine.go -- ReleaseSession, acquireLocked, retireReleasedLocked, reviveReleasedLocked, sharedEntryLocked -->
 <!-- source: internal/component/bfd/engine/loop.go -- tick -->
 
 ### What a state change tells a client
