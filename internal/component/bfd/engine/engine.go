@@ -79,6 +79,11 @@ var ErrDiscriminatorSpaceExhausted = errors.New("bfd: local discriminator space 
 // after the session has been torn down (refcount dropped to zero).
 var ErrUnknownSession = errors.New("bfd: session no longer exists")
 
+// ErrAuthMismatch is returned when a request would join a session whose
+// authentication configuration differs from the request's (EnsureSession).
+// One BFD session carries one authentication configuration.
+var ErrAuthMismatch = errors.New("the authentication configurations differ")
+
 // MetricsHook is the Loop-level notification channel for the BFD
 // plugin's Prometheus metrics. The engine calls the hook's methods
 // from the express loop goroutine (except OnStateChange, which is
@@ -147,8 +152,12 @@ func (l *Loop) SetMetricsHook(h MetricsHook) {
 // txPackets / rxPackets are incremented inside the express loop and
 // exported via Snapshot + Prometheus counters.
 type sessionEntry struct {
-	machine   *session.Machine
-	profile   string
+	machine *session.Machine
+	profile string
+	// auth is the authentication configuration the session was built with,
+	// nil for none. A live session refuses a join whose configuration differs
+	// (joinAuthCheck), so every client of the session runs with this one.
+	auth      *api.AuthSettings
 	createdAt time.Time
 	// lastChange is when the session entered lastState, or the zero time when
 	// it has never left the state it was created in. It answers the snapshot's
@@ -519,7 +528,9 @@ func (l *Loop) Stop() error {
 // the same Key already exists, or exactly one session the request cannot be
 // told apart from (sharedEntryLocked), its refcount is bumped and the handle
 // names that session's key, which can carry fewer fields than the request's.
-// Otherwise the
+// A request whose authentication differs from that live session's is refused
+// with ErrAuthMismatch (joinAuthCheck): one session carries one
+// authentication configuration. Otherwise the
 // engine creates the session, allocates a unique discriminator, and the
 // express loop will begin sending packets on the next tick. A request for the
 // key of a released session still inside its Detection Time revives that
@@ -534,12 +545,18 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 		if entry.released {
 			return l.reviveReleasedLocked(req, key, entry)
 		}
+		if err := joinAuthCheck(entry, req, key); err != nil {
+			return nil, err
+		}
 		entry.machine.Acquire()
 		return &handle{loop: l, key: key}, nil
 	}
 	// RFC 5882 Section 4.4: a client that named less joins the one session
 	// it cannot be told apart from.
 	if sessionKey, entry, ok := l.sharedEntryLocked(key); ok {
+		if err := l.sharedAuthLocked(entry, req, sessionKey); err != nil {
+			return nil, err
+		}
 		l.acquireLocked(entry)
 		entry.joined = narrowKey(entry.joined, key)
 		engineLog().Info("bfd session shared",
@@ -570,18 +587,9 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 // fails leaves the released session to wait out its Detection Time. The caller
 // MUST hold l.mu.
 func (l *Loop) reviveReleasedLocked(req api.SessionRequest, key api.Key, released *sessionEntry) (api.SessionHandle, error) {
-	var pair *session.AuthPair
-	if req.Auth != nil {
-		built, err := buildAuthPair(req, key)
-		if err != nil {
-			return nil, err
-		}
-		pair = built
+	if err := replaceAuth(released, req, key); err != nil {
+		return nil, err
 	}
-	if closeErr := released.machine.CloseAuth(); closeErr != nil {
-		engineLog().Debug("bfd auth persister close failed", "key", key, "err", closeErr)
-	}
-	released.machine.SetAuth(pair)
 	released.profile = req.Profile
 	l.acquireLocked(released)
 	released.machine.Reconfigure(req)
@@ -615,6 +623,7 @@ func (l *Loop) createSessionLocked(req api.SessionRequest, key api.Key, discr ui
 			return nil, pairErr
 		}
 		m.SetAuth(pair)
+		entry.auth = cloneAuth(req.Auth)
 	}
 
 	l.sessions[key] = entry

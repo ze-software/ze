@@ -162,10 +162,22 @@ one multi-hop peer, is not merged onto one of them by a guess. Both are listed
 in `rfc/short/rfc5882.md`, under "Multiple Control Protocols (Section 4.4)",
 where the conformance ledger reads them.
 
+One session carries one authentication configuration, and one set of timers:
+those of the request that created it. A later client joins the session as it
+is. A client whose authentication differs from a live session's (Auth Type, Key
+ID, Meticulous flag or secret, or authentication on one side only) is refused
+with `ErrAuthMismatch` at both join arms (`joinAuthCheck`), so it gets no
+session rather than a second one, and it never runs on an authentication it did
+not ask for (RFC 5880 §6.7, RFC 5882 §10.2). A released session holds no client,
+so a request that revives it, by its exact key or by a shared join, gives it the
+request's authentication. Each client logs the refusal; `docs/guide/bfd.md`,
+"Session sharing", says what each one then does.
+
 <!-- source: internal/component/bfd/api/session_identity.go -- Canonical, canonicalMultiHop -->
 <!-- source: internal/component/bfd/transport/udp.go -- ingressInterface -->
 <!-- source: internal/component/bfd/session_identity.go -- connectedLinks, vrfMembership -->
 <!-- source: internal/component/bfd/engine/engine.go -- sharedEntryLocked, sharesSession -->
+<!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, sharedAuthLocked, replaceAuth -->
 
 ### Discriminator allocation
 

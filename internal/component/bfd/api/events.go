@@ -71,9 +71,10 @@ func (h HopMode) String() string {
 // Two requests with the same Key tuple coalesce into one session via
 // refcounting (see RFC 5882 Section 4.4), and so does a request that left a
 // Key field unset with the one session it cannot be told apart from
-// (engine.Loop.EnsureSession). When two clients disagree on
-// timer parameters, the engine picks the more aggressive (smaller) value
-// for each.
+// (engine.Loop.EnsureSession). The session keeps the timers of the request
+// that created it: a later client joins it as it is. A request whose Auth
+// differs from the live session's is refused with engine.ErrAuthMismatch,
+// because one session carries one authentication configuration.
 type SessionRequest struct {
 	// Peer is the remote address. For single-hop sessions this is the
 	// peer's address on the directly-connected link; for multi-hop it

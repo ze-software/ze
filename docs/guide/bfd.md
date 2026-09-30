@@ -473,11 +473,28 @@ three-way handshake normally.
 ## Session sharing
 
 When multiple clients ask for the same path, the BFD plugin creates one
-underlying session and refcounts subscribers. Timer parameters are chosen
-as the most aggressive (smallest) value across requesters. For example, if
-BGP asks for a 50 ms session and OSPF later asks for a 300 ms session to
-the same peer, they share one 50 ms session; if the BGP subscriber goes
-away first, the session drops to 300 ms via Poll/Final.
+underlying session and refcounts subscribers. The session runs with the
+timers of the request that created it: a later client joins it as it is,
+and its own timers do not change the session. For example, if BGP asks
+for a 50 ms session and OSPF later asks for a 300 ms session to the same
+peer, they share the 50 ms session.
+
+One session carries one authentication configuration. A client whose
+profile resolves to a different authentication (another Auth Type, Key ID
+or secret, or authentication where the session has none, or none where it
+has some) is refused rather than joined: the session keeps the
+authentication it was built with, and the refused client logs the error,
+which names the peer, interface and VRF and says that the authentication
+configurations differ. A BGP peer then runs without BFD (a strict-mode peer
+is held down), a static route's next-hop runs without BFD, and an OSPF
+neighbor runs on its hello and dead timers. Two profiles with the same
+auth block under different names share the session. Give every client of
+one remote system profiles with the same auth block.
+<!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck -->
+<!-- source: internal/component/bfd/engine/engine.go -- EnsureSession -->
+<!-- source: internal/component/bgp/reactor/peer_bfd.go -- startBFDClient -->
+<!-- source: internal/plugins/static/inject.go -- setupBFDLocked -->
+<!-- source: internal/plugins/ospf/bfd_client.go -- startBFDSession -->
 
 ## Editing live
 

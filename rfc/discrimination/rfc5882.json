@@ -4,6 +4,28 @@
     {
       "rid": "RFC5882-10.2-1",
       "polarity": "negative",
+      "unit": "internal/component/bfd/rfc5882_auth_join_test.go::TestRFC5882AuthJoinDifferentAuthRefused",
+      "unit-sha": "0a32d83977b5d75e",
+      "claim-sha": "f755fd274631fe4a",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/auth_join.go::joinAuthCheck",
+      "producer-sha": "13fabb6db0a5dc5d",
+      "break": "body of joinAuthCheck replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5882-10.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/rfc5882_auth_join_test.go::TestRFC5882AuthJoinIdenticalAuthShares",
+      "unit-sha": "83dd874a0ea64d9a",
+      "claim-sha": "7f1a4e74d1fd1ca1",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/auth_join.go::sameAuth",
+      "producer-sha": "b4a27594c81a3bea",
+      "break": "body of sameAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5882-10.2-1",
+      "polarity": "negative",
       "unit": "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesMismatchedNeighbor",
       "unit-sha": "605ce45db0d7aa30",
       "claim-sha": "7838552fc111a6f6",
@@ -229,7 +251,7 @@
       "claim-sha": "7fd93d94594ce9db",
       "route": "revert",
       "producer": "internal/component/bfd/engine/engine.go::EnsureSession",
-      "producer-sha": "255dfd9f7e0306d5",
+      "producer-sha": "0547e78d5acde32d",
       "break": "body of EnsureSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -240,7 +262,7 @@
       "claim-sha": "d8809599a9eb3a8d",
       "route": "revert",
       "producer": "internal/component/bfd/engine/engine.go::EnsureSession",
-      "producer-sha": "255dfd9f7e0306d5",
+      "producer-sha": "0547e78d5acde32d",
       "break": "body of EnsureSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
