@@ -74,7 +74,7 @@
       "verdict": "enforced"
     },
     "RFC5881-4-3": {
-      "note": "Judge 2026-09-30 (rejudge, netns+pinning). Units now run in a rootless user+net namespace (userns.Enter), which removes the prior weak reason (fixed host ports colliding with a running ze or a parallel run); the judge ran them: each child ran and passed, none skipped. \u00a74 \"The same UDP source port number MUST be used for all BFD Control packets associated with a particular session.\" TestRFC5881ControlSourcePortFixedOnTheWire observes five datagrams with one source AddrPort; {single-polarity} holds, marker now names bfd.go newUDPTransport/newUDPTransport6 and udp.go UDP.Send. Record re-observed red by the judge against the pinned udp.go::Send.",
+      "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). Unit TestRFC5881ControlSourcePortFixedOnTheWire unchanged: five datagrams observed with one source AddrPort in a rootless user+net namespace, ran and passed. Its producer UDP.Send changed twice (pinning 637aa9c186 and the reaches fix); the revert record was re-observed red against the current Send (sub2-rec-43). The {single-polarity: positive} marker still holds: every Control packet leaves through the one socket the loop binds, so no per-packet source-port choice exists to exercise.",
       "requirement_sha": "e531182695e85c79",
       "tests": {
         "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSourcePortFixedOnTheWire": "ec3f2024a41e142b"
@@ -190,21 +190,27 @@
       "verdict": "enforced"
     },
     "RFC5881-6-2": {
-      "note": "Judge 2026-09-30 (rejudge, subnet). \u00a76 \"On a multiaccess network, BFD Control packets MUST be transmitted with source and destination addresses that are part of the subnet\". Source clause enforced as before (+ ControlAddressedFromAndToTheSubnet, - ControlNeverSourcedOffTheSubnet). Destination clause R37 runtime fix: Send refuses a single-hop packet whose peer is on no subnet of its interface (egressLink.reaches, errUDPOffSubnet); - TestRFC5881ControlNeverAddressedOffTheSubnet (peer 10.58.3.2 via a gateway on p0: errUDPOffSubnet, no frame), record revert reaches observed red; the + ControlAddressedFromAndToTheSubnet also passes through reaches. Point-to-point exemption matches the RFC's \"On a multiaccess network\". 30 s subnet cache (ifNameTTL): up to 30 s after an address removal an off-subnet peer is still sent to, and after an address add a newly on-subnet peer is refused; bounded and acceptable. Weak for one open defect: reaches exempts every IsLinkLocalUnicast peer, which in net/netip includes IPv4 169.254/16, so a 169.254 peer on an interface holding no 169.254 address passes the check and can leave via a gateway with an off-subnet source and destination; the exemption should be IPv6-only (fe80::/10 is on-link by scope, RFC 4291 2.5.6), and no test covers either exemption. Also untested: point-to-point exemption. Engine TestRFC5881TransmitDestinationStable carries an unrecorded + (unproven).",
+      "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). Section 6: 'On a multiaccess network, BFD Control packets MUST be transmitted with source and destination addresses that are part of the subnet'. Source half unchanged and proven (+ TestRFC5881ControlAddressedFromAndToTheSubnet, - TestRFC5881ControlNeverSourcedOffTheSubnet, records on destination/pinsToLink). Destination half: the D-8 defect named in the prior verdict is fixed at the producer, egressLink.reaches (transport/udp.go), which now exempts only target.Is6() && IsLinkLocalUnicast, with the RFC 4291 Section 2.5.6 quote verified verbatim in rfc/full/rfc4291.txt; netip also answers IsLinkLocalUnicast for IPv4 169.254/16, which carries no zone and can leave by a gateway. - TestRFC5881ControlNeverAddressedOffTheSubnet (global peer via gateway: errUDPOffSubnet, no frame), NEW - TestRFC5881SubnetCheckRefusesIPv4LinkLocalOffTheSubnet (169.254.5.2, ::ffff:169.254.5.2, 10.58.3.2 refused on a link without 169.254; 169.254.5.2 reaches when the link holds 169.254.5.0/24), NEW netns - TestRFC5881ControlNeverAddressedToAnIPv4LinkLocalOffTheSubnet (Send returns errUDPOffSubnet, no frame via the p0 gateway); both new negatives observed red against the pre-fix reaches (job-bfd-red-08cba9d4). NEW + TestRFC5881SubnetCheckAllowsOnSubnetAndExemptPeers covers both exemptions: on-subnet v4/v6, fe80::2, and an off-subnet peer on a point-to-point link (the RFC's 'On a multiaccess network'). Judge ran all netns units in a user+net namespace: none skipped. Records: revert reaches observed red for each new unit. Residual, not counted against the verdict: engine TestRFC5881TransmitDestinationStable carries an unrecorded supplementary + (unproven); the 30 s ifNameTTL subnet cache bounds how late an address change is seen.",
       "requirement_sha": "f4c706fa335c606d",
       "tests": {
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "c8bf3135e7e74ea3",
         "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlAddressedFromAndToTheSubnet": "e069f87eed30683c",
         "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlNeverSourcedOffTheSubnet": "e069f87eed30683c",
-        "internal/component/bfd/transport/rfc5881_subnet_destination_linux_test.go::TestRFC5881ControlNeverAddressedOffTheSubnet": "7759ac6a22152a7b"
+        "internal/component/bfd/transport/rfc5881_subnet_destination_linux_test.go::TestRFC5881ControlNeverAddressedOffTheSubnet": "7759ac6a22152a7b",
+        "internal/component/bfd/transport/rfc5881_subnet_exemption_test.go::TestRFC5881SubnetCheckAllowsOnSubnetAndExemptPeers": "81381347c7aece20",
+        "internal/component/bfd/transport/rfc5881_subnet_exemption_test.go::TestRFC5881SubnetCheckRefusesIPv4LinkLocalOffTheSubnet": "81381347c7aece20",
+        "internal/component/bfd/transport/rfc5881_subnet_link_local_v4_linux_test.go::TestRFC5881ControlNeverAddressedToAnIPv4LinkLocalOffTheSubnet": "1bcec63a4a3d4e12"
       },
       "units": {
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "c21c424b4e04aa90",
         "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlAddressedFromAndToTheSubnet": "87a6267181a6ffe8",
         "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlNeverSourcedOffTheSubnet": "c9ef8bca7c9f8dc2",
-        "internal/component/bfd/transport/rfc5881_subnet_destination_linux_test.go::TestRFC5881ControlNeverAddressedOffTheSubnet": "b7b5da4ccea500e2"
+        "internal/component/bfd/transport/rfc5881_subnet_destination_linux_test.go::TestRFC5881ControlNeverAddressedOffTheSubnet": "b7b5da4ccea500e2",
+        "internal/component/bfd/transport/rfc5881_subnet_exemption_test.go::TestRFC5881SubnetCheckAllowsOnSubnetAndExemptPeers": "fd4019396b7c19bb",
+        "internal/component/bfd/transport/rfc5881_subnet_exemption_test.go::TestRFC5881SubnetCheckRefusesIPv4LinkLocalOffTheSubnet": "fed3da6381c1def8",
+        "internal/component/bfd/transport/rfc5881_subnet_link_local_v4_linux_test.go::TestRFC5881ControlNeverAddressedToAnIPv4LinkLocalOffTheSubnet": "b167268252450e68"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5881-6-5": {
       "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a76 \"subsequent BFD packets MUST be demultiplexed solely by the Your Discriminator field\". The missing dimensions are now varied: + TestRFC5881DiscriminatorAloneSelectsTheSession (source, local address and ingress interface all differ from the session: delivered); - TestRFC5881AddressingNeverOverridesTheDiscriminator (session 1's exact tuple with session 2's YD goes to 2, 1 untouched). Old source-dimension tags kept. Revert records on loop.go::handleInbound observed red; overlays byDiscr-also-requiring-iface and byKey-before-byDiscr red the new + and - respectively (author e4-ov9a/b).",

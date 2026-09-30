@@ -108,7 +108,7 @@
       "claim-sha": "ab34dd0e59edab63",
       "route": "revert",
       "producer": "internal/component/bfd/transport/udp.go::Send",
-      "producer-sha": "4ec6592f89fe4fa9",
+      "producer-sha": "eddcdd219e3d1888",
       "break": "body of Send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -295,7 +295,40 @@
       "claim-sha": "4643b73b33d3ff58",
       "route": "revert",
       "producer": "internal/component/bfd/transport/udp.go::reaches",
-      "producer-sha": "146c6e847950242f",
+      "producer-sha": "ccbe475641761378",
+      "break": "body of reaches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-6-2",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/transport/rfc5881_subnet_exemption_test.go::TestRFC5881SubnetCheckAllowsOnSubnetAndExemptPeers",
+      "unit-sha": "6714af25b38891d4",
+      "claim-sha": "30632335f005f45b",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/udp.go::reaches",
+      "producer-sha": "ccbe475641761378",
+      "break": "body of reaches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-6-2",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/transport/rfc5881_subnet_exemption_test.go::TestRFC5881SubnetCheckRefusesIPv4LinkLocalOffTheSubnet",
+      "unit-sha": "779b31739011d1f1",
+      "claim-sha": "e0c33646853b7567",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/udp.go::reaches",
+      "producer-sha": "ccbe475641761378",
+      "break": "body of reaches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-6-2",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/transport/rfc5881_subnet_link_local_v4_linux_test.go::TestRFC5881ControlNeverAddressedToAnIPv4LinkLocalOffTheSubnet",
+      "unit-sha": "302533a855958b45",
+      "claim-sha": "ec36fd1032a3948c",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/udp.go::reaches",
+      "producer-sha": "ccbe475641761378",
       "break": "body of reaches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

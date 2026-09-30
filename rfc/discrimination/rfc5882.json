@@ -24,6 +24,28 @@
       "break": "body of RemoteState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5882-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown",
+      "unit-sha": "783dda3cc3accaa2",
+      "claim-sha": "d778aea04312eda0",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_bfd.go::bfdEventFor",
+      "producer-sha": "1c81c052b4e98b29",
+      "break": "body of bfdEventFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5882-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown",
+      "unit-sha": "ff2fa2784300b175",
+      "claim-sha": "3bcb305523931909",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_bfd.go::runBFDSubscriber",
+      "producer-sha": "f587b0786d877eed",
+      "break": "body of runBFDSubscriber replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5882-4.4-1",
       "polarity": "positive",
       "unit": "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey",

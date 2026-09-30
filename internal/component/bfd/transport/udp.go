@@ -540,16 +540,23 @@ type egressLink struct {
 //
 // The subnet rule is stated "On a multiaccess network", so a point-to-point
 // interface (IFF_POINTOPOINT, such as an unnumbered or /32-peer tunnel) always
-// answers true. A link-local peer is on the link by its own scope (RFC 4291
-// Section 2.5.6), and destination already pins it with its zone. Otherwise the
-// peer MUST sit in a subnet of one of the interface's addresses; an interface
-// with no address has no subnet, and answers false for every global peer.
+// answers true. An IPv6 link-local peer is on the link by its own scope (RFC
+// 4291 Section 2.5.6), and destination already pins it with its zone. An IPv4
+// link-local peer (169.254.0.0/16, which netip's IsLinkLocalUnicast also
+// answers true for) has no zone and no such guarantee: an interface need not
+// hold a 169.254 address, and a route through a gateway can carry the packet
+// off the link, so it is judged against the subnets like any IPv4 peer.
+// Otherwise the peer MUST sit in a subnet of one of the interface's addresses;
+// an interface with no address has no subnet, and answers false for every
+// global peer.
 func (l *egressLink) reaches(peer netip.Addr) bool {
 	if l.pointToLink {
 		return true
 	}
 	target := peer.Unmap()
-	if target.IsLinkLocalUnicast() {
+	// RFC 4291 Section 2.5.6: "Link-Local addresses are designed to be used
+	// for addressing on a single link".
+	if target.Is6() && target.IsLinkLocalUnicast() {
 		return true
 	}
 	for _, subnet := range l.subnets {

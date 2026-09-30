@@ -1,20 +1,24 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5882-4.2-1": {
-      "note": "The sentence forbids a client taking control protocol action on (a) its own session going Up to AdminDown and (b) Up to Down caused by the remote's AdminDown. The tagged units TestRFC5882RemoteAdminDownIsDistinguished and TestRFC5882NeighborDownIsNotRemoteAdminDown (internal/component/bfd/engine/rfc5882_admindown_test.go) assert only what the BFD service PUBLISHES for clause (b) (State Down, RemoteAdminDown true vs false, same Diag); no tagged assertion goes red if a client tears down the BGP/OSPF adjacency on either clause, and clause (a) (local AdminDown) has no tagged assertion at all. The client-side behaviour is asserted by untagged TestBFDClientAdminDownDoesNotTeardown and TestBFDRemoteAdminDownDoesNotTeardown (internal/component/bgp/reactor/peer_bfd_test.go); tagging them would close this.",
+      "note": "Judge 2026-09-30 (rejudge, R38). The BGP client is now proven on both arms: + TestBFDClientAdminDownDoesNotTeardown (local AdminDown: no message in 300 ms, session Established; overlay mapping AdminDown to EventBfdDown reds only it, job-ov5b) and + TestBFDRemoteAdminDownDoesNotTeardown (Down with RemoteAdminDown: no message, Established; in-body control: the same Down without the flag sends Cease/BFD Down; overlay removing the RemoteAdminDown guard reds only it, job-ov5a); revert records on peer_bfd.go bfdEventFor/runBFDSubscriber are goroutine-panic reds, the overlays are the discriminating evidence. Engine +/- (RemoteAdminDown distinguished) unchanged. Still weak because the row binds every client with independent liveness (RFC 5882 Section 3.2) and the OSPF client violates it: ospfBFD subscriber in internal/plugins/ospf/bfd_client.go treats StateAdminDown (and a Down with RemoteAdminDown, which it never reads) as neighbor down and calls NeighborDown, although OSPF has Hello/Dead liveness; TestOSPFBFDAdminDownTreatedAsDown (internal/plugins/ospf/bfd_client_test.go) asserts that defective behaviour as correct. The static-route client treating AdminDown as Down is correct under Section 3.2 (no independent liveness). The rfc5882 summary's 'MET at the client' covers BGP only. DEFECT in an implemented capability (D-8).",
       "requirement_sha": "fd526adf282f84c2",
       "tests": {
         "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882NeighborDownIsNotRemoteAdminDown": "c179cec33f80bf77",
-        "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882RemoteAdminDownIsDistinguished": "c179cec33f80bf77"
+        "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882RemoteAdminDownIsDistinguished": "c179cec33f80bf77",
+        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown": "2fc964017dc913bc",
+        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown": "2fc964017dc913bc"
       },
       "units": {
         "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882NeighborDownIsNotRemoteAdminDown": "e12a0686a3d133a5",
-        "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882RemoteAdminDownIsDistinguished": "e5b5a7f67c6a711f"
+        "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882RemoteAdminDownIsDistinguished": "e5b5a7f67c6a711f",
+        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown": "ebe1208a859067ee",
+        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown": "399a8434eb38227f"
       },
       "verdict": "weak"
     },

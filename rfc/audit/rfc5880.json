@@ -976,13 +976,15 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.6-15": {
-      "note": "The quote has three disjuncts (RemoteDemandMode 0, SessionState not Up, RemoteSessionState not Up). TestRFC5880PeriodicTransmitWhenRemoteDemandInactive covers only D=0 with both ends Up/Init; no unit has D=1 with either state not Up, so code that stopped periodic TX whenever D=1 passes. The negative TestRFC5880NoPeriodicTransmitWhileAdminDown tests the AdminDown skip, a neighbouring rule.",
+      "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). Positive now covers all three disjuncts: D=0 (TestRFC5880PeriodicTransmitWhenRemoteDemandInactive) and, NEW, peer D=1 with local Init/peer Down and local Up/peer Init (TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp: tick sends a periodic packet with our My Discriminator; overlay 'tick skips RemoteDemandMode 1' reds both subtests, job-ov9; record revert loop.go::tick observed red). Weak under R1 for the negative polarity: the only negative, TestRFC5880NoPeriodicTransmitWhileAdminDown, proves the tick's AdminDown skip, which is not this row's refusal and in fact asserts the opposite of the row's literal 'bfd.SessionState is not Up ... MUST send periodic' for AdminDown; it also pins the behaviour behind a defect: Loop.tick (engine/loop.go) skips every AdminDown session, so Ze transmits no Control packet at all after Shutdown/ReleaseSession, against RFC 5880 Section 6.8.16 'BFD Control packets SHOULD be transmitted for at least a Detection Time after transitioning to AdminDown state' (RFC5880-6.8.16-2, no verdict). A MUST-send has no refusal path; the new D=1 unit is the R1(b) shape but carries the positive tag, and the same assertion cannot wear both. OWNER-GATE.",
       "requirement_sha": "8cdcdb3774df1109",
       "tests": {
+        "internal/component/bfd/engine/rfc5880_demand_periodic_test.go::TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp": "5162da39b05c3713",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "bc21fc5bf5e5043a",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PeriodicTransmitWhenRemoteDemandInactive": "bc21fc5bf5e5043a"
       },
       "units": {
+        "internal/component/bfd/engine/rfc5880_demand_periodic_test.go::TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp": "71131a440c3a8174",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "8661c66bd2e697e0",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PeriodicTransmitWhenRemoteDemandInactive": "b39371a5a6575cd4"
       },
@@ -1017,17 +1019,19 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.6-2": {
-      "note": "A=0 is proven at the boundary: 24 accepted, 23 returns ErrLengthTooSmall. A=1 is not: the units accept 26 and reject 24, but never test 25, so a minLen of MandatoryLen+1 for A=1 (accepting a 25-byte authenticated packet, which the RFC requires be discarded) passes both units.",
+      "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). Section 6.8.6: Length below 24 (A=0) or 26 (A=1) MUST be discarded. Both floors now proven from both sides at ParseControl: + TestRFC5880LengthMinimumAccepted (24 A=0, 26 A=1); - TestRFC5880LengthBelowMinimumDiscarded (23, 24 A=1) and NEW TestRFC5880AuthenticatedLengthOneBelowMinimumDiscarded (A=1 Length 25 -> ErrLengthTooSmall), which closes the 25-byte gap: a targeted overlay setting the A=1 floor to MandatoryLen+1 reds only the new unit (job-ov6). Record: revert control.go::ParseControl observed red.",
       "requirement_sha": "1040a0f54f6053e8",
       "tests": {
+        "internal/component/bfd/packet/rfc5880_length_boundary_test.go::TestRFC5880AuthenticatedLengthOneBelowMinimumDiscarded": "b159ffa984e4868a",
         "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthBelowMinimumDiscarded": "fba3b65e315e32aa",
         "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthMinimumAccepted": "fba3b65e315e32aa"
       },
       "units": {
+        "internal/component/bfd/packet/rfc5880_length_boundary_test.go::TestRFC5880AuthenticatedLengthOneBelowMinimumDiscarded": "96271144d27ae9a0",
         "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthBelowMinimumDiscarded": "9766c0802c720e63",
         "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthMinimumAccepted": "d826f655e9af2911"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.8.6-3": {
       "note": "Forbidden: accepting Length > payload. TestRFC5880LengthOverPayloadDiscarded fails unless ParseControl returns ErrLengthOverBuffer for Length = payload + 8; TestRFC5880LengthEqualsPayloadAccepted fails if Length == payload is rejected, which catches a >= mutation. handleInbound returns on the error.",
@@ -1082,17 +1086,19 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.6-7": {
-      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): row widened to the next sentence of Section 6.8.6, 'If no session is found, the packet MUST be discarded.', which the backfill quote had dropped. Discard clause: TestRFC5880UnknownYourDiscriminatorDiscarded sends an unallocated Your Discriminator from the session's own peer tuple and Fatalf if RemoteDiscr moves, so both a delivery and a tuple fallback go red. Selection clause: TestRFC5880YourDiscriminatorSelectsSession runs a loop holding ONE session, so a loop that delivered any known discriminator to the tuple-matched session passes; no two-session case proves the packet reaches the session its Your Discriminator names (the gap RFC5880-6.8.8-1 is weak for).",
+      "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). Selection clause: NEW TestRFC5880YourDiscriminatorSelectsAmongSessions holds two sessions to one peer on eth0/eth1; a packet arriving on eth0 naming eth1's discriminator reaches eth1's session only (first RemoteDiscr stays 0) and the mirror reaches the first, so selection by arrival tuple goes red (overlay selecting by byKey when YD != 0 reds it and the discard negative, job-ov8). Discard clause: - TestRFC5880UnknownYourDiscriminatorDiscarded unchanged and sound. Old one-session + kept as supplementary. Record: revert loop.go::handleInbound observed red.",
       "requirement_sha": "f5e34d76d0e9bf44",
       "tests": {
+        "internal/component/bfd/engine/rfc5880_discriminator_select_test.go::TestRFC5880YourDiscriminatorSelectsAmongSessions": "86e3a3cf7ddc5819",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownYourDiscriminatorDiscarded": "bc21fc5bf5e5043a",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880YourDiscriminatorSelectsSession": "bc21fc5bf5e5043a"
       },
       "units": {
+        "internal/component/bfd/engine/rfc5880_discriminator_select_test.go::TestRFC5880YourDiscriminatorSelectsAmongSessions": "76ac619a7fe66df0",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownYourDiscriminatorDiscarded": "1185c46e74aa471b",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880YourDiscriminatorSelectsSession": "6619a212580a1aed"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.8.6-8": {
       "note": "RA-BFD2 strict re-read 2026-09-27 (stale on Receive: additions sit after the discard test, which is still the first statement). Both State values the sentence names are driven: TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive sends Your Discriminator 0 with State Init and Up to local Down, Init and Up, and requires ErrYourDiscriminatorReset, unchanged state and unchanged RemoteDiscr (a guard moved below the field updates goes red on RemoteDiscr). Positive TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown accepts State Down and AdminDown in Down, AdminDown and Up. Local AdminDown is not in the negative loop; the sentence conditions only on the packet's State.",
@@ -1138,30 +1144,34 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.7-2": {
-      "note": "TestRFC5880JitterIsAppliedPerPacket and TestRFC5880JitterStaysWithinBand call applyJitter directly and prove the draw is per-call and inside [0,25%). Nothing asserts the periodic transmission is jittered: tick() (engine/loop.go) is never driven, so removing its applyJitter call (passing 0 to AdvanceTxWithJitter) leaves both green.",
+      "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). The audit gap (tick never driven) is closed: NEW TestRFC5880PeriodicTransmitJitteredPerPacket drives Loop.tick through a stepped clock and a stamping transport for 200 sends at DetectMult 3; every gap between transmitted packets lies in (75%,100%] of TransmitInterval, >= 50 distinct gaps, and one reduced by more than 5%, so tick passing no reduction or a reused one goes red (overlay 'reduction * 0' reds both tick tests and no old one, job-ov10a; record revert loop.go::tick observed red). applyJitter + and band - kept.",
       "requirement_sha": "7d1278dfb842683d",
       "tests": {
+        "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitJitteredPerPacket": "dc0c5b53edb17df2",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterIsAppliedPerPacket": "bc21fc5bf5e5043a",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterStaysWithinBand": "bc21fc5bf5e5043a"
       },
       "units": {
+        "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitJitteredPerPacket": "4ab9c9ac951f58bb",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterIsAppliedPerPacket": "00fa13c6a35fb7e6",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterStaysWithinBand": "098214bc01b07851"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.8.7-3": {
-      "note": "TestRFC5880JitterDetectMultOneWindow and TestRFC5880JitterFloorOnlyForDetectMultOne prove applyJitter(base, 1) lands in [75%,90%] and applyJitter(base, 3) does not. The quote bounds the interval between TRANSMITTED packets; no unit drives tick(), so tick passing the wrong multiplier or no jitter at all to AdvanceTxWithJitter leaves both green.",
+      "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). NEW TestRFC5880PeriodicTransmitDetectMultOneWindow drives tick for 200 sends at DetectMult 1 and bounds every transmitted interval to [75%,90%] of TransmitInterval; overlay 'applyJitter(base, 3)' in tick reds ONLY this unit (job-ov10b); record revert loop.go::tick observed red. applyJitter-level + (DetectMultOneWindow) and - (floor only for DetectMult 1) kept.",
       "requirement_sha": "e7e5ee252fb3dc02",
       "tests": {
+        "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitDetectMultOneWindow": "dc0c5b53edb17df2",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterDetectMultOneWindow": "bc21fc5bf5e5043a",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterFloorOnlyForDetectMultOne": "bc21fc5bf5e5043a"
       },
       "units": {
+        "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitDetectMultOneWindow": "62896b11b8c02861",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterDetectMultOneWindow": "785c602aa64bd45c",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterFloorOnlyForDetectMultOne": "a5c24d22a6dc7eb5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.8.7-4": {
       "note": "RA-BFD3 strict re-read 2026-09-27 after DF-BFD-7 moved settlePoll before the 1 s precondition in TestRFC5880DesiredMinTxChangeReschedulesNextTx (the old order asserted the Section 6.8.3 defect; no assertion removed). Clause 1, recalculated when bfd.DesiredMinTxInterval changes: forbidden is a pending TX still drawn from the old interval. Decrease: after the revert (1 s to 300 ms, RemoteMinRx 100 ms) the final Fatalf requires NextTxDeadline == last TX + 300 ms, red without the rescheduleTxLocked call in revertEchoSlowdownLocked (deadline stays at +1 s). Increase: the precondition Fatalf requires last TX + 1 s once the slow-down Poll has settled, red if TransmitInterval ignored the raised variable. Clause 2, recalculated when bfd.RemoteMinRxInterval changes: TestRFC5880RemoteMinRxChangeReschedulesNextTx requires the pending deadline at +400 ms after 900 to 400 and at +1.2 s after 400 to 1.2 s, red without the Receive reschedule. Clause 3, equal to the greater: 900 remote over 300 local (RemoteMinRxReductionHonoredImmediately), 1.2 s remote over 300 local, 300 local over 1 us remote (TransmitIntervalFlooredByLocalDesired, which is the negative: a remote value below the local target must not shorten TX, and RequiredMinRx alone must not move it). An increase of DesiredMinTx while Up is held until its Poll ends by Section 6.8.3, judged under RFC5880-6.8.3-3.",
@@ -1200,17 +1210,19 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.8-1": {
-      "note": "TestRFC5880EchoDemultiplexedToItsSession runs a loop holding one session and asserts OnEchoRx fired once; code delivering every echo to its only session also passes. No two-session case proves the echo reaches the APPROPRIATE session. Negative (no-session drop) is sound.",
+      "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). NEW TestRFC5880EchoDemultiplexedAmongSessions: two Up echo sessions in one loop; a returning echo naming session 2 records its RTT on session 2 and leaves session 1 at zero, then one naming session 1 records on session 1, so delivery to 'the only/first session' goes red. Record revert echo.go::handleEchoInbound observed red. - TestRFC5880UnknownEchoDropped sound; old one-session + kept.",
       "requirement_sha": "df50cef55ae3cf09",
       "tests": {
+        "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880EchoDemultiplexedAmongSessions": "88282a65c3374034",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoDemultiplexedToItsSession": "bc21fc5bf5e5043a",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownEchoDropped": "bc21fc5bf5e5043a"
       },
       "units": {
+        "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880EchoDemultiplexedAmongSessions": "da6af90199897a51",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoDemultiplexedToItsSession": "87403a1be17e5e08",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownEchoDropped": "a8911690baed96bc"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.8.8-2": {
       "note": "Judge rejudge 2026-09-30 (bfd engine 2). Positive: engine TestRFC5880EngineFailsSessionOnMissingEchoes (the engine consults EchoDetectionExpired on its tick; removing the EchoFail branch observed red). Negative: engine TestRFC5880EngineReturnedEchoesKeepSessionUp returns every echo through handleEchoInbound and stays Up for three echo detection times; targeted break recordEchoRTTLocked not calling MatchEchoRx observed red (Down, diag 2). Session detector units unchanged.",
@@ -1230,17 +1242,19 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.9-1": {
-      "note": "\"Not Up\" covers Down, Init and AdminDown. TestRFC5880NoEchoTransmittedWhenNotUp drives only AdminDown, so an echoTickLocked gate that skipped AdminDown alone passes it; no unit shows a Down or Init session sends no echo. Positive TestRFC5880EchoTransmittedWhileUp is sound.",
+      "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). 'Not Up' now covered beyond AdminDown: NEW TestRFC5880NoEchoTransmittedInInitOrDown drives an Init session and a Down-after-Up session with echo still negotiated through handleInbound; an echo scheduler pass sends nothing and arms no schedule, while an Up session in the same loop does send (control). Overlay gating echo on '== AdminDown' reds both subtests (job-ov7); record revert echo.go::echoTickLocked observed red. + TestRFC5880EchoTransmittedWhileUp and AdminDown - kept.",
       "requirement_sha": "f1d37669da337358",
       "tests": {
+        "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880NoEchoTransmittedInInitOrDown": "88282a65c3374034",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoTransmittedWhileUp": "bc21fc5bf5e5043a",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoEchoTransmittedWhenNotUp": "bc21fc5bf5e5043a"
       },
       "units": {
+        "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880NoEchoTransmittedInInitOrDown": "6cb606c1f8965e41",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoTransmittedWhileUp": "963e226bd2a97491",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoEchoTransmittedWhenNotUp": "2e141bfbd2854a1a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5880-6.8.9-2": {
       "code": {},
@@ -1278,17 +1292,21 @@
       "verdict": "enforced"
     },
     "RFC5880-9-2": {
-      "note": "transport TestRFC5880SingleHopTransmitTTLIsMaximum pins IP_TTL 255 on the IPv4 socket only (no IPv6 Hop Limit); engine TestRFC5880SingleHopReceiveTTLNotMaxDiscarded proves non-255 is dropped, but no tagged unit shows a TTL-255 packet accepted, so a gate that dropped every packet would still pass the receive half",
+      "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). Transmit: IPv4 IP_TTL 255 (TestRFC5880SingleHopTransmitTTLIsMaximum) and NEW IPv6 IPV6_UNICAST_HOPS 255 on a [::1] single-hop socket (TestRFC5880SingleHopTransmitHopLimitIsMaximumIPv6; record revert udp_linux.go::applySocketOptionsV6 observed red). Receive: NEW + TestRFC5880SingleHopReceiveTTLMaxAccepted (TTL 255 delivered, RemoteDiscr set; record revert loop.go::passesTTLGate observed red) beside - TestRFC5880SingleHopReceiveTTLNotMaxDiscarded, so a gate dropping every packet now goes red. Both audit gaps closed.",
       "requirement_sha": "32139905e0aec449",
       "tests": {
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880SingleHopReceiveTTLNotMaxDiscarded": "bc21fc5bf5e5043a",
+        "internal/component/bfd/engine/rfc5880_ttl_accept_test.go::TestRFC5880SingleHopReceiveTTLMaxAccepted": "eee5a7ceba7a97b3",
+        "internal/component/bfd/transport/rfc5880_hop_limit_linux_test.go::TestRFC5880SingleHopTransmitHopLimitIsMaximumIPv6": "950e4412e4c4be74",
         "internal/component/bfd/transport/rfc5880_test.go::TestRFC5880SingleHopTransmitTTLIsMaximum": "d9ac1972be20f3fd"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880SingleHopReceiveTTLNotMaxDiscarded": "9c9e8bc6130799ea",
+        "internal/component/bfd/engine/rfc5880_ttl_accept_test.go::TestRFC5880SingleHopReceiveTTLMaxAccepted": "3fc8491386083cad",
+        "internal/component/bfd/transport/rfc5880_hop_limit_linux_test.go::TestRFC5880SingleHopTransmitHopLimitIsMaximumIPv6": "e56530bc5e753eba",
         "internal/component/bfd/transport/rfc5880_test.go::TestRFC5880SingleHopTransmitTTLIsMaximum": "ef87de200994320f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc5880"

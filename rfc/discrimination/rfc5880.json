@@ -970,11 +970,44 @@
       "break": "body of EchoFail replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5880-6.8.6-15",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_demand_periodic_test.go::TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp",
+      "unit-sha": "20e4bbf29f62090a",
+      "claim-sha": "13de804e5d0fa73b",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::tick",
+      "producer-sha": "c7fab4469719baf5",
+      "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5880-6.8.6-18",
       "polarity": "positive",
       "unit": "internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces",
       "unit-sha": "b94ab89e1670b38e",
       "claim-sha": "8f7acd1b0f338fa6",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+      "producer-sha": "f721533856857321",
+      "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.6-2",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/packet/rfc5880_length_boundary_test.go::TestRFC5880AuthenticatedLengthOneBelowMinimumDiscarded",
+      "unit-sha": "555e820ce0e81ad5",
+      "claim-sha": "96de56868d187e6f",
+      "route": "revert",
+      "producer": "internal/component/bfd/packet/control.go::ParseControl",
+      "producer-sha": "2bf7d7d2586a0256",
+      "break": "body of ParseControl replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.6-7",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_discriminator_select_test.go::TestRFC5880YourDiscriminatorSelectsAmongSessions",
+      "unit-sha": "2637e197dd4e2821",
+      "claim-sha": "1e06928c03a53016",
       "route": "revert",
       "producer": "internal/component/bfd/engine/loop.go::handleInbound",
       "producer-sha": "f721533856857321",
@@ -1023,6 +1056,28 @@
       "producer": "internal/component/bfd/session/timers.go::TransmitInterval",
       "producer-sha": "5c5ea965c6b8cc02",
       "break": "line 48: \"tx == 0\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC5880-6.8.7-2",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitJitteredPerPacket",
+      "unit-sha": "bac4fbbdbc18366b",
+      "claim-sha": "8d8246eb68c74c6c",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::tick",
+      "producer-sha": "c7fab4469719baf5",
+      "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.7-3",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitDetectMultOneWindow",
+      "unit-sha": "febef768a226f274",
+      "claim-sha": "73b6ad53d2c3e361",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::tick",
+      "producer-sha": "c7fab4469719baf5",
+      "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.8.7-4",
@@ -1080,6 +1135,17 @@
       "break": "body of transmitPermitted replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5880-6.8.8-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880EchoDemultiplexedAmongSessions",
+      "unit-sha": "13c7829a10f71ca8",
+      "claim-sha": "53b19e8a009457b4",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/echo.go::handleEchoInbound",
+      "producer-sha": "65d3a0be9cb7a099",
+      "break": "body of handleEchoInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5880-6.8.8-2",
       "polarity": "positive",
       "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes",
@@ -1100,6 +1166,17 @@
       "producer": "internal/component/bfd/session/timers.go::MatchEchoRx",
       "producer-sha": "232f55aed4c43c8b",
       "break": "body of MatchEchoRx replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.9-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880NoEchoTransmittedInInitOrDown",
+      "unit-sha": "ce1b6a4e804d0ae9",
+      "claim-sha": "08551f361e6cd83e",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/echo.go::echoTickLocked",
+      "producer-sha": "5057ffa7987b508f",
+      "break": "body of echoTickLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.8.9-2",
@@ -1144,6 +1221,28 @@
       "producer": "internal/component/bfd/session/timers.go::rescheduleEchoLocked",
       "producer-sha": "7e6a6c63b0a8a78a",
       "break": "body of rescheduleEchoLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-9-2",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5880_ttl_accept_test.go::TestRFC5880SingleHopReceiveTTLMaxAccepted",
+      "unit-sha": "245bbd7f314e73a7",
+      "claim-sha": "294a5a72e7e54e82",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
+      "producer-sha": "01ebf29739d1658e",
+      "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-9-2",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/transport/rfc5880_hop_limit_linux_test.go::TestRFC5880SingleHopTransmitHopLimitIsMaximumIPv6",
+      "unit-sha": "c005124e204b5695",
+      "claim-sha": "ab0826b556401db3",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/udp_linux.go::applySocketOptionsV6",
+      "producer-sha": "8b2167e5073107c7",
+      "break": "body of applySocketOptionsV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

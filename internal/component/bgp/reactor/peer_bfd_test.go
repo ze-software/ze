@@ -281,6 +281,12 @@ func TestBFDClient_TeardownOnDown(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC5882-4.2-1 positive -- first arm, "If a BFD session
+// transitions from Up state to AdminDown ... clients SHOULD NOT take any control
+// protocol action": a BFD AdminDown StateChange delivered to the BGP client of
+// an Established session sends the peer no message within 300 ms and leaves the
+// session Established.
+//
 // VALIDATES: a BFD AdminDown StateChange leaves an Established session alone.
 //
 // PREVENTS: an operator disabling BFD for maintenance dropping every BGP
@@ -438,6 +444,13 @@ func TestBFDClientReStampsTheEntryTimeOnlyOnAChange(t *testing.T) {
 // conditional on the client having "independent means of liveness detection",
 // and BGP has one: the hold timer still runs, so a path that really failed
 // takes the session down on the hold time rather than not at all.
+//
+// RFC requirement: RFC5882-4.2-1 positive -- second arm, "the session
+// transitions from Up to Down because the remote system is indicating that the
+// session is in state AdminDown": a Down StateChange with RemoteAdminDown set
+// sends the peer no message within 300 ms and leaves the BGP session
+// Established; then, as the control in the same body, a Down with the same
+// diag and RemoteAdminDown unset sends a Cease / BFD Down NOTIFICATION.
 func TestBFDRemoteAdminDownDoesNotTeardown(t *testing.T) {
 	svc := &fakeBFDService{}
 	p, cleanup := newBFDTestPeer(t, &BFDSettings{Enabled: true}, svc)
