@@ -12,11 +12,15 @@
 package isis
 
 import (
+	"context"
 	"net/netip"
 	"testing"
 
+	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
 	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	isisredistribute "github.com/ze-software/ze/internal/plugins/isis/redistribute"
 	"github.com/ze-software/ze/internal/plugins/isis/spf"
 )
 
@@ -98,5 +102,84 @@ func TestRFC2966NarrowLeakUpDownBit(t *testing.T) {
 	}
 	if octet&0x80 != 0 {
 		t.Errorf("L2 LSP narrow leak %s: default metric octet %#02x, want bit 8 clear", up, octet)
+	}
+}
+
+// tlv135Entry returns whether prefix is in a TLV 135 of lsp and, if so, its
+// up/down bit as decoded from the wire.
+func tlv135Entry(t *testing.T, lsp *packet.LSP, prefix netip.Prefix) (present, upDown bool) {
+	t.Helper()
+	for _, tl := range lsp.TLVs {
+		if tl.Type != packet.TLVExtendedIPReach {
+			continue
+		}
+		ext, err := packet.DecodeExtendedIPReachTLV(tl.Value)
+		if err != nil {
+			t.Fatalf("decode TLV 135: %v", err)
+		}
+		for _, ent := range ext.Entries {
+			if ent.Prefix == prefix {
+				return true, ent.UpDown
+			}
+		}
+	}
+	return false, false
+}
+
+// RFC requirement: RFC2966-2-4 positive -- a prefix that was not derived from L2
+// goes out with the bit zero in the L1 LSP as well as the L2 LSP: a connected
+// prefix (ConnectedPrefixInfos) and a redistributed prefix (the redistribution
+// consumer's InjectRoute) are in the stored L1 and L2 LSPs' TLV 135 with the
+// up/down bit clear, while the L2-derived prefix leaked into the same L1 LSP
+// carries it set.
+//
+// VALIDATES: the zero half of the RFC 2966 section 2 sender rule for the prefixes
+// an L1L2 router originates natively, read back from the engine's own stored
+// LSPs, beside a down-leaked prefix in the same L1 LSP so the bit is shown to be
+// per prefix.
+// PREVENTS: a native L1 prefix going out with the up/down bit set, which a
+// receiving L1L2 router would refuse to leak into L2 (RFC 2966 section 2), so the
+// area's own prefix would vanish from the backbone.
+func TestRFC2966NativePrefixesGoOutWithBitZero(t *testing.T) {
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"metric":"10"}}}}}`)
+	defer eng.shutdown()
+	node := eng.cfg.SystemID
+
+	connected := netip.MustParsePrefix("192.0.2.0/24")
+	redistributed := netip.MustParsePrefix("198.51.100.0/24")
+	down := netip.MustParsePrefix("10.2.0.0/24")
+
+	for _, level := range []lsdb.Level{lsdb.Level1, lsdb.Level2} {
+		eng.setPrefixes(level, isisredistribute.ConnectedPrefixInfos([]netip.Prefix{connected}, 10))
+	}
+	consumer := isisredistribute.NewConsumer(eng)
+	consumer.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Prefix: redistributed.String(), Source: "static"})
+	// The leak re-originates both levels, so the connected and redistributed sets
+	// stored above are in the LSPs read below.
+	eng.applyLeak(spf.LeakResult{IntoL1: []spf.LeakedPrefix{{Prefix: down, Metric: 27, UpDown: true}}})
+
+	l1 := mustFrag0(t, eng, node, lsdb.Level1)
+	if present, upDown := tlv135Entry(t, l1, down); !present || !upDown {
+		t.Fatalf("L1 LSP: down leak %s present=%v up/down=%v, want present with the bit set", down, present, upDown)
+	}
+	l2 := mustFrag0(t, eng, node, lsdb.Level2)
+	for _, c := range []struct {
+		level  lsdb.Level
+		lsp    *packet.LSP
+		prefix netip.Prefix
+	}{
+		{lsdb.Level1, l1, connected},
+		{lsdb.Level1, l1, redistributed},
+		{lsdb.Level2, l2, connected},
+		{lsdb.Level2, l2, redistributed},
+	} {
+		present, upDown := tlv135Entry(t, c.lsp, c.prefix)
+		if !present {
+			t.Errorf("%s LSP lacks the native prefix %s", c.level, c.prefix)
+			continue
+		}
+		if upDown {
+			t.Errorf("%s LSP: native prefix %s carries the up/down bit, want it zero", c.level, c.prefix)
+		}
 	}
 }

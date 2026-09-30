@@ -69,6 +69,17 @@
     },
     {
       "rid": "RFC2966-2-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NativePrefixesGoOutWithBitZero",
+      "unit-sha": "345f90dabe11a19b",
+      "claim-sha": "b1e1622ce83e2639",
+      "route": "revert",
+      "producer": "internal/plugins/isis/redistribute/source.go::ConnectedPrefixInfos",
+      "producer-sha": "eabe51a41e921877",
+      "break": "body of ConnectedPrefixInfos replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2966-2-4",
       "polarity": "negative",
       "unit": "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2",
       "unit-sha": "677c9407203caac7",

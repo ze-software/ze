@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -13,8 +14,8 @@
       "tests": {
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "3a8286879ea42019",
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "3a8286879ea42019",
-        "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit": "8c133246f0bd2dae",
-        "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit#2": "8c133246f0bd2dae",
+        "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit": "dd48108ecb3a7768",
+        "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit#2": "dd48108ecb3a7768",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "5affb9956c000248",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "5affb9956c000248"
       },
@@ -55,19 +56,21 @@
       "verdict": "enforced"
     },
     "RFC2966-2-4": {
-      "note": "Judged 2026-09-30. The row covers every prefix other than an L2-derived one advertised into L1, 'in L1 or L2 LSPs'. The L2 half is proven: TestISISEngineLeakOrigination decodes the engine's L2 LSP and requires the L1-derived 10.1/24 in TLV 135 with the bit clear, TestRFC2966NarrowLeakUpDownBit requires bit 8 clear on the same prefix in TLV 128, and spf TestISISLeakOriginationL1L2 requires hasLeak(IntoL2, l1Only, false) and keeps the down-bit alreadyDown out of IntoL2. MISSING: the L1 half. No tagged unit reads a prefix in an L1 LSP that is not L2-derived (the router's own or an L1-native prefix beside the down-leaked 10.2/24) and requires its bit zero, so an originator that set the bit on every L1 entry, or on own prefixes only, stays green. Note also the engine positives feed applyLeak UpDown false and so prove carry-through, not clearing. To reach enforced: in the L1 LSP of TestISISEngineLeakOrigination or TestRFC2966NarrowLeakUpDownBit, assert a non-leaked prefix goes out with the bit zero next to the down-leaked one, and record it.",
+      "note": "Re-judged 2026-09-30 after the L1 half was added. Positive: TestRFC2966NativePrefixesGoOutWithBitZero runs a started engine, stores a connected prefix (ConnectedPrefixInfos) and a redistributed one (Consumer.InjectRoute) at both levels, down-leaks 10.2/24 into L1, then decodes TLV 135 from the stored L1 AND L2 LSPs: the down-leaked prefix carries the bit, the connected and redistributed prefixes carry it zero in both LSPs, so an originator setting the bit on every L1 entry or on own prefixes goes red (per-prefix, read from the wire). The L2 half stays on TestISISEngineLeakOrigination (TLV 135) and TestRFC2966NarrowLeakUpDownBit (TLV 128 bit 8). Negative: spf TestISISLeakOriginationL1L2 keeps the down-bit alreadyDown out of IntoL2 while the clear-bit L1 prefix leaks up with the bit false. Each cover holds an observed-red revert record (ConnectedPrefixInfos, narrowIPReachEntryBytes, leakedToPrefixInfos, leakInto).",
       "requirement_sha": "edaf53dcef6c676d",
       "tests": {
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "3a8286879ea42019",
-        "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit": "8c133246f0bd2dae",
+        "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit": "dd48108ecb3a7768",
+        "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NativePrefixesGoOutWithBitZero": "dd48108ecb3a7768",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "5affb9956c000248"
       },
       "units": {
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "b9a1a5e2daa88030",
         "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit": "78206b8f1729be15",
+        "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NativePrefixesGoOutWithBitZero": "d5961c948856b482",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "682f56baeb8524c2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2966-3.2-1": {
       "note": "Forbidden: a less preferred class selected for a lower metric, or two members of one class ranked against each other. TestRFC2966EveryClassMemberOutranksNextClass drives every member of each class the fixture can express (L1 internal and external-with-internal-metric; L2 internal and external-with-internal-metric, which is also the L1->L2 inter-area member to the receiver; L2->L1 internal and external-with-internal-metric; L1 external-metric; L2 external-metric; L2->L1 external-metric) against every member of the next class, preferred one at cost 100/metric 60 against 1/1. TestRFC2966EqualClassMembersCompareByMetric requires the lower metric to win between two members of one class in both orders, so a member ranked apart from its class goes red. Recorded red on preferenceRank and better; the older adjacent-pair tests remain.",

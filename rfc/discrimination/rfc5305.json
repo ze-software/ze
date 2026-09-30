@@ -13,6 +13,50 @@
       "break": "line 227: \"e.Metric \u003e= types.MaxMetric\" -\u003e \"false\""
     },
     {
+      "rid": "RFC5305-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc5305_no_host_route_test.go::TestRFC5305TEAddressesInjectNoHostRoute",
+      "unit-sha": "1491b3fe5ead2515",
+      "claim-sha": "8c2cbc7db9793c1a",
+      "route": "revert",
+      "producer": "internal/plugins/isis/bgpls_export.go::linkAttribute",
+      "producer-sha": "6829bc06b1cfd284",
+      "break": "body of linkAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc5305_no_host_route_test.go::TestRFC5305TEAddressesLeaveOnlyReachabilityRoutes",
+      "unit-sha": "3b0b6601b6d4f1f2",
+      "claim-sha": "0d59ab95066fa33f",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf/route.go::BuildRoutes",
+      "producer-sha": "7beede9dd623825b",
+      "break": "body of BuildRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-3.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc5305_no_host_route_test.go::TestRFC5305TEAddressesInjectNoHostRoute",
+      "unit-sha": "1491b3fe5ead2515",
+      "claim-sha": "5799e1789fc8dbb4",
+      "route": "revert",
+      "producer": "internal/plugins/isis/bgpls_export.go::linkAttribute",
+      "producer-sha": "6829bc06b1cfd284",
+      "break": "body of linkAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-3.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc5305_no_host_route_test.go::TestRFC5305TEAddressesLeaveOnlyReachabilityRoutes",
+      "unit-sha": "3b0b6601b6d4f1f2",
+      "claim-sha": "50c47bfed1149f19",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf/route.go::BuildRoutes",
+      "producer-sha": "7beede9dd623825b",
+      "break": "body of BuildRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5305-4-1",
       "polarity": "positive",
       "unit": "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5305PrefixAboveMaxPathMetricNotConsidered",
@@ -99,6 +143,28 @@
       "producer": "internal/plugins/isis/packet/tlv_ipv4.go::WriteTo",
       "producer-sha": "6a861c3d37aec2b6",
       "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-4.3-4",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc5305_no_host_route_test.go::TestRFC5305TEAddressesInjectNoHostRoute",
+      "unit-sha": "1491b3fe5ead2515",
+      "claim-sha": "47d1d08bd7562b4e",
+      "route": "revert",
+      "producer": "internal/plugins/isis/bgpls_export.go::lsp",
+      "producer-sha": "6b91d6230513879b",
+      "break": "body of lsp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-4.3-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc5305_no_host_route_test.go::TestRFC5305TEAddressesLeaveOnlyReachabilityRoutes",
+      "unit-sha": "3b0b6601b6d4f1f2",
+      "claim-sha": "33309ce18a4e00fa",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf/route.go::BuildRoutes",
+      "producer-sha": "7beede9dd623825b",
+      "break": "body of BuildRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
