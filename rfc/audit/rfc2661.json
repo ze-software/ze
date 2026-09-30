@@ -2,6 +2,7 @@
   "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -37,8 +38,8 @@
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerZeroTunnelIDRefused": "c0e9ed1fbd858625",
         "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_MaxUint16": "99bdcf87bcb0dfa3",
         "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_Zero": "99bdcf87bcb0dfa3",
-        "internal/component/l2tp/tunnel_initiator_test.go::TestParseSCCRP_Rejects": "5d58b580cd1af8b6",
-        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "5d58b580cd1af8b6",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestParseSCCRP_Rejects": "fb2f8aaa2ddb2a00",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "fb2f8aaa2ddb2a00",
         "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci": "aca9894b4579f5a6",
         "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#2": "aca9894b4579f5a6"
       },
@@ -123,8 +124,8 @@
       "note": "TestUnrecognizedMandatoryAVPInHelloClearsTunnel drives handleMessage with a HELLO on an established tunnel holding one session, for a vendor AVP, an undefined IETF type and a reserved-bit AVP: M=1 sends one StopCCN, clears the session and closes the tunnel; M=0 sends nothing and keeps both. This closes the '(and all sessions within)' clause the earlier verdict found missing. TestTunnelSCCCNUnknownMandatoryAVP_StopCCN keeps the SCCCN case; TestTunnelInitiatorHandshake is the clean-exchange positive. Producer checked: parseHello/handleHello (Error Code 8), parseSCCCN/parseStopCCN/parseSCCRP branch on FlagUnrecognized, handleStopCCN now closes on a malformed StopCCN.",
       "requirement_sha": "44d2c6a04226b6d2",
       "tests": {
-        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "5d58b580cd1af8b6",
-        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN": "5d58b580cd1af8b6",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "fb2f8aaa2ddb2a00",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN": "fb2f8aaa2ddb2a00",
         "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel": "beb7a378ea5d3333",
         "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel#2": "beb7a378ea5d3333"
       },
@@ -324,15 +325,16 @@
       "verdict": "enforced"
     },
     "RFC2661-7.1-1": {
-      "note": "Judge 2026-09-30 (cont 8, D-8 fix). Section 7.1 counts a message in an improper sequence as invalid; the section 7.2.1 rows 'wait-ctl-conn Receive SCCRP, SCCRQ Send StopCCN, Clean up' and 'established Receive SCCRQ, SCCRP, SCCCN Send StopCCN Clean up' are now followed: handleSCCRQ/handleSCCRP call clearImproperSequence (Warn naming type and state, StopCCN RC 1, sessions cleared). + TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection (both messages x both states: one StopCCN, 0 sessions, closed, WARN), + TestRFC2661OutOfOrderSCCCNClearsControlConnection, + TestRFC2661InvalidOrMalformedMessageClearsControlConnection (malformed, unknown M=1 type). - TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection (SCCRQ in idle -> SCCRP, SCCRP in wait-ctl-reply -> SCCCN, no WARN, no StopCCN). Records observed red on every unit. Engine dedup keeps a retransmitted SCCRQ (same Ns) from reaching handleSCCRQ, so no false clear on retransmit. Outside this row: the section 7.2.1 'idle Receive SCCRP Send StopCCN' row (a stray SCCRP is dropped at Debug, nothing to clear) is journaled in plan/journal/silent-fall-through.md.",
+      "note": "Judge 2026-09-30 (access cont 10, independent). Adds the \u00a77.2.1 idle row 'idle Receive SCCRP Send StopCCN Clean up idle' (D-8 fixed in handleSCCRP, producer read: parse the SCCRP, adopt its Assigned Tunnel ID when it parses, clearImproperSequence). + TestRFC2661StraySCCRPInIdleSendsStopCCN: one StopCCN addressed to TID 5, tunnel closed, WARN logged; failing-first observed. Existing units unchanged: + TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection, TestRFC2661OutOfOrderSCCCNClearsControlConnection, TestRFC2661InvalidOrMalformedMessageClearsControlConnection; - TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection. Every unit carries an observed-red record. By main-thread decision an SCCRP whose header names a tunnel ID Ze never allocated stays dropped at the reactor (no tunnel state; answering would reflect to an unauthenticated source), disclosed in docs/architecture/wire/l2tp.md.",
       "requirement_sha": "947a54aca921510b",
       "tests": {
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection": "c0e9ed1fbd858625",
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection#2": "c0e9ed1fbd858625",
         "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection": "a707da59110efbb3",
         "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection#2": "a707da59110efbb3",
-        "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection": "9421cfe2fb92d4fb",
-        "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection": "9421cfe2fb92d4fb"
+        "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection": "42e0ab939c81b1ca",
+        "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection": "42e0ab939c81b1ca",
+        "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661StraySCCRPInIdleSendsStopCCN": "42e0ab939c81b1ca"
       },
       "units": {
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection": "c8f2f2254c65393d",
@@ -340,7 +342,8 @@
         "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection": "8d2cdc7dfe6556fe",
         "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection#2": "8d2cdc7dfe6556fe",
         "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection": "92fb896fd0809edc",
-        "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection": "7fa0f405a1240534"
+        "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection": "7fa0f405a1240534",
+        "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661StraySCCRPInIdleSendsStopCCN": "2d83bbdd193758d7"
       },
       "verdict": "enforced"
     },

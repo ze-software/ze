@@ -496,9 +496,12 @@ func TestRFC5176MessageAuthenticatorZeroesBothFields(t *testing.T) {
 // RFC requirement: RFC5176-3.5-5 positive -- every NAK this listener emits carries an
 // Error-Cause in the 400-599 range, which RFC 5176 Section 3.5 reserves for the fatal
 // errors a NAK reports.
-// RFC requirement: RFC5176-3.5-5 negative -- no ACK carries an Error-Cause at all, and
-// no response carries 201, 202 or 502, which Section 3.5 places elsewhere or forbids a
-// NAS to send.
+// RFC requirement: RFC5176-3.5-5 negative -- no CoA-ACK or Disconnect-ACK carries an
+// Error-Cause at all, so no 400-499 or 500-599 value is ever sent within an ACK.
+//
+// The table also refuses 201, 202 and 502 in any response. Those are the
+// RFC5176-3.5-6, 3.5-7 and 3.5-8 obligations, proven per row in
+// rfc5176_section_rows_test.go.
 func TestRFC5176ErrorCausePlacement(t *testing.T) {
 	secret := []byte("test-rfc5176-cause-secret")
 	fake := oneSessionService()

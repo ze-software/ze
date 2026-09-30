@@ -553,6 +553,28 @@
     },
     {
       "rid": "RFC2516-x-9",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling",
+      "unit-sha": "c0ef633ee66199ff",
+      "claim-sha": "138d9e743e1e2fcc",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/dialer.go::pppoeSessionMTU",
+      "producer-sha": "6de41697a3b729b9",
+      "break": "body of pppoeSessionMTU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-9",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling",
+      "unit-sha": "0d5be0e316d6add3",
+      "claim-sha": "00fee310ab786c1e",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/dialer.go::pppoeSessionMTU",
+      "producer-sha": "6de41697a3b729b9",
+      "break": "body of pppoeSessionMTU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-9",
       "polarity": "positive",
       "unit": "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling",
       "unit-sha": "bdc86c8691186ff7",

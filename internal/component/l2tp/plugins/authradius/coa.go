@@ -527,9 +527,11 @@ func (cl *coaListener) handleDisconnect(pkt *radius.Packet, from *net.UDPAddr) {
 		// PPPoE disconnect: look up the PPPoE subsystem and tear down.
 		// The PPP driver's StopSession triggers EventSessionDown which
 		// cleans up the subscriber registry via the event consumer.
+		// The session was located and this NAS cannot remove it, which is RFC 5176
+		// Section 3.5's 504 (Session Context Not Removable), not 503.
 		logger().Info("coa: disconnect-request for PPPoE session not yet wired to PPPoE teardown",
 			"subscriber", subSess.ID, "from", from)
-		cl.sendResponse(from, pkt, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotFound)
+		cl.sendResponse(from, pkt, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotRemovable)
 		return
 	}
 
@@ -546,9 +548,14 @@ func (cl *coaListener) handleDisconnect(pkt *radius.Packet, from *net.UDPAddr) {
 
 	// RFC 5176 Section 2.3: "a NAS MUST send a Disconnect-NAK in reply if any of
 	// the matching sessions cannot be successfully terminated."
+	// RFC 5176 Section 3.5: "\"Session Context Not Removable\" is a fatal error
+	// sent in response to a Disconnect-Request if the NAS was able to locate the
+	// session context, but could not remove it for some reason. It MUST NOT be
+	// sent within a CoA-ACK, CoA-NAK, or Disconnect-ACK, only within a
+	// Disconnect-NAK." The session was found, so 503 would misreport it.
 	if err := svc.TeardownSession(sid); err != nil {
 		logger().Warn("coa: teardown failed", "session", sid, "error", err)
-		cl.sendResponse(from, pkt, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotFound)
+		cl.sendResponse(from, pkt, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotRemovable)
 		return
 	}
 

@@ -94,13 +94,17 @@ Result Code 1, and clears every session.
 | Message | States that clear the connection |
 |---------|----------------------------------|
 | SCCRQ | `wait-ctl-conn`, `established` |
-| SCCRP | `wait-ctl-conn`, `established` |
+| SCCRP | `idle`, `wait-ctl-conn`, `established` |
 | SCCCN | `wait-ctl-reply`, `established` |
 
+An SCCRP on an idle tunnel follows the RFC's idle row ("Send StopCCN"): the
+tunnel sent no SCCRQ, so the StopCCN goes to the tunnel ID the SCCRP assigned.
 An SCCRQ colliding with Ze's own in `wait-ctl-reply` is the tie-breaker case,
-resolved by the reactor before dispatch. An SCCRP or SCCCN on an idle tunnel,
-and any of the three on a closed one, is dropped with a debug log: there is no
-connection left to clear.
+resolved by the reactor before dispatch. An SCCCN on an idle tunnel (the RFC
+row says only "Clean up"), and any of the three on a closed one, is dropped
+with a debug log. An SCCRP whose header names a tunnel ID Ze has not
+allocated reaches no tunnel at all: the reactor drops it with a debug log
+and sends no StopCCN.
 <!-- source: internal/component/l2tp/tunnel_fsm.go -- handleStopCCN, closeOnPeerStopCCN, handleSCCCN, handleSCCRQ, clearImproperSequence -->
 <!-- source: internal/component/l2tp/tunnel_initiator.go -- handleSCCRP -->
 

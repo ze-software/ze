@@ -14,6 +14,7 @@ package l2tp
 import (
 	"bytes"
 	"log/slog"
+	"net/netip"
 	"testing"
 	"time"
 )
@@ -124,5 +125,43 @@ func TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection(t *testing.T) {
 		if bytes.Contains(logs.Bytes(), []byte("level=WARN")) {
 			t.Fatalf("%s: in-sequence message logged a warning: %q", tc.name, logs.String())
 		}
+	}
+}
+
+// TestRFC2661StraySCCRPInIdleSendsStopCCN delivers an SCCRP to a tunnel that
+// never sent an SCCRQ, so no peer tunnel ID is known yet.
+//
+// RFC 2661 Section 7.2.1 table row: "idle  Receive SCCRP  Send StopCCN
+// Clean up  idle".
+//
+// RFC requirement: RFC2661-7.1-1 positive -- an SCCRP received in idle is a
+// message in an improper sequence: handleMessage logs it at warning level,
+// sends one StopCCN addressed to the tunnel ID the SCCRP assigned (5), and
+// leaves the tunnel closed.
+func TestRFC2661StraySCCRPInIdleSendsStopCCN(t *testing.T) {
+	var logs bytes.Buffer
+	tun := newTunnel(100, 0, netip.MustParseAddrPort("10.0.0.2:1701"),
+		ReliableConfig{RecvWindow: 8}, slog.New(slog.NewTextHandler(&logs, nil)), time.Now())
+	entry := RecvEntry{MessageType: uint16(MsgSCCRP), Payload: sccrpBody(), MessageTypeMandatory: true}
+
+	out := tun.handleMessage(entry, time.Now(), TunnelDefaults{}, nil)
+	if len(out) != 1 {
+		t.Fatalf("SCCRP in idle: %d datagrams, want one StopCCN", len(out))
+	}
+	if mt := sentMessageType(t, out[0].bytes); mt != MsgStopCCN {
+		t.Fatalf("SCCRP in idle: answered with message type %d, want StopCCN", mt)
+	}
+	hdr, err := ParseMessageHeader(out[0].bytes)
+	if err != nil {
+		t.Fatalf("StopCCN header: %v", err)
+	}
+	if hdr.TunnelID != 5 {
+		t.Fatalf("StopCCN addressed to tunnel %d, want 5 (the SCCRP's Assigned Tunnel ID)", hdr.TunnelID)
+	}
+	if tun.state != L2TPTunnelClosed {
+		t.Fatalf("SCCRP in idle: tunnel %s, want closed", tun.state)
+	}
+	if !bytes.Contains(logs.Bytes(), []byte("level=WARN")) {
+		t.Fatalf("SCCRP in idle: nothing logged at warning level: %q", logs.String())
 	}
 }

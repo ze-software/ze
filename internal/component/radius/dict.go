@@ -163,9 +163,14 @@ const (
 	// with an unsupported value".
 	ErrorCauseInvalidAttributeValue = 407
 	ErrorCauseSessionNotFound       = 503
+	// ErrorCauseSessionNotRemovable (504): RFC 5176 Section 3.5, "a fatal
+	// error sent in response to a Disconnect-Request if the NAS was able to
+	// locate the session context, but could not remove it for some reason."
+	// Ze sends it when the matched session's teardown is refused.
+	ErrorCauseSessionNotRemovable = 504
 	// ErrorCauseResourcesUnavailable (506) and
-	// ErrorCauseMultiSessionUnsupported (508) are the two 500-series values ze
-	// emits: the NAS could not carry out the authorization change, and the
+	// ErrorCauseMultiSessionUnsupported (508) are the other 500-series values
+	// ze emits: the NAS could not carry out the authorization change, and the
 	// identification attributes selected more than one session.
 	ErrorCauseResourcesUnavailable    = 506
 	ErrorCauseMultiSessionUnsupported = 508

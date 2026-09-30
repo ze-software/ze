@@ -90,9 +90,21 @@ func (t *L2TPTunnel) handleSCCRP(now time.Time, defaults TunnelDefaults, payload
 		// SCCCN  Send StopCCN Clean up  idle".
 		return t.clearImproperSequence(now, MsgSCCRP)
 	}
+	if t.state == L2TPTunnelIdle {
+		// RFC 2661 Section 7.2.1: "idle  Receive SCCRP  Send StopCCN
+		// Clean up  idle". This tunnel sent no SCCRQ, so it knows no peer
+		// tunnel ID: address the StopCCN to the one the SCCRP assigned. A
+		// malformed SCCRP names none, and its StopCCN carries Tunnel ID 0.
+		sccrp, err := parseSCCRP(payload)
+		if err == nil {
+			t.remoteTID = sccrp.AssignedTunnelID
+			t.engine.setPeerTunnelID(sccrp.AssignedTunnelID)
+		}
+		return t.clearImproperSequence(now, MsgSCCRP)
+	}
 	if t.state != L2TPTunnelWaitCtlReply {
-		// idle holds no connection to clear, and closed is already cleared.
-		t.logger.Debug("l2tp: SCCRP on non-wait-ctl-reply tunnel ignored", "state", t.state.String())
+		// closed is already cleared.
+		t.logger.Debug("l2tp: SCCRP on closed tunnel ignored", "state", t.state.String())
 		return nil
 	}
 	sccrp, err := parseSCCRP(payload)

@@ -1,11 +1,13 @@
 // Design: docs/architecture/l2tp/cpe-1-pppoe-client.md -- PPPoE client discovery dialer
 // Related: session.go -- LCP/auth/NCP negotiation invoked after discovery
+// RFC: rfc/short/rfc2516.md
 
 package pppoeclient
 
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -21,6 +23,37 @@ import (
 const discoveryTimeout = 10 * time.Second
 
 var errDiscoveryTimeout = errors.New("pppoeclient: discovery timeout")
+
+// sessionMTUMax is the largest MRU RFC 2516 lets LCP negotiate, and the MTU a
+// session runs with when its config names none. The iface config refuses a
+// PPPoE client MTU outside sessionMTUMin..sessionMTUMax too: the two checks
+// are a pair, so a caller that skips the config still cannot pass 1500.
+const (
+	sessionMTUMin = 68
+	sessionMTUMax = 1492
+)
+
+var errSessionMTURange = errors.New("pppoeclient: session mtu out of range 68..1492")
+
+// RFC 2516 Section 7: "The Maximum-Receive-Unit (MRU) option MUST NOT be
+// negotiated to a larger size than 1492."
+//
+// pppoeSessionMTU answers the MTU a client session negotiates LCP with: 1492
+// when configured is zero (no MTU configured), configured itself inside
+// 68..1492, and errSessionMTURange otherwise. negotiateLCP proposes this
+// value as the client's MRU and caps the Access Concentrator's MRU by it.
+func pppoeSessionMTU(configured int) (uint16, error) {
+	if configured == 0 {
+		return sessionMTUMax, nil
+	}
+	if configured < sessionMTUMin {
+		return 0, fmt.Errorf("%w: %d", errSessionMTURange, configured)
+	}
+	if configured > sessionMTUMax {
+		return 0, fmt.Errorf("%w: %d", errSessionMTURange, configured)
+	}
+	return uint16(configured), nil
+}
 
 // readDiscoveryFrame reads one discovery frame. A package variable so a
 // test can substitute a fake without opening a real AF_PACKET socket.
@@ -42,6 +75,12 @@ type Dialer struct{}
 // setup. Returns a PPPoESession with open file descriptors. The caller
 // must invoke Cleanup when the session is no longer needed.
 func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logger *slog.Logger) (iface.PPPoESession, error) {
+	// RFC 2516 Section 7: the session MTU bounds the MRU LCP negotiates.
+	mtu, err := pppoeSessionMTU(cfg.MTU)
+	if err != nil {
+		return iface.PPPoESession{}, err
+	}
+
 	ifindex, hwaddr, _, err := pppoe.ResolveInterface(cfg.SourceInterface)
 	if err != nil {
 		return iface.PPPoESession{}, err
@@ -151,10 +190,6 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		})
 	}
 
-	mtu := uint16(cfg.MTU)
-	if mtu == 0 {
-		mtu = 1492
-	}
 	sessCfg := sessionConfig{
 		mtu:      mtu,
 		username: cfg.Username,

@@ -238,16 +238,18 @@ func TestInitiatorChallengeReject(t *testing.T) {
 
 func TestInitiatorSCCRPWrongState(t *testing.T) {
 	// VALIDATES: an SCCRP delivered to a tunnel that never dialed (idle) is
-	// ignored, not acted upon.
+	// never acted upon as a reply: even a malformed one clears the control
+	// connection with a StopCCN (RFC 2661 Section 7.2.1 idle row) and the
+	// tunnel never reaches established.
 	logger := slog.Default()
 	now := time.Now()
 	defaults := initiatorDefaults("")
 	tun := newTunnel(100, 200, netip.MustParseAddrPort("10.0.0.2:1701"),
 		ReliableConfig{RecvWindow: 8}, logger, now)
-	// idle tunnel: handleSCCRP must no-op.
 	out := tun.handleSCCRP(now, defaults, []byte{})
-	require.Nil(t, out)
-	require.Equal(t, L2TPTunnelIdle, tun.state)
+	require.Len(t, out, 1, "a StopCCN is emitted")
+	require.Equal(t, MsgStopCCN, sentMessageType(t, out[0].bytes))
+	require.Equal(t, L2TPTunnelClosed, tun.state)
 }
 
 // RFC requirement: RFC2661-4.1-4 negative -- an unrecognized mandatory (M=1)

@@ -75,7 +75,12 @@ The reader and negotiation buffers allow a 1500-octet Information field
 plus its two-octet Protocol field. The kernel receive MRU remains 1500;
 the outgoing IP MTU is bounded by both the peer's MRU and the configured
 PPPoE MTU, including when the peer omits its MRU option.
-<!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial -->
+`Dial` takes the session MTU from `pppoeSessionMTU`: 1492 when none is
+configured, and a refusal for anything outside 68..1492 before discovery
+starts. The iface config refuses the same range, and the check is repeated
+here because RFC 2516 Section 7 forbids negotiating an MRU above 1492, and
+the session MTU is the MRU the client proposes.
+<!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial, pppoeSessionMTU -->
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- startReader, negotiateSession -->
 
 **Session loss stops transport, not unit ownership.** A PADT or keepalive failure

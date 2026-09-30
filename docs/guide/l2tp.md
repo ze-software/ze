@@ -634,6 +634,7 @@ a NAK carrying an Error-Cause.
 | The identification attributes match exactly one session | NAK 503 for none, NAK 508 for several |
 | Every part of the requested change can be carried out (a CoS profile needs an access interface) | NAK 506 |
 | The requested change reached the shaper | NAK 506 |
+| Disconnect-Request: the matched session was torn down | NAK 504 |
 
 A CoA-Request is atomic, as RFC 5176 Section 2.3 requires. Ze makes every check
 before the first change leaves, so a NAK never follows a partial change. A
