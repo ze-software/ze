@@ -138,6 +138,9 @@ const protocolIPv4Config = `{"isis":{"net":"49.0001.0000.0000.0001.00","interfac
 // RFC requirement: RFC1195-5.2-1 positive -- the Protocols Supported TLV 129 is
 // present, with NLPID 0xCC, in the IIH each interface transmits and in the node's
 // LSP number 0.
+// RFC requirement: RFC3787-x-2 positive -- the IP-capable node generates the
+// Protocols Supported TLV with the IP protocol (NLPID 0xCC) in the IIH each
+// interface transmits and in its LSP number 0, both decoded from the bytes.
 func TestRFC1195NodeProtocolsAcrossInterfaces(t *testing.T) {
 	eng, backend := protocolEngine(t, protocolDualConfig)
 	want := []byte{packet.NLPIDIPv4, packet.NLPIDIPv6}
@@ -238,6 +241,8 @@ func protocolPeerISH(t *testing.T, password string) []byte {
 // and an ISH delivered through the production dispatcher initializes its peer.
 // RFC requirement: RFC1195-5.2-1 positive -- the ISO 9542 ISH the point-to-point
 // circuit transmits carries the Protocols Supported TLV 129 with NLPID 0xCC.
+// RFC requirement: RFC3787-x-2 positive -- the transmitted ISH carries the
+// Protocols Supported TLV generated with the IP protocol (NLPID 0xCC).
 func TestRFC1195ISHTransmitReceive(t *testing.T) {
 	eng, backend := protocolEngine(t, protocolP2PConfig)
 	c := protocolLiveCircuit(t, eng, "eth0")

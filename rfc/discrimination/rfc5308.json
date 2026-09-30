@@ -57,6 +57,50 @@
       "break": "body of ipv6InterfaceAddrTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5308-3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308HelloAddressIsTheInterfaceLinkLocal",
+      "unit-sha": "d56efb363ebff221",
+      "claim-sha": "bd55b152e9d4d74a",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuits.go::interfaceIPv6LinkLocal",
+      "producer-sha": "8561d3338ff6d530",
+      "break": "body of interfaceIPv6LinkLocal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5308-3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308HelloAddressIsTheInterfaceLinkLocal",
+      "unit-sha": "d56efb363ebff221",
+      "claim-sha": "e1114a7a2fe430fc",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuits.go::interfaceIPv6LinkLocal",
+      "producer-sha": "8561d3338ff6d530",
+      "break": "body of interfaceIPv6LinkLocal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5308-3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal",
+      "unit-sha": "478ac8990376e3f8",
+      "claim-sha": "fc25a72ff2befff7",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuits.go::interfaceIPv6NonLinkLocal",
+      "producer-sha": "ab2b5fcc69d234ba",
+      "break": "body of interfaceIPv6NonLinkLocal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5308-3-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal",
+      "unit-sha": "478ac8990376e3f8",
+      "claim-sha": "9d8cfb85f13edf4a",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuits.go::interfaceIPv6NonLinkLocal",
+      "producer-sha": "ab2b5fcc69d234ba",
+      "break": "body of interfaceIPv6NonLinkLocal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5308-4-1",
       "polarity": "positive",
       "unit": "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5308HelloNLPIDIs142",

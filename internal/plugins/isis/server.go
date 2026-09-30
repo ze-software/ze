@@ -299,6 +299,9 @@ type engine struct {
 	// {level,interface}; incremented at the verify-reject site. isis-13 only
 	// scrapes it.
 	authFailures metrics.CounterVec
+	// authWarn rate-limits the auth-failure Warn line verifyFrame logs (RFC 5310
+	// sec 3.5 error event) to one per circuit and level per authFailWarnInterval.
+	authWarn *authWarnLimiter
 
 	// origMu serializes the engine's own-LSP origination reaction (lsdb_wiring.go
 	// originate()). originate() is called from many goroutines (every adjacency
@@ -366,6 +369,7 @@ func newEngine(t *transport.Transport) *engine {
 		disElections:  metrics.NopRegistry{}.CounterVec("", "", nil),
 		pseudonodeG:   metrics.NopRegistry{}.GaugeVec("", "", nil),
 		authFailures:  metrics.NopRegistry{}.CounterVec("", "", nil),
+		authWarn:      newAuthWarnLimiter(time.Now),
 		lspReorigs:    metrics.NopRegistry{}.CounterVec("", "", nil),
 		ctx:           ctx,
 		cancel:        cancel,

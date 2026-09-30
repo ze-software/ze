@@ -35,11 +35,38 @@ The condition for reaching Up differs by medium and lives in one place:
 | Medium | Up condition |
 |--------|--------------|
 | LAN | the neighbor's TLV 6 SNPA list contains our own SNPA |
-| Point-to-point, TLV 240 ever seen | the neighbor reports Up or Initializing **and** echoes our system ID (RFC 5303) |
+| Point-to-point, TLV 240 ever seen | the RFC 5303 section 3.2 state table below |
 | Point-to-point, no TLV 240 ever seen | implicit two-way fallback (RFC 5303 section 3.2) |
 
 Whether TLV 240 was ever seen is **sticky** per adjacency, so a three-way-capable
 peer is never silently downgraded to the legacy path.
+
+On a point-to-point circuit the adjacency state is the three-way state. A new
+adjacency starts in Down, and each Hello from a three-way peer applies one cell
+of the RFC 5303 table, with the row our current state and the column the state
+the neighbor reported in its TLV 240:
+
+| Our state | Received Down | Received Initializing | Received Up |
+|-----------|---------------|-----------------------|-------------|
+| Down | Initializing | Up | Down, record deleted |
+| Initializing | Initializing | Up | Up |
+| Up | Initializing | Up (Accept) | Up (Accept) |
+
+A new adjacency that receives Up is a neighbor still holding the adjacency from
+before one of the two systems restarted. It is not brought Up: the record is
+marked for deletion at the next sweep, and the neighbor sees Down in our next
+Hello and restarts the handshake. The RFC's "Neighbor restarted" event is not
+raised (RFC5303-3.2-12).
+
+On the Up row, a received Down moves the adjacency to Initializing. The RFC
+generates no adjacency event there, but Ze still raises its internal session-down
+notice, because an adjacency that leaves Up must be withdrawn from the LSP and
+from SPF. Two cases the RFC discards, a TLV 240 whose Neighbor System ID is not
+ours and an invalid state value, set Initializing instead (RFC5303-3.2-7,
+RFC5303-3.2-9).
+
+<!-- source: internal/plugins/isis/adjacency/fsm.go -- threeWayTableAction, applyThreeWayAction -->
+
 
 ## Decision: padding is owned by the engine
 

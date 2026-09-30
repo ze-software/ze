@@ -33,6 +33,28 @@
       "producer": "internal/plugins/isis/packet/tlv_opaque.go::DecodeTLVs",
       "producer-sha": "28f97de83c0d82b9",
       "break": "body of DecodeTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3787-x-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive",
+      "unit-sha": "f1a2526422b8829f",
+      "claim-sha": "c4a789ad489e3ec5",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+      "producer-sha": "1d45130d31599694",
+      "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3787-x-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces",
+      "unit-sha": "e063b6b3b89f9e14",
+      "claim-sha": "16ac29fc3bc11a97",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+      "producer-sha": "1d45130d31599694",
+      "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

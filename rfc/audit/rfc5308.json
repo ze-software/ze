@@ -45,34 +45,42 @@
       "verdict": "enforced"
     },
     "RFC5308-3-1": {
-      "note": "(a) forbidden: a Hello TLV 232 carrying a non-link-local address, or a link-local address not assigned to the sending interface. (b) circuit TestRFC5308HelloTLV232IsTheSendingCircuitLinkLocal now closes the fixed-address encoder gap: circuits configured with fe80::1 and fe80::a:b each send exactly their own 16 octets in TLV 232 (recorded + on hello.go ipv6InterfaceAddrTLV); TestISISIIHTLV232RejectsNonLinkLocal and TestISISIIHTLV232LinkLocal cover the link-local-only clause. Still weak on 'assigned to the interface': the unit sets Circuit.ipv6LinkLocal by hand, and the production step that picks the address from the interface, circuits.go interfaceIPv6LinkLocal (iface.Addresses(ic.Name), first LinkLocal IPv6), has no tagged assertion, so a resolver that read another interface's addresses or chose a non-assigned address stays green. Missing: an engine-level unit over a test iface backend with two interfaces holding distinct link-local addresses, asserting each circuit's transmitted TLV 232.",
+      "note": "Re-judged 2026-09-30. (a) forbidden: a Hello TLV 232 carrying a non-link-local address, or a link-local address not assigned to the sending interface. (b) The earlier gap (the production address source untested) is closed: root TestRFC5308HelloAddressIsTheInterfaceLinkLocal registers a test iface backend (only the OS address list is fake; the resolver's link-local classification is real) with two interfaces holding distinct link-local addresses, and requires interfaceIPv6LinkLocal to return fe80::a:1 for isis-ll-a although its global address is listed first, and fe80::b:2 for isis-ll-b (positive); a global-only interface and an interface without ipv6-unicast yield none (negative). circuits.go builds each circuit's Config.IPv6LinkLocal from interfaceIPv6LinkLocal(ic) for that same interface, and circuit TestRFC5308HelloTLV232IsTheSendingCircuitLinkLocal proves each circuit sends exactly its own configured address; TestISISIIHTLV232RejectsNonLinkLocal and TestISISIIHTLV232LinkLocal cover the encoder's link-local-only guard. Recorded +/- on circuits.go interfaceIPv6LinkLocal.",
       "requirement_sha": "3dc58c2100e835b4",
       "tests": {
         "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232LinkLocal": "7485069b2f049b28",
         "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232OmittedNoLinkLocal": "7485069b2f049b28",
         "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232RejectsNonLinkLocal": "7485069b2f049b28",
-        "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5308HelloTLV232IsTheSendingCircuitLinkLocal": "103ec73a1dc2a973"
+        "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5308HelloTLV232IsTheSendingCircuitLinkLocal": "103ec73a1dc2a973",
+        "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308HelloAddressIsTheInterfaceLinkLocal": "be04b61f642e549b",
+        "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308HelloAddressIsTheInterfaceLinkLocal#2": "be04b61f642e549b"
       },
       "units": {
         "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232LinkLocal": "2a9073bd68ff9da0",
         "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232OmittedNoLinkLocal": "f044ef94d60042db",
         "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232RejectsNonLinkLocal": "52e8b0d0c48c1214",
-        "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5308HelloTLV232IsTheSendingCircuitLinkLocal": "3c2789b6e64ee530"
+        "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5308HelloTLV232IsTheSendingCircuitLinkLocal": "3c2789b6e64ee530",
+        "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308HelloAddressIsTheInterfaceLinkLocal": "fa8c308b289ab897",
+        "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308HelloAddressIsTheInterfaceLinkLocal#2": "fa8c308b289ab897"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5308-3-2": {
-      "note": "(a) forbidden: an LSP TLV 232 carrying a link-local address. (b) TestISISOriginateTLV232Scope errors on a link-local address in the decoded LSP TLV 232, but it pre-filters its input with lsdb.NonLinkLocalV6Addrs, which has no non-test caller. Production fills LevelState.InterfaceAddrsV6 from interfaceIPv6NonLinkLocal (lsdb_wiring.go), and Originator.Originate does not filter, so breaking the production filter leaves the tagged unit green.",
+      "note": "Re-judged 2026-09-30. (a) forbidden: an LSP TLV 232 carrying a link-local address. (b) The earlier gap (the production filter untested) is closed: root TestRFC5308LSPInterfaceAddressesAreNonLinkLocal runs the engine over the test iface backend with two IPv6 circuits and decodes fragment 0 at both levels, built by the production path (lsdb_wiring.go levelState -> interfaceIPv6NonLinkLocal -> Originate): TLV 232 is exactly [2001:db8:a::1] (positive), and neither fe80::a:1 (same circuit) nor fe80::b:2 (the other circuit's only IPv6 address) appears (negative). Recorded +/- on circuits.go interfaceIPv6NonLinkLocal. lsdb TestISISOriginateTLV232Scope remains tagged and pre-filters its input; it carries no weight.",
       "requirement_sha": "771c13db116d91bb",
       "tests": {
         "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV232Scope": "6f31da93ea46f1e7",
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV232Scope#2": "6f31da93ea46f1e7"
+        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV232Scope#2": "6f31da93ea46f1e7",
+        "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal": "be04b61f642e549b",
+        "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal#2": "be04b61f642e549b"
       },
       "units": {
         "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV232Scope": "9a13600ca234bff8",
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV232Scope#2": "9a13600ca234bff8"
+        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV232Scope#2": "9a13600ca234bff8",
+        "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal": "f19f054c90b535e9",
+        "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal#2": "f19f054c90b535e9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5308-4-1": {
       "note": "(a) forbidden: an IPv6-capable IS omitting the IPv6 NLPID from TLV 129, or advertising a value other than 142 (0x8E). (b) circuit TestRFC5308HelloNLPIDIs142 checks the transmitted dual-stack IIH's TLV 129 wire octets equal exactly cc 8e, against the literal rather than packet.NLPIDIPv6, closing the constant gap; TestISISProtocolsSupportedDualStack and TestISISIIHTLV232LinkLocal cover the advertise clause and the IPv4-only cases (TestISISProtocolsSupportedDualStack ipv4-only, TestISISIIHNoTLV232WhenIPv4Only) the absence when IPv6 is not supported. Recorded + on hello.go protocolsSupportedTLV.",

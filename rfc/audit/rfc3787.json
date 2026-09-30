@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC3787-x-1": {
       "note": "Receive path now driven: lsdb TestRFC1195UnknownTLVsFloodedUnchanged stores an LSP carrying TLV 131 via Flooder.ReceiveLSP (not refused) and floods it byte-identical with 131 present, so a receiver that refused, stripped or rewrote on 131 goes red. Packet TestISISIgnoreObsoleteTLVs131And133: DecodeTLVs returns no error and keeps 131 opaque (positive); the negative is the scope control, a recognized TLV 129 in the same region is still decoded to its NLPID, so a decoder that dropped the PDU content on meeting 131 goes red. Tag prose narrowed to 131 (sec 3.1). TLV 131 is an L2 LSP TLV, so no IIH input is owed. The 'recognized' constant loop cannot go red on any producer change and carries no weight here. Records: + ReceiveLSP, +/- DecodeTLVs.",
@@ -17,15 +17,19 @@
       "verdict": "enforced"
     },
     "RFC3787-x-2": {
-      "note": "Quote is now Section 9 (IP capable routers MUST generate a Protocol Supported TLV, and MUST include the IP protocol); the Section 10 TLV 132 obligation is reported split-needed. Clause 1 (generate TLV 129): TestISISIIHOriginationTLVs asserts hasTLV(TLVProtocolsSupported) on the LAN and P2P IIH, red on dropping it from hello.go:59. The same paragraph places the TLV in ISH and LSP number Zero too; no tagged unit reads the LSP 0 origination (lsdb/origination.go:534) or the ISH (circuit/ish.go:30). Clause 2 (IP included): TestISISHelloTLV132RequiresInterfaceAddr asserts NLPIDIPv4 in c.protocolsSupportedTLV(), the IIH/ISH builder only, not the LSP 0 value. No negative case targets the Section 9 sentence; the negative tag asserts TLV 132 omission, the Section 10 obligation.",
+      "note": "Re-judged 2026-09-30. Quote is Section 9 (IP capable routers MUST generate a Protocol Supported TLV, and MUST include the IP protocol). Positive now covers every place: circuit TestISISIIHOriginationTLVs (TLV 129 in the sent LAN and P2P IIH), root TestRFC1195NodeProtocolsAcrossInterfaces (TLV 129 with NLPID 0xCC in each interface's IIH and in LSP number 0, decoded from the bytes) and root TestRFC1195ISHTransmitReceive (the ISH's TLV 129 = 0xCC); recorded + on circuit/hello.go protocolsSupportedTLV. Still weak on the negative: the only negative tag, TestISISHelloTLV132RequiresInterfaceAddr, asserts TLV 132 omission, the Section 10 obligation, not this sentence. Ze is always IP-capable and has no refusal path, so R44 routes it: split the Section 10 clause into its own row, move that negative there (D-15), mark x-2 {single-polarity: positive}. Not yet done.",
       "requirement_sha": "a1deb68ee9a00995",
       "tests": {
-        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "d7548168f4479e87",
-        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "d7548168f4479e87"
+        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "59901d65bcf41614",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "59901d65bcf41614",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "fc999353e8eb0648",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "fc999353e8eb0648"
       },
       "units": {
         "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "98361a7a993bdde4",
-        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "587e5e4ddc6a8b42"
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "85a485646e83c042",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "14f35bf598ceaf3b",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "e56c9e796d3a92ca"
       },
       "verdict": "weak"
     }

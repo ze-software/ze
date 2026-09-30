@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5036-2.5.1-1": {
@@ -68,7 +68,7 @@
       "verdict": "enforced"
     },
     "RFC5036-2.6.1.2-2": {
-      "note": "The units show an egress FEC is mapped at once and a non-egress FEC with only a third-party binding is not mapped, but no unit shows the second half of the obligation: that the FEC IS mapped and passed upstream once a label from the downstream LSR arrives. A code that never maps a transit FEC passes both units.",
+      "note": "Re-judged 2026-09-30 under ruling R40. Forbidden: mapping a non-egress FEC with no existing mapping, and passing its label upstream, before a label from the downstream LSR arrives. TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel holds the negative: a non-egress FEC with only a third-party binding is not mapped and no label is sent upstream. TestRFC5036EgressFECMappedWithoutWaiting is the positive: the wait binds only non-egress FECs, so the egress FEC is mapped at once, and an implementation that refused every mapping goes red. The sentence is a prohibition; mapping a transit FEC once the downstream label arrives is not an obligation of this sentence, and transit mapping remains a Support-remaining gap of rfc5036.",
       "requirement_sha": "0a71a332a4cb1b43",
       "tests": {
         "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036EgressFECMappedWithoutWaiting": "e7121abddd61aae3",
@@ -78,7 +78,8 @@
         "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036EgressFECMappedWithoutWaiting": "b1ec24fb20f14c36",
         "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel": "829c896633a5c741"
       },
-      "verdict": "weak"
+      "upgrade_reason": "Ruling R40 (2026-09-30) reads this row as a MUST NOT that Ze meets by never mapping before the downstream label arrives. The earlier weak verdict required the unit to show the FEC IS mapped once the downstream label arrives, which is not what this sentence obliges; re-read of both units shows the prohibition held and the egress positive discriminates an always-refuse implementation.",
+      "verdict": "enforced"
     },
     "RFC5036-3.1-1": {
       "note": "Global uniqueness is an operator property; what ze owns is that every LDP Identifier it sends carries the configured lsr-id and that it refuses its own identifier from the wire. The positive now reads the header of a Hello sendHello puts on a real UDP socket and of the Initialization runSession sends on a session built by sessionConfigForAdj, both of which must carry the engine's 192.0.2.77, and a distinct-LSR Hello must form the adjacency. The negative shows a Hello carrying ze's own LSR ID forms no adjacency.",

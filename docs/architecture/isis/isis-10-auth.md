@@ -123,3 +123,18 @@ interop scenario.
 ## Owned metric
 
 `ze_isis_auth_failures_total{level,interface}`.
+
+## The logged error event
+
+RFC 5310 section 3.5 says an error event SHOULD be logged when the received
+authentication data does not match. The verify hook counts every failure in the
+metric above and logs a Warn line, `isis: auth verification failed, PDU
+discarded`, naming the interface, the level, the neighbor SNPA (the frame's
+source MAC), the PDU type and the reason. Warn is visible at the default log
+level. The line is rate-limited to one for each interface and level every
+10 seconds, so a neighbor sending forged PDUs at line rate cannot flood the log.
+The next line carries `suppressed`, the number of failures not logged since the
+previous one.
+
+<!-- source: internal/plugins/isis/auth_wiring.go -- verifyFrame -->
+<!-- source: internal/plugins/isis/auth_warn.go -- authWarnLimiter, authFailWarnInterval -->

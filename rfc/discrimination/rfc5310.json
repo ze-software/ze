@@ -97,7 +97,7 @@
       "claim-sha": "37ddb699f911f033",
       "route": "revert",
       "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
-      "producer-sha": "5b236d91fdfedb04",
+      "producer-sha": "8c136abedada6b8d",
       "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,29 @@
       "claim-sha": "8f2fbb47dc62ed21",
       "route": "revert",
       "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
-      "producer-sha": "5b236d91fdfedb04",
+      "producer-sha": "8c136abedada6b8d",
+      "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5310-3.5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/auth_warn_rfc5310_test.go::TestRFC5310MismatchWarnsRateLimited",
+      "unit-sha": "8fca4d26518daca2",
+      "claim-sha": "786788f62990ec25",
+      "route": "revert",
+      "producer": "internal/plugins/isis/auth_warn.go::allow",
+      "producer-sha": "1a6b1c0ca229865d",
+      "break": "body of allow replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5310-3.5-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/auth_warn_rfc5310_test.go::TestRFC5310MismatchWarnsRateLimited",
+      "unit-sha": "8fca4d26518daca2",
+      "claim-sha": "cef85663635008af",
+      "route": "revert",
+      "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
+      "producer-sha": "8c136abedada6b8d",
       "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

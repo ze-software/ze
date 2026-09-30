@@ -21,6 +21,7 @@
 package isis
 
 import (
+	"net"
 	"time"
 
 	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
@@ -224,8 +225,20 @@ func (e *engine) verifyFrame(rf transport.RawFrame) bool {
 		fail := e.authFailures
 		e.ksMu.RUnlock()
 		fail.With(ksLevelToken(level), iface).Inc()
-		e.log.Debug("isis: auth verification failed",
-			"interface", iface, "level", ksLevelToken(level), "reason", err.Error())
+		// RFC 5310 Section 3.5: "The calculated data is compared with the
+		// received authentication data in the PDU, and the PDU is discarded if
+		// the two do not match.  In such a case, an error event SHOULD be
+		// logged." Warn, so the event is visible at the default log level,
+		// rate-limited per circuit and level so a forging neighbor cannot flood
+		// the log; the counter above still counts every failure.
+		suppressed, ok := e.authWarn.allow(authWarnKey{iface: iface, level: level})
+		if !ok {
+			return false
+		}
+		e.log.Warn("isis: auth verification failed, PDU discarded",
+			"interface", iface, "level", ksLevelToken(level),
+			"neighbor-snpa", net.HardwareAddr(rf.SrcMAC[:]).String(), "pdu-type", uint8(pt),
+			"reason", err.Error(), "suppressed", suppressed)
 		return false
 	}
 	return true

@@ -141,33 +141,33 @@
       "verdict": "weak"
     },
     "RFC1195-4.4-2": {
-      "note": "Positive clauses are asserted: TestRFC1195ISHTransmitReceive fails if no ISH is sent to AllESs before the IIH or if a received ISH does not initialize the adjacency; the veth test covers the AF_PACKET path. The negatives (corrupt ISH, wrong circuit, wrong/missing password) prove neighbouring rules, not a failure to transmit or receive ISH, and the row has no {single-polarity} marker. ish_auth tests prove the per-link password (7-7). Re-judged 2026-09-30: TestRFC1195ISHTransmitReceive changed only by an added RFC1195-5.2-1 tag comment; the finding stands.",
+      "note": "Positive clauses are asserted: TestRFC1195ISHTransmitReceive fails if no ISH is sent to AllESs before the IIH or if a received ISH does not initialize the adjacency; the veth test covers the AF_PACKET path. The negatives (corrupt ISH, wrong circuit, wrong/missing password) prove neighbouring rules, not a failure to transmit or receive ISH, and the row has no {single-polarity} marker. ish_auth tests prove the per-link password (7-7). Re-judged 2026-09-30 (twice): TestRFC1195ISHTransmitReceive changed only by added RFC1195-5.2-1 and RFC3787-x-2 tag comments; the finding stands.",
       "requirement_sha": "8c66d07c7d1e3d6f",
       "tests": {
         "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHConfiguredPassword": "53ff993953928049",
         "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHWrongPassword": "53ff993953928049",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHRejectsCorruptionAndWrongCircuit": "8ef15f47b162b125",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "8ef15f47b162b125",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHRejectsCorruptionAndWrongCircuit": "fc999353e8eb0648",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "fc999353e8eb0648",
         "internal/plugins/isis/transport/ish_integration_linux_test.go::TestRFC1195ISHVethTransport": "dde962b1c6246aa3"
       },
       "units": {
         "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHConfiguredPassword": "5f12832206a0378f",
         "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHWrongPassword": "6a49678dca8c530b",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHRejectsCorruptionAndWrongCircuit": "1e254aaaf552ac6f",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "6d343718f2972a57",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "14f35bf598ceaf3b",
         "internal/plugins/isis/transport/ish_integration_linux_test.go::TestRFC1195ISHVethTransport": "84afac45bef8b1b8"
       },
       "verdict": "weak"
     },
     "RFC1195-4.4-3": {
-      "note": "Enabling IPv6 on one interface gives identical NLPIDs in both IIHs and the LSP; after reload no stale IPv6 capability remains on the unchanged circuit. Re-judged 2026-09-30: TestRFC1195NodeProtocolsAcrossInterfaces changed only by an added RFC1195-5.2-1 tag comment.",
+      "note": "Enabling IPv6 on one interface gives identical NLPIDs in both IIHs and the LSP; after reload no stale IPv6 capability remains on the unchanged circuit. Re-judged 2026-09-30 (twice): TestRFC1195NodeProtocolsAcrossInterfaces changed only by added RFC1195-5.2-1 and RFC3787-x-2 tag comments.",
       "requirement_sha": "df01baf86fc8de6e",
       "tests": {
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "8ef15f47b162b125",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsReload": "8ef15f47b162b125"
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "fc999353e8eb0648",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsReload": "fc999353e8eb0648"
       },
       "units": {
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "18e394a55516b315",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "e56c9e796d3a92ca",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsReload": "178ba95fda4334ef"
       },
       "verdict": "enforced"
@@ -194,19 +194,21 @@
       "verdict": "enforced"
     },
     "RFC1195-5.2-1": {
-      "note": "Single-polarity positive per the row. Now asserted: TLV 129 with NLPID 0xCC in the LAN IIH each interface transmits and in the node's LSP number 0 (root TestRFC1195NodeProtocolsAcrossInterfaces), in the ISO 9542 ISH a point-to-point circuit transmits (root TestRFC1195ISHTransmitReceive), and in LSP fragment 0 (lsdb TestISISOriginateOnAdjacencyUp); recorded + on circuit/hello.go protocolsSupportedTLV. Still weak on 'all IS-IS Hello packets': no unit carrying this tag asserts TLV 129 in a point-to-point IIH. TestRFC1195ISHTransmitReceive decodes the post-ISH P2P IIH but checks only its TLV 240, and circuit TestISISIIHOriginationTLVs, which does check TLV 129 in the P2P IIH, carries RFC3787-x-2 only. A buildP2PHello that dropped originationTLVs' TLV 129 stays green under this row's tags. Missing: a TLV 129 assertion on the transmitted P2P IIH in a unit tagged RFC1195-5.2-1.",
+      "note": "Re-judged 2026-09-30. Single-polarity positive per the row (Ze is unconditionally IP-capable). The earlier gap (no unit tagged for this row asserted TLV 129 in a point-to-point IIH) is closed: circuit TestISISIIHOriginationTLVs now carries this row's tag and asserts TLV 129 in the decoded sent L1 LAN IIH and P2P IIH. With root TestRFC1195NodeProtocolsAcrossInterfaces (TLV 129 with NLPID 0xCC in the IIH of each interface and in LSP number 0), root TestRFC1195ISHTransmitReceive (the ISH sent on a point-to-point circuit) and lsdb TestISISOriginateOnAdjacencyUp (LSP fragment 0), every place the sentence names is asserted. Recorded + on circuit/hello.go protocolsSupportedTLV.",
       "requirement_sha": "7dd876d267bd817e",
       "tests": {
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "59901d65bcf41614",
         "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "66ccab517853dff8",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "8ef15f47b162b125",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "8ef15f47b162b125"
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "fc999353e8eb0648",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "fc999353e8eb0648"
       },
       "units": {
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "85a485646e83c042",
         "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "8d1385b0faf90a94",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "6d343718f2972a57",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "18e394a55516b315"
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "14f35bf598ceaf3b",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "e56c9e796d3a92ca"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1195-5.2-2": {
       "note": "Single-polarity positive per the row. root TestRFC1195SameInterfaceAddressesBothLevels runs an L1L2 engine with two circuits on the connected-prefix test backend and requires fragment 0's TLV 132 at each level to be exactly {192.0.2.9, 198.51.100.9}: the engine path (lsdb_wiring.go levelState) that collects the router's own interface addresses into its LSPs is now exercised, closing the earlier gap (only the Originator was driven, with addresses the test supplied, and only the TLV type was checked). An engine that passed no addresses, or the wrong ones, goes red. Recorded + on levelState. lsdb TestISISOriginateOnAdjacencyUp remains tagged.",

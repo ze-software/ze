@@ -99,8 +99,9 @@ func l1l2P2PCircuit(t *testing.T) *Circuit {
 }
 
 // buildPeerP2PHello encodes a P2P IIH from the peer with the given circuit type
-// and a TLV 240 echoing OUR System ID (so the three-way handshake completes and
-// the adjacency reaches Up at the negotiated level). An L2-only circuit type
+// and a TLV 240 reporting Initializing and echoing OUR System ID (so the new
+// adjacency completes the three-way handshake and reaches Up at the negotiated
+// level). An L2-only circuit type
 // (CircuitL2) negotiates Level2; CircuitL1L2 negotiates Level1.
 func buildPeerP2PHello(t *testing.T, ct packet.CircuitType, ourSystemID types.SystemID) []byte {
 	t.Helper()
@@ -108,9 +109,11 @@ func buildPeerP2PHello(t *testing.T, ct packet.CircuitType, ourSystemID types.Sy
 	areaVal := []byte{byte(area.Len())}
 	areaVal = append(areaVal, area.Bytes()...)
 
-	// TLV 240: state Up + extended local circuit ID + neighbor echo (our System ID)
-	// + neighbor extended circuit ID. The neighbor echo proves the peer heard us.
-	tw := []byte{byte(packet.AdjThreeWayUp), 0, 0, 0, 0x09}
+	// TLV 240: state Initializing + extended local circuit ID + neighbor echo
+	// (our System ID) + neighbor extended circuit ID. Our new adjacency starts
+	// three-way Down, and the RFC 5303 sec 3.2 table maps Down + received
+	// Initializing to Up (received Up would be the restart action Down).
+	tw := []byte{byte(packet.AdjThreeWayInitializing), 0, 0, 0, 0x09}
 	tw = append(tw, ourSystemID[:]...)
 	tw = append(tw, 0, 0, 0, 0)
 

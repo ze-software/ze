@@ -24,6 +24,28 @@
       "break": "body of leakedToPrefixInfos replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2966-2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit",
+      "unit-sha": "1559e6b4fe763d20",
+      "claim-sha": "d5c9cc9c28cb955a",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb/encode.go::narrowIPReachEntryBytes",
+      "producer-sha": "5d4a7ae620aa3de2",
+      "break": "body of narrowIPReachEntryBytes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2966-2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit",
+      "unit-sha": "1559e6b4fe763d20",
+      "claim-sha": "e895a3b0e467f76b",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb_wiring.go::leakedToPrefixInfos",
+      "producer-sha": "f4832c3a5aef6c22",
+      "break": "body of leakedToPrefixInfos replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2966-3.2-1",
       "polarity": "negative",
       "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC2966EqualClassMembersCompareByMetric",

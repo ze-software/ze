@@ -148,6 +148,10 @@ func hasTLV(tlvs []packet.TLV, typ uint8) bool {
 // Address TLV (132), the mixed-environment interoperability TLVs RFC 3787 sec
 // 9/10 (RFC 1195) require in every Hello. The 129 value advertising the IPv4
 // NLPID is asserted by TestISISHelloTLV132RequiresInterfaceAddr.
+//
+// RFC requirement: RFC1195-5.2-1 positive -- the Protocols Supported TLV (129) is
+// included in every IS-IS Hello this circuit transmits: the originated L1 LAN IIH
+// and the P2P IIH, each decoded from the sent bytes, carry TLV 129.
 func TestISISIIHOriginationTLVs(t *testing.T) {
 	t.Run("LAN", func(t *testing.T) {
 		s := &fakeSender{mtu: 1500}

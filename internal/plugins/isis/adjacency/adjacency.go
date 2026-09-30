@@ -127,13 +127,14 @@ type Adjacency struct {
 	LastSeen time.Time
 
 	// reportedState is the neighbor's RFC 5303 three-way state from its last
-	// TLV 240 (P2P only). neighborSawUs reports whether the neighbor's TLV 240
-	// echoed OUR System ID / circuit (proving it heard us). sawTLV240 records
-	// whether the neighbor ever sent a TLV 240 at all, which selects the 3-way
-	// path versus the legacy implicit fall-back (RFC 5303 sec 3.2).
-	reportedState packet.AdjThreeWayState
-	neighborSawUs bool
-	sawTLV240     bool
+	// TLV 240 (P2P only), the column input of the RFC 5303 sec 3.2 state table.
+	// neighborNamesOther reports that the neighbor's TLV 240 carried a Neighbor
+	// System ID that is not ours. sawTLV240 records whether the neighbor ever
+	// sent a TLV 240 at all, which selects the state table versus the legacy
+	// implicit fall-back (RFC 5303 sec 3.2).
+	reportedState      packet.AdjThreeWayState
+	neighborNamesOther bool
+	sawTLV240          bool
 
 	// deleteAt is when the record is purged after going Down. Zero while Up or
 	// Initializing; set when the adjacency drops, to hold the record through the

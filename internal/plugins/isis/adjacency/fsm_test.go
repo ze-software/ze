@@ -394,9 +394,9 @@ func TestISISDownOnCircuitDown(t *testing.T) {
 }
 
 // RFC requirement: RFC5303-3.1-6 positive -- a system able to process the option
-// follows the three-way procedure: with a TLV 240 present, ReceiveHello
-// (fsm.go:207 bidirectional) withholds Up until the neighbor proves it heard us,
-// so an Up-reporting-but-no-echo neighbor stays Initializing.
+// follows the section 3.2 procedure: a new adjacency receiving a TLV 240 that
+// reports Up takes the state table's action "Down" (fsm.go threeWayTableAction),
+// so it stays Down, raises no session event, and is marked for deletion.
 // RFC requirement: RFC5303-3.1-6 negative -- the three-way procedure is engaged
 // by the option, not applied blanket: with NO TLV 240 the legacy ISO 10589
 // two-way adjacency forms on the first Hello with no echo at all.
@@ -409,8 +409,11 @@ func TestISISThreeWayProceduresEngagedByOption(t *testing.T) {
 		HasThreeWay: true,
 		ThreeWay:    packet.P2PThreeWayTLV{State: packet.AdjThreeWayUp, HasCircuitID: true}, // no neighbor echo
 	}, t0)
-	if tr.State != StateInitializing {
-		t.Fatalf("option present, no echo -> state %v, want initializing (procedure engaged)", tr.State)
+	if tr.State != StateDown || tr.SessionUp || tr.SessionDown {
+		t.Fatalf("option present, received Up on a new adjacency -> %+v, want Down with no session event (table action Down)", tr)
+	}
+	if withOpt.deleteAt.IsZero() || withOpt.deleteAt.After(t0) {
+		t.Fatalf("table action Down must mark the adjacency for deletion now, deleteAt=%v", withOpt.deleteAt)
 	}
 
 	noOpt := &Adjacency{State: StateDown}

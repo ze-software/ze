@@ -190,6 +190,8 @@ func ReceiveHello(adj *Adjacency, local Local, in HelloInput, now time.Time) Tra
 
 	// Decide the new state.
 	switch {
+	case local.Kind == KindP2P && adj.sawTLV240:
+		applyThreeWayAction(adj, threeWayTableAction(adj), now)
 	case bidirectional(adj, local, in):
 		adj.State = StateUp
 	default:
@@ -210,44 +212,146 @@ func ReceiveHello(adj *Adjacency, local Local, in HelloInput, now time.Time) Tra
 // the condition for the Up state.
 //
 //   - LAN: our SNPA appears in the neighbor's TLV 6 IS-Neighbors list.
-//   - P2P with TLV 240: RFC 5303 sec 3.2 -- the neighbor's reported state is Up
-//     or Initializing AND it echoed our System ID (neighborSawUs).
 //   - P2P legacy (no TLV 240 ever seen): the implicit two-way adjacency forms on
 //     the first Hello (a single Hello in each direction is enough).
+//
+// A P2P adjacency that has seen a TLV 240 never reaches here: the RFC 5303
+// sec 3.2 state table (threeWayTableAction) decides it.
 func bidirectional(adj *Adjacency, local Local, in HelloInput) bool {
 	switch local.Kind {
 	case KindBroadcast:
 		return slices.Contains(in.NeighborSNPAs, local.SNPA)
 	case KindP2P:
-		if !adj.sawTLV240 {
-			// Legacy peer: no three-way TLV ever sent. RFC 5303 sec 3.2 fall-back
-			// to the implicit adjacency -- hearing the neighbor's Hello is enough.
-			return true
-		}
-		// Three-way capable peer: reach Up only when the neighbor reports
-		// Up/Initializing AND echoed our System ID (it has heard us).
-		stateOK := adj.reportedState == packet.AdjThreeWayUp ||
-			adj.reportedState == packet.AdjThreeWayInitializing
-		return stateOK && adj.neighborSawUs
+		// RFC 5303 Section 3.2: "If it does not, the link is assumed to be
+		// functional in both directions, and the procedures described in
+		// section 8.2.4.2 are followed."
+		return !adj.sawTLV240
 	default:
 		return false
 	}
 }
 
+// threeWayAction is one action of the RFC 5303 sec 3.2 Adjacency Three-Way
+// State Table. The zero value is not an action: it is what the table answers
+// for a received state it has no column for.
+type threeWayAction uint8
+
+// Three-way state table actions.
+const (
+	threeWayActionUnspecified threeWayAction = iota
+	threeWayInitialize
+	threeWayUp
+	threeWayDown
+	threeWayAccept
+)
+
+// threeWayTableAction looks up the RFC 5303 sec 3.2 state table for adj: the
+// row is our current three-way state, which is the adjacency state on a P2P
+// circuit, and the column the neighbor's reported state from its last TLV 240.
+//
+// RFC 5303 Section 3.2: "In section 8.2.4.2 a and b, the action "Up" from state
+// tables 5, 6, 7, and 8 may create a new adjacency but the three-way state of
+// the adjacency SHALL be Down." A new adjacency is created in StateDown, so its
+// first Hello reads the Down row.
+//
+// RFC 5303 Section 3.2: "If the action taken from section 8.2.4.2 a or b is
+// "Up" or "Accept", the IS SHALL perform the action indicated by the new
+// adjacency three-way state table below, based on the current adjacency
+// three-way state and the received Adjacency Three-Way State value from the
+// option."
+//
+//	                      Received Adjacency Three-Way State
+//	                         Down       Initializing    Up
+//	                    --------------------------------------
+//	Down         |  Initialize        Up         Down
+//	Initializing |  Initialize        Up         Up
+//	Up           |  Initialize        Accept     Accept
+func threeWayTableAction(adj *Adjacency) threeWayAction {
+	// A Neighbor System ID that is not ours proves the neighbor heard someone
+	// else. RFC 5303 sec 3.2 discards such a PDU (RFC5303-3.2-9, a gap); until
+	// that discard exists the Hello proves nothing, so it takes the Initialize
+	// action it took before the table existed rather than any Up.
+	if adj.neighborNamesOther {
+		return threeWayInitialize
+	}
+	switch adj.reportedState {
+	case packet.AdjThreeWayDown:
+		return threeWayInitialize
+	case packet.AdjThreeWayInitializing:
+		if adj.State == StateUp {
+			return threeWayAccept
+		}
+		return threeWayUp
+	case packet.AdjThreeWayUp:
+		return threeWayOnReceivedUp(adj.State)
+	default:
+		// An invalid received state: RFC 5303 sec 3.2 discards the PDU
+		// (RFC5303-3.2-7, a gap). The table has no column for it.
+		return threeWayActionUnspecified
+	}
+}
+
+// threeWayOnReceivedUp is the "Up" column of the RFC 5303 sec 3.2 table.
+func threeWayOnReceivedUp(current State) threeWayAction {
+	switch current {
+	case StateDown:
+		return threeWayDown
+	case StateInitializing:
+		return threeWayUp
+	case StateUp:
+		return threeWayAccept
+	default:
+		return threeWayActionUnspecified
+	}
+}
+
+// applyThreeWayAction performs one RFC 5303 sec 3.2 table action on adj.
+func applyThreeWayAction(adj *Adjacency, action threeWayAction, now time.Time) {
+	switch action {
+	case threeWayDown:
+		// RFC 5303 Section 3.2: "If the new action is "Down", an
+		// adjacencyStateChange(Down) event is generated with the reason
+		// "Neighbor restarted" and the adjacency SHALL be deleted." The
+		// deletion is the Reap at the next sweep; the event is RFC5303-3.2-12,
+		// a gap. The row is Down, so no session was Up and no SessionDown fires.
+		adj.State = StateDown
+		adj.deleteAt = now
+	case threeWayUp:
+		// RFC 5303 Section 3.2: "If the new action is "Up", an
+		// adjacencyStateChange(Up) event is generated." classify reports it
+		// as SessionUp.
+		adj.State = StateUp
+	case threeWayAccept:
+		// Accept is reached only from the Up row: the adjacency stays Up.
+		adj.State = StateUp
+	case threeWayInitialize, threeWayActionUnspecified:
+		// RFC 5303 Section 3.2: "If the new action is "Initialize", no event is
+		// generated and the adjacency three-way state SHALL be set to
+		// "Initializing"."
+		// On the Up row classify still reports SessionDown. That is not an
+		// adjacencyStateChange event: it is Ze's internal notice that the
+		// adjacency left Up, which the LSP owner needs. rfc/full/iso-iec-10589.txt
+		// Section 9.4 lists among the events that "require regeneration": "an
+		// adjacency or circuit enters or leaves the Up state", and Section 7.5:
+		// "An Intermediate System that considers a link down MUST omit that
+		// link from its LSPs." The RFC's "no event is generated" is about the
+		// adjacencyStateChange event, not about withdrawing a non-Up adjacency.
+		adj.State = StateInitializing
+	}
+}
+
 // updateThreeWay folds the neighbor's TLV 240 into the adjacency's reported
 // state (RFC 5303 sec 3.1/3.2). A neighbor that has never sent a TLV 240 keeps
-// sawTLV240 false so the legacy fall-back applies; once it sends one we require
-// the full handshake. neighborSawUs is set when the neighbor's TLV 240 echoed
-// OUR System ID in its neighbor field (the 15-octet form), proving it heard us.
+// sawTLV240 false so the legacy fall-back applies; once it sends one the
+// sec 3.2 state table decides every later Hello. neighborNamesOther is set
+// when the neighbor's TLV 240 carries a Neighbor System ID that is not ours.
 func updateThreeWay(adj *Adjacency, local Local, in HelloInput) {
 	if !in.HasThreeWay {
 		return
 	}
 	adj.sawTLV240 = true
 	adj.reportedState = in.ThreeWay.State
-	// The neighbor echoes our System ID in the TLV 240 neighbor field when it has
-	// an adjacency to us; that echo is the proof it heard us.
-	adj.neighborSawUs = in.ThreeWay.HasNeighbor && in.ThreeWay.NeighborID == local.SystemID
+	adj.neighborNamesOther = in.ThreeWay.HasNeighbor && in.ThreeWay.NeighborID != local.SystemID
 }
 
 // classify maps a (previous, next) state pair to the session event flags.

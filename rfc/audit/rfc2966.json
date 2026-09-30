@@ -7,21 +7,25 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2966-2-1": {
-      "note": "Forbidden: an L1L2 router originating an L2-derived prefix in its L1 LSP with bit 8 of the default metric clear. RFC 2966 Section 2 defines the bit in the default metric field of TLVs 128 and 130 ('... field in TLVs 128 and 130 to be the up/down bit. L1L2 routers must set this bit to one ...'). root TestISISEngineLeakOrigination now decodes the engine's originated L1 LSP and requires the L2-derived prefix with the up/down bit set (positive) and the L1-derived prefix in the L2 LSP with it clear (negative), recorded +/- on lsdb_wiring.go leakedToPrefixInfos, but it decodes TLV 135 (wide metrics), whose up/down bit is RFC 5305 Section 4.1's. Narrow leaks keep TLV 128/130 (lsdb/origination.go, p.Narrow -> narrowIPReachEntryBytes), and no tagged unit decodes bit 8 of a narrow leaked entry, so an encoder that dropped UpDown on the narrow path stays green. spf TestISISLeakOriginationL1L2 proves the LeakedPrefix.UpDown flag only. Missing: a narrow-metric engine origination unit asserting bit 8 of the TLV 128/130 default metric.",
+      "note": "Re-judged 2026-09-30. Forbidden: an L1L2 router originating an L2-derived prefix in its L1 LSP with bit 8 of the default metric clear. The earlier gap (no unit read bit 8 of a narrow TLV 128/130 entry) is closed: root TestRFC2966NarrowLeakUpDownBit feeds applyLeak an L2->L1 internal and external narrow leak, decodes fragment 0 of the originated L1 LSP, and requires the raw default-metric octet of 10.2/24 in TLV 128 and 10.3/24 in TLV 130 to carry 0x80 with the 6-bit metric intact (positive); the L1-derived 10.1/24 leaked into L2 goes out in TLV 128 with bit 8 clear (negative). The chain is complete: spf TestISISLeakOriginationL1L2 proves leakInto sets UpDown only for the L2->L1 direction, TestISISEngineLeakOrigination carries it through the engine on TLV 135, and the new unit proves the narrow wire encoding. Recorded + on lsdb/encode.go narrowIPReachEntryBytes and +/- on lsdb_wiring.go leakedToPrefixInfos.",
       "requirement_sha": "02c0456492e68635",
       "tests": {
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "38b9fda7904587b3",
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "38b9fda7904587b3",
+        "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit": "c7b08620a3d6e9fb",
+        "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit#2": "c7b08620a3d6e9fb",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "a790301b58d73b23",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "a790301b58d73b23"
       },
       "units": {
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "86fa460856391370",
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "86fa460856391370",
+        "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit": "7473e8aaf26d2d61",
+        "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit#2": "7473e8aaf26d2d61",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "d20f48a434482076",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "d20f48a434482076"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2966-2-2": {
       "note": "Unchanged on re-read: TestISISLeakOriginationL1L2 gained only the RFC5305-4.1-1 tag comments. Forbidden behaviour: re-advertising into L2 a prefix learned via L1 with the up/down bit set. TestISISLeakOriginationL1L2 assertion 3 (hasPrefix(leak.IntoL2, alreadyDown) -> t.Errorf) goes red if leakInto stops skipping p.UpDown; the negative keeps a clear-bit L1 prefix leaking up (assertion 1), so a blanket drop also goes red. Both polarities in the one unit.",
